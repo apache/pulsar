@@ -38,18 +38,26 @@ class Events extends React.Component {
             </MarkdownBlock>
             <MarkdownBlock>
               - [ApacheCon @Home](https://hopin.to/events/apachecon-home)
+            </MarkdownBlock>
+            <MarkdownBlock>
               - [ApacheCon @Home Pulsar/BookKeeper track](https://www.apachecon.com/acah2020/tracks/pulsar.html)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Webinar: How to Operate Pulsar in Production](https://us02web.zoom.us/webinar/register/WN_xMt6QBJ9TWiyeVdifqKITg/)
+              - [Pulsar Training: Developing Pulsar Applications with Jesse Anderson](https://www.eventbrite.com/e/developing-pulsar-applications-online-training-tickets-122334542911)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Weekly TGIP](https://github.com/streamnative/tgip/)
+              - [Pulsar monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Weekly TGIP](https://github.com/streamnative/tgip/issues)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [SF Bay Area Apache Pulsar Meetup](https://www.meetup.com/SF-Bay-Area-Apache-Pulsar-Meetup/)
             </MarkdownBlock>
             <h2><translate>Groups</translate></h2>
-            <MarkdownBlock>
-              - [Apache Pulsar Bay Area Meetup Group](https://www.meetup.com/Apache-Pulsar-Meetup-Group/)
-            </MarkdownBlock>
             <MarkdownBlock>
               - [Japan Pulsar User Group](https://japan-pulsar-user-group.connpass.com/)
             </MarkdownBlock> 
