@@ -81,27 +81,33 @@ If you monitor your current stats with <a href="/docs/ja/2.6.0/administration-da
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="インストール"></a><a href="#インストール" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>インストール</h2>
 <p>The easiest way to use the Pulsar Manager is to run it inside a <a href="https://www.docker.com/products/docker">Docker</a> container.</p>
-<pre><code class="hljs">docker pull apachepulsar/pulsar-manager:v0.1.0
-docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://192.168.0.104 -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -v <span class="hljs-variable">$PWD</span>:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+<pre><code class="hljs css language-shell">docker pull apachepulsar/pulsar-manager:v0.2.0
+docker run -it \
+    -p 9527:9527 -p 7750:7750 \
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.2.0
 </code></pre>
 <ul>
-<li><p>REDIRECT_HOST: the IP address of the front-end server.</p></li>
-<li><p>REDIRECT_PORT: the port of the front-end server.</p></li>
-<li><p>DRIVER_CLASS_NAME: the driver class name of PostgreSQL.</p></li>
-<li><p>URL: the URL of PostgreSQL JDBC, For example, <code>jdbc:postgresql://127.0.0.1:5432/pulsar_manager</code>.</p></li>
-<li><p>USERNAME: the username of PostgreSQL.</p></li>
-<li><p>PASSWORD: the password of PostgreSQL.</p></li>
-<li><p>LOG_LEVEL: level of log.</p></li>
+<li><code>SPRING_CONFIGURATION_FILE</code>: Default configuration file for spring.</li>
 </ul>
-<p>You can find the in the <a href="https://github.com/apache/pulsar-manager/tree/master/docker">Docker</a> directory and build an image from scratch as well:</p>
-<pre><code class="hljs">git clone https://github.com/apache/pulsar-manager
-cd pulsar-manager
-./gradlew <span class="hljs-keyword">build</span> -x test
-cd front-<span class="hljs-keyword">end</span>
-npm install --save
-npm run <span class="hljs-keyword">build</span>:prod
-cd ..
-docker <span class="hljs-keyword">build</span> -f docker/Dockerfile --<span class="hljs-keyword">build</span>-arg BUILD_DATE=<span class="hljs-symbol">`date -u +"%Y-%m-%dT%H:%M:%SZ"`</span> --<span class="hljs-keyword">build</span>-arg VCS_REF=<span class="hljs-symbol">`latest`</span> --<span class="hljs-keyword">build</span>-arg VERSION=<span class="hljs-symbol">`latest`</span> -t apachepulsar/pulsar-manager .
+<h4><a class="anchor" aria-hidden="true" id="set-administrator-account-and-password"></a><a href="#set-administrator-account-and-password" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set administrator account and password</h4>
+<pre><code class="hljs css language-shell">CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+curl \
+   -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
+   -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
+   -H "Content-Type: application/json" \
+   -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+   -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+</code></pre>
+<p>You can find the docker image in the <a href="https://github.com/apache/pulsar-manager/tree/master/docker">Docker Hub</a> directory and build an image from the source code as well:</p>
+<pre><code class="hljs">git clone https:<span class="hljs-string">//github.com/apache/pulsar-manager</span>
+<span class="hljs-keyword">cd</span> pulsar-manager/front-end
+npm install <span class="hljs-params">--save</span>
+npm run build<span class="hljs-function">:prod</span>
+<span class="hljs-keyword">cd</span> <span class="hljs-string">..</span>
+<span class="hljs-string">./gradlew</span> build -x test
+<span class="hljs-keyword">cd</span> <span class="hljs-string">..</span>
+docker build -f docker/Dockerfile <span class="hljs-params">--build-arg</span> BUILD_DATE=`date -u +<span class="hljs-string">"%Y-%m-%dT%H:%M:%SZ"</span>` <span class="hljs-params">--build-arg</span> VCS_REF=`latest` <span class="hljs-params">--build-arg</span> VERSION=`latest` -t apachepulsar/pulsar-manager .
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="use-custom-databases"></a><a href="#use-custom-databases" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use custom databases</h3>
 <p>If you have a large amount of data, you can use a custom database. The following is an example of PostgreSQL.</p>
@@ -117,7 +123,7 @@ docker <span class="hljs-keyword">build</span> -f docker/Dockerfile --<span clas
 <ol start="3">
 <li>Compile to generate a new executable jar package.</li>
 </ol>
-<pre><code class="hljs">./gradlew -<span class="hljs-symbol">x</span> build -<span class="hljs-symbol">x</span> test
+<pre><code class="hljs">./gradlew <span class="hljs-keyword">build </span>-x test
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="enable-jwt-authentication"></a><a href="#enable-jwt-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable JWT authentication</h3>
 <p>If you want to turn on JWT authentication, configure the following parameters:</p>
@@ -133,8 +139,16 @@ docker <span class="hljs-keyword">build</span> -f docker/Dockerfile --<span clas
 <ul>
 <li>Method 1: use command-line tool</li>
 </ul>
-<pre><code class="hljs">./build/distributions/pulsar-manager/bin/pulsar-manager --redirect.<span class="hljs-attribute">host</span>=http://localhost --redirect.<span class="hljs-attribute">port</span>=9527 insert.stats.<span class="hljs-attribute">interval</span>=600000 --backend.jwt.<span class="hljs-attribute">token</span>=token --jwt.broker.token.<span class="hljs-attribute">mode</span>=PRIVATE --jwt.broker.private.<span class="hljs-attribute">key</span>=file:///path/broker-private.key --jwt.broker.public.<span class="hljs-attribute">key</span>=file:///path/broker-public.key
+<pre><code class="hljs">wget https:<span class="hljs-string">//dist.apache.org/repos/dist/release/pulsar/pulsar-manager/apache-pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz</span>
+tar -zxvf apache-pulsar-manager-0.2.0-bin.tar.gz
+<span class="hljs-keyword">cd</span> pulsar-manager
+tar -zxvf pulsar-manager.tar
+<span class="hljs-keyword">cd</span> pulsar-manager
+cp -r <span class="hljs-string">../dist</span> ui
+<span class="hljs-string">./bin/pulsar-manager</span> <span class="hljs-params">--redirect</span>.host=http:<span class="hljs-string">//localhost</span> <span class="hljs-params">--redirect</span>.port=9527 insert.stats.interval=600000 <span class="hljs-params">--backend</span>.jwt.token=token <span class="hljs-params">--jwt</span>.broker.token.mode=PRIVATE <span class="hljs-params">--jwt</span>.broker.private.key=file:<span class="hljs-string">///path/broker-private.key</span> <span class="hljs-params">--jwt</span>.broker.public.key=file:<span class="hljs-string">///path/broker-public.key</span> 
 </code></pre>
+<p>Firstly, <a href="#set-administrator-account-and-password">set the administrator account and password</a></p>
+<p>Secondly, log in to Pulsar manager through <a href="http://localhost:7750/ui/index.html">http://localhost:7750/ui/index.html</a>.</p>
 <ul>
 <li>Method 2: configure the application.properties file</li>
 </ul>
@@ -149,31 +163,61 @@ jwt<span class="hljs-selector-class">.broker</span><span class="hljs-selector-cl
 jwt<span class="hljs-selector-class">.broker</span><span class="hljs-selector-class">.secret</span>.key=file:<span class="hljs-comment">///path/broker-secret.key</span>
 </code></pre>
 <ul>
-<li>Method 3: use Docker and turn on token authentication.</li>
+<li>Method 3: use Docker and enable token authentication.</li>
 </ul>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-string">"your-token"</span>
-docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://192.168.55.182 -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -v <span class="hljs-variable">$PWD</span>:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -p 7750:7750 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://localhost -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -v <span class="hljs-variable">$PWD</span>:/data apachepulsar/pulsar-manager:v0.2.0 /bin/sh
 </code></pre>
 <ul>
-<li>Method 4: use Docker and turn on <strong>token authentication</strong> and <strong>token management</strong> by private key and public key.</li>
+<li><p><code>JWT_TOKEN</code>: the token of superuser configured for the broker. It is generated by the <code>bin/pulsar tokens create --secret-key</code> or <code>bin/pulsar tokens create --private-key</code> command.</p></li>
+<li><p><code>REDIRECT_HOST</code>: the IP address of the front-end server.</p></li>
+<li><p><code>REDIRECT_PORT</code>: the port of the front-end server.</p></li>
+<li><p><code>DRIVER_CLASS_NAME</code>: the driver class name of the PostgreSQL database.</p></li>
+<li><p><code>URL</code>: the JDBC URL of your PostgreSQL database, such as jdbc:<a href="postgresql://127.0.0.1:5432/pulsar_manager">postgresql://127.0.0.1:5432/pulsar_manager</a>. The docker image automatically start a local instance of the PostgresSQL database.</p></li>
+<li><p><code>USERNAME</code>: the username of PostgreSQL.</p></li>
+<li><p><code>PASSWORD</code>: the password of PostgreSQL.</p></li>
+<li><p><code>LOG_LEVEL</code>: the level of log.</p></li>
+<li><p>Method 4: use Docker and turn on <strong>token authentication</strong> and <strong>token management</strong> by private key and public key.</p></li>
 </ul>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-string">"your-token"</span>
-<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PRIVATE_KEY</span>=<span class="hljs-string">"file:///private-key-path"</span>
-<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PUBLIC_KEY</span>=<span class="hljs-string">"file:///public-key-path"</span>
-docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://192.168.55.182 -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -e <span class="hljs-attribute">PRIVATE_KEY</span>=<span class="hljs-variable">$PRIVATE_KEY</span> -e <span class="hljs-attribute">PUBLIC_KEY</span>=<span class="hljs-variable">$PUBLIC_KEY</span> -v <span class="hljs-variable">$PWD</span>:/data -v <span class="hljs-variable">$PWD</span>/private-key-path:/pulsar-manager/private-key-path -v <span class="hljs-variable">$PWD</span>/public-key-path:/pulsar-manager/public-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PRIVATE_KEY</span>=<span class="hljs-string">"file:///pulsar-manager/secret/my-private.key"</span>
+<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PUBLIC_KEY</span>=<span class="hljs-string">"file:///pulsar-manager/secret/my-public.key"</span>
+docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -p 7750:7750 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://localhost -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -e <span class="hljs-attribute">PRIVATE_KEY</span>=<span class="hljs-variable">$PRIVATE_KEY</span> -e <span class="hljs-attribute">PUBLIC_KEY</span>=<span class="hljs-variable">$PUBLIC_KEY</span> -v <span class="hljs-variable">$PWD</span>:/data -v <span class="hljs-variable">$PWD</span>/secret:/pulsar-manager<span class="hljs-built_in">/secret </span>apachepulsar/pulsar-manager:v0.2.0 /bin/sh
 </code></pre>
 <ul>
-<li>Method 5: use Docker and turn on <strong>token authentication</strong> and <strong>token management</strong> by secret key.</li>
+<li><p><code>JWT_TOKEN</code>: the token of superuser configured for the broker. It is generated by the <code>bin/pulsar tokens create --private-key</code> command.</p></li>
+<li><p><code>PRIVATE_KEY</code>: private key path mounted in container, genrated by <code>bin/pulsar tokens create-key-pair</code> command.</p></li>
+<li><p><code>PUBLIC_KEY</code>: public key path mounted in container, genrated by <code>bin/pulsar tokens create-key-pair</code> command.</p></li>
+<li><p><code>$PWD/secret</code>: The folder where the private key and public key generated by the <code>bin/pulsar tokens create-key-pair</code> command are placed locally</p></li>
+<li><p><code>REDIRECT_HOST</code>: the IP address of the front-end server.</p></li>
+<li><p><code>REDIRECT_PORT</code>: the port of the front-end server.</p></li>
+<li><p><code>DRIVER_CLASS_NAME</code>: the driver class name of the PostgreSQL database.</p></li>
+<li><p><code>URL</code>: the JDBC URL of your PostgreSQL database, such as jdbc:<a href="postgresql://127.0.0.1:5432/pulsar_manager">postgresql://127.0.0.1:5432/pulsar_manager</a>. The docker image automatically start a local instance of the PostgresSQL database.</p></li>
+<li><p><code>USERNAME</code>: the username of PostgreSQL.</p></li>
+<li><p><code>PASSWORD</code>: the password of PostgreSQL.</p></li>
+<li><p><code>LOG_LEVEL</code>: the level of log.</p></li>
+<li><p>Method 5: use Docker and turn on <strong>token authentication</strong> and <strong>token management</strong> by secret key.</p></li>
 </ul>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-string">"your-token"</span>
-<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">SECRET_KEY</span>=<span class="hljs-string">"file:///secret-key-path"</span>
-docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://192.168.55.182 -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -e <span class="hljs-attribute">PRIVATE_KEY</span>=<span class="hljs-variable">$PRIVATE_KEY</span> -e <span class="hljs-attribute">PUBLIC_KEY</span>=<span class="hljs-variable">$PUBLIC_KEY</span> -v <span class="hljs-variable">$PWD</span>:/data -v <span class="hljs-variable">$PWD</span>/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">SECRET_KEY</span>=<span class="hljs-string">"file:///pulsar-manager/secret/my-secret.key"</span>
+docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -p 7750:7750 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://localhost -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -e <span class="hljs-attribute">SECRET_KEY</span>=<span class="hljs-variable">$SECRET_KEY</span> -v <span class="hljs-variable">$PWD</span>:/data -v <span class="hljs-variable">$PWD</span>/secret:/pulsar-manager<span class="hljs-built_in">/secret </span>apachepulsar/pulsar-manager:v0.2.0 /bin/sh
 </code></pre>
 <ul>
-<li>For more information about backend configurations, see <a href="https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md">here</a>.</li>
-<li>For more information about frontend configurations, see <a href="https://github.com/apache/pulsar-manager/blob/master/front-end/README.md">here</a>.</li>
+<li><p><code>JWT_TOKEN</code>: the token of superuser configured for the broker. It is generated by the <code>bin/pulsar tokens create --secret-key</code> command.</p></li>
+<li><p><code>SECRET_KEY</code>: secret key path mounted in container, genrated by <code>bin/pulsar tokens create-secret-key</code> command.</p></li>
+<li><p><code>$PWD/secret</code>: the folder where the secret key generated by the <code>bin/pulsar tokens create-secret-key</code> command are placed locally</p></li>
+<li><p><code>REDIRECT_HOST</code>: the IP address of the front-end server.</p></li>
+<li><p><code>REDIRECT_PORT</code>: the port of the front-end server.</p></li>
+<li><p><code>DRIVER_CLASS_NAME</code>: the driver class name of the PostgreSQL database.</p></li>
+<li><p><code>URL</code>: the JDBC URL of your PostgreSQL database, such as jdbc:<a href="postgresql://127.0.0.1:5432/pulsar_manager">postgresql://127.0.0.1:5432/pulsar_manager</a>. The docker image automatically start a local instance of the PostgresSQL database.</p></li>
+<li><p><code>USERNAME</code>: the username of PostgreSQL.</p></li>
+<li><p><code>PASSWORD</code>: the password of PostgreSQL.</p></li>
+<li><p><code>LOG_LEVEL</code>: the level of log.</p></li>
+<li><p>For more information about backend configurations, see <a href="https://github.com/apache/pulsar-manager/blob/master/src/README.md">here</a>.</p></li>
+<li><p>For more information about frontend configurations, see <a href="https://github.com/apache/pulsar-manager/tree/master/front-end">here</a>.</p></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="log-in"></a><a href="#log-in" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log in</h2>
+<p><a href="#set-administrator-account-and-password">Set the administrator account and password</a>.</p>
 <p>Visit <a href="http://localhost:9527">http://localhost:9527</a> to log in.</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/2.6.0/administration-geo"><span class="arrow-prev">← </span><span>Geo-replication</span></a><a class="docs-next button" href="/docs/ja/2.6.0/administration-stats"><span>Pulsar statistics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#インストール">インストール</a><ul class="toc-headings"><li><a href="#use-custom-databases">Use custom databases</a></li><li><a href="#enable-jwt-authentication">Enable JWT authentication</a></li></ul></li><li><a href="#log-in">Log in</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
