@@ -75,6 +75,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         SystemTopicClient systemTopicClient = namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject(),
                 EventType.TOPIC_POLICY);
 
+        if (listeners.get(topicName) != null) {
+            for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                listener.onUpdate(policies);
+            }
+        }
+
         CompletableFuture<SystemTopicClient.Writer> writerFuture = systemTopicClient.newWriterAsync();
         writerFuture.whenComplete((writer, ex) -> {
             if (ex != null) {
@@ -113,11 +119,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             });
                     })
                 );
-                if (listeners.get(topicName) != null) {
-                    for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                        listener.onUpdate(policies);
-                    }
-                }
             }
         });
 
