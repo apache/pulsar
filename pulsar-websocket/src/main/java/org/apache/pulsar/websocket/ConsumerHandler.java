@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -70,6 +71,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private String subscription = null;
     private SubscriptionType subscriptionType;
+    private SubscriptionMode subscriptionMode;
     private Consumer<byte[]> consumer;
 
     private int maxPendingMessages = 0;
@@ -103,6 +105,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                         : builder.getConf().getReceiverQueueSize();
             }
             this.subscriptionType = builder.getConf().getSubscriptionType();
+            this.subscriptionMode = builder.getConf().getSubscriptionMode();
 
             if (!checkAuth(response)) {
                 return;
@@ -284,6 +287,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         return subscriptionType;
     }
 
+    public SubscriptionMode getSubscriptionMode() {
+        return subscriptionMode;
+    }
+
     public long getAndResetNumMsgsDelivered() {
         return numMsgsDelivered.sumThenReset();
     }
@@ -317,6 +324,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             checkArgument(Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType")).isPresent(),
                     "Invalid subscriptionType %s", queryParams.get("subscriptionType"));
             builder.subscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
+        }
+
+        if (queryParams.containsKey("subscriptionMode")) {
+            checkArgument(Enums.getIfPresent(SubscriptionMode.class, queryParams.get("subscriptionMode")).isPresent(),
+                    "Invalid subscriptionMode %s", queryParams.get("subscriptionMode"));
+            builder.subscriptionMode(SubscriptionMode.valueOf(queryParams.get("subscriptionMode")));
         }
 
         if (queryParams.containsKey("receiverQueueSize")) {
