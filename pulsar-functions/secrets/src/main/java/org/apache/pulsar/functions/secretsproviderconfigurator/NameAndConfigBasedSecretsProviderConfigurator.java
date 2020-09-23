@@ -21,17 +21,13 @@ package org.apache.pulsar.functions.secretsproviderconfigurator;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 
 import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * This file defines the SecretsProviderConfigurator that will be used by default for running in Kubernetes.
- * As such this implementation is strictly when workers are configured to use kubernetes runtime.
- * We use kubernetes in built secrets and bind them as environment variables within the function container
- * to ensure that the secrets are available to the function at runtime. Then we plug in the
- * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables.
+ * This is a very simple secrets provider which wires in a given secrets provider classname/config
+ * to the function instances/containers. This does not do any special kubernetes specific wiring.
  */
 public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsProviderConfigurator {
     private String className;

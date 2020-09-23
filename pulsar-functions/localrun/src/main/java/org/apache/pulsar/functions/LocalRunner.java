@@ -31,6 +31,7 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -430,13 +431,12 @@ public class LocalRunner {
                                            String userCodeFile) throws Exception {
         SecretsProvider secretsProvider;
         if (secretsProviderClassName != null) {
-            if (secretsProviderClassName.equals(ClearTextSecretsProvider.class.getName())) {
-                secretsProvider = new ClearTextSecretsProvider();
-            } else if (secretsProviderClassName.equals(EnvironmentBasedSecretsProvider.class.getName())) {
-                secretsProvider = new EnvironmentBasedSecretsProvider();
-            } else {
-                throw new RuntimeException("Unsupported secrets provider for localrun " + secretsProviderClassName);
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+            Map<String, String> config = null;
+            if (secretsProviderConfig != null) {
+                config = (Map<String, String>)new Gson().fromJson(secretsProviderConfig, Map.class);
             }
+            secretsProvider.init(config);
         } else {
             secretsProvider = new ClearTextSecretsProvider();
         }
