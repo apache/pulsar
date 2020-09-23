@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
+    <kubernetesclient.version>10.0.0</kubernetesclient.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
