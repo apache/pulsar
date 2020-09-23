@@ -390,7 +390,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
         } else {
             ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
-                    ackType, validationError, map);
+                    ackType, validationError, map, txnidLeastBits, txnidMostBits);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
             } else {
