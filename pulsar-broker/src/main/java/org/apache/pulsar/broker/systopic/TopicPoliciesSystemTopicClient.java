@@ -150,10 +150,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return reader.closeAsync().thenCompose(v -> {
-                systemTopic.getReaders().remove(TopicPolicyReader.this);
-                return CompletableFuture.completedFuture(null);
-            });
+            return reader.closeAsync().thenCompose(v -> CompletableFuture.completedFuture(null));
         }
 
         @Override
