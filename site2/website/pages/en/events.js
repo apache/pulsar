@@ -49,7 +49,7 @@ class Events extends React.Component {
               - [Pulsar monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Weekly TGIP](https://github.com/streamnative/tgip/issues)
+              - [Weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
             </MarkdownBlock>
             <MarkdownBlock>
               - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
