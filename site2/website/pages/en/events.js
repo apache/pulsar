@@ -46,9 +46,6 @@ class Events extends React.Component {
               - [Pulsar Training: Developing Pulsar Applications with Jesse Anderson](https://www.eventbrite.com/e/developing-pulsar-applications-online-training-tickets-122334542911)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Pulsar monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk)
-            </MarkdownBlock>
-            <MarkdownBlock>
               - [Weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
             </MarkdownBlock>
             <MarkdownBlock>
