@@ -1070,6 +1070,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             consumer4.close();
             pulsarClient4.shutdown();
         } catch (PulsarClientException e) {
+            e.printStackTrace();
+            log.info("Pulsar CI bug: {}", e.getMessage());
+            log.info("Pulsar CI bug: {}", e.getCause().getMessage());
+
             Assert.fail();
         }
         try {
