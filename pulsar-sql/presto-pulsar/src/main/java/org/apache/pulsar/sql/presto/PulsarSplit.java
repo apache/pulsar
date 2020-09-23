@@ -29,11 +29,12 @@ import io.prestosql.spi.HostAddress;
 import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.ConnectorSplit;
 import io.prestosql.spi.predicate.TupleDomain;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -63,7 +64,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final PositionImpl endPosition;
     private final String schemaInfoProperties;
 
-    private final OffloadPolicies offloadPolicies;
+    private final String offloadPolicies;
 
     @JsonCreator
     public PulsarSplit(
@@ -81,7 +82,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") String offloadPolicies) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -189,7 +190,7 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public OffloadPolicies getOffloadPolicies() {
+    public String getOffloadPolicies() {
         return offloadPolicies;
     }
 
@@ -211,21 +212,21 @@ public class PulsarSplit implements ConnectorSplit {
     @Override
     public String toString() {
         return "PulsarSplit{"
-            + "splitId=" + splitId
-            + ", connectorId='" + connectorId + '\''
-            + ", originSchemaName='" + originSchemaName + '\''
-            + ", schemaName='" + schemaName + '\''
-            + ", tableName='" + tableName + '\''
-            + ", splitSize=" + splitSize
-            + ", schema='" + schema + '\''
-            + ", schemaType=" + schemaType
-            + ", startPositionEntryId=" + startPositionEntryId
-            + ", endPositionEntryId=" + endPositionEntryId
-            + ", startPositionLedgerId=" + startPositionLedgerId
-            + ", endPositionLedgerId=" + endPositionLedgerId
-            + ", schemaInfoProperties=" + schemaInfoProperties
-            + (offloadPolicies == null ? "" : offloadPolicies.toString())
-            + '}';
+                + "splitId=" + splitId
+                + ", connectorId='" + connectorId + '\''
+                + ", originSchemaName='" + originSchemaName + '\''
+                + ", schemaName='" + schemaName + '\''
+                + ", tableName='" + tableName + '\''
+                + ", splitSize=" + splitSize
+                + ", schema='" + schema + '\''
+                + ", schemaType=" + schemaType
+                + ", startPositionEntryId=" + startPositionEntryId
+                + ", endPositionEntryId=" + endPositionEntryId
+                + ", startPositionLedgerId=" + startPositionLedgerId
+                + ", endPositionLedgerId=" + endPositionLedgerId
+                + ", schemaInfoProperties=" + schemaInfoProperties
+                + (offloadPolicies == null ? "" : offloadPolicies.toString())
+                + '}';
     }
 
     public SchemaInfo getSchemaInfo() {
