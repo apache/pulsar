@@ -249,6 +249,11 @@ module.exports = [
         logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQEoQxITTypd9g/company-logo_200_200/0?e=1608768000&v=beta&t=AbpUaraLUWyqUQcBiF3qYel_T0k-5W1JSEUw5qAqGj8',
     },
     {
+        name: 'Newland',
+        url: 'http://www.nlsoft.com.cn/',
+        logo: 'http://www.nlsoft.com.cn/images/common/logo.png',
+    },
+    {
         name: 'Appen',
         url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
