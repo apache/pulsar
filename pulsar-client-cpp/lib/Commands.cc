@@ -489,10 +489,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::ACK:
             return "ACK";
             break;
-        case BaseCommand::ACK_ERROR
-            return "ACK_ERROR";
-            break;
-        case BaseCommand::FLOW:
+        case BaseCommand::ACK_ERROR return "ACK_ERROR"; break; case BaseCommand::FLOW:
             return "FLOW";
             break;
         case BaseCommand::UNSUBSCRIBE:
@@ -573,17 +570,11 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::AUTH_RESPONSE:
             return "AUTH_RESPONSE";
             break;
-        case BaseCommand::ACK_RECEIPT
-            return "ACK_RECEIPT";
-            break;
-        case BaseCommand::GET_OR_CREATE_SCHEMA:
+        case BaseCommand::ACK_RECEIPT return "ACK_RECEIPT"; break; case BaseCommand::GET_OR_CREATE_SCHEMA:
             return "GET_OR_CREATE_SCHEMA";
         case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
             return "GET_OR_CREATE_SCHEMA_RESPONSE";
-        case BaseCommand::ACK_ERROR
-            return "ACK_ERROR";
-            break;
-        case BaseCommand::NEW_TXN:
+        case BaseCommand::ACK_ERROR return "ACK_ERROR"; break; case BaseCommand::NEW_TXN:
             return "NEW_TXN";
             break;
         case BaseCommand::NEW_TXN_RESPONSE:
