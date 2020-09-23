@@ -3,9 +3,10 @@ package org.apache.pulsar.broker.namespace;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -18,6 +19,9 @@ public class OwnerShipCacheForCurrentServer extends OwnerShipForCurrentServerTes
     @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
         admin.tenants().createTenant(TENANT,
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
@@ -26,12 +30,12 @@ public class OwnerShipCacheForCurrentServer extends OwnerShipForCurrentServerTes
 
     @Test
     public void testOwnershipForCurrentServer() throws Exception {
-        NamespaceService namespaceServiceZero = getPulsarServiceList().get(0).getNamespaceService();
-        NamespaceService namespaceServiceOne = getPulsarServiceList().get(1).getNamespaceService();
-        NamespaceBundle bundle = namespaceServiceZero.getBundle(TopicName.get(TOPIC_TEST));
-        namespaceServiceZero.registerNamespace(NAMESPACE, true);
-        String nativeUrlFirst = namespaceServiceOne.getOwnerAsync(bundle).get().get().getNativeUrl();
-        String nativeUrlTwice = namespaceServiceOne.getOwnerAsync(bundle).get().get().getNativeUrl();
+        NamespaceService[] namespaceServices = new NamespaceService[getPulsarServiceList().size()];
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            namespaceServices[i] = getPulsarServiceList().get(i).getNamespaceService();
+            NamespaceBundle bundle = namespaceServices[i].getBundle(TopicName.get(TOPIC_TEST));
+            Assert.assertEquals(namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl(),
+                    namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl());
+        }
     }
-
 }
