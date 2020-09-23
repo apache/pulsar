@@ -10,7 +10,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class OwnerShipCacheForCurrentServer extends OwnerShipForCurrentServerTestBase {
+public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
     private final static String TENANT = "ownership";
     private final static String NAMESPACE = TENANT + "/ns1";
