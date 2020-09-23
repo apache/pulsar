@@ -2,8 +2,6 @@
 
 ### 0.2.0 &mdash; 2020-09-28 <a id="0.2.0"></a>
 
-#### Fixes
-
 * Support multiple addresses for the broker stats [PR-306](https://github.com/apache/pulsar-manager/pull/306).
 * Use `PulsarAdmin` instead of `HttpUti`l in `BrokerStatsServiceImpl` [PR-315](https://github.com/apache/pulsar-manager/pull/315).
 * Serve frontend directly from Pulsar Manager backend process [PR-288](https://github.com/apache/pulsar-manager/pull/288).
@@ -21,8 +19,6 @@
 
 
 ### 0.1.0 &mdash; 2019-11-25 <a id="0.1.0"></a>
-
-#### Fixes
 
 * Remove streamnative from the project [PR-213](https://github.com/apache/pulsar-manager/pull/213).
 * Add license file for pulsar-manager [PR-209](https://github.com/apache/pulsar-manager/pull/209).
