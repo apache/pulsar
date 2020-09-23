@@ -193,6 +193,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |bookkeeperClientAuthenticationParameters|||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
+|bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16|
 |bookkeeperClientHealthCheckEnabled|  Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won’t be created on these bookies  |true|
 |bookkeeperClientHealthCheckIntervalSeconds||60|
 |bookkeeperClientHealthCheckErrorThresholdPerInterval||5|
