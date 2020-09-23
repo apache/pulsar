@@ -95,13 +95,23 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         checkNotNull(other);
         int result = ComparisonChain.start().compare(this.ledgerId, other.ledgerId).compare(this.entryId, other.entryId)
                 .result();
-        if (result == 0 && ackSet != null) {
-            BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
+        if (result == 0) {
+            if (other.ackSet == null) {
+                return result;
+            }
             BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
-            int length = otherAckSet.length() - thisAckSet.length();
+            if (otherAckSet.isEmpty()) {
+                return 0;
+            }
+            if (ackSet == null) {
+                return 1;
+            }
+            BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
+            otherAckSet.and(thisAckSet);
+            boolean flag = otherAckSet.equals(thisAckSet);
             thisAckSet.recycle();
             otherAckSet.recycle();
-            return length;
+            return flag ? 1 : 0;
         }
         return result;
     }

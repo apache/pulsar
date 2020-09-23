@@ -391,7 +391,7 @@ public class PersistentSubscription implements Subscription {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
-            if (this.pendingCumulativeAckTxnId != null && this.pendingCumulativeAckTxnId != txnId) {
+            if (this.pendingCumulativeAckTxnId != null && !this.pendingCumulativeAckTxnId.equals(txnId)) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                   " try to cumulative ack message while transaction:" + this.pendingCumulativeAckTxnId +
                                   " already cumulative acked messages.";
@@ -1151,7 +1151,7 @@ public class PersistentSubscription implements Subscription {
         // pendingAckMessagesMap to be null.
         if (pendingCumulativeAckTxnId != null && pendingCumulativeAckMessage != null) {
             if (pendingCumulativeAckTxnId.equals(txnId)) {
-                acknowledgeMessage(Collections.singletonList(POSITION_UPDATER.get(this)), AckType.Cumulative, null);
+                acknowledgeMessage(Collections.singletonList(POSITION_UPDATER.get(this)), AckType.Cumulative, properties);
                 // Reset txdID and position for cumulative ack.
                 PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
                 POSITION_UPDATER.set(this, null);
@@ -1179,7 +1179,7 @@ public class PersistentSubscription implements Subscription {
                     }
                 }
                 pendingAckMessagesMap.remove(txnId);
-                acknowledgeMessage(positions, AckType.Individual, null);
+                acknowledgeMessage(positions, AckType.Individual, properties);
                 commitFuture.complete(null);
             } else {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnId + " not found.";
@@ -1204,10 +1204,8 @@ public class PersistentSubscription implements Subscription {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         if (pendingCumulativeAckTxnId != null && pendingCumulativeAckMessage != null) {
             if (PENDING_CUMULATIVE_ACK_TXNID_UPDATER.get(this).equals(txnId)) {
-                PositionImpl position = (PositionImpl) pendingCumulativeAckMessage;
                 POSITION_UPDATER.set(this, null);
                 PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
-                redeliverUnacknowledgedMessages(consumer, Collections.singletonList(position));
                 abortFuture.complete(null);
             } else {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnId + " not current id : " +
