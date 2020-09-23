@@ -1106,6 +1106,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperClientThrottleValue = 0;
 
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "number of channels per bookie"
+    )
+    private int bookkeeperNumChannelsPerBookie = 16;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
