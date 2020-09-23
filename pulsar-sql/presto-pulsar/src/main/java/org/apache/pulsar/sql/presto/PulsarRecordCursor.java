@@ -123,7 +123,6 @@ public class PulsarRecordCursor implements RecordCursor {
         if (pulsarSplit.getOffloadPolicies() != null) {
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-//                        .enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
                 Properties offloadProperties = new Properties();
                 Map<String, String> offloadPropertyMap = objectMapper.readValue(
                         pulsarSplit.getOffloadPolicies(), new TypeReference<Map<String, String>>() {
