@@ -61,7 +61,7 @@ module.exports = [
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
-        logo: 'https://s3-eu-west-1.amazonaws.com/thehutgroup-uploads-test/app/uploads/2016/10/THG.jpg'
+        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQFTQW37dNzMJQ/company-logo_200_200/0?e=1608768000&v=beta&t=jX_8bxciHMwoiJcGbxlPW-FBlF6YYjGVBOOKm-N2gls'
     },
     {
         name: 'Turtlequeue',
@@ -149,8 +149,7 @@ module.exports = [
     {
         name: 'OKCoin',
         url: 'https://www.okcoin.com/',
-        logo: 'http://img.bafang.com/cdn/assets/imgs/MjAxOTM/784CCB28D9026D43DA6A5F257DA74BF2.png',
-        logo_white: true
+        logo: 'https://static.bafang.com/cdn/assets/imgs/206/BC3E3ADD7E55C085.png',
     },
     {
         name: 'BestPay',
@@ -238,11 +237,6 @@ module.exports = [
         name: 'BIGO',
         url: 'https://www.bigo.sg/',
         logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
-    },
-    {
-        name: 'Newland',
-        url: 'http://www.newlandcomputer.com/',
-        logo: 'http://www.newlandcomputer.com/images/logo.jpg',
     },
     {
         name: 'Keytop',
