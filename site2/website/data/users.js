@@ -250,7 +250,7 @@ module.exports = [
     },
     {
         name: 'Appen',
-        url: 'https://appen.com/',
+        url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
