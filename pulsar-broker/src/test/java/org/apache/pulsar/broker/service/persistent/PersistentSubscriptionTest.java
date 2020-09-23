@@ -179,33 +179,35 @@ public class PersistentSubscriptionTest {
             return null;
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
+        List<Position> positions = new ArrayList<>();
+        positions.add(new PositionImpl(1, 1));
+        positions.add(new PositionImpl(1, 3));
+        positions.add(new PositionImpl(1, 5));
         doAnswer((invocationOnMock) -> {
-            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
+            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), positions.toArray()));
             ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
                     .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
-        List<Position> positions = new ArrayList<>();
-        positions.add(new PositionImpl(1, 1));
-        positions.add(new PositionImpl(1, 3));
-        positions.add(new PositionImpl(1, 5));
-
         // Single ack for txn
         persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
 
+        persistentSubscription.commitTxn(txnID1, Collections.emptyMap());
         positions.clear();
         positions.add(new PositionImpl(3, 100));
 
         // Cumulative ack for txn
         persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
 
+        doAnswer((invocationOnMock) -> {
+            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
+            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
+                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
         // Commit txn
         persistentSubscription.commitTxn(txnID1, Collections.emptyMap());
-
-        // Verify corresponding ledger method was called with expected args.
-        verify(cursorMock, times(1)).asyncDelete(any(List.class), any(), any());
-        verify(cursorMock, times(1)).asyncMarkDelete(any(), any(Map.class), any(), any());
     }
 
     @Test
@@ -266,7 +268,15 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(3, 1));
         positions.add(new PositionImpl(3, 3));
         positions.add(new PositionImpl(3, 5));
+        //this position is in pending ack state
+        positions.add(new PositionImpl(2, 1));
 
+        doAnswer((invocationOnMock) -> {
+            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), positions.toArray()));
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
         persistentSubscription.acknowledgeMessage(positions, AckType.Individual, Collections.emptyMap());
 

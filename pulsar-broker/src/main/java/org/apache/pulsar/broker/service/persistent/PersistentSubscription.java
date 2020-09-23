@@ -315,6 +315,12 @@ public class PersistentSubscription implements Subscription {
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
+            if (this.pendingCumulativeAckTxnId != null) {
+                log.warn("[{}][{}] An ongoing transaction:{} is doing cumulative ack, " +
+                                "new cumulative ack is not allowed till the transaction is committed.",
+                        topicName, subName, this.pendingCumulativeAckTxnId.toString());
+                return;
+            }
 
             if (positions.size() != 1) {
                 log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids.", topicName, subName);
@@ -330,7 +336,22 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
-
+            //TODO how to check the pendingAckMessage for normal ack
+            if (pendingAckMessages != null && !pendingAckMessages.isEmpty()) {
+                synchronized (PersistentSubscription.this) {
+                    for (int i = 0; i < positions.size(); i++) {
+                        if (pendingAckMessages.containsKey(positions.get(i))) {
+                            if (((PositionImpl) pendingAckMessages.get(positions.get(i)))
+                                    .isAckSetRepeated((PositionImpl) positions.get(i))) {
+                                positions.remove(positions.get(i));
+                            }
+                        }
+                    }
+                }
+            }
+            if (positions.isEmpty()) {
+                return;
+            }
             cursor.asyncDelete(positions, deleteCallback, positions);
 
             if(dispatcher != null){
