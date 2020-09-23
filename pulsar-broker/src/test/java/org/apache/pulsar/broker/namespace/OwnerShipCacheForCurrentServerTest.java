@@ -7,6 +7,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -26,6 +27,11 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
         admin.topics().createNonPartitionedTopic(TOPIC_TEST);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
     }
 
     @Test
