@@ -312,7 +312,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         endPosition.getLedgerId(),
                         tupleDomain,
                         objectMapper.writeValueAsString(schemaInfo.getProperties()),
-                        offloadPolicies);
+                        objectMapper.writeValueAsString(offloadPolicies));
                 splits.add(pulsarSplit);
             }
             return splits;
