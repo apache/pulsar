@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.transaction.common.exception;
 
+/**
+ * Exception thrown when a transaction conflict.
+ *
+ */
 public class TransactionConflictException extends Exception{
 
     private static final long serialVersionUID = 0L;
