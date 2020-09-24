@@ -98,7 +98,7 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public synchronized boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
+    public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
         return (subscribeRateLimiter.get(consumerIdentifier) == null|| subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
     }
 

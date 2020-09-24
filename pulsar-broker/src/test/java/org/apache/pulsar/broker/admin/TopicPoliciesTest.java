@@ -1038,6 +1038,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         SubscribeRate getSubscribeRate = admin.topics().getSubscribeRate(persistenceTopic);
         log.info("Subscribe Rate: {} get on topic: {}", getSubscribeRate, persistenceTopic);
         Assert.assertEquals(getSubscribeRate, subscribeRate);
+
         admin.topics().removeSubscribeRate(persistenceTopic);
         Thread.sleep(3000);
         log.info("Subscribe Rate get on topic: {} after remove", getSubscribeRate, persistenceTopic);
@@ -1054,7 +1055,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         try {
             consumer3 = pulsarClient3.newConsumer().subscriptionName("sub2")
-                    .topic(persistenceTopic).consumerName("test1").subscribe();
+                    .topic(persistenceTopic).consumerName("test").subscribe();
             Assert.assertNotNull(consumer3);
             consumer3.close();
             pulsarClient3.shutdown();
@@ -1062,26 +1063,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         }
 
-        Thread.sleep(3000);
         try {
             consumer4 = pulsarClient4.newConsumer().subscriptionName("sub2")
-                    .topic(persistenceTopic).consumerName("test2").subscribe();
+                    .topic(persistenceTopic).consumerName("test").subscribe();
             Assert.assertNotNull(consumer4);
             consumer4.close();
             pulsarClient4.shutdown();
         } catch (PulsarClientException e) {
-            e.printStackTrace();
-            log.info("Pulsar CI bug: {}", e.getMessage());
-            log.info("Pulsar CI bug: {}", e.getCause().getMessage());
-
             Assert.fail();
         }
-
-        Thread.sleep(3000);
-        
         try {
             consumer5 = pulsarClient5.newConsumer().subscriptionName("sub2")
-                    .topic(persistenceTopic).consumerName("test3").subscribe();
+                    .topic(persistenceTopic).consumerName("test").subscribe();
             Assert.assertNotNull(consumer5);
             consumer5.close();
             pulsarClient5.shutdown();
