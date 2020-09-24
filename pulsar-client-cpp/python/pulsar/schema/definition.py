@@ -240,7 +240,7 @@ class String(Field):
         return val
 
     def default(self):
-        return ''
+        return str('')
 
 # Complex types
 
