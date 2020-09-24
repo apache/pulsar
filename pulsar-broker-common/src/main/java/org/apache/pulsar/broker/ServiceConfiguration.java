@@ -985,6 +985,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "Number of channels per bookie"
+    )
+    private int bookkeeperNumberOfChannelsPerBookie = 16;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_BK,
         doc = "Use older Bookkeeper wire protocol with bookie"
     )
     private boolean bookkeeperUseV2WireProtocol = true;
