@@ -170,7 +170,8 @@ public class LocalRunner {
     public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig, String
             stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
-                       String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv) {
+                       String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
+                       String secretsProviderClassName, String secretsProviderConfig) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -184,6 +185,8 @@ public class LocalRunner {
         this.tlsTrustCertFilePath = tlsTrustCertFilePath;
         this.instanceIdOffset = instanceIdOffset;
         this.runtimeEnv = runtimeEnv;
+        this.secretsProviderClassName = secretsProviderClassName;
+        this.secretsProviderConfig = secretsProviderConfig;
 
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
