@@ -58,7 +58,7 @@ import static org.testng.Assert.assertEquals;
 @Slf4j
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
-    private final String BASE_PATH = "/plugin";
+    private final String BASE_PATH = "/metrics/broker";
     private final String QUERY_PARAM = "param";
     private final String DUMMY_VALUE = "DUMMY_VALUE";
 
@@ -140,6 +140,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
                 log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
+                servletResponse.setContentLength(value.getBytes().length);
                 servletOutputStream.write(value.getBytes());
                 servletOutputStream.flush();
             }
@@ -177,7 +178,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void test() throws InterruptedException, IOException {
+    public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
         log.info("proxy service httpPort {}", httpPort);
         String paramValue = "value - " + RandomUtils.nextInt();
