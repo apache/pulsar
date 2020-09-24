@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -230,32 +231,46 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         try {
             ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
             if ("permit".equals(command.type)) {
-                if (command.permitMessages == null) {
-                    throw new IOException("Missing required permitMessages field for 'permit' command");
-                }
-                if (this.pullMode) {
-                    int pending = pendingMessages.getAndAdd(-command.permitMessages);
-                    if (pending >= 0) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+                handlePermit(command);
+            } else if ("unsubscribe".equals(command.type)) {
+                handleUnsubscribe(command);
             } else {
-                // We should have received an ack
-                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                        topic.toString());
-                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-                if (!this.pullMode) {
-                    int pending = pendingMessages.getAndDecrement();
-                    if (pending >= maxPendingMessages) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+                handleAck(command);
             }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
+        consumer.unsubscribe();
+    }
+
+    private void handleAck(ConsumerCommand command) throws IOException {
+        // We should have received an ack
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        if (!this.pullMode) {
+            int pending = pendingMessages.getAndDecrement();
+            if (pending >= maxPendingMessages) {
+                // Resume delivery
+                receiveMessage();
+            }
+        }
+    }
+
+    private void handlePermit(ConsumerCommand command) throws IOException {
+        if (command.permitMessages == null) {
+            throw new IOException("Missing required permitMessages field for 'permit' command");
+        }
+        if (this.pullMode) {
+            int pending = pendingMessages.getAndAdd(-command.permitMessages);
+            if (pending >= 0) {
+                // Resume delivery
+                receiveMessage();
+            }
         }
     }
 
