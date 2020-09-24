@@ -31,6 +31,7 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -38,7 +39,11 @@ import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.NameAndConfigBasedSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -56,6 +61,7 @@ import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -143,6 +149,10 @@ public class LocalRunner {
     protected int instanceIdOffset = 0;
     @Parameter(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true, converter = RuntimeConverter.class)
     protected RuntimeEnv runtimeEnv;
+    @Parameter(names = "--secretsProviderClassName", description = "Whats the classname of secrets provider", hidden = true)
+    protected String secretsProviderClassName;
+    @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
+    protected String secretsProviderConfig;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
@@ -349,7 +359,7 @@ public class LocalRunner {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
-
+        SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                 serviceUrl,
                 stateStorageServiceUrl,
@@ -359,7 +369,8 @@ public class LocalRunner {
                 null, /* log directory */
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
-                new DefaultSecretsProviderConfigurator(), false, Optional.empty(), Optional.empty())) {
+                secretsProviderConfigurator,
+                false, Optional.empty(), Optional.empty())) {
 
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
@@ -418,11 +429,23 @@ public class LocalRunner {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
+        SecretsProvider secretsProvider;
+        if (secretsProviderClassName != null) {
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+            Map<String, String> config = null;
+            if (secretsProviderConfig != null) {
+                config = (Map<String, String>)new Gson().fromJson(secretsProviderConfig, Map.class);
+            }
+            secretsProvider.init(config);
+        } else {
+            secretsProvider = new ClearTextSecretsProvider();
+        }
         ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                new ClearTextSecretsProvider(), null, narExtractionDirectory, null);
+                secretsProvider,
+                null, narExtractionDirectory, null);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
@@ -481,5 +504,19 @@ public class LocalRunner {
         }
         String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory);
+    }
+
+    private SecretsProviderConfigurator getSecretsProviderConfigurator() {
+        SecretsProviderConfigurator secretsProviderConfigurator;
+        if (secretsProviderClassName != null) {
+            Map<String, String> config = null;
+            if (secretsProviderConfig != null) {
+                config = (Map<String, String>)new Gson().fromJson(secretsProviderConfig, Map.class);
+            }
+            secretsProviderConfigurator = new NameAndConfigBasedSecretsProviderConfigurator(secretsProviderClassName, config);
+        } else {
+            secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
+        }
+        return secretsProviderConfigurator;
     }
 }

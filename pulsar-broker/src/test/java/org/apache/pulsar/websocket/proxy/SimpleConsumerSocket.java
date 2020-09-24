@@ -88,6 +88,12 @@ public class SimpleConsumerSocket {
         this.getRemote().sendString(permitMessage.toString());
     }
 
+    public void unsubscribe() throws IOException {
+        JsonObject message = new JsonObject();
+        message.add("type", new JsonPrimitive("unsubscribe"));
+        this.getRemote().sendString(message.toString());
+    }
+
     public RemoteEndpoint getRemote() {
         return this.session.getRemote();
     }
