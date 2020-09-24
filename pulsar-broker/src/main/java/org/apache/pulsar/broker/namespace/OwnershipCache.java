@@ -185,7 +185,9 @@ public class OwnershipCache {
                 if (stat.getEphemeralOwner() == localZkCache.getZooKeeper().getSessionId()) {
                     LOG.info("Successfully reestablish ownership of {}", path);
                     OwnedBundle ownedBundle = new OwnedBundle(ServiceUnitZkUtils.suBundleFromPath(path, bundleFactory));
-                    ownedBundlesCache.put(path, CompletableFuture.completedFuture(ownedBundle));
+                    if (selfOwnerInfo.getNativeUrl().equals(ownerDataWithStat.getKey().getNativeUrl())) {
+                        ownedBundlesCache.put(path, CompletableFuture.completedFuture(ownedBundle));
+                    }
                     ownershipReadOnlyCache.invalidate(path);
                     namespaceService.onNamespaceBundleOwned(ownedBundle.getNamespaceBundle());
                 }
