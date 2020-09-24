@@ -166,8 +166,14 @@ public class KeyStoreSSLContext {
     }
 
     public SSLEngine createSSLEngine() {
-        SSLEngine sslEngine = sslContext.createSSLEngine();
+        return configureSSLEngine(sslContext.createSSLEngine());
+    }
 
+    public SSLEngine createSSLEngine(String peerHost, int peerPort) {
+        return configureSSLEngine(sslContext.createSSLEngine(peerHost, peerPort));
+    }
+
+    private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
         sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
         sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
 
@@ -177,7 +183,6 @@ public class KeyStoreSSLContext {
         } else {
             sslEngine.setUseClientMode(true);
         }
-
         return sslEngine;
     }
 
@@ -353,3 +358,4 @@ public class KeyStoreSSLContext {
         return sslCtxFactory;
     }
 }
+
