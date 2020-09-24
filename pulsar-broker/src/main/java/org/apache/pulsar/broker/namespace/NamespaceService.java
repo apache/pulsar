@@ -400,6 +400,11 @@ public class NamespaceService {
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
+        if( null == pulsar.getLeaderElectionService() || ! pulsar.getLeaderElectionService().isElected()) {
+            LOG.warn("The leader election has not yet been completed! NamespaceBundle[{}]", bundle);
+            lookupFuture.completeExceptionally(new IllegalStateException("The leader election has not yet been completed!"));
+            return;
+        }
         String candidateBroker = null;
         boolean authoritativeRedirect = pulsar.getLeaderElectionService().isLeader();
 
