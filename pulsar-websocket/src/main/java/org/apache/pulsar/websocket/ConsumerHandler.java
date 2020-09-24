@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
@@ -366,7 +367,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 this.subscription);
     }
 
-    private static String extractSubscription(HttpServletRequest request) {
+    public static String extractSubscription(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
@@ -384,7 +385,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 parts.get(domainIndex).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
-        return parts.get(8);
+        return Codec.decode(parts.get(8));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
