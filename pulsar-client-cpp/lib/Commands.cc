@@ -489,7 +489,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::ACK:
             return "ACK";
             break;
-        case BaseCommand::ACK_ERROR return "ACK_ERROR"; break; case BaseCommand::FLOW:
+        case BaseCommand::FLOW:
             return "FLOW";
             break;
         case BaseCommand::UNSUBSCRIBE:
