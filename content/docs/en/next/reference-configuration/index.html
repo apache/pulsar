@@ -260,6 +260,7 @@
 <tr><td>bookkeeperClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BK add / read operations</td><td>30</td></tr>
 <tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads</td><td>0</td></tr>
+<tr><td>bookkeeperNumberOfChannelsPerBookie</td><td>Number of channels per bookie</td><td>16</td></tr>
 <tr><td>bookkeeperClientHealthCheckEnabled</td><td>Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won’t be created on these bookies</td><td>true</td></tr>
 <tr><td>bookkeeperClientHealthCheckIntervalSeconds</td><td></td><td>60</td></tr>
 <tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td></td><td>5</td></tr>
