@@ -83,6 +83,10 @@ enum Result
     ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
     ResultInvalidTxnStatusError,                     /// Invalid txn status error
     ResultNotAllowedError,                           /// Not allowed
+
+    ResultTransactionAckConflictException;     /// Transaction ack conflict
+    ResultTransactionCommitConflictException;  /// Transaction commit conflict
+    ResultTransactionAbortConflictException;   /// Transaction abort conflict
 };
 
 // Return string representation of result code
