@@ -384,7 +384,7 @@ class SchemaTest(TestCase):
 
         r = Example()
         self.assertEqual(r.a, 5)
-        self.assertEqual(r.b, None)
+        self.assertEqual(r.b, 0)
         self.assertEqual(r.c, 'hello')
 
     ####
