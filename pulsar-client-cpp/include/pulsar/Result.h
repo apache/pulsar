@@ -84,9 +84,9 @@ enum Result
     ResultInvalidTxnStatusError,                     /// Invalid txn status error
     ResultNotAllowedError,                           /// Not allowed
 
-    ResultTransactionAckConflictException;     /// Transaction ack conflict
-    ResultTransactionCommitConflictException;  /// Transaction commit conflict
-    ResultTransactionAbortConflictException;   /// Transaction abort conflict
+    ResultTransactionAckConflictException,     /// Transaction ack conflict
+    ResultTransactionCommitConflictException,  /// Transaction commit conflict
+    ResultTransactionAbortConflictException,   /// Transaction abort conflict
 };
 
 // Return string representation of result code
