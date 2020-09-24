@@ -90,7 +90,7 @@ public class ConnectionPool implements Closeable {
         bootstrap.option(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
 
         try {
-            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier, isSniProxy);
+            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier);
             bootstrap.handler(channelInitializerHandler);
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
@@ -293,39 +293,12 @@ public class ConnectionPool implements Closeable {
      * Attempt to establish a TCP connection to an already resolved single IP address
      */
     private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port, InetSocketAddress sniHost) {
-        CompletableFuture<Channel> future = new CompletableFuture<>();
-        // if proxy is configured in pulsar-client then make it thread-safe while updating channelInitializerHandler
-        if (isSniProxy) {
-            bootstrap.register().addListener((ChannelFuture cf) -> {
-                if (!cf.isSuccess()) {
-                    future.completeExceptionally(cf.cause());
-                    return;
-                }
-                Channel channel = cf.channel();
-                try {
-                    channelInitializerHandler.initChannel(channel, sniHost);
-                    channel.connect(new InetSocketAddress(ipAddress, port)).addListener((ChannelFuture channelFuture) -> {
-                        if (channelFuture.isSuccess()) {
-                            future.complete(channelFuture.channel());
-                        } else {
-                            future.completeExceptionally(channelFuture.cause());
-                        }
-                    });
-                } catch (Exception e) {
-                    log.warn("Failed to initialize channel with {}, {}", ipAddress, sniHost, e);
-                    future.completeExceptionally(e);
-                }
-            });
-        } else {
-            bootstrap.connect(ipAddress, port).addListener((ChannelFuture channelFuture) -> {
-                if (channelFuture.isSuccess()) {
-                    future.complete(channelFuture.channel());
-                } else {
-                    future.completeExceptionally(channelFuture.cause());
-                }
-            });
-        }
-        return future;
+        InetSocketAddress remoteAddress = new InetSocketAddress(ipAddress, port);
+        return adapt(bootstrap.register())
+                .thenCompose(channel -> clientConfig.isUseTls()
+                        ? channelInitializerHandler.initTls(channel, sniHost != null ? sniHost : remoteAddress)
+                        : CompletableFuture.completedFuture(channel))
+                .thenCompose(channel -> adapt(channel.connect(remoteAddress)));
     }
 
     public void releaseConnection(ClientCnx cnx) {
@@ -364,7 +337,7 @@ public class ConnectionPool implements Closeable {
     }
 
     public static int signSafeMod(long dividend, int divisor) {
-        int mod = (int) (dividend % (long) divisor);
+        int mod = (int) (dividend % divisor);
         if (mod < 0) {
             mod += divisor;
         }
@@ -372,4 +345,17 @@ public class ConnectionPool implements Closeable {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
+
+    private static CompletableFuture<Channel> adapt(ChannelFuture channelFuture) {
+        CompletableFuture<Channel> adapter = new CompletableFuture<>();
+        channelFuture.addListener((ChannelFuture cf) ->{
+            if (cf.isSuccess()) {
+                adapter.complete(channelFuture.channel());
+            } else {
+                adapter.completeExceptionally(channelFuture.cause());
+            }
+        });
+        return adapter;
+    }
 }
+
