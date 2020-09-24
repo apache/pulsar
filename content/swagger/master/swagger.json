@@ -86,7 +86,7 @@
       },
       "post" : {
         "tags" : [ "bookies" ],
-        "summary" : "Updates the rack placement information for a specific bookie in the cluster",
+        "summary" : "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)",
         "description" : "",
         "operationId" : "updateBookieRackInfo",
         "produces" : [ "application/json" ],
@@ -7938,7 +7938,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -14972,20 +14972,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -15003,6 +14989,20 @@
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -15178,6 +15178,9 @@
           "type" : "number",
           "format" : "double"
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -15185,9 +15188,6 @@
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         }
       }
@@ -16055,6 +16055,9 @@
             "type" : "string"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -16062,9 +16065,6 @@
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         }
       }

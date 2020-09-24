@@ -112,7 +112,7 @@
                 "tags": [
                     "bookies"
                 ],
-                "summary": "Updates the rack placement information for a specific bookie in the cluster",
+                "summary": "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)",
                 "description": "",
                 "operationId": "updateBookieRackInfo",
                 "produces": [
