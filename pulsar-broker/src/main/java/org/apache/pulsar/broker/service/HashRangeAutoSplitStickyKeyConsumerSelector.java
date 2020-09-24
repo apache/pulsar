@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * 2.The whole range of hash value could be covered by all the consumers.
  * 3.Once a consumer is removed, the left consumers could still serve the whole range.
  *
- * Initializing with a fixed hash range, by default 2 << 5.
+ * Initializing with a fixed hash range, by default 2 << 15.
  * First consumer added, hash range looks like:
  *
  * 0 -> 65536(consumer-1)
