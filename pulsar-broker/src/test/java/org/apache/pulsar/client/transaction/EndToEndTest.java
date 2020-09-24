@@ -28,6 +28,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -374,6 +376,56 @@ public class EndToEndTest extends TransactionTestBase {
         }
 
         log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
+    @Test
+    public void recoverTest() throws Exception {
+        final String topic = NAMESPACE1 + "/recover-test";
+
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        for (int i = 0; i < 5; i++) {
+            Transaction txn = getTxn();
+            for (int j = 0; j < 10; j++) {
+                String content = String.format("txn: %s, index: %s", txn.toString(), i);
+                producer.newMessage(txn).value(content.getBytes()).sendAsync();
+            }
+            txn.commit().get();
+        }
+
+        log.info("unload namespace start: {}", NAMESPACE1);
+        Thread.sleep(1000 * 10);
+        admin.namespaces().unload(NAMESPACE1);
+        Thread.sleep(1000 * 30);
+        log.info("unload namespace finished: {}", NAMESPACE1);
+
+        for (int i = 0; i < 5; i++) {
+            Transaction txn = getTxn();
+            for (int j = 0; j < 10; j++) {
+                String content = String.format("txn: %s, index: %s", txn.toString(), i);
+                producer.newMessage(txn).value(content.getBytes()).sendAsync();
+            }
+            txn.commit().get();
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test")
+                .subscribe();
+
+        Message<byte[]> message;
+        for (int i = 0; i < 10; i++) {
+            message = consumer.receive();
+            Assert.assertNotNull(message);
+            log.info("receive msg: {}", new String(message.getData()));
+        }
+
+        log.info("recover test finished.");
     }
 
     private Transaction getTxn() throws Exception {

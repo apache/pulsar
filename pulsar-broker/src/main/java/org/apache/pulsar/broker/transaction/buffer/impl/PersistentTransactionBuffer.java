@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -114,8 +115,12 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
-        this.state = State.INIT;
-        recover();
+        if (ledger.getNumberOfEntries() == 0) {
+            this.state = State.RECOVER_SUCCESS;
+        } else {
+            this.state = State.INIT;
+            recover();
+        }
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -232,7 +237,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                         ((PositionImpl) position).getEntryId())
                         .whenComplete((ignored, throwable) -> {
                             if (throwable != null) {
-                                handlePendingCommit();
+                                brokerService.executor().schedule(
+                                        this::handlePendingCommit, 5, TimeUnit.MILLISECONDS);
                             } else {
                                 pendingCommitTxn.remove(txnID);
                                 if (pendingCommitTxn.peek() != null) {
@@ -425,6 +431,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     public void recover() {
+        log.info("transaction buffer start recover from ledger {}", ledger.getName());
         // TODO recover from snapshot
         ReadOnlyCursorImpl readOnlyCursor = new ReadOnlyCursorImpl(
                 brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig(),
@@ -487,6 +494,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                 if (readOnlyCursor.hasMoreEntries()) {
                     recoverFromLog(readOnlyCursor);
                 } else {
+                    log.info("transaction buffer recover finished from ledger {}.", ledger.getName());
                     PersistentTransactionBuffer.this.state = State.RECOVER_SUCCESS;
                 }
             }

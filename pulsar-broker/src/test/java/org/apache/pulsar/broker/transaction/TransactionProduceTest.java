@@ -268,9 +268,6 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         txn.abort().get();
 
-        // the messageId callback should be called after commit
-        checkMessageId(futureList, true);
-
         // the target topic partition doesn't have any entries
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(PRODUCE_ABORT_TOPIC, i);

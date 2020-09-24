@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,7 +34,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -128,23 +129,40 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
-                txnSendOp.sendFuture.whenComplete((messageId, t) -> {
-                    txnSendOp.transactionalSendFuture.complete(messageId);
+        final TxnID txnID = new TxnID(txnIdMostBits, txnIdLeastBits);
+        return allOpComplete().thenCompose(ignored -> {
+            CompletableFuture<Void> commitFuture = tcClient.commitAsync(txnID);
+            commitFuture.whenComplete((commitResult, commitThrowable) -> {
+                if (commitThrowable != null) {
+                    log.error("Txn {} commit failed.", txnID, commitThrowable);
+                    return;
+                }
+                sendOps.values().forEach(txnSendOp -> {
+                    log.info("commit finished sendOps");
+                    txnSendOp.sendFuture.whenComplete((messageId, t) -> {
+                        log.info("sendOps result: {}", messageId);
+                        txnSendOp.transactionalSendFuture.complete(messageId);
+                    });
                 });
             });
+            return commitFuture;
         });
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
-                txnSendOp.sendFuture.whenComplete(((messageId, t) -> {
-                    txnSendOp.transactionalSendFuture.complete(messageId);
-                }));
-            });
-        });
+        return allOpComplete().thenCompose(ignored ->
+                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)));
+    }
+
+    private CompletableFuture<Void> allOpComplete() {
+        List<CompletableFuture<?>> futureList = new ArrayList<>();
+        for (TransactionalSendOp sendOp : sendOps.values()) {
+            futureList.add(sendOp.sendFuture);
+        }
+        for (TransactionalAckOp ackOp : ackOps) {
+            futureList.add(ackOp.ackFuture);
+        }
+        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }
 }
