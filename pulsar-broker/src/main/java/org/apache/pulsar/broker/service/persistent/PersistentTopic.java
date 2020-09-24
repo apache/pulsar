@@ -281,6 +281,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         checkReplicatedSubscriptionControllerState();
+
+        if (!ledger.getProperties().isEmpty()
+                && ledger.getProperties().containsKey(PersistentTransactionBuffer.TB_EXIST_PROPERTY)) {
+            getTransactionBuffer(true);
+        }
     }
     // for testing purposes
     @VisibleForTesting

@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferUnusableException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -53,7 +54,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -75,6 +75,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private Topic originTopic;
     private ConcurrentLinkedQueue<TxnID> pendingCommitTxn;
     private volatile boolean pendingCommitHandling;
+    private volatile State state;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -98,6 +99,12 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
     }
 
+    enum State {
+        INIT,
+        RECOVER_FAIL,
+        RECOVER_SUCCESS
+    }
+
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService,
                                        Topic originTopic)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
@@ -107,6 +114,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
+        this.state = State.INIT;
+        recover();
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -120,7 +129,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
-        return publishMessage(txnId, buffer, sequenceId)
+        return checkState()
+                .thenCompose(ignored -> publishMessage(txnId, buffer, sequenceId))
                 .thenCompose(position -> appendBuffer(txnId, position, sequenceId, batchSize));
     }
 
@@ -131,7 +141,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
-        return txnCursor.getTxnMeta(txnID, false).thenCompose(this::createNewReader);
+        return checkState()
+                .thenCompose(igonred -> txnCursor.getTxnMeta(txnID, false))
+                .thenCompose(this::createNewReader);
     }
 
     private CompletableFuture<TransactionBufferReader> createNewReader(TransactionMeta meta) {
@@ -161,15 +173,17 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-            future = committingTxn(txnID);
-        } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-            future = abortTxn(txnID);
-        } else {
-            future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
-        }
-        return future;
+        return checkState().thenCompose(ignored -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                future = committingTxn(txnID);
+            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                future = abortTxn(txnID);
+            } else {
+                future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+            }
+            return future;
+        });
     }
 
     private CompletableFuture<Void> committingTxn(TxnID txnID) {
@@ -399,59 +413,90 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return txnCursor;
     }
 
-    public void recover() throws ManagedLedgerException, InterruptedException, IOException {
-        // TODO recover from snapshot
-        recoverFromLog(PositionImpl.earliest);
+    public CompletableFuture<Void> checkState() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (this.state != State.RECOVER_SUCCESS) {
+            completableFuture.completeExceptionally(
+                    new TransactionBufferUnusableException("TransactionBuffer is unusable in state " + state));
+        } else {
+            completableFuture.complete(null);
+        }
+        return completableFuture;
     }
 
-    private void recoverFromLog(PositionImpl startPosition) throws ManagedLedgerException, InterruptedException, IOException {
+    public void recover() {
+        // TODO recover from snapshot
         ReadOnlyCursorImpl readOnlyCursor = new ReadOnlyCursorImpl(
                 brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig(),
-                (ManagedLedgerImpl) ledger, startPosition, "tb-recover");
-        while (readOnlyCursor.hasMoreEntries()) {
-            List<Entry> entryList = readOnlyCursor.readEntries(1000);
-            for (Entry entry : entryList) {
-                PulsarApi.MessageMetadata metadata = null;
-                try {
-                    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-                    TransactionMeta txnMeta = txnCursor.getTxnMeta(txnID, true).getNow(null);
+                (ManagedLedgerImpl) ledger, PositionImpl.earliest, "tb-recover");
+        recoverFromLog(readOnlyCursor);
+    }
 
-                    // recover committing status
-                    if (PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE == metadata.getMarkerType()) {
-                        txnMeta.committingTxn();
-                        pendingCommitTxn.add(txnID);
-                    }
-                    // recover commit status
-                    else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
-                        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(entry.getDataBuffer());
-                        PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker
-                                .newBuilder()
-                                .mergeFrom(inStream, null)
-                                .build();
+    private void recoverFromLog(ReadOnlyCursorImpl readOnlyCursor) {
+        readOnlyCursor.asyncReadEntries(1000, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                for (Entry entry : entries) {
+                    PulsarApi.MessageMetadata metadata = null;
+                    try {
+                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                        TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+                        TransactionMeta txnMeta = txnCursor.getTxnMeta(txnID, true).getNow(null);
 
-                        txnCursor.commitTxn(
-                                commitMarker.getMessageId().getLedgerId(),
-                                commitMarker.getMessageId().getEntryId(), txnID, entry.getPosition());
-                        pendingCommitTxn.remove(txnID);
-                        commitMarker.recycle();
+                        // recover committing status
+                        if (PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE == metadata.getMarkerType()) {
+                            txnMeta.committingTxn();
+                            pendingCommitTxn.add(txnID);
+                        }
+                        // recover commit status
+                        else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
+                            ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(entry.getDataBuffer());
+                            PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker
+                                    .newBuilder()
+                                    .mergeFrom(inStream, null)
+                                    .build();
+
+                            txnCursor.commitTxn(
+                                    commitMarker.getMessageId().getLedgerId(),
+                                    commitMarker.getMessageId().getEntryId(), txnID, entry.getPosition());
+                            pendingCommitTxn.remove(txnID);
+                            commitMarker.recycle();
+                        }
+                        // recover abort status
+                        else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
+                            txnMeta.abortTxn();
+                        }
+                        // recover transaction message index
+                        else {
+                            txnMeta.appendEntry(metadata.getSequenceId(), entry.getPosition(), metadata.getNumMessagesInBatch());
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to recover transactionBuffer by log.", e);
+                        PersistentTransactionBuffer.this.state = State.RECOVER_FAIL;
+                        break;
+                    } finally {
+                        if (metadata != null) {
+                            metadata.recycle();
+                        }
+                        entry.release();
                     }
-                    // recover abort status
-                    else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
-                        txnMeta.abortTxn();
-                    }
-                    // recover transaction message index
-                    else {
-                        txnMeta.appendEntry(metadata.getSequenceId(), entry.getPosition(), metadata.getNumMessagesInBatch());
-                    }
-                } finally {
-                    if (metadata != null) {
-                        metadata.recycle();
-                    }
-                    entry.release();
+                }
+                if (PersistentTransactionBuffer.this.state == State.RECOVER_FAIL) {
+                    return;
+                }
+                if (readOnlyCursor.hasMoreEntries()) {
+                    recoverFromLog(readOnlyCursor);
+                } else {
+                    PersistentTransactionBuffer.this.state = State.RECOVER_SUCCESS;
                 }
             }
-        }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to read transactionBuffer by log.", exception);
+                PersistentTransactionBuffer.this.state = State.RECOVER_FAIL;
+            }
+        }, null);
     }
 
 }

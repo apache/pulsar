@@ -536,7 +536,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                         getPulsarServiceList().get(0).getBrokerService(), normalTopic);
 
         Set<TxnID> txnIDSet = new LinkedHashSet<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 2000; i++) {
             TxnID txnID = new TxnID(i, i + 1);
             txnIDSet.add(txnID);
             appendTransactionMessages(txnID, transactionBuffer, 10);
@@ -564,6 +564,17 @@ public class TransactionProduceTest extends TransactionTestBase {
         Assert.assertEquals(recoverIndexMap.size(), 0);
 
         recoverTB.recover();
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                recoverTB.checkState().get();
+                log.info("recover operation finished.");
+                break;
+            } catch (Exception e) {
+                Thread.sleep(1000);
+                log.warn("recover operation is not finished.");
+            }
+        }
 
         ConcurrentMap<TxnID, TransactionMetaImpl> originalIndexMap =
                 (ConcurrentMap) txnIndexField.get(transactionBuffer.getTxnCursor());
