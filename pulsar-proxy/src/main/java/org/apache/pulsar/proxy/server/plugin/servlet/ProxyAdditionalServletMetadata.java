@@ -30,12 +30,12 @@ import lombok.NoArgsConstructor;
 public class ProxyAdditionalServletMetadata {
 
     /**
-     * The definition of the proxy interceptor.
+     * The definition of the proxy additional servlet.
      */
     private ProxyAdditionalServletDefinition definition;
 
     /**
-     * The path to the handler package.
+     * The path to the additional servlet package.
      */
     private Path archivePath;
 }

@@ -202,7 +202,8 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (ProxyAdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder());
+                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
+                        Collections.emptyList(), config.isAuthenticationEnabled());
                 log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
             }
         }

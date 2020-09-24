@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 
 /**
- * A collection of loaded proxy handlers.
+ * A collection of loaded proxy additional servlets.
  */
 @Slf4j
 public class ProxyAdditionalServlets implements AutoCloseable {
@@ -49,7 +49,7 @@ public class ProxyAdditionalServlets implements AutoCloseable {
     public static ProxyAdditionalServlets load(ProxyConfiguration conf) throws IOException {
         ProxyAdditionalServletDefinitions definitions =
                 ProxyAdditionalServletUtils.searchForServlets(
-                        conf.getProxyAdditionalServletDirectory(), conf.getNarExtractionDirectory());
+                        conf.getProxyAdditionalServletDirectory(), null);
 
         ImmutableMap.Builder<String, ProxyAdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 

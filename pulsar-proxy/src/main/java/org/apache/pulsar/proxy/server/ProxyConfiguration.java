@@ -170,7 +170,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "The directory where nar Extraction of offloaders happens"
+            doc = "The directory where nar Extraction happens"
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
