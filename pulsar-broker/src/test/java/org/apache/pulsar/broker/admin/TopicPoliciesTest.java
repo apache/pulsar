@@ -985,7 +985,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
     }
 
-    // @Test
+    @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTopic).create();
