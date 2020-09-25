@@ -710,12 +710,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+        CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         MessageIdImpl targetMessageId = MessageIdImpl.convertToMessageIdImpl(messageId);
         if (targetMessageId == null || isIllegalMultiTopicsMessageId(messageId)) {
-            resultFuture.completeExceptionally(
+            seekFuture.completeExceptionally(
                     new PulsarClientException("Illegal messageId, messageId can only be earliest/latest"));
-            return resultFuture;
+            return seekFuture;
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
@@ -724,15 +724,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         incomingMessages.clear();
         MultiTopicsConsumerImpl.INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
 
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
             if (exception != null) {
-                resultFuture.completeExceptionally(exception);
+                seekFuture.completeExceptionally(exception);
             } else {
-                resultFuture.complete(result);
+                seekFuture.complete(result);
             }
-            return null;
         });
-        return resultFuture;
+        return seekFuture;
     }
 
     @Override
@@ -762,11 +761,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
-        final AtomicBoolean isAvailableBoolean = new AtomicBoolean(false);
+        final AtomicBoolean hasMessageAvailable = new AtomicBoolean(false);
         for (ConsumerImpl<T> consumer : consumers.values()) {
             futureList.add(consumer.hasMessageAvailableAsync().thenAccept(isAvailable -> {
                 if (isAvailable) {
-                    isAvailableBoolean.compareAndSet(false, true);
+                    hasMessageAvailable.compareAndSet(false, true);
                 }
             }));
         }
@@ -775,7 +774,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (exception != null) {
                 completableFuture.completeExceptionally(exception);
             } else {
-                completableFuture.complete(isAvailableBoolean.get());
+                completableFuture.complete(hasMessageAvailable.get());
             }
         });
         return completableFuture;
