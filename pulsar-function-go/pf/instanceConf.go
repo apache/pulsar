@@ -48,6 +48,7 @@ func newInstanceConf() *instanceConf {
 	if cfg == nil {
 		panic("config file is nil.")
 	}
+
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -72,8 +73,8 @@ func newInstanceConf() *instanceConf {
 				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
 				InputSpecs: map[string]*pb.ConsumerSpec{
 					cfg.SourceSpecTopic: {
-						SchemaType:     cfg.SourceSchemaType,
-						IsRegexPattern: cfg.IsRegexPatternSubscription,
+						SchemaType:     "",
+						IsRegexPattern: false,
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
 							Value: cfg.ReceiverQueueSize,
 						},
@@ -96,6 +97,7 @@ func newInstanceConf() *instanceConf {
 				MaxMessageRetries: cfg.MaxMessageRetries,
 				DeadLetterTopic:   cfg.DeadLetterTopic,
 			},
+			UserConfig: cfg.UserConfig,
 		},
 	}
 	return instanceConf
