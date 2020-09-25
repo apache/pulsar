@@ -465,52 +465,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testMultiReaderOnSpecificMessage() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testMultiReaderOnSpecificMessage";
-        final int messageNum = 12;
-        final int partitionNum = 3;
-        admin.topics().createPartitionedTopic(topicName, partitionNum);
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        MessageIdImpl targetMessageId = null;
-        Map<Integer, List<MessageId>> map = new HashMap();
-        for (int i = 0; i < messageNum; i++) {
-            String message = "my-message-" + i;
-            MessageId messageId = producer.send(message.getBytes());
-            MessageIdImpl id = MessageIdImpl.convertToMessageIdImpl(messageId);
-            if (!map.containsKey(id.getPartitionIndex())) {
-                map.put(id.getPartitionIndex(), new ArrayList<>());
-            }
-            map.get(id.getPartitionIndex()).add(messageId);
-            if (i == 4) {
-                targetMessageId = id;
-            }
-        }
-
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
-                .startMessageId(targetMessageId).create();
-
-        // Publish more messages and verify the readers only sees messages starting from the intended message
-        Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        long preEntryId = targetMessageId.getEntryId();
-        while (reader.hasMessageAvailable()) {
-            msg = reader.readNext(3, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            long currentEntryId = MessageIdImpl.convertToMessageIdImpl(msg.getMessageId()).getEntryId();
-            assertEquals(currentEntryId - 1 ,preEntryId);
-            preEntryId = currentEntryId;
-            Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message " + receivedMessage);
-        }
-
-        long receiveNum = map.get(targetMessageId.getPartitionIndex()).size()
-                - map.get(targetMessageId.getPartitionIndex()).indexOf(targetMessageId) - 1;
-        assertEquals(messageSet.size(), receiveNum);
-        // Acknowledge the consumption of all messages at once
-        reader.close();
-        producer.close();
-    }
-
-    @Test
     public void testReaderOnSpecificMessageWithBatches() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/testReaderOnSpecificMessageWithBatches").enableBatching(true)
@@ -547,46 +501,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             assertEquals(receivedMessage, expectedMessage);
-        }
-
-        producer.close();
-    }
-
-    @Test
-    public void testMultiReaderOnSpecificMessageWithBatches() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testMultiReaderOnSpecificMessageWithBatches";
-        final int partitionNum = 3;
-        admin.topics().createPartitionedTopic(topicName, partitionNum);
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName).enableBatching(true)
-                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
-
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.sendAsync(message.getBytes());
-        }
-        // Write one sync message to ensure everything before got persistend
-        producer.send("my-message-10".getBytes());
-        Reader<byte[]> reader1 = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageId(MessageId.earliest).create();
-
-        Message<byte[]> lastMessageId = null;
-        Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < 5; i++) {
-            Message<byte[]> msg = reader1.readNext();
-            messageSet.add(new String(msg.getData()));
-            lastMessageId = msg;
-        }
-
-        Reader<byte[]> reader2 = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageId(lastMessageId.getMessageId()).create();
-        for (int i = 5; i < 11; i++) {
-            Message<byte[]> msg = reader2.readNext(1, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            assertFalse(messageSet.contains(receivedMessage));
         }
 
         producer.close();
@@ -1068,67 +982,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(dataProvider = "variationsForHasMessageAvailable")
-    public void testMultiReaderHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
-        final String topicName = "persistent://my-property/my-ns/HasMessageAvailable" + ThreadLocalRandom.current().nextInt();
-        int partitionNUm = 3;
-        admin.topics().createPartitionedTopic(topicName, partitionNUm);
-        final int numOfMessage = 99;
-
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
-
-        if (enableBatch) {
-            producerBuilder.enableBatching(true).batchingMaxMessages(10);
-        } else {
-            producerBuilder.enableBatching(false);
-        }
-
-        Producer<byte[]> producer = producerBuilder.create();
-
-        CountDownLatch latch = new CountDownLatch(numOfMessage);
-
-        List<MessageIdImpl> allIds = Collections.synchronizedList(new ArrayList<>());
-
-        ConcurrentHashMap<Integer, List<MessageIdImpl>> partitionIdToMessageIdMap = new ConcurrentHashMap<>();
-        for (int i = 0; i < numOfMessage; i++) {
-            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
-                if (e != null) {
-                    Assert.fail();
-                } else {
-                    MessageIdImpl messageId = MessageIdImpl.convertToMessageIdImpl(mid);
-                    partitionIdToMessageIdMap.putIfAbsent(messageId.getPartitionIndex(), Collections.synchronizedList(new ArrayList<>()));
-                    partitionIdToMessageIdMap.get(messageId.getPartitionIndex()).add(messageId);
-                    allIds.add(messageId);
-                }
-                latch.countDown();
-            });
-        }
-
-        latch.await();
-
-        allIds.sort(null); // make sure the largest mid appears at last.
-        partitionIdToMessageIdMap.forEach((key, value) -> Collections.sort(value));
-        for (MessageIdImpl id : allIds) {
-            Reader<byte[]> reader;
-            List<MessageIdImpl> list = partitionIdToMessageIdMap.get(id.getPartitionIndex());
-            if (startInclusive) {
-                reader = pulsarClient.newReader().topic(topicName).startMessageId(id).startMessageIdInclusive().create();
-            } else {
-                reader = pulsarClient.newReader().topic(topicName).startMessageId(id).create();
-            }
-            if (startInclusive) {
-                assertTrue(reader.hasMessageAvailable());
-            } else if (id != list.get(list.size() - 1)) {
-                assertTrue(reader.hasMessageAvailable());
-            } else {
-                assertFalse(reader.hasMessageAvailable());
-            }
-            reader.close();
-        }
-
-        producer.close();
-    }
-
     @Test
     public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
@@ -1327,61 +1180,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testMultiReaderIsAbleToSeekWithMessageIdOnMiddleOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/MultiReaderSeekWithMessageIdOnMiddleOfTopic";
-        final int numOfMessage = 99;
-        final int partitionNum = 3;
-        final int halfMessages = numOfMessage / 2;
-        admin.topics().createPartitionedTopic(topicName, partitionNum);
-
-        Producer<byte[]> producer = pulsarClient.newProducer().messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-                .topic(topicName).create();
-
-        MessageIdImpl midmessageToSeek = null;
-        ConcurrentHashMap<Integer, List<MessageIdImpl>> partitionToMessageIdMap = new ConcurrentHashMap<>();
-        for (int i = 0; i < numOfMessage; i++) {
-            MessageId messageId = producer.send(String.format("msg num %d", i).getBytes());
-            MessageIdImpl id = MessageIdImpl.convertToMessageIdImpl(messageId);
-            partitionToMessageIdMap.putIfAbsent(id.getPartitionIndex(), new ArrayList<>());
-            partitionToMessageIdMap.get(id.getPartitionIndex()).add(id);
-            if (i == halfMessages) {
-                midmessageToSeek = id;
-            }
-        }
-
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
-                .startMessageId(MessageId.earliest).create();
-        // Read some messages the first time
-        Set<String> messageSetA = Sets.newHashSet();
-        for (int i = 0; i < numOfMessage - 10; i++) {
-            Message<byte[]> message = reader.readNext();
-            String receivedMessage = new String(message.getData());
-            Assert.assertTrue(messageSetA.add(receivedMessage), "Received duplicate message " + receivedMessage);
-        }
-
-        assertTrue(reader.hasMessageAvailable());
-        // Perform cursor reset by MessageId to half of the topic
-        reader.seek(midmessageToSeek);
-        // Read all messages after seek()
-        Set<String> messageSetB = Sets.newHashSet();
-        while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext(5,TimeUnit.SECONDS);
-            String receivedMessage = new String(message.getData());
-            Assert.assertTrue(messageSetB.add(receivedMessage), "Received duplicate message " + receivedMessage);
-        }
-
-        List<MessageIdImpl> list = partitionToMessageIdMap.get(midmessageToSeek.getPartitionIndex());
-        //Check message num
-        assertEquals(messageSetB.size(), list.size() - list.indexOf(midmessageToSeek) - 1);
-        // Reader should be finished
-        assertEquals(((MultiTopicsReaderImpl) reader).getMultiTopicsConsumer().numMessagesInQueue(), 0);
-        assertFalse(reader.hasMessageAvailable());
-
-        reader.close();
-        producer.close();
-    }
-
-    @Test
     public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
         final int numOfMessage = 10;
@@ -1506,75 +1304,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(dataProvider = "variationsForExpectedPos")
-    public void testMultiReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
-            throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos" + System.currentTimeMillis();
-        final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
-        admin.topics().createPartitionedTopic(topicName,2);
-        Producer<byte[]> producer = pulsarClient.newProducer().messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-                .topic(topicName).enableBatching(batching).create();
-
-        CountDownLatch latch = new CountDownLatch(numOfMessages);
-
-        final AtomicReference<MessageId> resetPos = new AtomicReference<>();
-        ConcurrentHashMap<Integer, List<MessageIdImpl>> partitionIdToMessageIdMap = new ConcurrentHashMap<>();
-        for (int i = 0; i < numOfMessages; i++) {
-            final int j = i;
-            producer.sendAsync(String.format("msg num %d", i).getBytes())
-                    .thenCompose(messageId -> {
-                        MessageIdImpl id = MessageIdImpl.convertToMessageIdImpl(messageId);
-                        partitionIdToMessageIdMap.putIfAbsent(id.getPartitionIndex(), Collections.synchronizedList(new ArrayList<>()));
-                        partitionIdToMessageIdMap.get(id.getPartitionIndex()).add(id);
-                        return FutureUtils.value(Pair.of(j, messageId));
-                    })
-                    .whenComplete((p, e) -> {
-                        if (e != null) {
-                            fail("send msg failed due to " + e.getMessage());
-                        } else {
-                            if (p.getLeft() == resetIndex) {
-                                resetPos.set(p.getRight());
-                            }
-                        }
-                        latch.countDown();
-                    });
-        }
-
-        latch.await();
-
-        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageId(resetPos.get());
-
-        if (startInclusive) {
-            readerBuilder.startMessageIdInclusive();
-        }
-
-        Reader<byte[]> reader = readerBuilder.create();
-        Set<String> messageSet = Sets.newHashSet();
-
-        while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext(2, TimeUnit.SECONDS);
-            String receivedMessage = new String(message.getData());
-            MessageIdImpl messageId = MessageIdImpl.convertToMessageIdImpl(message.getMessageId());
-            System.out.println("receivedMessage："+receivedMessage + " messageId:" + messageId.toString());
-            Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message");
-        }
-
-        assertEquals(((MultiTopicsReaderImpl) reader).getMultiTopicsConsumer().numMessagesInQueue(), 0);
-
-        // Processed messages should be the number of messages in the range: [FirstResetMessage..TotalNumOfMessages]
-        List<MessageIdImpl> list = partitionIdToMessageIdMap.get(MessageIdImpl.convertToMessageIdImpl(resetPos.get()).getPartitionIndex());
-        if (startInclusive) {
-            assertEquals(messageSet.size(), list.size() - list.indexOf(resetPos.get()));
-        } else {
-            assertEquals(messageSet.size(), list.size() - list.indexOf(resetPos.get()) - 1);
-        }
-
-        reader.close();
-        producer.close();
-    }
-
     @Test
     public void testReaderBuilderConcurrentCreate() throws Exception {
         String topicName = "persistent://my-property/my-ns/testReaderBuilderConcurrentCreate_";
@@ -1665,45 +1394,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
                     .startMessageId(id).startMessageIdInclusive().create();
             MessageId idGot = reader.readNext().getMessageId();
             assertEquals(idGot, id);
-            reader.close();
-        }
-
-        producer.close();
-    }
-
-    @Test
-    public void testMultiReaderStartInMiddleOfBatch() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/MultiReaderStartInMiddleOfBatch";
-        final int numOfMessage = 100;
-        admin.topics().createPartitionedTopic(topicName, 3);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .enableBatching(true)
-                .batchingMaxMessages(10)
-                .create();
-
-        CountDownLatch latch = new CountDownLatch(numOfMessage);
-
-        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
-
-        for (int i = 0; i < numOfMessage; i++) {
-            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
-                if (e != null) {
-                    fail();
-                } else {
-                    allIds.add(mid);
-                }
-                latch.countDown();
-            });
-        }
-
-        latch.await();
-
-        for (MessageId id : allIds) {
-            Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
-                    .startMessageId(id).startMessageIdInclusive().create();
-            MessageId idGot = reader.readNext().getMessageId();
-            assertEquals(MessageIdImpl.convertToMessageIdImpl(idGot), id);
             reader.close();
         }
 

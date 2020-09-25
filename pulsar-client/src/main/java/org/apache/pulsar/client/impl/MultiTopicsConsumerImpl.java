@@ -84,9 +84,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // shared incoming queue was full
     private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
 
-    //When consumerImpl is added to the set, its messages will be ignored
-    private final ConcurrentOpenHashSet<ConsumerImpl<T>> ignoredConsumers;
-
     // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
     // resume receiving from the paused consumer partitions
     private final int sharedQueueResumeThreshold;
@@ -141,7 +138,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.topics = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
-        this.ignoredConsumers = new ConcurrentOpenHashSet<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
@@ -183,7 +179,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
                 }
                 setState(State.Ready);
-                ignoreUnnecessaryConsumer(consumers.values());
                 // We have successfully created N consumers, so we can start receiving messages now
                 startReceivingMessages(new ArrayList<>(consumers.values()));
                 log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
@@ -269,10 +264,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        if (ignoredConsumers.contains(consumer)) {
-            tryAcknowledgeMessage(message);
-            return;
-        }
         lock.writeLock().lock();
         try {
             TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
@@ -723,21 +714,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         MessageIdImpl targetMessageId = MessageIdImpl.convertToMessageIdImpl(messageId);
         if (targetMessageId == null || isIllegalMultiTopicsMessageId(messageId)) {
             resultFuture.completeExceptionally(
-                    new PulsarClientException("Illegal messageId, messageId can only be earliest、latest or determine partition"));
+                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest"));
             return resultFuture;
         }
-
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumerImpl -> {
-            if (MessageId.latest.equals(messageId) || MessageId.earliest.equals(messageId)
-                    || consumerImpl.getPartitionIndex() == targetMessageId.getPartitionIndex()) {
-                removeIgnoreConsumer(consumerImpl);
-                futures.add(consumerImpl.seekAsync(targetMessageId));
-            } else {
-                addIgnoreConsumer(consumerImpl);
-                futures.add(consumerImpl.seekAsync(MessageId.latest));
-            }
-        });
+        consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
 
         unAckedMessageTracker.clear();
         incomingMessages.clear();
@@ -783,9 +764,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
         final AtomicBoolean isAvailableBoolean = new AtomicBoolean(false);
         for (ConsumerImpl<T> consumer : consumers.values()) {
-            if (ignoredConsumers.contains(consumer)) {
-                continue;
-            }
             futureList.add(consumer.hasMessageAvailableAsync().thenAccept(isAvailable -> {
                 if (isAvailable) {
                     isAvailableBoolean.compareAndSet(false, true);
@@ -1000,7 +978,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                 configurationData, client.externalExecutorProvider().getExecutor(),
                                 partitionIndex, true, subFuture,
-                                getCurrentConsumerStartMessageId(partitionIndex), schema, interceptors,
+                                startMessageId, schema, interceptors,
                                 createIfDoesNotExist, startMessageRollbackDurationInSec);
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
@@ -1039,7 +1017,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         + " not equals expected: " + numTopics);
 
                 // We have successfully created new consumers, so we can start receiving messages for them
-                ignoreUnnecessaryConsumer(consumers.values());
                 startReceivingMessages(
                     consumers.values().stream()
                         .filter(consumer1 -> {
@@ -1058,16 +1035,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 handleSubscribeOneTopicError(topicName, ex, subscribeResult);
                 return null;
             });
-    }
-
-    private BatchMessageIdImpl getCurrentConsumerStartMessageId(int partitionIndex) {
-        if ((startMessageId != null && startMessageId.getPartitionIndex() == partitionIndex)
-                || MessageId.earliest.equals(startMessageId)
-                || MessageId.latest.equals(startMessageId)
-                || startMessageId == null) {
-            return startMessageId;
-        }
-        return new BatchMessageIdImpl((MessageIdImpl) MessageId.latest);
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
@@ -1303,7 +1270,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         List<ConsumerImpl<T>> newConsumerList = newPartitions.stream()
                             .map(partitionTopic -> consumers.get(partitionTopic))
                             .collect(Collectors.toList());
-                        ignoreUnnecessaryConsumer(newConsumerList);
                         startReceivingMessages(newConsumerList);
                         future.complete(null);
                     })
@@ -1322,15 +1288,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
 
         return future;
-    }
-
-    private void ignoreUnnecessaryConsumer(Collection<ConsumerImpl<T>> collection) {
-        collection.forEach(consumerImpl -> {
-            if (this.startMessageId != null && this.startMessageId.getPartitionIndex() != -1
-                    && this.startMessageId.getPartitionIndex() != consumerImpl.getPartitionIndex()) {
-                addIgnoreConsumer(consumerImpl);
-            }
-        });
     }
 
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
@@ -1390,34 +1347,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
 
-    public boolean addIgnoreConsumer(ConsumerImpl<T> consumer) {
-        return ignoredConsumers.add(consumer);
-    }
-
-    public boolean removeIgnoreConsumer(ConsumerImpl<T> consumer) {
-        return ignoredConsumers.remove(consumer);
-    }
-
     public static boolean isIllegalMultiTopicsMessageId(MessageId messageId) {
-        //only support earliest/latest and messageId contains certain partition info
-        if (MessageId.earliest.equals(messageId) || MessageId.latest.equals(messageId)) {
-            return false;
-        }
-        MessageIdImpl messageIdImpl = MessageIdImpl.convertToMessageIdImpl(messageId);
-        if (messageIdImpl != null && messageIdImpl.getPartitionIndex() >= 0 && messageIdImpl.getLedgerId() >= 0
-                && messageIdImpl.getEntryId() >= 0) {
-            return false;
-        }
-        return true;
+        //only support earliest/latest
+        return !MessageId.earliest.equals(messageId) && !MessageId.latest.equals(messageId);
     }
 
     public void tryAcknowledgeMessage(Message<T> msg) {
         if (msg != null) {
-            BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(msg.getMessageId()));
-            //Non-batching messages ack every time, batchMessage only need to ack the last one to avoid multi recycle
-            if (batchMessageId.getBatchIndex() < 0 || batchMessageId.getBatchSize() - 1 == batchMessageId.getBatchIndex()) {
-                acknowledgeCumulativeAsync(msg);
-            }
+            acknowledgeCumulativeAsync(msg);
         }
     }
 }
