@@ -202,6 +202,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<ClientCnx.RequestTime> timeoutQueue;
 
+    private final Timeout transactionAckTimeTracker;
+
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -343,7 +345,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
-        client.timer().newTimeout(new TransactionAckTimeoutTimer(),
+        this.transactionAckTimeTracker = client.timer().newTimeout(new TransactionAckTimeoutTimer(),
                 client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
 
         grabCnx();
@@ -1205,6 +1207,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             batchReceiveTimeout.cancel();
         }
         stats.getStatTimeout().ifPresent(Timeout::cancel);
+        transactionAckTimeTracker.cancel();
     }
 
     private void failPendingReceive() {
