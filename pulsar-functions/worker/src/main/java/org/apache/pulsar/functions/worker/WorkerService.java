@@ -76,12 +76,16 @@ public class WorkerService {
     private FunctionAssignmentTailer functionAssignmentTailer;
     private final WorkerStatsManager workerStatsManager;
 
-    public WorkerService(WorkerConfig workerConfig) {
+    public WorkerService(WorkerConfig workerConfig, boolean runAsStandalone) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+          .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
-        workerStatsManager = new WorkerStatsManager(workerConfig);
+        this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
+    }
+
+    public WorkerService(WorkerConfig workerConfig) {
+        this(workerConfig, false);
     }
 
     public void start(URI dlogUri,
