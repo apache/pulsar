@@ -47,8 +47,6 @@ public class Topics extends TopicBase {
     @Path("/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -60,18 +58,15 @@ public class Topics extends TopicBase {
                                @ApiParam(value = "Specify topic name", required = true)
                                @PathParam("topic") @Encoded String encodedTopic,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                               @QueryParam("producerName") @DefaultValue("RestProducer") String producerName,
                                ProduceMessageRequest produceMessageRequest) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalPublishMessages(asyncResponse, produceMessageRequest, authoritative, producerName);
+        publishMessages(asyncResponse, produceMessageRequest, authoritative);
     }
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions/(partition)")
     @ApiOperation(value = "Produce message to a topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -85,10 +80,9 @@ public class Topics extends TopicBase {
                                         @ApiParam(value = "Specify topic partition", required = true)
                                         @PathParam("partition") int partition,
                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                        @QueryParam("producerName") @DefaultValue("RestProducer") String producerName,
                                         ProduceMessageRequest produceMessageRequest) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalPublishMessagesToPartition(asyncResponse, produceMessageRequest, authoritative, producerName, partition);
+        publishMessagesToPartition(asyncResponse, produceMessageRequest, authoritative, partition);
     }
 
 }

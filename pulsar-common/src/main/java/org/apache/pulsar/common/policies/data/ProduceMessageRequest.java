@@ -39,4 +39,5 @@ public class ProduceMessageRequest {
 
     private String messages;
 
+    private String producerName;
 }

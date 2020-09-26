@@ -65,6 +65,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -75,7 +76,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -85,30 +85,32 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Slf4j
 public class TopicBase extends PersistentTopicsBase {
 
-    private ConcurrentOpenHashMap<String, List<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
+    private ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
 
-    protected  void internalPublishMessages(AsyncResponse asyncResponse, ProduceMessageRequest request,
-                                           boolean authoritative, String producerName) {
+    private static String DEFAULT_PRODUCER_NAME = "RestProducer";
+
+    protected  void publishMessages(AsyncResponse asyncResponse, ProduceMessageRequest request,
+                                           boolean authoritative) {
         String topic = topicName.getPartitionedTopicName();
         if (owningTopics.containsKey(topic)) {
             // if broker owns some of the partitions then proceed to publish message
-            publishMessagesToMultiplePartitions(topicName, request, producerName, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
+            publishMessagesToMultiplePartitions(topicName, request, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
         } else {
             if (!findOwnerBrokerForTopic(authoritative, asyncResponse)) {
-                publishMessagesToMultiplePartitions(topicName, request, producerName, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
+                publishMessagesToMultiplePartitions(topicName, request, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
             }
         }
     }
 
-    protected void internalPublishMessagesToPartition(AsyncResponse asyncResponse, ProduceMessageRequest request,
-                                                     boolean authoritative, String producerName, int partition) {
+    protected void publishMessagesToPartition(AsyncResponse asyncResponse, ProduceMessageRequest request,
+                                                     boolean authoritative, int partition) {
         String topic = topicName.getPartitionedTopicName();
         if (owningTopics.containsKey(topic) && owningTopics.get(topic).contains(partition)) {
             // If broker owns the partition then proceed to publish message
-            publishMessagesToSinglePartition(topicName, request, producerName, partition, asyncResponse);
+            publishMessagesToSinglePartition(topicName, request, partition, asyncResponse);
         } else {
             if (!findOwnerBrokerForTopic(authoritative, asyncResponse)) {
-                publishMessagesToSinglePartition(topicName, request, producerName, partition, asyncResponse);
+                publishMessagesToSinglePartition(topicName, request, partition, asyncResponse);
             }
         }
     }
@@ -128,9 +130,9 @@ public class TopicBase extends PersistentTopicsBase {
     }
 
     private void publishMessagesToSinglePartition(TopicName topicName, ProduceMessageRequest request,
-                                                  String producerName, int partition,
-                                                  AsyncResponse asyncResponse) {
+                                                  int partition, AsyncResponse asyncResponse) {
         try {
+            String producerName = request.getProducerName().isEmpty()? DEFAULT_PRODUCER_NAME : request.getProducerName();
             List<Message> messages = buildMessage(request);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
             List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults = new ArrayList<>();
@@ -138,7 +140,8 @@ public class TopicBase extends PersistentTopicsBase {
                 ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
                 produceMessageResult.setPartition(partition);
                 produceMessageResults.add(produceMessageResult);
-                publishSingleMessageToPartition(topicName.getPartition(partition).getLocalName(), messages.get(index), producerName);
+                publishSingleMessageToPartition(topicName.getPartition(partition).getLocalName(), messages.get(index),
+                        producerName);
             }
             FutureUtil.waitForAll(publishResults);
             processPublishMessageResults(produceMessageResults, publishResults);
@@ -149,17 +152,19 @@ public class TopicBase extends PersistentTopicsBase {
     }
 
     private void publishMessagesToMultiplePartitions(TopicName topicName, ProduceMessageRequest request,
-                                                     String producerName, List<Integer> partitionIndexes,
+                                                     ConcurrentOpenHashSet<Integer> partitionIndexes,
                                                      AsyncResponse asyncResponse) {
         try {
+            String producerName = request.getProducerName().isEmpty()? DEFAULT_PRODUCER_NAME : request.getProducerName();
             List<Message> messages = buildMessage(request);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
             List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults = new ArrayList<>();
+            List<Integer> owningPartitions = partitionIndexes.values();
             for (int index = 0; index < messages.size(); index++) {
                 ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
-                produceMessageResult.setPartition(partitionIndexes.get(index % partitionIndexes.size()));
+                produceMessageResult.setPartition(owningPartitions.get(index % (int)partitionIndexes.size()));
                 produceMessageResults.add(produceMessageResult);
-                publishResults.add(publishSingleMessageToPartition(topicName.getPartition(partitionIndexes.get(index % partitionIndexes.size())).getLocalName(),
+                publishResults.add(publishSingleMessageToPartition(topicName.getPartition(owningPartitions.get(index % (int)partitionIndexes.size())).getLocalName(),
                     messages.get(index), producerName));
             }
             FutureUtil.waitForAll(publishResults);
@@ -268,7 +273,7 @@ public class TopicBase extends PersistentTopicsBase {
                             partitionedTopicName, result.getLookupData());
                 }
                 owningTopics.computeIfAbsent(partitionedTopicName.getPartitionedTopicName(),
-                        (key) -> Collections.synchronizedList(new LinkedList<>())).add(partitionedTopicName.getPartitionIndex());
+                        (key) -> new ConcurrentOpenHashSet<Integer>()).add(partitionedTopicName.getPartitionIndex());
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses);
             } else {
                 // Current broker doesn't own the topic or doesn't know who own the topic.
@@ -396,7 +401,11 @@ public class TopicBase extends PersistentTopicsBase {
                 metadataBuilder.setPartitionKey(message.getKey());
                 metadataBuilder.setEventTime(message.getEventTime());
                 metadataBuilder.setSequenceId(message.getSequenceId());
-                metadataBuilder.setDeliverAtTime(message.getDeliverAt());
+                if (message.getDeliverAt() != 0) {
+                    metadataBuilder.setDeliverAtTime(message.getDeliverAt());
+                } else if (message.getDeliverAfterMs() != 0) {
+                    metadataBuilder.setDeliverAtTime(message.getEventTime() + message.getDeliverAfterMs());
+                }
                 pulsarMessages.add(MessageImpl.create(metadataBuilder, ByteBuffer.wrap(message.getValue().getBytes(UTF_8)), schema));
             }
         } catch (JsonProcessingException e) {
