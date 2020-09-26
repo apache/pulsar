@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -65,6 +66,12 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             }
         } else if (fn.isNumber()) {
             return fn.numberValue();
+        } else if (fn.isBinary()) {
+            try {
+                return fn.binaryValue();
+            } catch (IOException e) {
+                return fn.asText();
+            }
         } else {
             return fn.asText();
         }
