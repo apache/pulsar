@@ -1,9 +1,28 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.broker.rest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
@@ -50,7 +69,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriInfo;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -69,45 +87,37 @@ public class TopicBase extends PersistentTopicsBase {
 
     private ConcurrentOpenHashMap<String, List<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
 
-    protected  void internalPublishMessage(AsyncResponse asyncResponse, ProduceMessageRequest request,
+    protected  void internalPublishMessages(AsyncResponse asyncResponse, ProduceMessageRequest request,
                                            boolean authoritative, String producerName) {
         String topic = topicName.getPartitionedTopicName();
         if (owningTopics.containsKey(topic)) {
+            // if broker owns some of the partitions then proceed to publish message
             publishMessagesToMultiplePartitions(topicName, request, producerName, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
         } else {
-            // look up topic first
-            List<String> brokerForRedirect = findOwnerBrokerForTopic(authoritative);
-            // Current broker doesn't own the topic or any partition of the topic, redirect client to a broker
-            // that own partition of the topic or know who own partition of the topic.
-            if (!owningTopics.containsKey(topicName.getPartitionedTopicName())) {
-                if (brokerForRedirect.isEmpty()) {
-                    // No broker to redirect, means look up for some partitions failed, client should retry with other brokers.
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Can't find owner of given topic."));
-                } else {
-                    // Redirect client to other broker owns the topic or know which broker own the topic.
-                    try {
-                        URI redirectURI = new URI(String.format("%s%s", brokerForRedirect.get(0), uri.getPath()));
-                        asyncResponse.resume(Response.temporaryRedirect(redirectURI));
-                    } catch (URISyntaxException | NullPointerException e) {
-                        log.error("Error in preparing redirect url with rest produce message request for topic  {}: {}",
-                                topicName, e.getMessage(), e);
-                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to redirect client request."));
-                    }
-                }
+            if (!findOwnerBrokerForTopic(authoritative, asyncResponse)) {
+                publishMessagesToMultiplePartitions(topicName, request, producerName, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
             }
-            publishMessagesToMultiplePartitions(topicName, request, producerName, owningTopics.get(topicName.getPartitionedTopicName()), asyncResponse);
         }
     }
 
-    protected void internalPublishMessageToPartition(String topic) {
-
+    protected void internalPublishMessagesToPartition(AsyncResponse asyncResponse, ProduceMessageRequest request,
+                                                     boolean authoritative, String producerName, int partition) {
+        String topic = topicName.getPartitionedTopicName();
+        if (owningTopics.containsKey(topic) && owningTopics.get(topic).contains(partition)) {
+            // If broker owns the partition then proceed to publish message
+            publishMessagesToSinglePartition(topicName, request, producerName, partition, asyncResponse);
+        } else {
+            if (!findOwnerBrokerForTopic(authoritative, asyncResponse)) {
+                publishMessagesToSinglePartition(topicName, request, producerName, partition, asyncResponse);
+            }
+        }
     }
 
-    private CompletableFuture<PositionImpl> publishMessageToSinglePartition(String topic, Message message, String producerName) {
+    private CompletableFuture<PositionImpl> publishSingleMessageToPartition(String topic, Message message, String producerName) {
         CompletableFuture<PositionImpl> publishResult = new CompletableFuture<>();
         pulsar().getBrokerService().getTopic(topic, false).thenAccept(t -> {
             if (!t.isPresent()) {
-                publishResult.completeExceptionally(new BrokerServiceException.TopicNotFoundException(""));
+                publishResult.completeExceptionally(new BrokerServiceException.TopicNotFoundException("Topic not owned by current broker."));
             } else {
                 t.get().publishMessage(messageToByteBuf(message, producerName),
                         RestMessagePublishContext.get(publishResult, t.get(), System.nanoTime()));
@@ -115,6 +125,27 @@ public class TopicBase extends PersistentTopicsBase {
         });
 
         return publishResult;
+    }
+
+    private void publishMessagesToSinglePartition(TopicName topicName, ProduceMessageRequest request,
+                                                  String producerName, int partition,
+                                                  AsyncResponse asyncResponse) {
+        try {
+            List<Message> messages = buildMessage(request);
+            List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
+            List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults = new ArrayList<>();
+            for (int index = 0; index < messages.size(); index++) {
+                ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
+                produceMessageResult.setPartition(partition);
+                produceMessageResults.add(produceMessageResult);
+                publishSingleMessageToPartition(topicName.getPartition(partition).getLocalName(), messages.get(index), producerName);
+            }
+            FutureUtil.waitForAll(publishResults);
+            processPublishMessageResults(produceMessageResults, publishResults);
+            asyncResponse.resume(new ProduceMessageResponse(produceMessageResults));
+        } catch (JsonProcessingException e) {
+            asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to deserialize messages to publish."));
+        }
     }
 
     private void publishMessagesToMultiplePartitions(TopicName topicName, ProduceMessageRequest request,
@@ -128,18 +159,52 @@ public class TopicBase extends PersistentTopicsBase {
                 ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
                 produceMessageResult.setPartition(partitionIndexes.get(index % partitionIndexes.size()));
                 produceMessageResults.add(produceMessageResult);
-                publishResults.add(publishMessageToSinglePartition(topicName.getPartition(partitionIndexes.get(index % partitionIndexes.size())).getLocalName(),
+                publishResults.add(publishSingleMessageToPartition(topicName.getPartition(partitionIndexes.get(index % partitionIndexes.size())).getLocalName(),
                     messages.get(index), producerName));
             }
             FutureUtil.waitForAll(publishResults);
+            processPublishMessageResults(produceMessageResults, publishResults);
             asyncResponse.resume(new ProduceMessageResponse(produceMessageResults));
         } catch (JsonProcessingException e) {
-            asyncResponse.resume(new RestException(Status.BAD_REQUEST, ""));
+            asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to deserialize messages to publish."));
         }
     }
 
+    private void processPublishMessageResults(List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults,
+                                              List<CompletableFuture<PositionImpl>> publishResults) {
+        // process publish message result
+        for (int index = 0; index < produceMessageResults.size(); index++) {
+            try {
+                PositionImpl position = publishResults.get(index).get();
+                produceMessageResults.get(index).setMessageId(position.toString());
+                log.info("Successfully publish [{}] message with rest produce message request for topic  {}: {} ",
+                        index, topicName, position);
+            } catch (Exception e) {
+                if (log.isDebugEnabled()) {
+                    log.warn("Fail publish [{}] message with rest produce message request for topic  {}: {} ",
+                            index, topicName);
+                }
+                if (e instanceof BrokerServiceException.TopicNotFoundException) {
+                    // Topic ownership might changed, force to look up again.
+                    owningTopics.remove(topicName.getPartitionedTopicName());
+                }
+                extractException(e, produceMessageResults.get(index));
+            }
+        }
+    }
+
+    private void extractException(Exception e, ProduceMessageResponse.ProduceMessageResult produceMessageResult) {
+        if (!(e instanceof BrokerServiceException.TopicFencedException || e instanceof ManagedLedgerException)) {
+            produceMessageResult.setErrorCode(2);
+        } else {
+            produceMessageResult.setErrorCode(1);
+        }
+        produceMessageResult.setError(e.getMessage());
+    }
+
     // Look up topic owner for given topic.
-    private List<String> findOwnerBrokerForTopic(boolean authoritative) {
+    // Return if asyncResponse has been completed.
+    private boolean findOwnerBrokerForTopic(boolean authoritative, AsyncResponse asyncResponse) {
         PartitionedTopicMetadata metadata = internalGetPartitionedMetadata(authoritative, false);
         List<String> redirectAddresses = Collections.synchronizedList(new ArrayList<>());
 
@@ -153,7 +218,29 @@ public class TopicBase extends PersistentTopicsBase {
             lookUpBrokerForTopic(topicName, authoritative, redirectAddresses);
         }
 
-        return redirectAddresses;
+        // Current broker doesn't own the topic or any partition of the topic, redirect client to a broker
+        // that own partition of the topic or know who own partition of the topic.
+        if (!owningTopics.containsKey(topicName.getPartitionedTopicName())) {
+            if (redirectAddresses.isEmpty()) {
+                // No broker to redirect, means look up for some partitions failed, client should retry with other brokers.
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Can't find owner of given topic."));
+                return true;
+            } else {
+                // Redirect client to other broker owns the topic or know which broker own the topic.
+                try {
+                    URI redirectURI = new URI(String.format("%s%s", redirectAddresses.get(0), uri.getPath()));
+                    asyncResponse.resume(Response.temporaryRedirect(redirectURI));
+                    return true;
+                } catch (URISyntaxException | NullPointerException e) {
+                    log.error("Error in preparing redirect url with rest produce message request for topic  {}: {}",
+                            topicName, e.getMessage(), e);
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to redirect client request."));
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // Look up topic owner for non-partitioned topic or single topic partition.
@@ -205,11 +292,6 @@ public class TopicBase extends PersistentTopicsBase {
             completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses);
             return null;
         });
-    }
-
-    protected void internalPublishMessageToPartition(AsyncResponse asyncResponse, ProduceMessageRequest produceMessageRequest,
-                                          boolean authoritative, UriInfo uriInfo) {
-
     }
 
     private Schema getSchema(String keySchemaJson, String valueSchemaJson) {
@@ -271,7 +353,7 @@ public class TopicBase extends PersistentTopicsBase {
 
     // Convert message to ByteBuf
     public ByteBuf messageToByteBuf(Message message, String producerName) {
-        checkArgument(message instanceof MessageImpl, "");
+        checkArgument(message instanceof MessageImpl, "Message must be type of MessageImpl.");
 
         MessageImpl msg = (MessageImpl) message;
         PulsarApi.MessageMetadata.Builder msgMetadataBuilder = msg.getMessageBuilder();
