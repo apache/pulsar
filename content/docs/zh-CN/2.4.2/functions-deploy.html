@@ -93,8 +93,8 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">Function name</td><td style="text-align:left">可以指定类名称（除了org、library 或相似的名称）。 例如，当指定标志为 <code>--classname org.example.MyFunction</code> 时，function 名称为 <code>MyFunction</code>。</td></tr>
-<tr><td style="text-align:left">Tenant</td><td style="text-align:left">来自输入 topic 的名称。 如果输入 topic 在 <code>marketing</code> 租户下，即 topic 名称形式为 <code>persistent://marketing/{namespace}/{topicName}</code>，则租户为 <code>marketing</code>。</td></tr>
-<tr><td style="text-align:left">Namespace</td><td style="text-align:left">来自输入 topic 的名称。 如果输入 topic 在 <code>asia</code> 命名空间中，在 <code>marketing</code> 租户下，即主题名称形式为 <code>persistent://marketing/asia/{topicName}</code>，则命名空间为 <code>asia</code>。</td></tr>
+<tr><td style="text-align:left">租户(Tenant)</td><td style="text-align:left">来自输入 topic 的名称。 如果输入 topic 在 <code>marketing</code> 租户下，即 topic 名称形式为 <code>persistent://marketing/{namespace}/{topicName}</code>，则租户为 <code>marketing</code>。</td></tr>
+<tr><td style="text-align:left">命名空间(Namespace)</td><td style="text-align:left">来自输入 topic 的名称。 如果输入 topic 在 <code>asia</code> 命名空间中，在 <code>marketing</code> 租户下，即主题名称形式为 <code>persistent://marketing/asia/{topicName}</code>，则命名空间为 <code>asia</code>。</td></tr>
 <tr><td style="text-align:left">Output topic</td><td style="text-align:left"><code>{input topic}-{function name}-output</code>. 例如，一个 function 的输入 topic 名称是 <code>incoming</code>，function 名称为 <code>exclamation</code>，则输出 topic 名称为 <code>incoming-exclamation-output</code>。</td></tr>
 <tr><td style="text-align:left">Subscription type</td><td style="text-align:left">对于 <code>at-least-once</code> 和 <code>at-most-once</code> <a href="/docs/zh-CN/2.4.2/functions-overview#processing-guarantees">处理保证</a>，默认使用 <a href="/docs/zh-CN/2.4.2/concepts-messaging#shared"><code>SHARED</code></a> 模式；对于 <code>effectively-once</code> 保证，默认使用 <a href="/docs/zh-CN/2.4.2/concepts-messaging#failover"><code>FAILOVER</code></a> 模式。</td></tr>
 <tr><td style="text-align:left">Processing guarantees</td><td style="text-align:left"><a href="/docs/zh-CN/2.4.2/functions-overview#processing-guarantees"><code>ATLEAST_ONCE</code></a></td></tr>

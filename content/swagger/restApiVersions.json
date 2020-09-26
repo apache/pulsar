@@ -9,9 +9,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersink",
+                "swaggerfunctions",
                 "swaggersource",
-                "swaggerfunctions"
+                "swaggersink"
             ]
         }
     ],

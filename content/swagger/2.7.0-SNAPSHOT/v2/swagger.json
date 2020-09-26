@@ -17486,10 +17486,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -17902,10 +17902,23 @@
                     "type": "number",
                     "format": "double"
                 },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "lastUpdate": {
@@ -17915,19 +17928,6 @@
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "underLoaded": {
                     "type": "boolean"
@@ -18117,16 +18117,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
+                "connectedSince": {
+                    "type": "string"
+                },
                 "address": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -19026,16 +19026,16 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
+                "connectedSince": {
+                    "type": "string"
+                },
                 "address": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -19134,11 +19134,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },

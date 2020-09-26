@@ -99,7 +99,7 @@ key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout 
 <blockquote>
 <p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a> and <a href="#configuring-consumers">consumer</a> specific configuration as described in sections below.</p>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h2>
+<h2><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者(Producer)</h2>
 <p>在Pulsar中，生产者写消息到主题中。 一旦你实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 客户端对象(在<a href="#client-configuration">如上</a>z章节)，你可以创建一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
 生产者用于特定的<a href="/docs/zh-CN/next/reference-terminology#topic">主题</a>。</p>
@@ -219,7 +219,7 @@ You can configure parameters if you do not want to use the default configuration
   
   You can terminate the builder chain with `sendAsync()` and get a future return.
   
-  ## Consumer
+  ## 消费者(Consumer)
   
   在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}对象并传递给他一个borker([如上所示](#client-configuration)) URL来实例化一个[消费者](reference-terminology.md#consumer)。
   
@@ -715,7 +715,7 @@ You can configure parameters if you do not want to use the default configuration
   &gt; 
   &gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
   
-  ## Reader
+  ## 读者(Reader)
   
   With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
   
@@ -985,7 +985,7 @@ You can configure parameters if you do not want to use the default configuration
 </ul></li>
 </ul></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接url">连接URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群。">默认的broker URL是单机集群。</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#配置producer（生产者）">配置Producer（生产者）</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接url">连接URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群。">默认的broker URL是单机集群。</a></li></ul></li><li><a href="#生产者producer">生产者(Producer)</a><ul class="toc-headings"><li><a href="#配置producer（生产者）">配置Producer（生产者）</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
