@@ -371,7 +371,7 @@ public class PulsarFunctionPublishTest {
     }
 
     @Test
-    public void testUriNumberFormatException() throws Exception {
+    public void testMultipleAddress() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
