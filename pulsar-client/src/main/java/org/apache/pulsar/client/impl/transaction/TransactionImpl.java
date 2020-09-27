@@ -138,9 +138,7 @@ public class TransactionImpl implements Transaction {
                     return;
                 }
                 sendOps.values().forEach(txnSendOp -> {
-                    log.info("commit finished sendOps");
                     txnSendOp.sendFuture.whenComplete((messageId, t) -> {
-                        log.info("sendOps result: {}", messageId);
                         txnSendOp.transactionalSendFuture.complete(messageId);
                     });
                 });

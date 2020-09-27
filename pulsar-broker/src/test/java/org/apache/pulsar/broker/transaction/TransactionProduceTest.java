@@ -560,18 +560,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 (ConcurrentMap) txnIndexField.get(recoverTB.getTxnCursor());
         Assert.assertEquals(recoverIndexMap.size(), 0);
 
-        recoverTB.recover();
-
-        for (int i = 0; i < 10; i++) {
-            try {
-                recoverTB.checkState().get();
-                log.info("recover operation finished.");
-                break;
-            } catch (Exception e) {
-                Thread.sleep(1000);
-                log.warn("recover operation is not finished.");
-            }
-        }
+        recoverTB.recover().get();
 
         ConcurrentMap<TxnID, TransactionMetaImpl> originalIndexMap =
                 (ConcurrentMap) txnIndexField.get(transactionBuffer.getTxnCursor());

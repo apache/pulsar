@@ -113,6 +113,7 @@ import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
@@ -1026,7 +1027,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                             - topicCreateTimeMs;
                                     pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                                     addTopicToStatsMaps(topicName, persistentTopic);
-                                    topicFuture.complete(Optional.of(persistentTopic));
                                 }).exceptionally((ex) -> {
                                     log.warn(
                                             "Replication or dedup check failed. Removing topic from topics list {}, {}",
@@ -1038,6 +1038,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                     return null;
                                 });
+
+                                CompletableFuture<Void> tbRecoverFuture;
+                                if (ledger.getProperties().containsKey(PersistentTransactionBuffer.TB_EXIST_PROPERTY)) {
+                                    tbRecoverFuture = persistentTopic.getTransactionBuffer(true)
+                                            .thenCompose(tb -> ((PersistentTransactionBuffer) tb).recover());
+                                } else {
+                                    tbRecoverFuture = CompletableFuture.completedFuture(null);
+                                }
+
+                                FutureUtil.waitForAll(Lists.newArrayList(replicationFuture, tbRecoverFuture))
+                                        .whenComplete((ignored, throwable) -> {
+                                            if (throwable != null) {
+                                                log.error("Failed to create topic {}", topic, throwable);
+                                                topicFuture.completeExceptionally(throwable);
+                                                return;
+                                            }
+                                            topicFuture.complete(Optional.of(persistentTopic));
+                                        });
                             } catch (NamingException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));

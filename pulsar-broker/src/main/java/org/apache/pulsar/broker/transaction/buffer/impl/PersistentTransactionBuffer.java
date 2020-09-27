@@ -76,7 +76,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private Topic originTopic;
     private ConcurrentLinkedQueue<TxnID> pendingCommitTxn;
     private volatile boolean pendingCommitHandling;
-    private volatile State state;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -100,12 +99,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
     }
 
-    enum State {
-        INIT,
-        RECOVER_FAIL,
-        RECOVER_SUCCESS
-    }
-
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService,
                                        Topic originTopic)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
@@ -115,12 +108,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
-        if (ledger.getNumberOfEntries() == 0) {
-            this.state = State.RECOVER_SUCCESS;
-        } else {
-            this.state = State.INIT;
-            recover();
-        }
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -134,8 +121,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
-        return checkState()
-                .thenCompose(ignored -> publishMessage(txnId, buffer, sequenceId))
+        return publishMessage(txnId, buffer, sequenceId)
                 .thenCompose(position -> appendBuffer(txnId, position, sequenceId, batchSize));
     }
 
@@ -146,9 +132,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
-        return checkState()
-                .thenCompose(igonred -> txnCursor.getTxnMeta(txnID, false))
-                .thenCompose(this::createNewReader);
+        return txnCursor.getTxnMeta(txnID, false).thenCompose(this::createNewReader);
     }
 
     private CompletableFuture<TransactionBufferReader> createNewReader(TransactionMeta meta) {
@@ -178,17 +162,15 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        return checkState().thenCompose(ignored -> {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                future = committingTxn(txnID);
-            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-                future = abortTxn(txnID);
-            } else {
-                future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
-            }
-            return future;
-        });
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+            future = committingTxn(txnID);
+        } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+            future = abortTxn(txnID);
+        } else {
+            future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+        }
+        return future;
     }
 
     private CompletableFuture<Void> committingTxn(TxnID txnID) {
@@ -419,27 +401,18 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return txnCursor;
     }
 
-    public CompletableFuture<Void> checkState() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (this.state != State.RECOVER_SUCCESS) {
-            completableFuture.completeExceptionally(
-                    new TransactionBufferUnusableException("TransactionBuffer is unusable in state " + state));
-        } else {
-            completableFuture.complete(null);
-        }
-        return completableFuture;
-    }
-
-    public void recover() {
+    public CompletableFuture<Void> recover() {
         log.info("transaction buffer start recover from ledger {}", ledger.getName());
+        CompletableFuture<Void> recoverFuture = new CompletableFuture<>();
         // TODO recover from snapshot
         ReadOnlyCursorImpl readOnlyCursor = new ReadOnlyCursorImpl(
                 brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig(),
                 (ManagedLedgerImpl) ledger, PositionImpl.earliest, "tb-recover");
-        recoverFromLog(readOnlyCursor);
+        recoverFromLog(readOnlyCursor, recoverFuture);
+        return recoverFuture;
     }
 
-    private void recoverFromLog(ReadOnlyCursorImpl readOnlyCursor) {
+    private void recoverFromLog(ReadOnlyCursorImpl readOnlyCursor, CompletableFuture<Void> recoverFuture) {
         readOnlyCursor.asyncReadEntries(1000, new AsyncCallbacks.ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
@@ -479,7 +452,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                         }
                     } catch (Exception e) {
                         log.error("Failed to recover transactionBuffer by log.", e);
-                        PersistentTransactionBuffer.this.state = State.RECOVER_FAIL;
+                        recoverFuture.completeExceptionally(e);
                         break;
                     } finally {
                         if (metadata != null) {
@@ -488,21 +461,21 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                         entry.release();
                     }
                 }
-                if (PersistentTransactionBuffer.this.state == State.RECOVER_FAIL) {
+                if (recoverFuture.isCompletedExceptionally()) {
                     return;
                 }
                 if (readOnlyCursor.hasMoreEntries()) {
-                    recoverFromLog(readOnlyCursor);
+                    recoverFromLog(readOnlyCursor, recoverFuture);
                 } else {
                     log.info("transaction buffer recover finished from ledger {}.", ledger.getName());
-                    PersistentTransactionBuffer.this.state = State.RECOVER_SUCCESS;
+                    recoverFuture.complete(null);
                 }
             }
 
             @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to read transactionBuffer by log.", exception);
-                PersistentTransactionBuffer.this.state = State.RECOVER_FAIL;
+                recoverFuture.completeExceptionally(exception);
             }
         }, null);
     }

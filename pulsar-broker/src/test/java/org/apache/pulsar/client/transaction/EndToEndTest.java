@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -387,15 +389,18 @@ public class EndToEndTest extends TransactionTestBase {
                 .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
+        log.info("producer init finish");
 
         for (int i = 0; i < 5; i++) {
-            Transaction txn = getTxn();
+            TransactionImpl txn = getTxn();
+            TxnID txnID = new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
             for (int j = 0; j < 10; j++) {
-                String content = String.format("txn: %s, index: %s", txn.toString(), i);
+                String content = String.format("txn: %s, index: %s", txnID, j);
                 producer.newMessage(txn).value(content.getBytes()).sendAsync();
             }
             txn.commit().get();
         }
+        log.info("produce message finish");
 
         log.info("unload namespace start: {}", NAMESPACE1);
         Thread.sleep(1000 * 10);
@@ -404,9 +409,11 @@ public class EndToEndTest extends TransactionTestBase {
         log.info("unload namespace finished: {}", NAMESPACE1);
 
         for (int i = 0; i < 5; i++) {
-            Transaction txn = getTxn();
+            TransactionImpl txn = getTxn();
+            TxnID txnID = new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
             for (int j = 0; j < 10; j++) {
-                String content = String.format("txn: %s, index: %s", txn.toString(), i);
+                String content = String.format("txn: %s, index: %s", txnID, j);
+                log.info("send msg: {}", content);
                 producer.newMessage(txn).value(content.getBytes()).sendAsync();
             }
             txn.commit().get();
@@ -419,7 +426,7 @@ public class EndToEndTest extends TransactionTestBase {
                 .subscribe();
 
         Message<byte[]> message;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
             log.info("receive msg: {}", new String(message.getData()));
@@ -428,8 +435,8 @@ public class EndToEndTest extends TransactionTestBase {
         log.info("recover test finished.");
     }
 
-    private Transaction getTxn() throws Exception {
-        return ((PulsarClientImpl) pulsarClient)
+    private TransactionImpl getTxn() throws Exception {
+        return (TransactionImpl) ((PulsarClientImpl) pulsarClient)
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
                 .build()
