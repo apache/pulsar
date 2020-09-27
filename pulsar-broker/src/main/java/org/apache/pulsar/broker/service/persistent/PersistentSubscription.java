@@ -934,7 +934,7 @@ public class PersistentSubscription implements Subscription {
             log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
         }
 
-        return CompletableFuture.completedFuture(null);
+        return this.pendingAckStore.closeAsync();
     }
 
     /**
