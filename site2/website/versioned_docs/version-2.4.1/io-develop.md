@@ -103,7 +103,6 @@ The main task for a Sink implementor is to implement {@inject: github:`write`:/p
 ```java
     /**
      * Write a message to Sink
-     * @param inputRecordContext Context of input record from the source
      * @param record record to write to sink
      * @throws Exception
      */

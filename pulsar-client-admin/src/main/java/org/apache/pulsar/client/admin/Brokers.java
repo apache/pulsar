@@ -217,6 +217,19 @@ public interface Brokers {
     CompletableFuture<InternalConfigurationData> getInternalConfigurationDataAsync();
 
     /**
+     * Manually trigger backlogQuotaCheck.
+     *
+     * @throws PulsarAdminException
+     */
+    void backlogQuotaCheck() throws PulsarAdminException;
+
+    /**
+     * Manually trigger backlogQuotaCheck asynchronously.
+     * @return
+     */
+    CompletableFuture<Void> backlogQuotaCheckAsync();
+
+    /**
      * Run a healthcheck on the broker.
      *
      * @throws PulsarAdminException if the healthcheck fails.

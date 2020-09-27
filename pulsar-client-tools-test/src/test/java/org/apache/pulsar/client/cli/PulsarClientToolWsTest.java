@@ -18,98 +18,46 @@
  */
 package org.apache.pulsar.client.cli;
 
+import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.websocket.WebSocketService;
+import org.apache.pulsar.websocket.service.ProxyServer;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
-public class PulsarClientToolTest extends BrokerTestBase {
+public class PulsarClientToolWsTest extends BrokerTestBase {
+    private ProxyServer proxyServer;
+    private WebSocketService service;
 
-    @BeforeClass
+    @BeforeMethod
     @Override
-    public void setup() throws Exception {
+    protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterMethod
     @Override
-    public void cleanup() throws Exception {
+    protected void cleanup() throws Exception {
+        super.resetConfig();
         super.internalCleanup();
     }
 
-    @Test
-    public void testInitialzation() throws InterruptedException, ExecutionException, PulsarAdminException {
-
-        Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
-        properties.setProperty("useTls", "false");
-
-        String tenantName = UUID.randomUUID().toString();
-
-        TenantInfo tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant(tenantName, tenantInfo);
-
-        String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
-
-        int numberOfMessages = 10;
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-
-        CompletableFuture<Void> future = new CompletableFuture<Void>();
-        executor.execute(() -> {
-            PulsarClientTool pulsarClientToolConsumer;
-            try {
-                pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = { "consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-r", "30", topicName };
-                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
-                future.complete(null);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            }
-        });
-
-        // Make sure subscription has been created
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if(subscriptions.size() == 1){
-                    break;
-                }
-            } catch (Exception e){
-            }
-            Thread.sleep(200);
-        }
-
-        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
-
-        String[] args = { "produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName };
-        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
-
-        future.get();
-        executor.shutdown();
-    }
-
     @Test(timeOut = 20000)
-    public void testNonDurableSubscribe() throws Exception {
-
+    public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -146,7 +94,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
         executor.shutdown();
-
         while (true) {
             try {
                 List<String> subscriptions = admin.topics().getSubscriptions(topicName);
@@ -160,13 +107,12 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 20000)
-    public void testDurableSubscribe() throws Exception {
-
+    public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -203,6 +149,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
         executor.shutdown();
+
         //wait for close
         Thread.sleep(2000);
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);

@@ -274,7 +274,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).createNamespace("myprop/clust/ns1");
 
         namespaces.run(split("delete myprop/clust/ns1"));
-        verify(mockNamespaces).deleteNamespace("myprop/clust/ns1");
+        verify(mockNamespaces).deleteNamespace("myprop/clust/ns1", false);
 
         namespaces.run(split("permissions myprop/clust/ns1"));
         verify(mockNamespaces).getPermissions("myprop/clust/ns1");
