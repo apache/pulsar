@@ -41,11 +41,13 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
@@ -229,32 +231,46 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         try {
             ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
             if ("permit".equals(command.type)) {
-                if (command.permitMessages == null) {
-                    throw new IOException("Missing required permitMessages field for 'permit' command");
-                }
-                if (this.pullMode) {
-                    int pending = pendingMessages.getAndAdd(-command.permitMessages);
-                    if (pending >= 0) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+                handlePermit(command);
+            } else if ("unsubscribe".equals(command.type)) {
+                handleUnsubscribe(command);
             } else {
-                // We should have received an ack
-                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                        topic.toString());
-                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-                if (!this.pullMode) {
-                    int pending = pendingMessages.getAndDecrement();
-                    if (pending >= maxPendingMessages) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+                handleAck(command);
             }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
+        consumer.unsubscribe();
+    }
+
+    private void handleAck(ConsumerCommand command) throws IOException {
+        // We should have received an ack
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        if (!this.pullMode) {
+            int pending = pendingMessages.getAndDecrement();
+            if (pending >= maxPendingMessages) {
+                // Resume delivery
+                receiveMessage();
+            }
+        }
+    }
+
+    private void handlePermit(ConsumerCommand command) throws IOException {
+        if (command.permitMessages == null) {
+            throw new IOException("Missing required permitMessages field for 'permit' command");
+        }
+        if (this.pullMode) {
+            int pending = pendingMessages.getAndAdd(-command.permitMessages);
+            if (pending >= 0) {
+                // Resume delivery
+                receiveMessage();
+            }
         }
     }
 
@@ -366,7 +382,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 this.subscription);
     }
 
-    private static String extractSubscription(HttpServletRequest request) {
+    public static String extractSubscription(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
@@ -384,7 +400,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 parts.get(domainIndex).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
-        return parts.get(8);
+        return Codec.decode(parts.get(8));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);

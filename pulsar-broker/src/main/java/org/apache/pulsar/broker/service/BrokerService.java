@@ -1376,7 +1376,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return this.backlogQuotaManager;
     }
 
-    public void monitorBacklogQuota() {
+    public synchronized void monitorBacklogQuota() {
         forEachTopic(topic -> {
             if (topic instanceof PersistentTopic) {
                 PersistentTopic persistentTopic = (PersistentTopic) topic;

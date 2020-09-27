@@ -422,7 +422,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null, "true", null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -507,7 +507,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, "true", null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -558,7 +558,7 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
-                                jobNamespace, null, "true",
+                                jobNamespace, null, null,
                                 5, null, "Foreground",
                                 null, null)
                                 .execute();
@@ -709,7 +709,7 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = coreClient.deleteNamespacedServiceCall(
                                 serviceName,
-                                jobNamespace, null, "true",
+                                jobNamespace, null, null,
                                 0, null,
                                 "Foreground", null, null).execute();
                     } catch (ApiException e) {
