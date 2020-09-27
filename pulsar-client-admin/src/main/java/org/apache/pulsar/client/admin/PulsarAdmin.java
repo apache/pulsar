@@ -194,7 +194,8 @@ public class PulsarAdmin implements Closeable {
         ServiceURI serviceUri = ServiceURI.create(serviceUrl);
         root = client.target(String.format("%s://%s"
                 , serviceUri.getServiceScheme()
-                , serviceUri.getServiceHosts()[ThreadLocalRandom.current().nextInt(serviceUri.getServiceHosts().length)]));
+                , serviceUri.getServiceHosts()[ThreadLocalRandom.current()
+                        .nextInt(serviceUri.getServiceHosts().length)]));
 
         this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
