@@ -46,15 +46,15 @@ persistent://tenant/app1/topic-3
 <p>Pulsar 是一个多租户的事件流处理系统。 管理员能够对租户和命名空间设置不同级别的策略。 然而，例如数据保留策略和数据存储配额策略，仅仅只能在命名空间级别设置。 在许多实用场景中，用户需要对主题设置对应的策略。 命名空间事件更改提供了一个简单有效的方式去支持主题级别的策略。 这种方式，Pulsar 是使用事件日志去保存命名空间的事件改变记录(比如主题策略改动)。 这种方式有以下好处</p>
 <ul>
 <li>避免使用 Zookeeper, 给 Zookeeper 带来更高的负载。</li>
-<li>Use Pulsar as an event log for propagating the policy cache. It can scale efficiently.</li>
-<li>Use Pulsar SQL to query the namespace changes and audit the system.</li>
+<li>使用 Pulsar 作为传播策略缓存的事件日志。它可以有效地扩展。</li>
+<li>可以使用Pulsar SQL 可以查询命名空间的改变日志，并对系统进行审计。</li>
 </ul>
-<p>Each namespace has a system topic <code>__change_events</code>. This system topic is used for storing change events for a given namespace. The following figure illustrates how to use namespace change events to implement a topic-level policy.</p>
+<p>每个命名空间有一个叫做<code>__change_events</code>的系统主题。 这个系统主题用来保存这个命名空间的事件改变信息。 如图所示，教你怎么样使用命名空间事件更改去实现主题级别的策略控制。</p>
 <ol>
-<li>Pulsar Admin clients communicate with the Admin Restful API to update topic level policies.</li>
-<li>Any broker that receives the Admin HTTP request publishes a topic policy change event to the corresponding <code>__change_events</code> topic of the namespace.</li>
-<li>Each broker that owns a namespace bundle(s) subscribes to the <code>__change_events</code> topic to receive change events of the namespace. It then applies the change events to the policy cache.</li>
-<li>Once the policy cache is updated, the broker sends the response back to the Pulsar Admin clients.</li>
+<li>Pulsar Admin 客户端可以使用Restful API和服务端通信，去修改主题级别的策略。</li>
+<li>任何一台 broker 收到HTTP请求后，会往这个命名空间的<code>__change_events</code>主题发送一条策略改变事件信息。</li>
+<li>每个 broker 都会从自己命名空间 bundle 订阅这个<code>__change_events</code>主题，并从中接受事件更改信息。并将事件更改信息会更新到本地的策略缓存当中。</li>
+<li>一旦这个策略缓存被更新，这个broker会发送返回信息给 Pulsar Admin 客户端。</li>
 </ol>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#租户">租户</a></li><li><a href="#命名空间">命名空间</a><ul class="toc-headings"><li><a href="#命名空间事件更改和主题级策略">命名空间事件更改和主题级策略</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

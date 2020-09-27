@@ -9681,7 +9681,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -17902,12 +17902,17 @@
                     "type": "number",
                     "format": "double"
                 },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17925,18 +17930,13 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "msgThroughputOut": {
+                "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
