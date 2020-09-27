@@ -17902,31 +17902,17 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "directMemory": {
+                "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "cpu": {
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthIn": {
@@ -17935,8 +17921,22 @@
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -18117,10 +18117,10 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
@@ -19026,10 +19026,10 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
@@ -19134,11 +19134,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
