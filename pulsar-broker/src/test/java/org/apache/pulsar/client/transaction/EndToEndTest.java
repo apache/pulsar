@@ -27,10 +27,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCallBack;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckStoreState;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,18 +47,26 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -107,6 +122,7 @@ public class EndToEndTest extends TransactionTestBase {
     }
 
     private void produceCommitTest(boolean enableBatch) throws Exception {
+        List<String> list = admin.topics().getPartitionedTopicList(NAMESPACE1);
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
                 .newConsumer()
@@ -478,6 +494,117 @@ public class EndToEndTest extends TransactionTestBase {
         }
 
         log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
+    @Test
+    public void testIndividualPendingAckPersistAndReply() throws ExecutionException, InterruptedException {
+        String topicName = "test";
+        String subName = "test";
+        MLPendingAckStore mlPendingAckStore =
+                new MLPendingAckStore(getPulsarServiceList().get(1).getManagedLedgerFactory(), topicName, subName);
+        PersistentSubscription persistentSubscription = Mockito.mock(PersistentSubscription.class);
+        CompletableFuture<Void> completableFuture = mock(CompletableFuture.class);
+        doAnswer(invocation -> invocation.callRealMethod())
+                .when(persistentSubscription).handleMetadataEntry(any(), any(), any());
+        doReturn(null).when(completableFuture).get();
+        mlPendingAckStore.replayAsync(new MLPendingAckReplyCallBack(mlPendingAckStore, persistentSubscription));
+        doReturn(topicName).when(persistentSubscription).getTopicName();
+        doReturn(subName).when(persistentSubscription).getName();
+        TxnID txnIDOne = new TxnID(1, 1);
+        TxnID txnIDTwo = new TxnID(1, 2);
+        PositionImpl positionOne = PositionImpl.get(1, 1);
+        PositionImpl positionTwo = PositionImpl.get(1, 2);
+        PositionImpl positionThree = PositionImpl.get(2, 1);
+        int pendingCount = 5;
+        while (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready && pendingCount > 1) {
+            Thread.sleep(1000L);
+            pendingCount--;
+        }
+        try {
+            mlPendingAckStore.append(txnIDOne, positionOne, AckType.Individual).get();
+            mlPendingAckStore.append(txnIDOne, positionTwo, AckType.Individual).get();
+        } catch (Exception e) {
+            Assert.fail();
+        }
+        try {
+            mlPendingAckStore.deleteTxn(txnIDTwo, AckType.Individual).get();
+            Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionAckConflictException);
+        }
+
+        try {
+            mlPendingAckStore.append(txnIDTwo, positionThree, AckType.Individual).get();
+        } catch (Exception e) {
+            Assert.fail();
+        }
+        mlPendingAckStore =
+                new MLPendingAckStore(getPulsarServiceList().get(1).getManagedLedgerFactory(), topicName, subName);
+        mlPendingAckStore.replayAsync(new MLPendingAckReplyCallBack(mlPendingAckStore, persistentSubscription));
+        while (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready && pendingCount > 1) {
+            Thread.sleep(1000L);
+            pendingCount--;
+        }
+        if (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready) {
+            Assert.fail();
+        }
+        try {
+            mlPendingAckStore.deleteTxn(txnIDOne, AckType.Individual).get();
+            mlPendingAckStore.deleteTxn(txnIDTwo, AckType.Individual).get();
+        } catch (ExecutionException e) {
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testCumulativePendingAckPersistAndReply() throws InterruptedException, ExecutionException {
+        String topicName = "test";
+        String subName = "test";
+        MLPendingAckStore mlPendingAckStore =
+                new MLPendingAckStore(getPulsarServiceList().get(1).getManagedLedgerFactory(), topicName, subName);
+        PersistentSubscription persistentSubscription = Mockito.mock(PersistentSubscription.class);
+        CompletableFuture<Void> completableFuture = mock(CompletableFuture.class);
+        doAnswer(invocation -> invocation.callRealMethod())
+                .when(persistentSubscription).handleMetadataEntry(any(), any(), any());
+        doReturn(null).when(completableFuture).get();
+        mlPendingAckStore.replayAsync(new MLPendingAckReplyCallBack(mlPendingAckStore, persistentSubscription));
+        doReturn(topicName).when(persistentSubscription).getTopicName();
+        doReturn(subName).when(persistentSubscription).getName();
+        TxnID txnIDOne = new TxnID(1, 1);
+        TxnID txnIDTwo = new TxnID(1, 2);
+        PositionImpl position = PositionImpl.get(1, 1);
+        int pendingCount = 5;
+        while (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready && pendingCount > 1) {
+            Thread.sleep(1000L);
+            pendingCount--;
+        }
+        try {
+            mlPendingAckStore.append(txnIDOne, position, AckType.Cumulative).get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail();
+        }
+        try {
+            mlPendingAckStore.deleteTxn(txnIDTwo, AckType.Cumulative).get();
+            Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionAckConflictException);
+        }
+        mlPendingAckStore =
+                new MLPendingAckStore(getPulsarServiceList().get(1).getManagedLedgerFactory(), topicName, subName);
+        mlPendingAckStore.replayAsync(new MLPendingAckReplyCallBack(mlPendingAckStore, persistentSubscription));
+        while (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready && pendingCount > 1) {
+            Thread.sleep(1000L);
+            pendingCount--;
+        }
+        if (mlPendingAckStore.getState() != PendingAckStoreState.State.Ready) {
+            Assert.fail();
+        }
+        try {
+            mlPendingAckStore.deleteTxn(txnIDOne, AckType.Cumulative).get();
+        } catch (ExecutionException e) {
+            Assert.fail();
+        }
     }
 
     private Transaction getTxn() throws Exception {

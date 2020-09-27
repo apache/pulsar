@@ -814,6 +814,15 @@ message CommandEndTxnOnSubscriptionResponse {
     optional string message = 5;
 }
 
+message PendingAckMetadataEntry {
+    required uint64 txnid_least_bits                = 1 [default = 0];
+    required uint64 txnid_most_bits                 = 2 [default = 0];
+    optional CommandAck.AckType ack_type            = 3;
+    required int64 ledger_id                        = 4;
+    required int64 entry_id                         = 5;
+    repeated int64 ack_set                          = 6;
+}
+
 message BaseCommand {
     enum Type {
         CONNECT     = 2;
