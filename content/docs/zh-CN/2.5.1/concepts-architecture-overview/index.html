@@ -79,7 +79,7 @@
 <ul>
 <li>一个或者多个 broker 负责处理和负载均衡 producer 发出的消息，并将这些消息分派给 consumer；Broker 与 Pulsar 配置存储交互来处理相应的任务，并将消息存储在 BookKeeper 实例中（又称 bookies）；Broker 依赖 ZooKeeper 集群处理特定的任务，等等。</li>
 <li>包含一个或多个 bookie 的 BookKeeper 集群负责消息的<a href="#persistent-storage">持久化存储</a>。</li>
-<li>A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.</li>
+<li>一个Zookeeper集群，用来处理多个Pulsar集群之间的协调任务。</li>
 </ul>
 <p>下图为一个 Pulsar 集群：</p>
 <p><img src="/docs/assets/pulsar-system-architecture.png" alt="Pulsar架构图"></p>
@@ -174,7 +174,7 @@
 <li>Pulsar proxy支持<a href="/docs/zh-CN/2.5.1/security-tls-transport">TLS 加密</a> 和 <a href="/docs/zh-CN/2.5.1/security-tls-authentication">认证</a>。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
-<p><a href="/docs/zh-CN/2.5.1/client-libraries">Clients</a> connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar内部提供了服务发现的机制，你可以通过 <a href="/docs/zh-CN/2.5.1/deploy-bare-metal#service-discovery-setup">配置Pulsar实例指南</a>设置。</p>
+<p><a href="/docs/zh-CN/2.5.1/client-libraries">客户端</a> 需要能够使用单个 URL 与整个 Pulsar 实例进行通信。 Pulsar内部提供了服务发现的机制，你可以通过 <a href="/docs/zh-CN/2.5.1/deploy-bare-metal#service-discovery-setup">配置Pulsar实例指南</a>设置。</p>
 <p>你也可以用你自己的服务发现系统。 如果你用你自己的系统，只需满足一个需求：当客户端发送一个HTTP请求，例如发到<code>http://pulsar.us-west.example.com:8080</code>，客户端需要被重定向到<em>某些</em>所需的集群中活跃的broker，或者通过DNS，或者通过HTTP和IP重定向，或者其他机制。</p>
 <p>下面这张图展示了Pulsar服务发现机制：</p>
 <p><img src="/docs/assets/pulsar-service-discovery.png" alt="alt-text"></p>
