@@ -260,6 +260,7 @@ public class ClientCnx extends PulsarHandler {
         pendingGetLastMessageIdRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingGetTopicsRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingGetSchemaRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingGetOrCreateSchemaRequests.forEach((key, future) -> future.completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
@@ -271,6 +272,8 @@ public class ClientCnx extends PulsarHandler {
         waitingLookupRequests.clear();
         pendingGetLastMessageIdRequests.clear();
         pendingGetTopicsRequests.clear();
+        pendingGetSchemaRequests.clear();
+        pendingGetOrCreateSchemaRequests.clear();
 
         producers.clear();
         consumers.clear();
