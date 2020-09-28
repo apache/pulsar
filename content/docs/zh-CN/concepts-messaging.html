@@ -137,7 +137,7 @@
 <p>如下图所示，当生产者向主题发送一条大的消息分块消息和普通的非分块消息时。 生产者发送的消息为 M1，M1 有三个分块 M1-C1，M1-C2 和 M1-C3。 这个 broker 在其管理的ledger里面保存所有的三个块消息，然后以相同的顺序分发给消费者（独占/灾备模式）。 消费者将在内存缓存所有的块消息，直到收到所有的消息块。将这些消息合并成为原始的消息M1，发送给处理进程。</p>
 <p><img src="/docs/assets/chunking-01.png" alt=""></p>
 <h4><a class="anchor" aria-hidden="true" id="多个生产者和一个生产者处理块消息。"></a><a href="#多个生产者和一个生产者处理块消息。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多个生产者和一个生产者处理块消息。</h4>
-<p>When multiple publishers publish chunked messages into a single topic, the broker stores all the chunked messages coming from different publishers in the same managed-ledger. As shown below, Producer 1 publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. Producer 2 publishes message M2 in three chunks M2-C1, M2-C2 and M2-C3. All chunked messages of the specific message are still in order but might not be consecutive in the managed-ledger. This brings some memory pressure to the consumer because the consumer keeps separate buffer for each large message to aggregate all chunks of the large message and combine them into one message.</p>
+<p>当多个生产者发布块消息到单个主题，这个 Broker 在同一个 Ledger 里面保存来自不同生产者的所有块消息。 如下所示，生产者1发布的消息 M1，M1 由 M1-C1,  M1-C2 和  M1-C3 三个块组成。 生产者2发布的消息 M2，M2 由 M2-C1,  M2-C2 和  M2-C3 三个块组成。 这些特定消息的所有分块是顺序排列的，但是其在 ledger 里面可能不是连续的。 这种方式会给消费者带来一定的内存负担。因为消费者会为每个大消息在内存开辟一块缓冲区，以便将所有的块消息合并为原始的大消息。</p>
 <p><img src="/docs/assets/chunking-02.png" alt=""></p>
 <h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
 <p>A consumer is a process that attaches to a topic via a subscription and then receives messages.</p>
@@ -159,28 +159,28 @@
 <h3><a class="anchor" aria-hidden="true" id="确认"></a><a href="#确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认</h3>
 <p>当消费者成功的消费了一条消息，这个消费者会发送一个确认信息给broker。 这个消息时是永久保存的，只有在收到订阅者消费成功的消息确认后才会被删除。 如果希望消息被 Consumer 确认后仍然保留下来，可配置 <a href="/docs/zh-CN/concepts-messaging#message-retention-and-expiry">消息保留策略</a>实现。</p>
 <p>For a batch message, if batch index acknowledgement is enabled, the broker maintains the batch index acknowledgement status and tracks the acknowledgement status of each batch index to avoid dispatching acknowledged messages to the consumer. 当某一批消息的所有索引都被确认时，该批消息将被删除。 For details about the batch index acknowledgement, see <a href="#batching">batching</a>.</p>
-<p>消息有两种确认模式：一对一或者累计确认。 累积确认时，消费者只需要确认最后一条他收到的消息。 所有之前（包含此条）的消息，都不会被再次重发给那个消费者。</p>
+<p>消息有两种确认模式：单条确认或者累计确认。 累积确认时，消费者只需要确认最后一条他收到的消息。 所有之前（包含此条）的消息，都不会被再次重发给那个消费者。</p>
 <p>Messages can be acknowledged in the following two ways:</p>
 <ul>
 <li>Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.</li>
-<li>Messages are acknowledged cumulatively. 累积确认时，消费者只需要确认最后一条他收到的消息。 All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.</li>
+<li>累积确认模式 累积确认时，消费者只需要确认最后一条他收到的消息。 所有之前（包含此条）的消息，都不会被再次发送给那个消费者。</li>
 </ul>
 <blockquote>
 <p>Note</p>
-<p>Cumulative acknowledgement cannot be used in the <a href="#subscription-modes">shared subscription mode</a>, because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.</p>
+<p><a href="#subscription-modes">共享消费模式</a>不能使用累积确认模式 。因为共享订阅模式会多个消费者共享一个订阅。 在共享订阅模式，消息都是单条确认模式。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="取消确认"></a><a href="#取消确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消确认</h3>
-<p>When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer sends a negative acknowledgement to the broker, and then the broker redelivers the message.</p>
-<p>Messages are negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.</p>
-<p>In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they receive.</p>
+<p>当消费者在某个时间没有成功的消费某条消息，消费者想重新消费到这条消息，这个消费者可以发送一条取消确认消息到 broker，broker 会将这条消息重新发给消费者。</p>
+<p>消息取消确认也有单条取消模式和累积取消模式  ，这依赖于消费者使用的订阅模式。</p>
+<p>在独占消费模式和灾备订阅模式中，消费者仅仅只能对收到的最后一条消息进行取消确认。</p>
 <p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
 <blockquote>
-<p>Note If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.</p>
+<p>备注 如果启用批处理，消费者会在同一批次里面收到取消确认的消息和其他消息。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="确认超时"></a><a href="#确认超时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认超时</h3>
-<p>If a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client tracks the unacknowledged messages within the entire <code>acktimeout</code> time range, and sends a <code>redeliver unacknowledged messages</code> request to the broker automatically when the acknowledgement timeout is specified.</p>
+<p>如果消息没有被成功消费，你想去让 broker 自动重新交付这个消息， 你可以采用未知消息自动重新交付机制。 客户端会跟踪 <code>超时</code> 时间范围内所有未确认的消息。 并且在指定超时时间后会发送一个 <code>重发未确认的消息</code> 请求到 broker。</p>
 <blockquote>
-<p>Note If batching is enabled, other messages and the unacknowledged messages in the same batch are redelivered to the consumer.</p>
+<p>备注 如果启用批处理，消费者会在同一批次收到未知消息和其他消息。</p>
 </blockquote>
 <blockquote>
 <p>Note<br>
