@@ -23,12 +23,15 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 type FunctionContext struct {
 	instanceConf *instanceConf
 	userConfigs  map[string]interface{}
 	logAppender  *LogAppender
+	record       pulsar.Message
 }
 
 func NewFuncContext() *FunctionContext {
@@ -114,6 +117,17 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
+}
+
+// SetCurrentRecord sets the current message into the function context
+// called for each message before executing a handler function
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+	c.record = record
+}
+
+// GetCurrentRecord gets the current message from the function context
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+	return c.record
 }
 
 // An unexported type to be used as the key for types in this package.
