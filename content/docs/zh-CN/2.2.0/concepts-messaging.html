@@ -147,7 +147,7 @@
 <tr><th style="text-align:left">Topic名称组成</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">用来标识 topic 的类型。 Pulsar 支持两种不同 topic：<a href="/docs/zh-CN/2.2.0/concepts-architecture-overview#persistent-storage">持久化</a>和 <a href="#non-persistent-topics">非持久</a> 型（如果你没有明确指定，topic 将会是默认的持久化类型）。 持久化 topic 的所有消息都会<a href="/docs/zh-CN/2.2.0/concepts-architecture-overview#persistent-storage"></a>存储</a>到硬盘上（除非是单机模式的broker，否则都是会在多块磁盘上）。<a href="#non-persistent-topics">非持久</a> topic 的数据将不会存储到硬盘上。</td></tr>
+<tr><td style="text-align:left"><code>持久化</code> / <code>非持久化</code></td><td style="text-align:left">用来标识 topic 的类型。 Pulsar 支持两种不同 topic：<a href="/docs/zh-CN/2.2.0/concepts-architecture-overview#persistent-storage">持久化</a>和 <a href="#non-persistent-topics">非持久</a> 型（如果你没有明确指定，topic 将会是默认的持久化类型）。 持久化 topic 的所有消息都会<a href="/docs/zh-CN/2.2.0/concepts-architecture-overview#persistent-storage"></a>存储</a>到硬盘上（除非是单机模式的broker，否则都是会在多块磁盘上）。<a href="#non-persistent-topics">非持久</a> topic 的数据将不会存储到硬盘上。</td></tr>
 <tr><td style="text-align:left"><code>租户</code></td><td style="text-align:left">实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。</td></tr>
 <tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">将相关联的 topic 作为一个组来管理，是管理 Topic 的基本单元。 大多数对 topic 的管理都是对<a href="#namespaces">命名空间</a>的一项配置。 每个租户可以有多个命名空间。</td></tr>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">名称的最后组成部分，topic的命名很自由，没有什么特殊的含义。</td></tr>
