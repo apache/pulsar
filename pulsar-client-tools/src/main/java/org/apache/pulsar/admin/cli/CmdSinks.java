@@ -127,6 +127,8 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)")
     protected class LocalSinkRunner extends CreateSink {
 
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        protected String stateStorageServiceUrl;
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
         protected String DEPRECATED_brokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
@@ -161,6 +163,11 @@ public class CmdSinks extends CmdBase {
         protected String DEPRECATED_tlsTrustCertFilePath;
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
+
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;

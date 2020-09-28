@@ -66,6 +66,7 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -178,6 +179,41 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertEquals(produceSocket.getBuffer(), readSocket.getBuffer());
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, readClient, produceClient);
+        }
+    }
+
+    @Test
+    public void unsubscribeTest() throws Exception {
+        final String namespace = "my-property/my-ns";
+        final String topic = namespace + "/" + "my-topic7";
+        final String topicName = "persistent://" + topic + System.nanoTime();
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        final String subscription = "my-sub";
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+
+        URI consumeUri = URI.create(consumerUri);
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        Thread.sleep(500);
+
+        try {
+            // setup a consumer
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumerFuture.get();
+            List<String> subs = admin.topics().getSubscriptions(topic);
+            Assert.assertEquals(subs.size(), 1);
+            Assert.assertEquals(subs.get(0), subscription);
+            // do unsubscribe
+            consumeSocket.unsubscribe();
+            //wait for delete
+            Thread.sleep(1000);
+            subs = admin.topics().getSubscriptions(topic);
+            Assert.assertEquals(subs.size(), 0);
+        } finally {
+            stopWebSocketClient(consumeClient);
         }
     }
 

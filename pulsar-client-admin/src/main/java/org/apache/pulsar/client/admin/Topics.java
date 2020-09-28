@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.admin;
 
 import com.google.gson.JsonObject;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -35,11 +33,18 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
-
 /**
  * Admin interface for Topics management.
  */
@@ -1435,6 +1440,53 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+     * Get the delayed delivery policy for a specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Set the delayed delivery policy for a specified topic.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @throws PulsarAdminException
+     */
+    void setDelayedDeliveryPolicy(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @return
+     */
+    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
      * Set message TTL for a topic.
      *
      * @param topic
@@ -1476,4 +1528,955 @@ public interface Topics {
      *             Unexpected error
      */
     void removeMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * Set the retention configuration on a topic.
+     * <p/>
+     * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setRetention(String topic, RetentionPolicies retention) throws PulsarAdminException;
+
+    /**
+     * Set the retention configuration for all the topics on a topic asynchronously.
+     * <p/>
+     * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention);
+
+    /**
+     * Get the retention configuration for a topic.
+     * <p/>
+     * Get the retention configuration for a topic.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    RetentionPolicies getRetention(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the retention configuration for a topic asynchronously.
+     * <p/>
+     * Get the retention configuration for a topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
+
+    /**
+     * Remove the retention configuration for all the topics on a topic.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeRetention(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the retention configuration for all the topics on a topic asynchronously.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeRetentionAsync(String topic);
+
+    /**
+     * get max unacked messages on consumer of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnConsumerAsync(String topic);
+
+    /**
+     * set max unacked messages on consumer of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnConsumer(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnConsumerAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on consumer of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
+
+    /**
+     * get inactive topic policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * get inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic);
+
+    /**
+     * set inactive topic policies of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setInactiveTopicPolicies(String topic
+            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+
+    /**
+     * set inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies);
+
+    /**
+     * remove inactive topic policies of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeInactiveTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * remove inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String topic);
+
+    /**
+     * get offload policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    OffloadPolicies getOffloadPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * get offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic);
+
+    /**
+     * set offload policies of a topic.
+     * @param topic
+     * @param offloadPolicies
+     * @throws PulsarAdminException
+     */
+    void setOffloadPolicies(String topic, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+
+    /**
+     * set offload policies of a topic asynchronously.
+     * @param topic
+     * @param offloadPolicies
+     * @return
+     */
+    CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies);
+
+    /**
+     * remove offload policies of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeOffloadPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * remove offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeOffloadPoliciesAsync(String topic);
+
+    /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * set max unacked messages on subscription of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnSubscription(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on subscription of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * Set the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setPersistence(String topic, PersistencePolicies persistencePolicies) throws PulsarAdminException;
+
+    /**
+     * Set the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     */
+    CompletableFuture<Void> setPersistenceAsync(String topic, PersistencePolicies persistencePolicies);
+
+    /**
+     * Get the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
+
+    /**
+     * Remove the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removePersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removePersistenceAsync(String topic);
+
+    /**
+     * get deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * get deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic);
+
+    /**
+     * set deduplication enabled of a topic.
+     * @param topic
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * set deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled);
+
+    /**
+     * remove deduplication enabled of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void disableDeduplication(String topic) throws PulsarAdminException;
+
+    /**
+     * remove deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> disableDeduplicationAsync(String topic);
+
+    /**
+     * Set message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set message-dispatch-rate asynchronously.
+     * <p/>
+     * topic can dispatch this many messages per second
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message-dispatch-rate asynchronously.
+     * <p/>
+     * Topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getDispatchRateAsync(String topic);
+
+    /**
+     * Remove message-dispatch-rate.
+     * <p/>
+     * Remove topic message dispatch rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removeDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove message-dispatch-rate asynchronously.
+     * <p/>
+     * Remove topic message dispatch rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removeDispatchRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Set subscription-message-dispatch-rate for the topic.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set subscription-message-dispatch-rate for the topic asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get subscription-message-dispatch-rate for the topic.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic);
+
+    /**
+     * Remove subscription-message-dispatch-rate for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeSubscriptionDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
+
+    /**
+     * Get the compactionThreshold for a topic. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Long getCompactionThreshold(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a topic asynchronously. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Long> getCompactionThresholdAsync(String topic);
+
+    /**
+     * Set the compactionThreshold for a topic. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setCompactionThreshold(String topic, long compactionThreshold) throws PulsarAdminException;
+
+    /**
+     * Set the compactionThreshold for a topic asynchronously. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     */
+    CompletableFuture<Void> setCompactionThresholdAsync(String topic, long compactionThreshold);
+
+    /**
+     * Remove the compactionThreshold for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeCompactionThreshold(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the compactionThreshold for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeCompactionThresholdAsync(String topic);
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setPublishRate(String topic, PublishRate publishMsgRate) throws PulsarAdminException;
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishMsgRate);
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @return number of messages per second
+     * @throws PulsarAdminException Unexpected error
+     */
+    PublishRate getPublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @return number of messages per second
+     */
+    CompletableFuture<PublishRate> getPublishRateAsync(String topic);
+
+    /**
+     * Remove message-publish-rate.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removePublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove message-publish-rate asynchronously.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removePublishRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the maxConsumersPerSubscription for a topic.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Integer getMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the maxConsumersPerSubscription for a topic asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String topic);
+
+    /**
+     * Set maxConsumersPerSubscription for a topic.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerSubscription(String topic, int maxConsumersPerSubscription) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerSubscription for a topic asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     */
+    CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String topic, int maxConsumersPerSubscription);
+
+    /**
+     * Remove the maxConsumersPerSubscription for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the maxConsumersPerSubscription for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersPerSubscriptionAsync(String topic);
+
+    /**
+     * Get the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxProducers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxProducersAsync(String topic);
+
+
+    /**
+     * Set the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxProducers Max number of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxProducers(String topic, int maxProducers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxProducers Max number of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxProducersAsync(String topic, int maxProducers);
+
+    /**
+     * Remove the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxProducers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxProducersAsync(String topic);
+
+    /**
+     * Get the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic);
+
+
+    /**
+     * Set the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxConsumers(String topic, int maxConsumers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxConsumersAsync(String topic, int maxConsumers);
+
+    /**
+     * Remove the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersAsync(String topic);
+
+    /**
+     * Set topic-subscribe-rate (topic will limit by subscribeRate).
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /**
+     * Set topic-subscribe-rate (topics will limit by subscribeRate) asynchronously.
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String topic, SubscribeRate subscribeRate);
+
+    /**
+     * Get topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get topic-subscribe-rate asynchronously.
+     * <p/>
+     * Topic allow subscribe times per consumer in a period.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
+
+    /**
+     * Remove topic-subscribe-rate.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removeSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove topic-subscribe-rate asynchronously.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
 }

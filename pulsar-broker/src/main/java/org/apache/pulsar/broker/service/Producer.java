@@ -101,7 +101,7 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.authenticationData = cnx.authenticationData;
+        this.authenticationData = cnx.getAuthenticationData();
         this.msgIn = new Rate();
         this.chuckedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
@@ -617,7 +617,7 @@ public class Producer {
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
         beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
-        topic.publishTxnMessage(txnID, headersAndPayload,
+        topic.publishTxnMessage(txnID, headersAndPayload, batchSize,
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime()));
     }

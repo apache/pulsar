@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -893,12 +894,17 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiMessageAck(long consumerId,
-             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+    public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID, List<Triple<Long, Long,
+            ConcurrentBitSetRecyclable>> entries) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
-
+        ackBuilder.setTxnidLeastBits(txnID.getLeastSigBits());
+        ackBuilder.setTxnidMostBits(txnID.getMostSigBits());
+        return newMultiMessageAckCommon(ackBuilder, entries);
+    }
+    public static ByteBuf newMultiMessageAckCommon(CommandAck.Builder ackBuilder,
+                                                   List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
@@ -930,9 +936,17 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newMultiMessageAck(long consumerId,
+             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
+        ackBuilder.setConsumerId(consumerId);
+        ackBuilder.setAckType(AckType.Individual);
+        return newMultiMessageAckCommon(ackBuilder, entries);
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
-        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, 0, 0);
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, -1, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
@@ -952,10 +966,10 @@ public class Commands {
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
         }
-        if (txnIdMostBits > 0) {
+        if (txnIdMostBits >= 0) {
             ackBuilder.setTxnidMostBits(txnIdMostBits);
         }
-        if (txnIdLeastBits > 0) {
+        if (txnIdLeastBits >= 0) {
             ackBuilder.setTxnidLeastBits(txnIdLeastBits);
         }
         for (Map.Entry<String, Long> e : properties.entrySet()) {

@@ -165,7 +165,7 @@ class ProcessRuntime implements Runtime {
         startProcess();
         if (channel == null && stub == null) {
             channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
-                    .usePlaintext(true)
+                    .usePlaintext()
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
 

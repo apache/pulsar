@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.InputStream;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
@@ -60,6 +61,15 @@ public interface AuthenticationDataProvider extends Serializable {
      * @return a private key for the client certificate, or null if the data are not available
      */
     default PrivateKey getTlsPrivateKey() {
+        return null;
+    }
+
+    /**
+     *
+     * @return an input-stream of the trust store, or null if the trust-store provided at
+     *         {@link ClientConfigurationData#getTlsTrustStorePath()}
+     */
+    default InputStream getTlsTrustStoreStream() {
         return null;
     }
 

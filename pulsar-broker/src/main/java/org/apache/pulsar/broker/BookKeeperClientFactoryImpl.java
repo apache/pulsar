@@ -106,11 +106,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
         }
 
-        bkConf.setThrottleValue(0);
+        bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
-        bkConf.setNumChannelsPerBookie(16);
+        bkConf.setNumChannelsPerBookie(conf.getBookkeeperNumberOfChannelsPerBookie());
         bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
@@ -170,6 +170,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
+
+            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
+
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
                 conf.getProperties().getProperty(
                     REPP_DNS_RESOLVER_CLASS,

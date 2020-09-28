@@ -29,10 +29,12 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,21 +149,57 @@ public class DispatchRateLimiter {
      * default broker dispatch-throttling-rate
      */
     public void updateDispatchRate() {
-        DispatchRate dispatchRate = getPoliciesDispatchRate(brokerService);
+        Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
+        if (!dispatchRate.isPresent()) {
+            dispatchRate =Optional.ofNullable(getPoliciesDispatchRate(brokerService));
 
-        if (dispatchRate == null) {
-            dispatchRate = createDispatchRate();
+            if (!dispatchRate.isPresent()) {
+                dispatchRate = Optional.of(createDispatchRate());
+            }
         }
 
-        updateDispatchRate(dispatchRate);
-        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate);
+        updateDispatchRate(dispatchRate.get());
+        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
     }
 
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
             String topicName, Type type) {
         final ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
+        Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
+        if (dispatchRate.isPresent()) {
+            return true;
+        }
+
         policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
         return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
+    }
+
+    public static Optional<DispatchRate> getTopicPolicyDispatchRate(BrokerService brokerService,
+                                                                    String topicName, Type type) {
+        Optional<DispatchRate> dispatchRate = Optional.empty();
+        final ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
+        if (serviceConfiguration.isSystemTopicEnabled() && serviceConfiguration.isTopicLevelPoliciesEnabled()) {
+            try {
+                switch (type) {
+                    case TOPIC:
+                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
+                                .getTopicPolicies(TopicName.get(topicName)))
+                                .map(TopicPolicies::getDispatchRate);
+                        break;
+                    case SUBSCRIPTION:
+                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
+                                .getTopicPolicies(TopicName.get(topicName)))
+                                .map(TopicPolicies::getSubscriptionDispatchRate);
+                        break;
+                }
+            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                log.debug("Topic {} policies cache have not init.", topicName);
+            } catch (Exception e) {
+                log.debug("[{}] Failed to get topic dispatch rate. ", topicName, e);
+            }
+        }
+
+        return dispatchRate;
     }
 
     public static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,

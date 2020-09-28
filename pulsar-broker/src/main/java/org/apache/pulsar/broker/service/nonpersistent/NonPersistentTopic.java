@@ -294,7 +294,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
                     cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            subscription.addConsumer(consumer);
+            addConsumerToSubscription(subscription, consumer);
             if (!cnx.isActive()) {
                 consumer.close();
                 if (log.isDebugEnabled()) {
@@ -604,6 +604,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         // No-op
     }
 
+    @Override
     public int getNumberOfConsumers() {
         int count = 0;
         for (NonPersistentSubscription subscription : subscriptions.values()) {
@@ -976,7 +977,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext) {
         throw new UnsupportedOperationException("PublishTxnMessage is not supported by non-persistent topic");
     }
 

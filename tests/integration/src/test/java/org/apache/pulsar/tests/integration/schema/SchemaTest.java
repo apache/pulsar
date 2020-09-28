@@ -273,6 +273,10 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.add(Schema.DATE);
         schemas.add(Schema.TIME);
         schemas.add(Schema.TIMESTAMP);
+        schemas.add(Schema.INSTANT);
+        schemas.add(Schema.LOCAL_DATE);
+        schemas.add(Schema.LOCAL_TIME);
+        schemas.add(Schema.LOCAL_DATE_TIME);
 
         schemas.forEach(schemaProducer -> {
             schemas.forEach(schemaConsumer -> {

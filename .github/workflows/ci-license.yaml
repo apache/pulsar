@@ -70,7 +70,7 @@ jobs:
 
       - name: build and check license
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp -DskipTests license:check install
+        run: mvn -q -B -ntp -DskipTests license:check install
 
       - name: license check
         if: steps.docs.outputs.changed_only == 'no'

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Queues;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -242,6 +243,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
+    public void acknowledge(List<MessageId> messageIdList) throws PulsarClientException {
+        try {
+            acknowledgeAsync(messageIdList).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void acknowledge(Messages<?> messages) throws PulsarClientException {
         try {
             acknowledgeAsync(messages).get();
@@ -320,6 +330,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList) {
+        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), null);
     }
 
     @Override
@@ -408,15 +423,27 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         negativeAcknowledge(message.getMessageId());
     }
 
+    protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
+                                                           Map<String,Long> properties,
+                                                           TransactionImpl txn) {
+        CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+        if (txn != null) {
+            txn.registerAckedTopic(getTopic(), subscription);
+            return txn.registerAckOp(ackFuture);
+        } else {
+            return ackFuture;
+        }
+    }
+
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        if (txn != null) {
+        if (txn != null && (this instanceof ConsumerImpl)) {
             // it is okay that we register acked topic after sending the acknowledgements. because
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
-            txn.registerAckedTopic(getTopic());
+            txn.registerAckedTopic(getTopic(), subscription);
             // register the ackFuture as part of the transaction
             return txn.registerAckOp(ackFuture);
         } else {
@@ -427,6 +454,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String,Long> properties,
                                                              TransactionImpl txn);
+
+    protected abstract CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
+                                                    Map<String, Long> properties,
+                                                    TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
                                                                 Map<String,Long> properties,

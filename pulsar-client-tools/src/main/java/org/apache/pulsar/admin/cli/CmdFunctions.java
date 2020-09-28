@@ -49,6 +49,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -266,6 +267,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        protected SubscriptionInitialPosition subsPosition;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -415,6 +418,10 @@ public class CmdFunctions extends CmdBase {
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
+            }
+
+            if (null != subsPosition) {
+                functionConfig.setSubscriptionPosition(subsPosition);
             }
 
             if (null != userConfigString) {
@@ -620,6 +627,10 @@ public class CmdFunctions extends CmdBase {
         protected Integer instanceIdOffset = 0;
         @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions")
         protected String runtime;
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;

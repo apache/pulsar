@@ -171,6 +171,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of threads to use for orderedExecutor."
+            + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"
+            + " get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"
+    )
+    private int numOrderedExecutorThreads = 8;
+
+    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
@@ -188,6 +196,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " do leader election etc. Default is set to 20 "
     )
     private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
+            + "The cache executor thread pool is used for restarting global zookeeper session. "
+            + "Default is 10"
+    )
+    private int numCacheExecutorThreadPoolSize = 10;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
@@ -703,6 +719,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a " +
+            "managed ledger backing a persistent topic. It can improve write availability of topics.\n" +
+            "The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark " +
+            "delete position can be recovered or not.")
+    private boolean lazyCursorRecovery = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
@@ -898,6 +920,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long httpMaxRequestSize = -1;
 
     @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
@@ -951,6 +985,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "Number of channels per bookie"
+    )
+    private int bookkeeperNumberOfChannelsPerBookie = 16;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_BK,
         doc = "Use older Bookkeeper wire protocol with bookie"
     )
     private boolean bookkeeperUseV2WireProtocol = true;
@@ -985,6 +1025,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable region-aware bookie selection policy. \n\nBK will chose bookies from"
             + " different regions and racks when forming a new bookie ensemble")
     private boolean bookkeeperClientRegionawarePolicyEnabled = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Minimum number of racks per write quorum. \n\nBK rack-aware bookie selection policy will try to"
+            + " get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.")
+    private int bookkeeperClientMinNumRacksPerWriteQuorum = 2;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for "
+            + "a writeQuorum. \n\nIf BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.")
+    private boolean bookkeeperClientEnforceMinNumRacksPerWriteQuorum = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
@@ -1055,6 +1105,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "whether expose managed ledger client stats to prometheus"
     )
     private boolean bookkeeperClientExposeStatsToPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Throttle value for bookkeeper client"
+    )
+    private int bookkeeperClientThrottleValue = 0;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(

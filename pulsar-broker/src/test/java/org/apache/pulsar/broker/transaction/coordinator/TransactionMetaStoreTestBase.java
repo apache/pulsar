@@ -40,7 +40,7 @@ public class TransactionMetaStoreTestBase {
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     protected PulsarClient pulsarClient;
-    protected static final int BROKER_COUNT = 5;
+    protected static int BROKER_COUNT = 5;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 
@@ -69,6 +69,7 @@ public class TransactionMetaStoreTestBase {
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
+            config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             configurations[i] = config;
 
             pulsarServices[i] = Mockito.spy(new PulsarService(config));

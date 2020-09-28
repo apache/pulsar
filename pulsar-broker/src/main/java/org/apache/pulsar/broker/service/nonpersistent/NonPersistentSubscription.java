@@ -474,6 +474,13 @@ public class NonPersistentSubscription implements Subscription {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(new Exception("Unsupported operation end txn for NonPersistentSubscription"));
+        return completableFuture;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
 
 }

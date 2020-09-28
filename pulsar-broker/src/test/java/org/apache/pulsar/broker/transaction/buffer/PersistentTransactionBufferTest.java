@@ -91,7 +91,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionEx
 import org.apache.pulsar.broker.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -105,6 +105,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -412,9 +413,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             verifyAndReleaseEntries(entries, txnID, 0L, numEntries);
 
             reader.readNext(1).get();
-
+            Assert.fail("Should cause the exception `EndOfTransactionException`.");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof EndOfTransactionException);
+             assertTrue(ee.getCause() instanceof EndOfTransactionException);
         }
 
     }
@@ -469,7 +470,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             buffer.commitTxn(txnID, 23L, 34L).get();
             buffer.commitTxn(txnID, 24L, 34L).get();
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof UnexpectedTxnStatusException);
+            assertTrue(e.getCause() instanceof TransactionStatusException);
         }
         meta = buffer.getTransactionMeta(txnID).get();
 
@@ -507,7 +508,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             buffer.abortTxn(txnID).get();
             fail("Should fail to abort a committed transaction");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof UnexpectedTxnStatusException);
+            assertTrue(ee.getCause() instanceof TransactionStatusException);
         }
 
         meta = buffer.getTransactionMeta(txnID).get();
@@ -704,7 +705,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < numEntries; i++) {
             long sequenceId = i;
             ByteBuf data = Unpooled.copiedBuffer("message-deduplicate-" + sequenceId, UTF_8);
-            newBuffer.appendBufferToTxn(txnID, sequenceId, data);
+            newBuffer.appendBufferToTxn(txnID, sequenceId, 1, data);
             deduplicateData.add(data);
         }
 
@@ -736,7 +737,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         List<ByteBuf> entries = new ArrayList<>();
         for (int i = 0; i < numEntries; i++) {
             long sequenceId = startSequenceId + i;
-            writeBuffer.appendBufferToTxn(id, sequenceId, Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)).join();
+            writeBuffer.appendBufferToTxn(id, sequenceId, 1, Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)).join();
             entries.add(Unpooled.copiedBuffer("message-" + sequenceId, UTF_8));
         }
         return entries;
@@ -754,7 +755,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
                 assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntryBuffer()),
+                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
                     UTF_8
                 ), "message-" + i);
             }

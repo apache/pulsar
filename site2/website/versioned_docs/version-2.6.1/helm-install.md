@@ -1,7 +1,7 @@
 ---
 id: version-2.6.1-helm-install
 title: Install Apache Pulsar using Helm
-sidebar_label: Install
+sidebar_label: Install 
 original_id: helm-install
 ---
 
