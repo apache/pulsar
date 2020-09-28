@@ -543,6 +543,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         }
 
+        if (replicatedSubscriptionState
+                && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
+            future.completeExceptionally(
+                    new NotAllowedException("Replicated Subscriptions is disabled by broker.")
+            );
+            return future;
+        }
+
         if (subType == SubType.Key_Shared
             && !brokerService.pulsar().getConfiguration().isSubscriptionKeySharedEnable()) {
             future.completeExceptionally(
@@ -2219,14 +2227,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
+        boolean isEnableReplicatedSubscriptions = brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
-        if (shouldBeEnabled && !isCurrentlyEnabled) {
+        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
-        } else if (isCurrentlyEnabled && !shouldBeEnabled) {
+        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
-            replicatedSubscriptionsController.get().close();
+            replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
         }
     }
