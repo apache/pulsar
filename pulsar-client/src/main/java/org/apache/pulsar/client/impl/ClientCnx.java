@@ -119,7 +119,7 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<TransactionMetaStoreHandler> transactionMetaStoreHandlers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
-    private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<RequestTime<?>> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
@@ -154,16 +154,36 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
-    static class RequestTime {
-        long creationTimeMs;
-        long requestId;
+    private static class RequestTime<T> {
+        final long creationTimeMs;
+        final long requestId;
+        final RequestType requestType;
+        final ConcurrentLongHashMap<CompletableFuture<T>> pendingRequestsMap;
 
-        public RequestTime(long creationTime, long requestId) {
-            super();
+        RequestTime(long creationTime, long requestId, RequestType requestType, ConcurrentLongHashMap<CompletableFuture<T>> pendingRequestsMap) {
             this.creationTimeMs = creationTime;
             this.requestId = requestId;
+            this.requestType = requestType;
+            this.pendingRequestsMap = pendingRequestsMap;
         }
     }
+
+    private enum RequestType {
+        Command,
+        GetLastMessageId,
+        GetTopics,
+        GetSchema,
+        GetOrCreateSchema;
+
+        String getDescription() {
+            if (this == Command) {
+                return "request";
+            } else {
+                return name() + " request";
+            }
+        }
+    }
+
 
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
@@ -682,19 +702,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
-        CompletableFuture<List<String>> future = new CompletableFuture<>();
-
-        pendingGetTopicsRequests.put(requestId, future);
-        ctx.writeAndFlush(request).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
-                    writeFuture.cause().getMessage());
-                pendingGetTopicsRequests.remove(requestId);
-                future.completeExceptionally(writeFuture.cause());
-            }
-        });
-
-        return future;
+        return sendRequestAndHandleTimeout(request, requestId, pendingGetTopicsRequests, RequestType.GetTopics);
     }
 
     @Override
@@ -764,33 +772,25 @@ public class ClientCnx extends PulsarHandler {
     }
 
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
-        CompletableFuture<ProducerResponse> future = new CompletableFuture<>();
-        pendingRequests.put(requestId, future);
-        ctx.writeAndFlush(cmd).addListener(writeFuture -> {
+        return sendRequestAndHandleTimeout(cmd, requestId, pendingRequests, RequestType.Command);
+    }
+
+    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId, ConcurrentLongHashMap<CompletableFuture<T>> pendingRequestsMap, RequestType requestType) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        pendingRequestsMap.put(requestId, future);
+        ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
-                pendingRequests.remove(requestId);
+                log.warn("{} Failed to send {} to broker: {}", ctx.channel(), requestType.getDescription(), writeFuture.cause().getMessage());
+                pendingRequestsMap.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });
-        requestTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        requestTimeoutQueue.add(new RequestTime<T>(System.currentTimeMillis(), requestId, requestType, pendingRequestsMap));
         return future;
     }
 
     public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
-        CompletableFuture<MessageIdData> future = new CompletableFuture<>();
-
-        pendingGetLastMessageIdRequests.put(requestId, future);
-
-        ctx.writeAndFlush(request).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send GetLastMessageId request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
-                pendingGetLastMessageIdRequests.remove(requestId);
-                future.completeExceptionally(writeFuture.cause());
-            }
-        });
-
-        return future;
+        return sendRequestAndHandleTimeout(request, requestId, pendingGetLastMessageIdRequests, RequestType.GetLastMessageId);
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
@@ -812,33 +812,11 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<CommandGetSchemaResponse> sendGetRawSchema(ByteBuf request, long requestId) {
-        CompletableFuture<CommandGetSchemaResponse> future = new CompletableFuture<>();
-
-        pendingGetSchemaRequests.put(requestId, future);
-
-        ctx.writeAndFlush(request).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send GetSchema request to broker: {}", ctx.channel(),
-                        writeFuture.cause().getMessage());
-                pendingGetSchemaRequests.remove(requestId);
-                future.completeExceptionally(writeFuture.cause());
-            }
-        });
-
-        return future;
+        return sendRequestAndHandleTimeout(request, requestId, pendingGetSchemaRequests, RequestType.GetSchema);
     }
 
     public CompletableFuture<byte[]> sendGetOrCreateSchema(ByteBuf request, long requestId) {
-        CompletableFuture<CommandGetOrCreateSchemaResponse> future = new CompletableFuture<>();
-        pendingGetOrCreateSchemaRequests.put(requestId, future);
-        ctx.writeAndFlush(request).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send GetOrCreateSchema request to broker: {}", ctx.channel(),
-                         writeFuture.cause().getMessage());
-                pendingGetOrCreateSchemaRequests.remove(requestId);
-                future.completeExceptionally(writeFuture.cause());
-            }
-        });
+        CompletableFuture<CommandGetOrCreateSchemaResponse> future = sendRequestAndHandleTimeout(request, requestId, pendingGetOrCreateSchemaRequests, RequestType.GetOrCreateSchema);
         return future.thenCompose(response -> {
             if (response.hasErrorCode()) {
                 // Request has failed
@@ -1069,13 +1047,12 @@ public class ClientCnx extends PulsarHandler {
                 break;
             }
             request = requestTimeoutQueue.poll();
-            CompletableFuture<ProducerResponse> requestFuture = pendingRequests.remove(request.requestId);
-            if (requestFuture != null && !requestFuture.isDone()
-                    && requestFuture.completeExceptionally(new TimeoutException(
-                            request.requestId + " lookup request timedout after ms " + operationTimeoutMs))) {
-                log.warn("{} request {} timed out after {} ms", ctx.channel(), request.requestId, operationTimeoutMs);
-            } else {
-                // request is already completed successfully.
+            CompletableFuture<?> requestFuture = (CompletableFuture) request.pendingRequestsMap.remove(request.requestId);
+            if (requestFuture != null && !requestFuture.isDone()) {
+                String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId, request.requestType.getDescription(), operationTimeoutMs);
+                if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
+                    log.warn("{} {}", ctx.channel(), timeoutMessage);
+                }
             }
         }
     }
