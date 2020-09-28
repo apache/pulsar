@@ -132,6 +132,7 @@ public class CmdClusters extends CmdBase {
                             admin.topics().delete(topic, true);
                             // TODO: Delete all the ledgers of the SchemaStorage
                             // admin.schemas().deleteSchema(topic) won't delete the schema's ledger. Instead a new ledger will be created.
+                            //       https://github.com/apache/pulsar/issues/8134
                         }
                         admin.namespaces().deleteNamespace(namespace);
                     }
