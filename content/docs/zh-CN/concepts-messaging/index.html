@@ -273,8 +273,8 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 <p><img src="/docs/assets/pulsar-exclusive-subscriptions.png" alt="独占订阅"></p>
 <h3><a class="anchor" aria-hidden="true" id="failover（灾备）"></a><a href="#failover（灾备）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Failover（灾备）</h3>
 <p>In <em>failover</em> mode, multiple consumers can attach to the same subscription. 主消费者会消费非分区主题或者分区主题中的每个分区的消息。 When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.</p>
-<p>对于分区主题来说，Broker将按照消费者的优先级和消费者名称的词汇表顺序对消费者进行排序。 Broker 会试图将主题均匀的分配给优先级最高的消费者。</p>
-<p>For non-partitioned topic, broker will pick consumer in the order they subscribe to the non partitioned topic.</p>
+<p>对于分区主题来说，Broker 将按照消费者的优先级和消费者名称的词汇表顺序对消费者进行排序。 Broker 会试图将主题均匀的分配给优先级最高的消费者。</p>
+<p>对于非分区主题来说，broker 将顺序地为分区主题分配消费者。</p>
 <p>In the diagram below, <strong>Consumer-B-0</strong> is the master consumer while <strong>Consumer-B-1</strong> would be the next consumer in line to receive messages if <strong>Consumer-B-0</strong> is disconnected.</p>
 <p><img src="/docs/assets/pulsar-failover-subscriptions.png" alt="灾备订阅"></p>
 <h3><a class="anchor" aria-hidden="true" id="shared（共享）"></a><a href="#shared（共享）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Shared（共享）</h3>
@@ -289,7 +289,7 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 <p>In <em>Key_Shared</em> mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="limitations-of-key_shared-mode"></a><a href="#limitations-of-key_shared-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Limitations of Key_Shared mode</h4>
-<p>When you use Key_Shared mode, be aware that: * You need to specify a key or orderingKey for messages * You cannot use cumulative acknowledgment with Key_Shared mode.</p>
+<p>当你使用 key 共享模式时，需要知道如下两点： * 你需要为每条消息指定一个key或者orderingKey。 * 你不能在 key 共享模式里面使用累积确认。</p>
 </blockquote>
 <p><img src="/docs/assets/pulsar-key-shared-subscriptions.png" alt="Key_Shared subscriptions"></p>
 <p><strong>可以在 <code>broker.config</code> 中禁用 Key_Shared 模式。</strong></p>
@@ -300,14 +300,14 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 <li>通过明确指定的topic列表</li>
 </ul>
 <blockquote>
-<p>When subscribing to multiple topics by regex, all topics must be in the same <a href="#namespaces">namespace</a>.</p>
+<p>当使用正则匹配订阅多个主题的时候，所有的主题必须是在同一个<a href="#namespaces">命名空间</a>里面的。</p>
 </blockquote>
-<p>When subscribing to multiple topics, the Pulsar client automatically makes a call to the Pulsar API to discover the topics that match the regex pattern/list, and then subscribe to all of them. If any of the topics do not exist, the consumer auto-subscribes to them once the topics are created.</p>
+<p>当订阅多个主题的时候，Pulsar 客户端将自动调用 Pulsar API 找到符合匹配规则的主题列表，然后订阅这些主题。 如果此时有暂不存在的主题，那么一旦这些主题被创建，消费者会自动订阅这些主题。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="no-ordering-guarantees-across-multiple-topics"></a><a href="#no-ordering-guarantees-across-multiple-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No ordering guarantees across multiple topics</h4>
 <p>When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.</p>
 </blockquote>
-<p>The following are multi-topic subscription examples for Java.</p>
+<p>如下是 Java 订阅多个主题的代码示例：</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.regex.Pattern;
 
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
@@ -329,10 +329,10 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pu
                 .subscriptionName(<span class="hljs-string">"subscription-1"</span>)
                 .subscribe();
 </code></pre>
-<p>For code examples, see <a href="/docs/zh-CN/client-libraries-java#multi-topic-subscriptions">Java</a>.</p>
+<p>关于代码示例，请参阅 <a href="/docs/zh-CN/client-libraries-java#multi-topic-subscriptions">Java</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="分区-topic"></a><a href="#分区-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分区 topic</h2>
-<p>Normal topics are served only by a single broker, which limits the maximum throughput of the topic. <em>Partitioned topics</em> are a special type of topic that are handled by multiple brokers, thus allowing for higher throughput.</p>
-<p>A partitioned topic is actually implemented as N internal topics, where N is the number of partitions. 当向分区的topic发送消息，每条消息被路由到其中一个broker。 Pulsar自动处理跨broker的分区分布。</p>
+<p>普通的主题仅仅被保存在单个 broker中，这限制了主题的最大吞吐量。 <em>Partitioned topics</em> are a special type of topic that are handled by multiple brokers, thus allowing for higher throughput.</p>
+<p>分区主题实际是通过在底层拥有 N 个内部主题来实现的，这个 N 的数量就是等于分区的数量。 当向分区的topic发送消息，每条消息被路由到其中一个broker。 Pulsar自动处理跨broker的分区分布。</p>
 <p>下图对此做了阐明：</p>
 <p><img src="/docs/assets/partitioning.png" alt=""></p>
 <p>The <strong>Topic1</strong> topic has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. 因为分区多于broker数量，其中有两个broker要处理两个分区。第三个broker则只处理一个。（再次强调，分区的分布是Pulsar自动处理的）。</p>
