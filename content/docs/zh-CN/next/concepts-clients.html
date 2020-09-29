@@ -39,11 +39,11 @@
 <li>Topic 中<strong>最新</strong>的可用消息</li>
 <li>如果你想开始的位置在最早和最新之间， 则需要显示的指定消息 ID。 你的应用程序将需要提前“知道”这个消息 ID，可能要从持久化存储或缓存中获取。</li>
 </ul>
-<p>The reader interface is helpful for use cases like using Pulsar to provide effectively-once processing semantics for a stream processing system. Pulsar能够将主题的消息进行重放，并从重放后的位置开始读取消息，是满足流处理的场景的重要基础。 Reader 接口为 Pulsar 客户端在 Topic 内提供了一种能“手动管理起始位置”的底层抽象。</p>
+<p>Reader 接口在流处理系统中，需要用到 effectively-once(至少一次) 语义的场景是很有帮助的。 Pulsar能够将主题的消息进行重放，并从重放后的位置开始读取消息，是满足流处理的场景的重要基础。 Reader 接口为 Pulsar 客户端在 Topic 内提供了一种能“手动管理起始位置”的底层抽象。</p>
 <p>Reader 接口内部是作为一个使用独占、非持久化订阅的被随机命名的一个消费者来实现的。</p>
-<p>[ <strong>IMPORTANT</strong> ]</p>
-<p>Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is <strong><em>strongly</em></strong> advised that <a href="/docs/zh-CN/next/cookbooks-retention-expiry">data retention</a> be configured. If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted . This will cause readers to essentially skip messages. Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.</p>
-<p>Please also note that a reader can have a &quot;backlog&quot;, but the metric is just to allow users to know how behind the reader is and is not considered for any backlog quota calculations.</p>
+<p>[<strong>重要提示</strong>]</p>
+<p>与订阅或消费者不同， readers 在性质上是非持久性的，不会阻止某一主题中的数据被删除。所以<strong><em>强烈</em></strong>建议配置<a href="/docs/zh-CN/next/cookbooks-retention-expiry">数据保留时间</a>这个选项。 如果主题没有配置足够长的消息保留时间，就会出现消息还没有被读取就被删除的情况。 这将导致 reader 读取不到这条消息。 为主题配置数据保留时间，就可以保证 reader 可以在一定时间内可以获取到该消息。</p>
+<p>请注意 reader 可以有一个 &quot;backlog&quot;，但是该指标只是为了让用户了解到 reader 背后的运行情况，但是在进行任何积压配额计算是都不会考虑该因素。</p>
 <p><img src="/docs/assets/pulsar-reader-consumer-interfaces.png" alt="Pulsar的消费者和读取器接口"></p>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="仅支持没有分区的-topic"></a><a href="#仅支持没有分区的-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>仅支持没有分区的 topic</h3>

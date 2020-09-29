@@ -1621,9 +1621,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "producerName": {
-                    "type": "string"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1632,16 +1629,35 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicatedFrom": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1652,19 +1668,6 @@
                 },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "replicated": {
-                    "type": "boolean"
                 },
                 "data": {
                     "type": "array",
@@ -1679,9 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "topicName": {
-                    "type": "string"
                 },
                 "value": {
                     "type": "object"
