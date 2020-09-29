@@ -502,9 +502,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void delete(String topic, boolean force) throws PulsarAdminException {
+    public void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException {
         try {
-            deleteAsync(topic, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            deleteAsync(topic, force, deleteSchema).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -516,10 +516,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> deleteAsync(String topic, boolean force) {
+    public CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn);
-        path = path.queryParam("force", Boolean.toString(force));
+        WebTarget path = topicPath(tn) //
+                .queryParam("force", Boolean.toString(force)) //
+                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
         return asyncDeleteRequest(path);
     }
 
