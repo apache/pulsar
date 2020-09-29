@@ -515,7 +515,7 @@ public class Consumer {
 
     private CompletableFuture<Void> transactionAcknowledge(TxnID txnID, List<Position> positionList, AckType ackType) {
         if (subscription instanceof PersistentSubscription) {
-            return ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
+            return ((PersistentSubscription) subscription).acknowledgeMessageWithTransaction(txnID, positionList, ackType);
         } else {
             String errorMsg = "Transaction acknowledge only support the `PersistentSubscription`.";
             log.error(errorMsg);

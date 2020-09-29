@@ -57,6 +57,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -1038,7 +1039,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                     return null;
                                 });
-                            } catch (NamingException e) {
+                            } catch (NamingException | IOException | ExecutionException | InterruptedException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);

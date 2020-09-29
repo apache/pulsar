@@ -30,6 +30,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -98,6 +100,8 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleProvider;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -219,7 +223,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
+    public PersistentTopic(String topic, ManagedLedger ledger,
+                           BrokerService brokerService) throws NamingException, IOException,
+            ExecutionException, InterruptedException {
         super(topic, brokerService);
         this.ledger = ledger;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
@@ -320,12 +326,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-            boolean replicated) {
+            boolean replicated) throws IOException, ExecutionException, InterruptedException {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
+            CompletableFuture<PersistentSubscription> completableFuture = new CompletableFuture<>();
+            PendingAckHandleProvider.newProvider(brokerService.getPulsar().getConfig().getPendingAckProviderClassName())
+                    .newPendingAckHandle(cursor, this.getName(), subscriptionName).whenComplete((handle, ex) -> {
+                        if (ex == null) {
+                            completableFuture.complete(
+                                    new PersistentSubscription(this, subscriptionName, cursor, replicated, handle));
+                        } else {
+                            completableFuture.completeExceptionally(ex);
+                        }
+            });
+            return completableFuture.get();
         }
     }
 
@@ -682,8 +698,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor, replicated));
-
+                        name -> {
+                            try {
+                                return createPersistentSubscription(subscriptionName, cursor, replicated);
+                            } catch (IOException | ExecutionException | InterruptedException e) {
+                                log.warn("[{}] Failed to create subscription for {}: {}",
+                                        topic, subscriptionName, e.getMessage());
+                                USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
+                                subscriptionFuture.completeExceptionally(e);
+                                return null;
+                            }
+                        });
+                if (subscription == null) {
+                    return;
+                }
                 if (replicated && !subscription.isReplicated()) {
                     // Flip the subscription state
                     subscription.setReplicated(replicated);

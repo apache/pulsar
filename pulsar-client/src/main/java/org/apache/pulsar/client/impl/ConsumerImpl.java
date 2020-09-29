@@ -62,10 +62,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -82,7 +80,6 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -96,7 +93,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
@@ -112,7 +108,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -198,11 +193,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-    private final ConcurrentLongHashMap<OpForTransactionAckCallBack> pendingRequests =
+    private final ConcurrentLongHashMap<OpForTransactionAckCallBack> pendingAckRequests =
             new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLinkedQueue<ClientCnx.RequestTime> timeoutQueue;
+    private final ConcurrentLinkedQueue<ClientCnx.RequestTime> pendingAckTimeoutQueue;
+
+    private final ConcurrentOpenHashMap<TxnID, OpForRedeliverWithTxn>
+            redeliverWithTxnRequests = new ConcurrentOpenHashMap<>(16, 1);
+    private final ConcurrentLinkedQueue<RedeliverWithTxnRequestTime> redeliverWithTxnTimeoutQueue;
 
     private final Timeout transactionAckTimeTracker;
+
+    private final Timeout redeliverWithTxnTimeoutTracker;
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -344,11 +345,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
-        this.timeoutQueue = new ConcurrentLinkedQueue<>();
+        this.pendingAckTimeoutQueue = new ConcurrentLinkedQueue<>();
         this.transactionAckTimeTracker = client.timer().newTimeout(new TransactionAckTimeoutTimer(),
+                client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+        this.redeliverWithTxnTimeoutQueue = new ConcurrentLinkedQueue<>();
+        this.redeliverWithTxnTimeoutTracker = client.timer().newTimeout(new RedeliverWithTxnTimer(),
                 client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
 
         grabCnx();
+    }
+
+    static class RedeliverWithTxnRequestTime {
+        long creationTimeMs;
+        TxnID txnID;
+
+        public RedeliverWithTxnRequestTime(long creationTime, TxnID txnID) {
+            super();
+            this.creationTimeMs = creationTime;
+            this.txnID = txnID;
+        }
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -614,8 +629,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 null, properties, txn.getTxnIdLeastBits(), txn.getTxnIdMostBits(), requestId);
         OpForTransactionAckCallBack op = OpForTransactionAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new ClientCnx.RequestTime(System.currentTimeMillis(), requestId));
+        pendingAckRequests.put(requestId, op);
+        pendingAckTimeoutQueue.add(new ClientCnx.RequestTime(System.currentTimeMillis(), requestId));
         unAckedMessageTracker.remove(messageId);
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
@@ -663,24 +678,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (getState() == State.Closing || getState() == State.Closed) {
                 return;
             }
-            ClientCnx.RequestTime peeked = timeoutQueue.peek();
+            ClientCnx.RequestTime peeked = pendingAckTimeoutQueue.peek();
             while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
                     - System.currentTimeMillis() <= 0) {
-                ClientCnx.RequestTime lastPolled = timeoutQueue.poll();
+                ClientCnx.RequestTime lastPolled = pendingAckTimeoutQueue.poll();
                 if (lastPolled != null) {
-                    OpForTransactionAckCallBack op = pendingRequests.remove(lastPolled.requestId);
+                    OpForTransactionAckCallBack op = pendingAckRequests.remove(lastPolled.requestId);
                     if (op != null && !op.callback.isDone()) {
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                                 "Could not get response from broker within given timeout."));
                         if (log.isDebugEnabled()) {
                             log.debug("Transaction ack request {} is timeout.", lastPolled.requestId);
                         }
-                        onResponse(op);
+                        onTransactionAckResponse(op);
                     }
                 } else {
                     break;
                 }
-                peeked = timeoutQueue.peek();
+                peeked = pendingAckTimeoutQueue.peek();
             }
 
             if (peeked == null) {
@@ -699,7 +714,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void ackReceipt(CommandAckReceipt commandAckReceipt) {
         checkArgument(commandAckReceipt.getRequestId() >= 0);
-        OpForTransactionAckCallBack callBackOp = pendingRequests.remove(commandAckReceipt.getRequestId());
+        OpForTransactionAckCallBack callBackOp = pendingAckRequests.remove(commandAckReceipt.getRequestId());
         if (callBackOp == null || callBackOp.callback.isDone()) {
             log.error("Ack request has been handled requestId : {}", commandAckReceipt.getRequestId());
         } else {
@@ -714,7 +729,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void ackError(CommandAckError commandAckError) {
         checkArgument(commandAckError.getRequestId() >= 0);
-        OpForTransactionAckCallBack callBackOp = pendingRequests.remove(commandAckError.getRequestId());
+        OpForTransactionAckCallBack callBackOp = pendingAckRequests.remove(commandAckError.getRequestId());
         if (callBackOp == null || callBackOp.callback.isDone()) {
             log.error("Ack request has been handled requestId : {}", commandAckError.getRequestId());
         } else {
@@ -728,7 +743,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void onResponse(OpForTransactionAckCallBack op) {
+    private void onTransactionAckResponse(OpForTransactionAckCallBack op) {
+        ReferenceCountUtil.safeRelease(op.cmd);
+        op.recycle();
+    }
+
+    private void onRedeliverWithTxnResponse(OpForRedeliverWithTxn op) {
         ReferenceCountUtil.safeRelease(op.cmd);
         op.recycle();
     }
@@ -1887,6 +1907,120 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxn(TxnID txnID) {
+        ClientCnx cnx = cnx();
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
+            int currentSize = 0;
+            synchronized (this) {
+                currentSize = incomingMessages.size();
+                incomingMessages.clear();
+                INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+                unAckedMessageTracker.clear();
+            }
+            CompletableFuture<Void> callBack = new CompletableFuture<>();
+            long requestId = client.newRequestId();
+            ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessagesWithTxn(consumerId,
+                    txnID.getMostSigBits(), txnID.getLeastSigBits(), requestId);
+            OpForRedeliverWithTxn op = OpForRedeliverWithTxn.create(cmd, txnID, callBack);
+            redeliverWithTxnRequests.put(txnID, op);
+            redeliverWithTxnTimeoutQueue.add(new RedeliverWithTxnRequestTime(System.currentTimeMillis(), txnID));
+            cmd.retain();
+            cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                        consumerName, currentSize);
+            }
+            return callBack;
+        }
+        if (cnx == null || (getState() == State.Connecting)) {
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
+            return FutureUtil.failedFuture(new PulsarClientException(this +
+                    " Client Connection needs to be established for redelivery with txn of unacknowledged messages"));
+        } else {
+            log.warn("[{}] Reconnecting the client to redeliver with txn of the messages.", this);
+            cnx.ctx().close();
+            return FutureUtil.failedFuture(new PulsarClientException(this +
+                    " Reconnecting the client to redeliver with txn of the messages."));
+        }
+    }
+
+
+
+    private static class OpForRedeliverWithTxn {
+        protected ByteBuf cmd;
+        protected CompletableFuture<Void> callback;
+        protected TxnID txnID;
+
+        static OpForRedeliverWithTxn create(ByteBuf cmd, TxnID txnID, CompletableFuture<Void> callback) {
+            OpForRedeliverWithTxn op = RECYCLER.get();
+            op.callback = callback;
+            op.cmd = cmd;
+            op.txnID = txnID;
+            return op;
+        }
+        private OpForRedeliverWithTxn(Recycler.Handle<OpForRedeliverWithTxn> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        void recycle() {
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForRedeliverWithTxn> recyclerHandle;
+        private static final Recycler<OpForRedeliverWithTxn> RECYCLER = new Recycler<OpForRedeliverWithTxn>() {
+            @Override
+            protected OpForRedeliverWithTxn newObject(Handle<OpForRedeliverWithTxn> handle) {
+                return new OpForRedeliverWithTxn(handle);
+            }
+        };
+    }
+
+    private class RedeliverWithTxnTimer implements TimerTask {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            if (timeout.isCancelled()) {
+                return;
+            }
+            long timeToWaitMs;
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+            RedeliverWithTxnRequestTime peeked = redeliverWithTxnTimeoutQueue.peek();
+            while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
+                    - System.currentTimeMillis() <= 0) {
+                RedeliverWithTxnRequestTime lastPolled = redeliverWithTxnTimeoutQueue.poll();
+                if (lastPolled != null) {
+                    OpForRedeliverWithTxn op = redeliverWithTxnRequests.remove(lastPolled.txnID);
+                    if (op != null && !op.callback.isDone()) {
+                        op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                                "Could not get response from broker within given timeout."));
+                        if (log.isDebugEnabled()) {
+                            log.debug("Redeliver with Txn {} is timeout.", lastPolled.txnID);
+                        }
+                        onRedeliverWithTxnResponse(op);
+                    }
+                } else {
+                    break;
+                }
+                peeked = redeliverWithTxnTimeoutQueue.peek();
+            }
+
+            if (peeked == null) {
+                timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+            } else {
+                long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()) - System.currentTimeMillis();
+                if (diff <= 0) {
+                    timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+                } else {
+                    timeToWaitMs = diff;
+                }
+            }
+            client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
     }
 

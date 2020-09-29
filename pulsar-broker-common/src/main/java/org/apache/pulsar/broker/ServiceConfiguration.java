@@ -1771,6 +1771,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack handle provider"
+    )
+    private String pendingAckProviderClassName =
+            "org.apache.pulsar.transaction.coordinator.impl.PersistentPendingAckHandleProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction buffer provider"
     )
     private String transactionBufferProviderClassName =

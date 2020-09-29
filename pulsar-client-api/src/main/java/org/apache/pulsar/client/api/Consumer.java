@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
+
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -493,6 +495,18 @@ public interface Consumer<T> extends Closeable {
      * breaks, the messages are redelivered after reconnect.
      */
     void redeliverUnacknowledgedMessages();
+
+    /**
+     * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
+     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
+     * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
+     * breaks, the messages are redelivered after reconnect.
+     */
+    default CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxn(TxnID txnID) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        redeliverUnacknowledgedMessages();
+        return completableFuture;
+    };
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.

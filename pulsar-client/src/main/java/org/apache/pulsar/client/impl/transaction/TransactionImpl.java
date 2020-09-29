@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,6 +30,7 @@ import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -69,12 +72,14 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
+    private final Set<Consumer> consumers;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
                     long txnIdLeastBits,
                     long txnIdMostBits) {
         this.client = client;
+        this.consumers = new HashSet<>();
         this.transactionTimeoutMs = transactionTimeoutMs;
         this.txnIdLeastBits = txnIdLeastBits;
         this.txnIdMostBits = txnIdMostBits;
@@ -108,6 +113,10 @@ public class TransactionImpl implements Transaction {
         return transactionalSendFuture;
     }
 
+    public synchronized void registerReceiveConsumer(Consumer consumer) {
+        consumers.add(consumer);
+    }
+
     // register the topics that will be modified by this transaction
     public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
@@ -139,12 +148,30 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
+        if (!consumers.isEmpty()) {
+            List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
+            consumers.forEach(consumer ->
+                    completableFutureList.add(consumer
+                            .redeliverUnacknowledgedMessagesWithTxn(new TxnID(txnIdMostBits, txnIdLeastBits))));
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            FutureUtil.waitForAll(completableFutureList).thenAccept(v ->
+                    tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
+                        completableFuture.complete(null);
+                        sendOps.values().forEach(txnSendOp ->
+                                txnSendOp.sendFuture.whenComplete(((messageId, t) ->
+                                        txnSendOp.transactionalSendFuture.complete(messageId))));
+                    })).exceptionally(throwable -> {
+                    completableFuture.completeExceptionally(throwable);
+                    return null;
+            });
+            return completableFuture;
+        } else {
+            return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) ->
+                    sendOps.values().forEach(txnSendOp -> {
                 txnSendOp.sendFuture.whenComplete(((messageId, t) -> {
                     txnSendOp.transactionalSendFuture.complete(messageId);
                 }));
-            });
-        });
+            }));
+        }
     }
 }

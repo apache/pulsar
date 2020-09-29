@@ -575,6 +575,21 @@ message CommandCloseConsumer {
 message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
+    optional uint64 txnid_least_bits = 3 [default = 0];
+    optional uint64 txnid_most_bits = 4 [default = 0];
+    optional uint64 request_id = 5;
+}
+
+message CommandRedeliverUnacknowledgedMessagesReceipt {
+    required uint64 request_id = 1;
+    required uint64 consumer_id = 2;
+}
+
+message CommandRedeliverUnacknowledgedMessagesError {
+    required uint64 request_id = 1;
+    required uint64 consumer_id = 2;
+    required ServerError error  = 3;
+    optional string message     = 4;
 }
 
 message CommandSuccess {
@@ -880,6 +895,10 @@ message BaseCommand {
 
         ACK_ERROR = 41;
 
+        REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT = 42;
+        REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR = 43;
+
+
         // transaction related
         NEW_TXN = 50;
         NEW_TXN_RESPONSE = 51;
@@ -959,8 +978,11 @@ message BaseCommand {
 
     optional CommandGetOrCreateSchema getOrCreateSchema = 39;
     optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
+
     optional CommandAckError ackError = 41;
 
+    optional CommandRedeliverUnacknowledgedMessagesReceipt redeliverReceipt = 42;
+    optional CommandRedeliverUnacknowledgedMessagesError redeliverError = 43;
     // transaction related
     optional CommandNewTxn newTxn = 50;
     optional CommandNewTxnResponse newTxnResponse = 51;
