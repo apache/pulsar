@@ -33,7 +33,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
-import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -74,7 +73,7 @@ public class OwnerShipForCurrentServerTestBase {
 
     private MockZooKeeper mockZooKeeper;
     private ExecutorService bkExecutor;
-    private TransactionTestBase.NonClosableMockBookKeeper mockBookKeeper;
+    private Non mockBookKeeper;
 
     public void internalSetup() throws Exception {
         init();
@@ -152,9 +151,9 @@ public class OwnerShipForCurrentServerTestBase {
         return zk;
     }
 
-    public static TransactionTestBase.NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
+    public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
                                                                                      ExecutorService executor) throws Exception {
-        return spy(new TransactionTestBase.NonClosableMockBookKeeper(zookeeper, executor));
+        return spy(new NonClosableMockBookKeeper(zookeeper, executor));
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
