@@ -86,10 +86,9 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testInitialize() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        listeners.initialize(conf);
-        verify(listener1, times(1)).initialize(same(conf));
-        verify(listener2, times(1)).initialize(same(conf));
+        listeners.initialize(pulsar);
+        verify(listener1, times(1)).initialize(same(pulsar));
+        verify(listener2, times(1)).initialize(same(pulsar));
     }
 
     @Test
