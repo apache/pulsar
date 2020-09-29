@@ -56,7 +56,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -71,7 +70,6 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -757,18 +755,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         Optional<Topic> optTopic = getTopicReference(topic);
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
-            Function<Void, CompletionStage<Void>> deleteSchemaFunction = ignored -> {
+            if (forceDelete) {
                 if (deleteSchema) {
-                    return t.deleteSchema().thenApply(schemaVersion -> {
+                    return t.deleteSchema().thenCompose(schemaVersion -> {
                         log.info("Delete topic with schema version: {}", schemaVersion);
-                        return null;
+                        return t.deleteForcefully();
                     });
                 } else {
-                    return CompletableFuture.completedFuture(null);
+                    return t.deleteForcefully();
                 }
-            };
-            if (forceDelete) {
-                return t.deleteForcefully().thenCompose(deleteSchemaFunction);
             }
 
             // v2 topics have a global name so check if the topic is replicated.
@@ -780,7 +775,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
-            return t.delete().thenCompose(deleteSchemaFunction);
+            if (deleteSchema) {
+                return t.deleteSchema().thenCompose(schemaVersion -> {
+                    log.info("Delete topic with schema version: {}", schemaVersion);
+                    return t.delete();
+                });
+            } else {
+                return t.delete();
+            }
         }
 
         // Topic is not loaded, though we still might be able to delete from metadata
