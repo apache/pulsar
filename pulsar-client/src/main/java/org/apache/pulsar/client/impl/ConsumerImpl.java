@@ -192,8 +192,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     //pending ack
     private final ConcurrentLongHashMap<OpForAckCallBack> ackRequests =
             new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLinkedQueue<ClientCnx.RequestTime> ackTimeoutQueue;
+    private final ConcurrentLinkedQueue<RequestTime> ackTimeoutQueue;
     private final Timeout ackTimeTracker;
+
+    private static class RequestTime {
+        final long creationTimeMs;
+        final long requestId;
+
+        public RequestTime(long creationTime, long requestId) {
+            this.creationTimeMs = creationTime;
+            this.requestId = requestId;
+        }
+    }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -2374,7 +2384,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);
-        ackTimeoutQueue.add(new ClientCnx.RequestTime(System.currentTimeMillis(), requestId));
+        ackTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         unAckedMessageTracker.remove(messageId);
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
@@ -2422,10 +2432,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (getState() == State.Closing || getState() == State.Closed) {
                 return;
             }
-            ClientCnx.RequestTime peeked = ackTimeoutQueue.peek();
+            RequestTime peeked = ackTimeoutQueue.peek();
             while (peeked != null && peeked.creationTimeMs + conf.getAckResponseTimeout()
                     - System.currentTimeMillis() <= 0) {
-                ClientCnx.RequestTime lastPolled = ackTimeoutQueue.poll();
+                RequestTime lastPolled = ackTimeoutQueue.poll();
                 if (lastPolled != null) {
                     OpForAckCallBack op = ackRequests.remove(lastPolled.requestId);
                     if (op != null && !op.callback.isDone()) {
