@@ -184,7 +184,7 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 <tbody>
 <tr><td style="text-align:left"><code>持久化</code> / <code>非持久化</code></td><td style="text-align:left">用来标识 topic 的类型。 Pulsar 支持两种主题类型：<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">持久化</a>和<a href="#non-persistent-topics">非持久化</a>。 主题默认是持久化类型，如果不特殊指定主题类型，那主题就是持久化的。 对于持久化的主题，所有的消息都会被持久化的保存到磁盘当中(如果 broker 不是单机模式，消息会被持久化到多块磁盘)，而非持久化的主题的数据不会被保存到磁盘里面。</td></tr>
 <tr><td style="text-align:left"><code>租户</code></td><td style="text-align:left">Tenant是存在于Pulsar集群当中的，它是 Pulsar 实现多租户机制的基本要素，租户是可以跨越多个集群存在的。</td></tr>
-<tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">将相关联的 topic 作为一个组来管理，是管理 Topic 的基本单元。 大多数对 topic 的管理都是对<a href="#namespaces">命名空间</a>的一项配置。 Each tenant has one or multiple namespaces.</td></tr>
+<tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">将相关联的 topic 作为一个组来管理，是管理 Topic 的基本单元。 大多数对 topic 的管理都是对<a href="#namespaces">命名空间</a>的一项配置。 每个租户里面可以有一个或者多个命名空间。</td></tr>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">主题名称是主题 URL 结构的最后一个部分，主题名字在 Pulsar 实例当中没有特殊意义。</td></tr>
 </tbody>
 </table>
@@ -364,29 +364,29 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = client.newCo
 <p>图中上面的是消息存留，<span style="color: #89b557;">存留规则</span>会被用于某namespace下所有的topic，指明哪些消息会被持久存储，即使已经被确认过。 没有被留存规则覆盖的消息将会被<span style="color: #bb3b3e;">删除</span>。 没有留存规则的话，<em>所有</em>被<span style="color: #19967d;">确认</span>的消息都会被删除。</p>
 <p>图中下面的是消息过期，有些消息即使还<span style="color: #337db6;">没有被确认</span>，也被<span style="color: #bb3b3e;">删除</span>掉了。因为根据设置在<span style="color: #e39441;">namespace上的TTL</span>，他们已经过期了。（例如，TTL为5分钟，过了十分钟消息还没被确认）</p>
 <h2><a class="anchor" aria-hidden="true" id="message-deduplication"></a><a href="#message-deduplication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message deduplication</h2>
-<p>消息去重保证了一条消息只能在 Pulsar 服务端被<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">持久化</a>一次。 Message deduplication is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, even if the message is received more than once.</p>
+<p>消息去重保证了一条消息只能在 Pulsar 服务端被<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">持久化</a>一次。 消息去重是一个 Pulsar 可选的特性，它能够阻止不必要的消息重复，它保证了即使消息被消费了多次，也只会被保存一次。</p>
 <p>下图展示了开启和关闭消息去重的场景：</p>
 <p><img src="/docs/assets/message-deduplication.png" alt="Pulsar消息去重"></p>
 <p>最上面的场景中，消息去重被关闭。 Producer发布消息1到一个topic，消息到达broker后，被<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">持久化</a>到BookKeeper。 然后producer又发送了消息1（可能因为某些重试逻辑），然后消息被接收后又持久化在BookKeeper，这意味着消息重复发生了。</p>
 <p>在第二个场景中，producer发送了消息1，消息被broker接收然后持久化，和第一个场景是一样的。 当producer再次发送消息时，broker知道已经收到个消息1，所以不会再持久化消息1.</p>
 <blockquote>
-<p>Message deduplication is handled at the namespace level or the topic level. For more instructions, see the <a href="/docs/zh-CN/next/cookbooks-deduplication">message deduplication cookbook</a>.</p>
+<p>消息去重特性可以在命名空间级别或者主题级别设置。更多的介绍，参考<a href="/docs/zh-CN/next/cookbooks-deduplication">消息去重指南</a></p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="生产者幂等"></a><a href="#生产者幂等" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者幂等</h3>
-<p>消息去重的另外一种方法是确保每条消息<em>仅生产一次</em>。 这种方法通常被叫做<strong>生产者幂等</strong>。 这种方式的缺点是，把消息去重的工作推给了应用去做。 In Pulsar, this is handled at the <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see <a href="/docs/zh-CN/next/cookbooks-deduplication">Managing message deduplication</a>.</p>
+<p>消息去重的另外一种方法是确保每条消息<em>仅生产一次</em>。 这种方法通常被叫做<strong>生产者幂等</strong>。 这种方式的缺点是，把消息去重的工作推给了应用去做。 在 Pulsar 中，消息去重是在 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>上处理的，用户不需要去修改客户端的代码。 相反，你只需要通过修改配置就可以实现。 可以通过查看<a href="/docs/zh-CN/next/cookbooks-deduplication">消息去重管理指南</a>去了解更多详细信息。</p>
 <h3><a class="anchor" aria-hidden="true" id="去重和实际一次语义"></a><a href="#去重和实际一次语义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>去重和实际一次语义</h3>
-<p>Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide effectively-once processing semantics. Messaging systems that do not offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. 使用Pulsar，严格的顺序保证不会带来任何应用层面的代价。</p>
+<p>消息去重，使 Pulsar 成为了流处理引擎（SPE）或者其他寻求 &quot;仅仅一次&quot; 语义的连接系统所需的理想消息系统。 如果消息系统没有提供自动去重能力，那么 SPE (流处理引擎) 或者其他连接系统就必须自己实现去重语义，这意味着需要应用去承担这部分的去重工作。 使用Pulsar，严格的顺序保证不会带来任何应用层面的代价。</p>
 <blockquote>
-<p>You can find more in-depth information in <a href="https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html">this post</a>.</p>
+<p>你能够在<a href="https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html">这篇博客</a>上获得更详细的信息。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="消息延迟传递"></a><a href="#消息延迟传递" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息延迟传递</h2>
-<p>Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, <code>DelayedDeliveryTracker</code> maintains the time index(time -&gt; messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.</p>
-<p>Delayed message delivery only works in Shared subscription mode. In Exclusive and Failover subscription modes, the delayed message is dispatched immediately.</p>
-<p>The diagram below illustrates the concept of delayed message delivery:</p>
-<p><img src="/docs/assets/message_delay.png" alt="Delayed Message Delivery"></p>
-<p>A broker saves a message without any check. When a consumer consumes a message, if the message is set to delay, then the message is added to <code>DelayedDeliveryTracker</code>. A subscription checks and gets timeout messages from <code>DelayedDeliveryTracker</code>.</p>
+<p>延时消息功能允许你能够过一段时间才能消费到这条消息，而不是消息发布后，就马上可以消费到。 这种机制，消息是保存在 BookKeeper中的，消息发布到 broker 后，<code>DelayedDeliveryTracker</code> 会在内存中维护一个时间索引(time -&gt; messageId)，这条消息在经过指定延时时间后才会被交付给消费者。</p>
+<p>延时消息只能在共享订阅模式当中可以用，在独占模式和灾备模式中，这个延时消息会被立即发送给消费者。</p>
+<p>如下图所示，说明了延时消息的实现机制：</p>
+<p><img src="/docs/assets/message_delay.png" alt="延时消息"></p>
+<p>Broker 保存消息是不经过任何检查的。 当消费者消费一条消息时，如果这条消息是延时消息，那么这条消息会被加入到<code>DelayedDeliveryTracker</code>当中。 订阅检查机制会从<code>DelayedDeliveryTracker</code>获取到超时的消息，并交付给消费者。</p>
 <h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h3>
-<p>Delayed message delivery is enabled by default. You can change it in the broker configuration file as below:</p>
+<p>延时消息默认是开启的。你可以通过修改 Broker 配置文件的如下参数来修改它:</p>
 <pre><code class="hljs"># Whether to enable the delayed delivery for messages.
 # If disabled, messages are immediately delivered and there is no tracking overhead.
 delayedDeliveryEnabled=true
@@ -397,7 +397,7 @@ delayedDeliveryEnabled=true
 delayedDeliveryTickTimeMillis=1000
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者(Producer)</h3>
-<p>The following is an example of delayed message delivery for a producer in Java:</p>
+<p>下面是 Java 当中生产延时消息一个例子：</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">// message to be delivered at the configured delay interval</span>
 producer.newMessage().deliverAfter(<span class="hljs-number">3L</span>, TimeUnit.Minute).value(<span class="hljs-string">"Hello Pulsar!"</span>).send();
 </code></pre>

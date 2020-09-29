@@ -1621,6 +1621,9 @@
         "Message": {
             "type": "object",
             "properties": {
+                "producerName": {
+                    "type": "string"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1629,31 +1632,12 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "topicName": {
-                    "type": "string"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "producerName": {
-                    "type": "string"
-                },
                 "replicatedFrom": {
                     "type": "string"
                 },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
                 },
                 "redeliveryCount": {
                     "type": "integer",
@@ -1666,8 +1650,21 @@
                         "format": "byte"
                     }
                 },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "data": {
                     "type": "array",
@@ -1682,6 +1679,9 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "topicName": {
+                    "type": "string"
                 },
                 "value": {
                     "type": "object"
