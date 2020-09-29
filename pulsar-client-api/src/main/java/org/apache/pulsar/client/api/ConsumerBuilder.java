@@ -198,6 +198,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit);
 
     /**
+     * Define the granularity of the ack-response-timeout.
+     *
+     * <p>When send acknowledged for a message, we wait the response greater than ackResponseTimeout.
+     *
+     * @param ackResponseTimeout
+     *            the min precision for the ack response timeout
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> ackResponseTimeout(long ackResponseTimeout, TimeUnit timeUnit);
+
+    /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
      *
      * <p>When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message

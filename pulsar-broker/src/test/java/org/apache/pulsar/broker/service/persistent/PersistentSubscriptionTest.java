@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -242,10 +243,10 @@ public class PersistentSubscriptionTest {
 
         // Can not single ack message already acked.
         try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
+            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
             fail("Single acknowledge for transaction2 should fail. ");
-        } catch (TransactionConflictException e) {
-            assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
+        } catch (ExecutionException | InterruptedException e) {
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
@@ -254,12 +255,11 @@ public class PersistentSubscriptionTest {
 
         // Can not cumulative ack message for another txn.
         try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative);
+            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (TransactionConflictException e) {
-            System.out.println(e.getMessage());
-            assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+        } catch (ExecutionException | InterruptedException e) {
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
+                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
