@@ -46,12 +46,9 @@ import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -66,6 +63,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -90,7 +88,6 @@ public class PersistentSubscriptionTest {
     private PersistentTopic topic;
     private PersistentSubscription persistentSubscription;
     private Consumer consumerMock;
-    private ManagedLedgerConfig managedLedgerConfigMock;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String subName = "subscriptionName";
@@ -142,15 +139,11 @@ public class PersistentSubscriptionTest {
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
 
-        ledgerMock = mock(ManagedLedgerImpl.class);
+        ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
-        managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
-        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
+        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
         doReturn(new PositionImpl(1, 50)).when(cursorMock).getMarkDeletedPosition();
-        doReturn(ledgerMock).when(cursorMock).getManagedLedger();
-        doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
-        doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 
@@ -173,7 +166,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() {
+    public void testCanAcknowledgeAndCommitForTransaction() throws TransactionConflictException {
         List<Position> expectedSinglePositions = new ArrayList<>();
         expectedSinglePositions.add(new PositionImpl(1, 1));
         expectedSinglePositions.add(new PositionImpl(1, 3));
@@ -216,7 +209,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws TransactionConflictException, BrokerServiceException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));
         positions.add(new PositionImpl(2, 3));
@@ -252,7 +245,7 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
             fail("Single acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | InterruptedException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
@@ -264,9 +257,9 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | InterruptedException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();

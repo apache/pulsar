@@ -53,7 +53,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -760,18 +761,17 @@ public class Commands {
     public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
         CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
             .setConsumerId(consumerId)
-                .setIsActive(isActive);
+            .setIsActive(isActive);
 
         CommandActiveConsumerChange change = changeBuilder.build();
         ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
+            BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
         changeBuilder.recycle();
         change.recycle();
         return res;
     }
 
-    public static ByteBuf newSeek(long consumerId, long requestId,
-                                  long ledgerId, long entryId, long[] ackSet) {
+    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
@@ -779,8 +779,6 @@ public class Commands {
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-        messageIdBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
-
         MessageIdData messageId = messageIdBuilder.build();
         seekBuilder.setMessageId(messageId);
 
@@ -1188,25 +1186,33 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
-        CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
-        commandAckResponseBuilder.setConsumerId(consumerId);
-        commandAckResponseBuilder.setRequestId(requestId);
+    public static ByteBuf newAckReceipt(long requestId, long consumerId) {
+        CommandAckReceipt.Builder commandAckReceiptBuilder = CommandAckReceipt.newBuilder();
+        commandAckReceiptBuilder.setConsumerId(consumerId);
+        commandAckReceiptBuilder.setRequestId(requestId);
+        CommandAckReceipt commandAckReceipt = commandAckReceiptBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.ACK_RECEIPT).setAckReceipt(commandAckReceipt));
+        commandAckReceiptBuilder.recycle();
+        commandAckReceipt.recycle();
 
-        if (error != null) {
-            commandAckResponseBuilder.setError(error);
-        }
+        return res;
+    }
 
+    public static ByteBuf newAckError(long requestId, ServerError error, String errorMsg, long consumerId) {
+        CommandAckError.Builder commandAckErrorBuilder = CommandAckError.newBuilder();
+        commandAckErrorBuilder.setConsumerId(consumerId);
+        commandAckErrorBuilder.setError(error);
+        commandAckErrorBuilder.setRequestId(requestId);
         if (errorMsg != null) {
-            commandAckResponseBuilder.setMessage(errorMsg);
+            commandAckErrorBuilder.setMessage(errorMsg);
         }
 
-        CommandAckResponse commandAckResponse = commandAckResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-                .setType(Type.ACK_RESPONSE).setAckResponse(commandAckResponseBuilder));
+        CommandAckError commandAckError = commandAckErrorBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK_ERROR).setAckError(commandAckError));
 
-        commandAckResponseBuilder.recycle();
-        commandAckResponse.recycle();
+        commandAckErrorBuilder.recycle();
+        commandAckError.recycle();
 
         return res;
     }
@@ -1641,19 +1647,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction,
-                                    List<MessageIdData> messageIdList) {
-        CommandEndTxn commandEndTxn = CommandEndTxn.newBuilder()
-                .setRequestId(requestId)
-                .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
-                .setTxnAction(txnAction)
-                .addAllMessageId(messageIdList)
-                .build();
+    public static ByteBuf newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
+        CommandEndTxn commandEndTxn = CommandEndTxn.newBuilder().setRequestId(requestId)
+                                                   .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
+                                                   .setTxnAction(txnAction).build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN).setEndTxn(commandEndTxn));
         commandEndTxn.recycle();
-        for (MessageIdData messageIdData : messageIdList) {
-            messageIdData.recycle();
-        }
         return res;
     }
 
@@ -1684,20 +1683,16 @@ public class Commands {
     }
 
     public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-                                               TxnAction txnAction, List<MessageIdData> messageIdDataList) {
+                                               TxnAction txnAction) {
         CommandEndTxnOnPartition.Builder txnEndOnPartition = CommandEndTxnOnPartition.newBuilder()
-                .setRequestId(requestId)
-                .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits)
-                .setTopic(topic)
-                .setTxnAction(txnAction)
-                .addAllMessageId(messageIdDataList);
+                                                                                     .setRequestId(requestId)
+                                                                                     .setTxnidLeastBits(txnIdLeastBits)
+                                                                                     .setTxnidMostBits(txnIdMostBits)
+                                                                                     .setTopic(topic)
+                                                                                     .setTxnAction(txnAction);
         ByteBuf res = serializeWithSize(
             BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION).setEndTxnOnPartition(txnEndOnPartition));
         txnEndOnPartition.recycle();
-        for (MessageIdData messageIdData : messageIdDataList) {
-            messageIdData.recycle();
-        }
         return res;
     }
 

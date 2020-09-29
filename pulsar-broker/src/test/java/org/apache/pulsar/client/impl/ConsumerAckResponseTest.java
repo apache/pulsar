@@ -18,16 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,12 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
+import static org.mockito.Mockito.*;
 
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
@@ -85,11 +86,31 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         producer.send(2);
         try {
             consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
-            fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+        } catch (InterruptedException | ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionConflictException);
         }
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+    }
+
+    @Test
+    public void testAckResponseTimeout() throws PulsarClientException, InterruptedException {
+        String topic = "testAckResponseTimeout";
+
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackResponseTimeout(1, TimeUnit.NANOSECONDS)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
+        MessageId messageId = new MessageIdImpl(1, 1, 1);
+        try {
+            consumer.acknowledgeAsync(messageId, transaction).get();
+            Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
+        }
     }
 }

@@ -201,8 +201,6 @@ enum ServerError {
     TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
     InvalidTxnStatus = 21; // Invalid txn status error
     NotAllowedError = 22; // Not allowed error
-
-    TransactionConflict = 23; // Ack with transaction conflict
 }
 
 enum AuthMethod {
@@ -513,13 +511,16 @@ message CommandAck {
     optional uint64 request_id = 8;
 }
 
-message CommandAckResponse {
+message CommandAckReceipt {
     required uint64 consumer_id = 1;
-    optional uint64 txnid_least_bits  = 2 [default = 0];
-    optional uint64 txnid_most_bits = 3 [default = 0];
-    optional ServerError error = 4;
-    optional string message = 5;
-    optional uint64 request_id = 6;
+    required uint64 request_id = 2;
+}
+
+message CommandAckError {
+    required uint64 consumer_id = 1;
+    required ServerError error  = 2;
+    optional string message     = 3;
+    required uint64 request_id  = 4;
 }
 
 // changes on active consumer
@@ -767,7 +768,6 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
-    repeated MessageIdData message_id = 5;
 }
 
 message CommandEndTxnResponse {
@@ -784,7 +784,6 @@ message CommandEndTxnOnPartition {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional string topic = 4;
     optional TxnAction txn_action = 5;
-    repeated MessageIdData message_id = 6;
 }
 
 message CommandEndTxnOnPartitionResponse {
@@ -870,10 +869,12 @@ message BaseCommand {
         AUTH_CHALLENGE = 36;
         AUTH_RESPONSE = 37;
 
-        ACK_RESPONSE = 38;
+        ACK_RECEIPT = 38;
 
         GET_OR_CREATE_SCHEMA = 39;
         GET_OR_CREATE_SCHEMA_RESPONSE = 40;
+
+        ACK_ERROR = 41;
 
         // transaction related
         NEW_TXN = 50;
@@ -950,10 +951,12 @@ message BaseCommand {
     optional CommandAuthChallenge authChallenge = 36;
     optional CommandAuthResponse authResponse = 37;
 
-    optional CommandAckResponse ackResponse = 38;
+    optional CommandAckReceipt ackReceipt = 38;
 
     optional CommandGetOrCreateSchema getOrCreateSchema = 39;
     optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
+
+    optional CommandAckError ackError = 41;
 
     // transaction related
     optional CommandNewTxn newTxn = 50;
