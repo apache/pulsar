@@ -119,8 +119,27 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster\n", required = false)
+        private boolean deleteAll = false;
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
+
+            if (deleteAll) {
+                for (String tenant : admin.tenants().getTenants()) {
+                    for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                        for (String topic : admin.topics().getList(namespace)) {
+                            admin.topics().delete(topic, true);
+                            // TODO: Delete all the ledgers of the SchemaStorage
+                            // admin.schemas().deleteSchema(topic) won't delete the schema's ledger. Instead a new ledger will be created.
+                            //       https://github.com/apache/pulsar/issues/8134
+                        }
+                        admin.namespaces().deleteNamespace(namespace);
+                    }
+                    admin.tenants().deleteTenant(tenant);
+                }
+            }
+
             admin.clusters().deleteCluster(cluster);
         }
     }
