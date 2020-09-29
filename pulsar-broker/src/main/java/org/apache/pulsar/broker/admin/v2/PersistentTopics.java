@@ -749,9 +749,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully", defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Delete the topic's schema storage")
+            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force);
+        internalDeleteTopic(authoritative, force, deleteSchema);
     }
 
     @GET
