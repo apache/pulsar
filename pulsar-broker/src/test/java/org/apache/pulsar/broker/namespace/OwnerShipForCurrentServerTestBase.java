@@ -152,7 +152,7 @@ public class OwnerShipForCurrentServerTestBase {
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
-                                                                                     ExecutorService executor) throws Exception {
+                                                                                             ExecutorService executor) throws Exception {
         return spy(new NonClosableMockBookKeeper(zookeeper, executor));
     }
 
