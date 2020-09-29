@@ -73,7 +73,7 @@ public class OwnerShipForCurrentServerTestBase {
 
     private MockZooKeeper mockZooKeeper;
     private ExecutorService bkExecutor;
-    private Non mockBookKeeper;
+    private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
         init();
