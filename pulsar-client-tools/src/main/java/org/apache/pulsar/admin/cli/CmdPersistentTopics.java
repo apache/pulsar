@@ -330,10 +330,14 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-m",
+        "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getInternalStats(persistentTopic));
+            print(persistentTopics.getInternalStats(persistentTopic, metadata));
         }
     }
 

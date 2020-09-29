@@ -817,7 +817,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats() {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
 
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
         stats.entriesAddedCounter = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
@@ -826,7 +826,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         subscriptions.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
         replicators.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
 
-        return stats;
+        return CompletableFuture.completedFuture(stats);
     }
 
     public boolean isActive() {

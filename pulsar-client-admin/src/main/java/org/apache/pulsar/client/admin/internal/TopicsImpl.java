@@ -659,9 +659,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
+    public PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException {
         try {
-            return getInternalStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getInternalStatsAsync(topic, metadata).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -673,9 +673,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internalStats");
+        path = path.queryParam("metadata", metadata);
         final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<PersistentTopicInternalStats>() {

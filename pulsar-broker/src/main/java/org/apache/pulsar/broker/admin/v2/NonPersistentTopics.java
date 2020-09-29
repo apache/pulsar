@@ -143,11 +143,17 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getInternalStats();
+        try {
+            boolean includeMetadata = metadata && hasSuperUserAccess();
+            return topic.getInternalStats(includeMetadata).get();
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+        }
     }
 
     @PUT

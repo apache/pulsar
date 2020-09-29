@@ -44,6 +44,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
+
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.StreamingOutput;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1580,7 +1584,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats() {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
+
+        CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
 
         ManagedLedgerImpl ml = (ManagedLedgerImpl) ledger;
@@ -1601,6 +1607,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
+        List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
         ml.getLedgersInfo().forEach((id, li) -> {
             LedgerInfo info = new LedgerInfo();
             info.ledgerId = li.getLedgerId();
@@ -1608,6 +1615,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             info.size = li.getSize();
             info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
             stats.ledgers.add(info);
+            if (futures != null) {
+                futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                    if (ex == null) {
+                        info.metadata = lMetadata;
+                    }
+                    return null;
+                }));
+            }
         });
 
         // Add ledger info for compacted topic ledger if exist.
@@ -1617,8 +1632,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         info.size = -1;
 
         try {
-            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext =
-                    ((CompactedTopicImpl)compactedTopic).getCompactedTopicContext();
+            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext = ((CompactedTopicImpl) compactedTopic)
+                    .getCompactedTopicContext();
             if (compactedTopicContext.isPresent()) {
                 CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
                 info.ledgerId = ledgerContext.getLedger().getId();
@@ -1649,7 +1664,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });
-        return stats;
+        if (futures != null) {
+            FutureUtil.waitForAll(futures).handle((res, ex) -> {
+                statFuture.complete(stats);
+                return null;
+            });
+        } else {
+            statFuture.complete(stats);
+        }
+        return statFuture;
     }
 
     public long getBacklogSize() {

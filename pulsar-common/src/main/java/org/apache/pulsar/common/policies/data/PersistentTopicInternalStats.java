@@ -55,6 +55,7 @@ public class PersistentTopicInternalStats {
         public long entries;
         public long size;
         public boolean offloaded;
+        public String metadata;
     }
 
     /**

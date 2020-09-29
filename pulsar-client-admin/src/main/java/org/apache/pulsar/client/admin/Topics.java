@@ -759,6 +759,8 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param metadata
+     *            flag to include ledger metadata
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -768,17 +770,18 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException;
+    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
 
     /**
      * Get the internal stats for the topic asynchronously.
      *
      * @param topic
      *            topic Name
-     *
+     * @param metadata
+     *            flag to include ledger metadata
      * @return a future that can be used to track when the internal topic statistics are returned
      */
-    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.
