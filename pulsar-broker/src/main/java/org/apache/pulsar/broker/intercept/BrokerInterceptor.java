@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker.intercept;
 
 import com.google.common.annotations.Beta;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.intercept.InterceptException;
 
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -42,19 +42,29 @@ public interface BrokerInterceptor extends AutoCloseable {
     /**
      * Called by the broker while new command incoming.
      */
-    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception;
+    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException;
+
+    /**
+     * Called by the broker while connection closed.
+     */
+    void onConnectionClosed(ServerCnx cnx);
 
     /**
      * Called by the web service while new request incoming.
      */
-    void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException;
+
+    /**
+     * Intercept the webservice response before send to client.
+     */
+    void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException;
 
     /**
      * Initialize the broker interceptor.
      *
      * @throws Exception when fail to initialize the broker interceptor.
      */
-    void initialize(ServiceConfiguration conf) throws Exception;
+    void initialize(PulsarService pulsarService) throws Exception;
 
     BrokerInterceptor DISABLED = new BrokerInterceptorDisabled();
 
@@ -64,23 +74,33 @@ public interface BrokerInterceptor extends AutoCloseable {
     class BrokerInterceptorDisabled implements BrokerInterceptor {
 
         @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
-            //No-op
+        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
+            // no-op
         }
 
         @Override
-        public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-            chain.doFilter(request, response);
+        public void onConnectionClosed(ServerCnx cnx) {
+            // no-op
         }
 
         @Override
-        public void initialize(ServiceConfiguration conf) throws Exception {
-            //No-op
+        public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+            // no-op
+        }
+
+        @Override
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+            // no-op
+        }
+
+        @Override
+        public void initialize(PulsarService pulsarService) throws Exception {
+            // no-op
         }
 
         @Override
         public void close() {
-            //No-op
+            // no-op
         }
     }
 

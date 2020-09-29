@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.security.cert.X509Certificate;
+import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ObjectCache;
@@ -31,13 +31,13 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -52,10 +52,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     private final Supplier<SslContext> sslContextSupplier;
     private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
-    @Setter
-    private String sniHostName;
-    @Setter
-    private int sniHostPort;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -90,10 +86,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                         return authData.getTlsTrustStoreStream() == null
                                 ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
                                         conf.getTlsTrustCertsFilePath(),
-                                        (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey())
+                                        authData.getTlsCertificates(), authData.getTlsPrivateKey())
                                 : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
                                         authData.getTlsTrustStoreStream(),
-                                        (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
+                                        authData.getTlsCertificates(), authData.getTlsPrivateKey());
                     } else {
                         return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath());
@@ -109,26 +105,35 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     @Override
     public void initChannel(SocketChannel ch) throws Exception {
-        if (tlsEnabled) {
-            if (tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER,
-                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
-			} else {
-				SslHandler handler = StringUtils.isNotBlank(sniHostName)
-						? sslContextSupplier.get().newHandler(ch.alloc(), sniHostName, sniHostPort)
-						: sslContextSupplier.get().newHandler(ch.alloc());
-				ch.pipeline().addLast(TLS_HANDLER, handler);
-			}
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
-        } else {
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
-        }
 
-        ch.pipeline()
-                .addLast("frameDecoder",
-                        new LengthFieldBasedFrameDecoder(
-                                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                0, 4, 0, 4));
+        // Setup channel except for the SsHandler for TLS enabled connections
+
+        ch.pipeline().addLast("ByteBufPairEncoder", tlsEnabled ? ByteBufPair.COPYING_ENCODER : ByteBufPair.ENCODER);
+
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
+
+    CompletableFuture<Channel> initTls(Channel ch, InetSocketAddress sniHost) {
+        if (!tlsEnabled) {
+            throw new IllegalStateException("TLS is not enabled in client configuration");
+        }
+        CompletableFuture<Channel> initTlsFuture = new CompletableFuture<>();
+        ch.eventLoop().execute(() -> {
+            try {
+                SslHandler handler = tlsEnabledWithKeyStore
+                        ? new SslHandler(nettySSLContextAutoRefreshBuilder.get()
+                                .createSSLEngine(sniHost.getHostString(), sniHost.getPort()))
+                        : sslContextSupplier.get().newHandler(ch.alloc(), sniHost.getHostString(), sniHost.getPort());
+                ch.pipeline().addFirst(TLS_HANDLER, handler);
+                initTlsFuture.complete(ch);
+            } catch (Throwable t) {
+                initTlsFuture.completeExceptionally(t);
+            }
+        });
+
+        return initTlsFuture;
+    }
 }
+

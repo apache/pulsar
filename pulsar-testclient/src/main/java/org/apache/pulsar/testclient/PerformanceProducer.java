@@ -211,6 +211,10 @@ public class PerformanceProducer {
         @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key" +
                 ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -426,7 +430,7 @@ public class PerformanceProducer {
             ClientBuilder clientBuilder = PulsarClient.builder() //
                     .serviceUrl(arguments.serviceURL) //
                     .connectionsPerBroker(arguments.maxConnections) //
-                    .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                    .ioThreads(arguments.ioThreads) //
                     .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
@@ -628,6 +632,6 @@ public class PerformanceProducer {
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 
     public enum MessageKeyGenerationMode {
-        autoIncrement,random;
+        autoIncrement,random
     }
 }
