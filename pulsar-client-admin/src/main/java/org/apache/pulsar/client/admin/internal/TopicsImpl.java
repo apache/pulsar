@@ -487,8 +487,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions") //
-                .queryParam("force", force) //
-                .queryParam("deleteSchema", force);
+                .queryParam("force", Boolean.toString(force)) //
+                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
         return asyncDeleteRequest(path);
     }
 
