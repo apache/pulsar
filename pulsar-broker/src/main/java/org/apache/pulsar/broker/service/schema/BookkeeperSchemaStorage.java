@@ -355,35 +355,34 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                // NOTE: putSchema is just for schema version, remove it if there's a better way to get schema version
-                return putSchema(schemaId, new byte[]{}, new byte[]{}).thenCompose(version -> {
-                    final List<Long> ledgerIds = schemaLedgers.get(schemaId);
-                    if (ledgerIds != null) {
-                        CompletableFuture<Long> future = new CompletableFuture<>();
-                        final AtomicInteger numOfLedgerIds = new AtomicInteger(ledgerIds.size());
-                        for (long ledgerId : ledgerIds) {
-                            bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-                                if (rc != BKException.Code.OK) {
-                                    // It's not a serious error, we didn't need call future.completeExceptionally()
-                                    log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
+                // The version is only for the compatibility of the current interface
+                final long version = -1;
+                final List<Long> ledgerIds = schemaLedgers.get(schemaId);
+                if (ledgerIds != null) {
+                    CompletableFuture<Long> future = new CompletableFuture<>();
+                    final AtomicInteger numOfLedgerIds = new AtomicInteger(ledgerIds.size());
+                    for (long ledgerId : ledgerIds) {
+                        bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
+                            if (rc != BKException.Code.OK) {
+                                // It's not a serious error, we didn't need call future.completeExceptionally()
+                                log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
+                            }
+                            if (numOfLedgerIds.decrementAndGet() == 0) {
+                                try {
+                                    ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
+                                } catch (InterruptedException | KeeperException e) {
+                                    future.completeExceptionally(e);
                                 }
-                                if (numOfLedgerIds.decrementAndGet() == 0) {
-                                    try {
-                                        ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
-                                    } catch (InterruptedException | KeeperException e) {
-                                        future.completeExceptionally(e);
-                                    }
-                                    future.complete(version);
-                                }
-                            }, null);
-                        }
-                        return future;
-                    } else {
-                        // It should never reach here
-                        log.warn("No ledgers for schema id: {}", schemaId);
-                        return completedFuture(version);
+                                future.complete(version);
+                            }
+                        }, null);
                     }
-                });
+                    return future;
+                } else {
+                    // It should never reach here
+                    log.warn("No ledgers for schema id: {}", schemaId);
+                    return completedFuture(version);
+                }
             }
         });
     }

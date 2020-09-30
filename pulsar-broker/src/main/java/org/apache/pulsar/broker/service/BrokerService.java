@@ -146,6 +146,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -744,6 +745,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
 
             return failedFuture(cause);
+        }
+    }
+
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String topic) {
+        Optional<Topic> optTopic = getTopicReference(topic);
+        if (optTopic.isPresent()) {
+            return optTopic.get().deleteSchema();
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

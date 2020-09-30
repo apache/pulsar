@@ -651,12 +651,22 @@ public class PersistentTopicsBase extends AdminResource {
             final int numPartitions = partitionMeta.partitions;
             if (numPartitions > 0) {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
+                if (deleteSchema) {
+                    count.incrementAndGet();
+                    pulsar().getBrokerService().deleteSchemaStorage(topicName.getPartition(0).toString())
+                            .whenComplete((r, ex) -> {
+                                if (ex != null) {
+                                    log.warn("Failed to delete schema storage of topic: {}", topicName);
+                                }
+                                if (count.decrementAndGet() == 0) {
+                                    future.complete(null);
+                                }
+                            });
+                }
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
-                    // Only delete schema for 1 partition because there's only 1 schema storage for all partitions
-                    boolean deleteSchemaForPartition = (deleteSchema && i == 0);
                     try {
-                        pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force, deleteSchema)
+                        pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force)
                                 .whenComplete((r, ex) -> {
                                     if (ex != null) {
                                         if (ex instanceof NotFoundException) {
