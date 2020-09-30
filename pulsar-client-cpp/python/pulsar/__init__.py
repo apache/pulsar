@@ -220,6 +220,12 @@ class Message:
         """
         return self._message.redelivery_count()
 
+    def schema_version(self):
+        """
+        Get the schema version for this message
+        """
+        return self._message.schema_version()
+
     @staticmethod
     def _wrap(_message):
         self = Message()

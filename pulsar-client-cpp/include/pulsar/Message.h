@@ -146,6 +146,16 @@ class PULSAR_PUBLIC Message {
      */
     const int getRedeliveryCount() const;
 
+    /**
+     * Check if schema version exists
+     */
+    bool hasSchemaVersion() const;
+
+    /**
+     * Get the schema version
+     */
+    const std::string& getSchemaVersion() const;
+
     bool operator==(const Message& msg) const;
 
    private:

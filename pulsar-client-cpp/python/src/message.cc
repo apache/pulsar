@@ -168,6 +168,7 @@ void export_message() {
             .def("__str__", &Message_str)
             .def("topic_name", &Topic_name_str)
             .def("redelivery_count", &Message::getRedeliveryCount)
+            .def("schema_version", &Message::getSchemaVersion)
             ;
 
     MessageBatch& (MessageBatch::*MessageBatchParseFromString)(const std::string& payload, uint32_t batchSize) = &MessageBatch::parseFrom;

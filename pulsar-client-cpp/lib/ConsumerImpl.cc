@@ -289,6 +289,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
 
+    if (metadata.has_schema_version()) {
+        m.impl_->setSchemaVersion(metadata.schema_version());
+    }
+
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
                         << metadata.has_num_messages_in_batch());
