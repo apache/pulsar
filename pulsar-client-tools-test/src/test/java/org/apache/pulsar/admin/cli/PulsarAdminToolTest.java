@@ -274,7 +274,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).createNamespace("myprop/clust/ns1");
 
         namespaces.run(split("delete myprop/clust/ns1"));
-        verify(mockNamespaces).deleteNamespace("myprop/clust/ns1");
+        verify(mockNamespaces).deleteNamespace("myprop/clust/ns1", false);
 
         namespaces.run(split("permissions myprop/clust/ns1"));
         verify(mockNamespaces).getPermissions("myprop/clust/ns1");
@@ -783,6 +783,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds1 -s sub1 -t 1m"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds1"), eq("sub1"),
                 longThat(new TimestampMatcher()));
+
+        cmdTopics.run(split("last-message-id persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
     }
 
     @Test

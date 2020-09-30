@@ -261,7 +261,6 @@ public abstract class ZooKeeperCache implements Watcher {
      *
      * @param path
      * @param deserializer
-     * @param stat
      * @return
      * @throws Exception
      */
@@ -314,7 +313,6 @@ public abstract class ZooKeeperCache implements Watcher {
      * @param path
      * @param watcher
      * @param deserializer
-     * @param stat
      * @return
      * @throws Exception
      */
