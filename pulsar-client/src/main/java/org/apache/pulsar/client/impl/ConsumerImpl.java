@@ -193,7 +193,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final ConcurrentLongHashMap<OpForAckCallBack> ackRequests =
             new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> ackTimeoutQueue;
-    private final Timeout ackTimeTracker;
+    private volatile Timeout ackTimeTracker;
 
     private static class RequestTime {
         final long creationTimeMs;
@@ -1059,6 +1059,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
+        }
+
+        if (ackTimeTracker != null) {
+            ackTimeTracker.cancel();
         }
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
@@ -2472,7 +2476,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     timeToWaitMs = diff;
                 }
             }
-            client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            ackTimeTracker = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
     }
 
