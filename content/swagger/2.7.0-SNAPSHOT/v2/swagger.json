@@ -5916,6 +5916,14 @@
                         "required": false,
                         "type": "boolean",
                         "default": false
+                    },
+                    {
+                        "name": "deleteSchema",
+                        "in": "query",
+                        "description": "Delete the topic's schema storage",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     }
                 ],
                 "responses": {
@@ -8945,6 +8953,14 @@
                         "required": false,
                         "type": "boolean",
                         "default": false
+                    },
+                    {
+                        "name": "deleteSchema",
+                        "in": "query",
+                        "description": "Delete the topic's schema storage",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     }
                 ],
                 "responses": {
@@ -11169,6 +11185,14 @@
                         "name": "authoritative",
                         "in": "query",
                         "description": "Is authentication required to perform this operation",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "deleteSchema",
+                        "in": "query",
+                        "description": "Delete the topic's schema storage",
                         "required": false,
                         "type": "boolean",
                         "default": false
@@ -14201,6 +14225,14 @@
                         "name": "authoritative",
                         "in": "query",
                         "description": "Is authentication required to perform this operation",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "deleteSchema",
+                        "in": "query",
+                        "description": "Delete the topic's schema storage",
                         "required": false,
                         "type": "boolean",
                         "default": false
@@ -17902,41 +17934,41 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -18427,13 +18459,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "gcsDriver": {
-                    "type": "boolean"
-                },
                 "fileSystemDriver": {
                     "type": "boolean"
                 },
                 "s3Driver": {
+                    "type": "boolean"
+                },
+                "gcsDriver": {
                     "type": "boolean"
                 }
             }
@@ -19134,11 +19166,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },

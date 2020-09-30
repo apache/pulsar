@@ -1621,32 +1621,8 @@
         "Message": {
             "type": "object",
             "properties": {
-                "topicName": {
-                    "type": "string"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicated": {
+                    "type": "boolean"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1656,12 +1632,36 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "topicName": {
+                    "type": "string"
+                },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicated": {
-                    "type": "boolean"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "producerName": {
                     "type": "string"
