@@ -630,7 +630,8 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
+    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
+                                                  boolean force, boolean deleteSchema) {
         try {
             validateWriteOperationOnTopic(authoritative);
         } catch (WebApplicationException wae) {
@@ -652,8 +653,10 @@ public class PersistentTopicsBase extends AdminResource {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
+                    // Only delete schema for 1 partition because there's only 1 schema storage for all partitions
+                    boolean deleteSchemaForPartition = (deleteSchema && i == 0);
                     try {
-                        pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force)
+                        pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force, deleteSchema)
                                 .whenComplete((r, ex) -> {
                                     if (ex != null) {
                                         if (ex instanceof NotFoundException) {

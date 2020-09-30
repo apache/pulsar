@@ -758,7 +758,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (forceDelete) {
                 if (deleteSchema) {
                     return t.deleteSchema().thenCompose(schemaVersion -> {
-                        log.info("Delete topic with schema version: {}", schemaVersion);
+                        log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
                         return t.deleteForcefully();
                     });
                 } else {
@@ -777,7 +777,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             if (deleteSchema) {
                 return t.deleteSchema().thenCompose(schemaVersion -> {
-                    log.info("Delete topic with schema version: {}", schemaVersion);
+                    log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
                     return t.delete();
                 });
             } else {
