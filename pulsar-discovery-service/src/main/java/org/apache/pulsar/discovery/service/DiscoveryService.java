@@ -155,8 +155,7 @@ public class DiscoveryService implements Closeable {
     /**
      * Derive the host
      *
-     * @param isBindOnLocalhost
-     * @return
+     * @return String containing the hostname
      */
     public String host() {
         try {

@@ -372,7 +372,7 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * @return the configured {@link subscriptionInitailPosition} for the consumer
+     * @return the configured {@link subscriptionInitialPosition} for the consumer
      */
     public SubscriptionInitialPosition getSubscriptionInitialPosition(){
         return conf.getSubscriptionInitialPosition();
