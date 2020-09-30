@@ -209,7 +209,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws TransactionConflictException, BrokerServiceException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));
         positions.add(new PositionImpl(2, 3));
@@ -259,7 +259,7 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException | InterruptedException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
         }
 
         positions.clear();
