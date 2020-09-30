@@ -2416,11 +2416,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void onTransactionAckResponse(OpForAckCallBack op) {
-        ReferenceCountUtil.safeRelease(op.cmd);
-        op.recycle();
-    }
-
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
 
 }
