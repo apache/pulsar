@@ -19,7 +19,7 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">部署和管理 Functions-worker</h1></header><article><div><span><p>在使用 Pulsar Functions 前，需要学习如何设置 Pulsar Functions worker，以及如何<a href="/docs/zh-CN/next/functions-runtime">配置 Functions 运行时</a>。</p>
-<p>Pulsar <code>functions-worker</code> is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either based on your requirements.</p>
+<p>Pulsar <code>functions-worker</code> is a logic component to run Pulsar Functions in cluster mode. 有两种不同的选择，你可以选择一种你需要的方式:</p>
 <ul>
 <li><a href="#run-functions-worker-with-brokers">与 broker 一起运行</a></li>
 <li>在不同的 broker 中<a href="#run-functions-worker-separately">单独运行</a></li>
@@ -34,13 +34,13 @@
 <p>To enable functions-worker running as part of a broker, you need to set <code>functionsWorkerEnabled</code> to <code>true</code> in the <code>broker.conf</code> file.</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre>
-<p>If the <code>functionsWorkerEnabled</code> is set to <code>true</code>, the functions-worker is started as part of a broker. You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
+<p>如果<code>functionsWorkerEnabled</code>设置为<code>true</code>，broker 上的 function worker 进程就会启动运行。 You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
 <p>在与 broker 一起运行 Functions-worker 时，需要先配置 Functions-worker，再与 broker 一起启动。</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-functions-worker-以与-brokers-一起运行"></a><a href="#配置-functions-worker-以与-brokers-一起运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Functions-Worker 以与 brokers 一起运行</h3>
-<p>In this mode, most of the settings are already inherited from your broker configuration (for example, configurationStore settings, authentication settings, and so on) since <code>functions-worker</code> is running as part of the broker.</p>
+<p>在这个模式下，从 <code>functions-worker</code> 在broker上运行开始，大多数配置已经从 broker 的配置上继承过来了(如配置存储设置，权限配置等等)。</p>
 <p>Pay attention to the following required settings when configuring functions-worker in this mode.</p>
 <ul>
-<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 For production deployment, to ensure high availability, set it to be larger than <code>2</code>.</li>
+<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 对于生产部署，为确保其高可用性，需设置为大于 <code>2</code> 。</li>
 <li><code>pulsarFunctionsCluster</code>：设置 Pulsar 集群名称 (与 <code>clusterName</code> 在 broker 配置中的设置相同)。</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
@@ -54,7 +54,7 @@
 <p>And then you can use the following command to verify if <code>functions-worker</code> is running well.</p>
 <pre><code class="hljs css language-bash">curl &lt;broker-ip&gt;:8080/admin/v2/worker/cluster
 </code></pre>
-<p>After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.</p>
+<p>After entering the command above, a list of active function workers in the cluster is returned. 会输出类似以下的内容：</p>
 <pre><code class="hljs css language-json">[{<span class="hljs-attr">"workerId"</span>:<span class="hljs-string">"&lt;worker-id&gt;"</span>,<span class="hljs-attr">"workerHostname"</span>:<span class="hljs-string">"&lt;worker-hostname&gt;"</span>,<span class="hljs-attr">"port"</span>:<span class="hljs-number">8080</span>}]
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="单独运行-functions-worker"></a><a href="#单独运行-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单独运行 Functions-worker</h2>
@@ -68,7 +68,7 @@
 <p>To run function-worker separately, you have to configure the following parameters.</p>
 <h4><a class="anchor" aria-hidden="true" id="worker-参数"></a><a href="#worker-参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Worker 参数</h4>
 <ul>
-<li><code>workerId</code>：类型为字符串。 It is unique across clusters, which is used to identify a worker machine.</li>
+<li><code>workerId</code>：类型为字符串。 它是整个集群是唯一的，用于标识每台 worker 机器</li>
 <li><code>workerHostname</code>：worker 计算机的主机名。</li>
 <li><code>workerPort</code>：worker 服务器的监听端口。 在未进行自定义时，请使用其默认值。</li>
 <li><code>workerPortTls</code>：worker 服务器监听的 TLS 端口。 在未进行自定义时，请使用其默认值。</li>
@@ -106,12 +106,12 @@ tlsCertificateFilePath: /path/to/functions-worker.cert.pem
 tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
 tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
-// The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+//  Pulsar 客户端用于和 Pulsar broker 通信所需的证书的存放路径。
 brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 </code></pre>
 <p>For details on TLS encryption, refer to <a href="/docs/zh-CN/next/security-tls-transport">Transport Encryption using TLS</a>.</p>
 <h5><a class="anchor" aria-hidden="true" id="启用身份验证提供程序"></a><a href="#启用身份验证提供程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用身份验证提供程序</h5>
-<p>To enable authentication on Functions Worker, you need to configure the following settings.</p>
+<p>要在函数 worker 启用身份验证，你需要配置以下信息。</p>
 <blockquote>
 <p>注意<br>
 将 <em>providers list</em> 替换为要启用的 providers。</p>
@@ -119,7 +119,7 @@ brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 <pre><code class="hljs">authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
 </code></pre>
-<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings. See <a href="/docs/zh-CN/next/security-tls-authentication">TLS Authentication</a> for more details.</p>
+<p>如果需要 <em>TLS 认证</em>机制，需要按照如下示例增加必要的配置。 查看 <a href="/docs/zh-CN/next/security-tls-authentication">TLS 认证</a> 可以了解到详细的信息。</p>
 <pre><code class="hljs">brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
@@ -131,14 +131,14 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
 </code></pre>
-<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。</p>
+<p>如果需要使用<em>Token 认证</em>机制，就需要在<code>properties</code>节点下添加如下必要的配置。 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。</p>
 <pre><code class="hljs">properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private
   # tokenPublicKey:     file:///path/to/public.key 
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="启用授权提供程序"></a><a href="#启用授权提供程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用授权提供程序</h5>
-<p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code>, <code>authorizationProvider</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
+<p>如果需要开启函数 Worker 授权机制，你必须配置<code>authorizationEnabled</code>，<code>authorizationProvider</code>和<code>configurationStoreServers</code>。 The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
 <span class="hljs-attr">authorizationProvider:</span> <span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
 <span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">&lt;configuration-store-servers&gt;</span>
@@ -150,7 +150,7 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
   <span class="hljs-bullet">-</span> <span class="hljs-string">role3</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="bookkeeper-身份验证"></a><a href="#bookkeeper-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper 身份验证</h4>
-<p>If authentication is enabled on the BookKeeper cluster, you need configure the BookKeeper authentication settings as follows:</p>
+<p>如果要开启 BooKeeper 集群的身份认证，你必须配置以下 Bookeeper 认证选项：</p>
 <ul>
 <li><code>bookkeeperClientAuthenticationPlugin</code>：BookKeeper 客户端身份验证插件的名称。</li>
 <li><code>bookkeeperClientAuthenticationParametersName</code>：BookKeeper 客户端身份验证插件的参数名称。</li>
