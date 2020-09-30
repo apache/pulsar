@@ -18,21 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
