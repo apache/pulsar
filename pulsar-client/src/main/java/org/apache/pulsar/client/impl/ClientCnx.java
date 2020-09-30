@@ -81,6 +81,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
@@ -418,6 +420,22 @@ public class ClientCnx extends PulsarHandler {
         long consumerId = ackError.getConsumerId();
 
         consumers.get(consumerId).ackError(ackError);
+    }
+
+    protected void handleRedeliverUnacknowledgedReceipt(CommandRedeliverUnacknowledgedMessagesReceipt redeliverReciept) {
+        checkArgument(state == State.Ready);
+
+        long consumerId = redeliverReciept.getConsumerId();
+
+        consumers.get(consumerId).redeliverReceipt(redeliverReciept);
+    }
+
+    protected void handleRedeliverUnacknowledgedError(CommandRedeliverUnacknowledgedMessagesError redeliverError) {
+        checkArgument(state == State.Ready);
+
+        long consumerId = redeliverError.getConsumerId();
+
+        consumers.get(consumerId).redeliverError(redeliverError);
     }
 
 

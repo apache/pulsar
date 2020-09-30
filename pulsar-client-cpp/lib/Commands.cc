@@ -525,6 +525,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES:
             return "REDELIVER_UNACKNOWLEDGED_MESSAGES";
             break;
+        case BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT:
+            return "REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT";
+            break;
+        case BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR:
+            return "REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR";
+            break;
         case BaseCommand::LOOKUP:
             return "LOOKUP";
             break;

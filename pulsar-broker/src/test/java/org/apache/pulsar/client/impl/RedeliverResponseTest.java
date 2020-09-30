@@ -1,0 +1,111 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl;
+
+import lombok.Cleanup;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+public class RedeliverResponseTest extends ProducerConsumerBase {
+
+    private final static TransactionImpl transaction = mock(TransactionImpl.class);
+
+    @BeforeClass
+    public void setup() throws Exception {
+        super.internalSetup();
+        super.producerBaseSetup();
+        doReturn(1L).when(transaction).getTxnIdLeastBits();
+        doReturn(1L).when(transaction).getTxnIdMostBits();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        doReturn(completableFuture).when(transaction).registerAckOp(any());
+        doNothing().when(transaction).registerAckedTopic(any(), any());
+
+        Thread.sleep(1000 * 3);
+    }
+
+    @AfterClass
+    public void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Test
+    public void testRedeliverResponse() throws PulsarClientException, InterruptedException, ExecutionException {
+        String topic = "testAckResponse";
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        producer.send(1);
+        producer.send(2);
+
+        Message<Integer> message = consumer.receive();
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
+        consumer.redeliverUnacknowledgedMessages(new TxnID(transaction.getTxnIdMostBits(),
+                transaction.getTxnIdLeastBits())).get();
+        Assert.assertEquals(consumer.receive().getMessageId(), message.getMessageId());
+    }
+
+    @Test
+    public void testRedeliverTimeout() throws PulsarClientException, InterruptedException {
+        String topic = "testRedeliverTimeout";
+
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .redeliverTimeout(1, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        try {
+            consumer.redeliverUnacknowledgedMessages(new TxnID(transaction.getTxnIdMostBits(),
+                    transaction.getTxnIdLeastBits())).get();
+            Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+}

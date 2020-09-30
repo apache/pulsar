@@ -131,6 +131,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long ackResponseTimeout = 3000L;
 
+    private long redeliverTimeout = 3000L;
+
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);

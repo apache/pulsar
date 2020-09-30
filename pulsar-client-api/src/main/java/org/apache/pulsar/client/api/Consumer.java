@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
+
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
  *
@@ -493,6 +495,19 @@ public interface Consumer<T> extends Closeable {
      * breaks, the messages are redelivered after reconnect.
      */
     void redeliverUnacknowledgedMessages();
+
+    /**
+     * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
+     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
+     * the connected consumers. If txnID is not null, it will redeliver the transaction in pending ack message or else
+     * will redeliver unacknowledged messages. This is a non blocking call and doesn't throw an exception.
+     * In case the connection breaks, the messages are redelivered after reconnect.
+     *
+     * @param txnID
+     *            The {@link TxnID} to redeliver
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID);
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.

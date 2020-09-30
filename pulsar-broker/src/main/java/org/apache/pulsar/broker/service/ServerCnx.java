@@ -1309,7 +1309,27 @@ public class ServerCnx extends PulsarHandler {
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
-                consumer.redeliverUnacknowledgedMessages();
+                if (redeliver.hasRequestId()) {
+                    if (redeliver.hasTxnidLeastBits() && redeliver.hasTxnidMostBits()) {
+                        consumer.getSubscription().endTxn(redeliver.getTxnidMostBits(),
+                                redeliver.getTxnidLeastBits(), PulsarApi.TxnAction.ABORT.getNumber()).thenRun(() -> {
+                            consumer.redeliverUnacknowledgedMessages();
+                            ctx.writeAndFlush(Commands.newRedeliverUnacknowledgedMessagesReceipt(
+                                    redeliver.getConsumerId(), redeliver.getRequestId()));
+                        }).exceptionally(e -> {
+                            ctx.writeAndFlush(Commands.newRedeliverUnacknowledgedMessagesError(redeliver.getRequestId(),
+                                    BrokerServiceException.getClientErrorCode(e),
+                                    e.getMessage(), redeliver.getConsumerId()));
+                            return null;
+                        });
+                    } else {
+                        consumer.redeliverUnacknowledgedMessages();
+                        ctx.writeAndFlush(Commands.newRedeliverUnacknowledgedMessagesReceipt(
+                                redeliver.getConsumerId(), redeliver.getRequestId()));
+                    }
+                } else {
+                    consumer.redeliverUnacknowledgedMessages();
+                }
             }
         }
     }

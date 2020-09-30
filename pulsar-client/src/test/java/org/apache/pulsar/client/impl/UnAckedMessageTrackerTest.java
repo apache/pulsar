@@ -30,6 +30,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
@@ -47,7 +48,7 @@ public class UnAckedMessageTrackerTest  {
 
         ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
         doNothing().when(consumer).onAckTimeoutSend(any());
-        doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
+        doNothing().when(consumer).redeliverUnacknowledgedMessages((Set<MessageId>) any());
 
         UnAckedMessageTracker tracker = new UnAckedMessageTracker(client, consumer, 1000000, 100000);
         tracker.close();

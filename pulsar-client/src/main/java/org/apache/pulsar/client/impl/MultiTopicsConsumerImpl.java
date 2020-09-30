@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -636,6 +637,25 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             lock.writeLock().unlock();
         }
         resumeReceivingFromPausedConsumersIfNeeded();
+    }
+
+    @Override
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID) {
+        lock.writeLock().lock();
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+        try {
+            consumers.values().stream().forEach(consumer -> {
+                completableFutures.add(consumer.redeliverUnacknowledgedMessages(txnID));
+                consumer.unAckedChunckedMessageIdSequenceMap.clear();
+            });
+            incomingMessages.clear();
+            INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+            unAckedMessageTracker.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
+        resumeReceivingFromPausedConsumersIfNeeded();
+        return FutureUtil.waitForAll(completableFutures);
     }
 
     @Override

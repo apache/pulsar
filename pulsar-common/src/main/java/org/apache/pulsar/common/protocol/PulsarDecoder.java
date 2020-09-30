@@ -69,6 +69,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -307,6 +309,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasRedeliverUnacknowledgedMessages());
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
                 cmd.getRedeliverUnacknowledgedMessages().recycle();
+                break;
+
+            case REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT:
+                checkArgument(cmd.hasRedeliverReceipt());
+                handleRedeliverUnacknowledgedReceipt(cmd.getRedeliverReceipt());
+                cmd.getAckReceipt().recycle();
+                break;
+
+            case REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR:
+                checkArgument(cmd.hasRedeliverError());
+                handleRedeliverUnacknowledgedError(cmd.getRedeliverError());
+                cmd.getAckError().recycle();
                 break;
 
             case CONSUMER_STATS:
@@ -582,6 +596,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleRedeliverUnacknowledged(CommandRedeliverUnacknowledgedMessages redeliver) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRedeliverUnacknowledgedReceipt(CommandRedeliverUnacknowledgedMessagesReceipt ackReceipt) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRedeliverUnacknowledgedError(CommandRedeliverUnacknowledgedMessagesError ackError) {
         throw new UnsupportedOperationException();
     }
 

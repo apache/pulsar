@@ -82,6 +82,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.impl.AckTimeoutTracker.OpForAckCallBack;
+import org.apache.pulsar.client.impl.RedeliverTimeoutTracker.OpForRedeliverCallBack;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -89,6 +90,8 @@ import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
@@ -187,8 +190,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunckedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
-    //pending ack
+
     private final AckTimeoutTracker<T> ackTimeTracker;
+    private final RedeliverTimeoutTracker<T> redeliverTimeoutTracker;
 
     protected static class RequestTime {
         final long creationTimeMs;
@@ -340,7 +344,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
-        this.ackTimeTracker = new AckTimeoutTracker(this);
+        this.ackTimeTracker = new AckTimeoutTracker<>(this);
+        this.redeliverTimeoutTracker = new RedeliverTimeoutTracker<>(this);
         grabCnx();
     }
 
@@ -1057,6 +1062,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (ackTimeTracker != null) {
             ackTimeTracker.cancel();
         }
+
+        if (redeliverTimeoutTracker != null) {
+            redeliverTimeoutTracker.cancel();
+        }
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
@@ -1741,6 +1750,44 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID) {
+        ClientCnx cnx = cnx();
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
+            int currentSize = 0;
+            synchronized (this) {
+                currentSize = incomingMessages.size();
+                incomingMessages.clear();
+                INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+                unAckedMessageTracker.clear();
+            }
+
+            CompletableFuture<Void> callBack = new CompletableFuture<>();
+            long requestId = client.newRequestId();
+            ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessagesWithRequestId(consumerId, txnID, requestId);
+            OpForRedeliverCallBack op = OpForRedeliverCallBack.create(cmd, txnID, callBack, requestId);
+            redeliverTimeoutTracker.add(op, requestId);
+            cmd.retain();
+            cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                        consumerName, currentSize);
+            }
+            return callBack;
+        }
+        if (cnx == null || (getState() == State.Connecting)) {
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
+            return FutureUtil.failedFuture(new PulsarClientException(this +
+                    " Client Connection needs to be established for redelivery with txn of unacknowledged messages"));
+        } else {
+            log.warn("[{}] Reconnecting the client to redeliver with txn of the messages.", this);
+            cnx.ctx().close();
+            return FutureUtil.failedFuture(new PulsarClientException(this +
+                    " Reconnecting the client to redeliver with txn of the messages."));
+        }
+    }
+
+    @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
         if (messageIds.isEmpty()) {
             return;
@@ -2411,6 +2458,41 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             callBackOp.callback.completeExceptionally(new TransactionConflictException(commandAckError.getMessage()));
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
+            }
+            callBackOp.recycle();
+        }
+    }
+
+    protected void redeliverReceipt(CommandRedeliverUnacknowledgedMessagesReceipt commandReceipt) {
+        checkArgument(commandReceipt.getRequestId() >= 0);
+        OpForRedeliverCallBack callBackOp = redeliverTimeoutTracker.remove(commandReceipt.getRequestId());
+        if (callBackOp == null || callBackOp.callback.isDone()) {
+            log.error("Redeliver request has been handled requestId : {}", commandReceipt.getRequestId());
+        } else {
+            callBackOp.callback.complete(null);
+            if (log.isDebugEnabled()) {
+                if (callBackOp.txnID != null) {
+                    log.debug("RequestId : [{}], has redeliver by TxnId : {}", callBackOp.requestId, callBackOp.txnID);
+                } else {
+                    log.debug("RequestId : [{}], has redeliver", callBackOp.requestId);
+                }
+            }
+            callBackOp.recycle();
+        }
+    }
+
+    protected void redeliverError(CommandRedeliverUnacknowledgedMessagesError commandError) {
+        checkArgument(commandError.getRequestId() >= 0);
+        OpForRedeliverCallBack callBackOp = redeliverTimeoutTracker.remove(commandError.getRequestId());
+        if (callBackOp == null || callBackOp.callback.isDone()) {
+            log.error("Ack request has been handled requestId : {}", commandError.getRequestId());
+        } else {
+            callBackOp.callback.completeExceptionally(
+                    new TransactionConflictException(commandError.getMessage()));
+            if (callBackOp.txnID != null) {
+                log.debug("RequestId : [{}], don't redeliver by TxnId : {}", callBackOp.requestId, callBackOp.txnID);
+            } else {
+                log.debug("RequestId : [{}], don't redeliver", callBackOp.requestId);
             }
             callBackOp.recycle();
         }
