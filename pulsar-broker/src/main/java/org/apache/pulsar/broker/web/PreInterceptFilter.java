@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
+import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.intercept.InterceptException;
 
@@ -31,6 +33,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+@Slf4j
 public class PreInterceptFilter implements Filter {
 
     private final BrokerInterceptor interceptor;
@@ -46,6 +49,16 @@ public class PreInterceptFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        if (log.isDebugEnabled()) {
+            log.debug("PreInterceptFilter: path {}, type {}",
+                servletRequest.getServletContext().getContextPath(),
+                servletRequest.getContentType());
+        }
+        if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())) {
+            // skip multipart request at this moment
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
         try {
             RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest);
             interceptor.onWebserviceRequest(requestWrapper);
