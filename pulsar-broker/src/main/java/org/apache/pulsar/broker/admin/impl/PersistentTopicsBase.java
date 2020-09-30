@@ -374,11 +374,11 @@ public class PersistentTopicsBase extends AdminResource {
         grantPermissions(topicName.toString(), role, actions);
     }
 
-    protected void internalDeleteTopicForcefully(boolean authoritative) {
+    protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
         validateWriteOperationOnTopic(authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
         } catch (Exception e) {
             if (e.getCause() instanceof MetadataNotFoundException) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
@@ -630,7 +630,8 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
+    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
+                                                  boolean force, boolean deleteSchema) {
         try {
             validateWriteOperationOnTopic(authoritative);
         } catch (WebApplicationException wae) {
@@ -650,6 +651,18 @@ public class PersistentTopicsBase extends AdminResource {
             final int numPartitions = partitionMeta.partitions;
             if (numPartitions > 0) {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
+                if (deleteSchema) {
+                    count.incrementAndGet();
+                    pulsar().getBrokerService().deleteSchemaStorage(topicName.getPartition(0).toString())
+                            .whenComplete((r, ex) -> {
+                                if (ex != null) {
+                                    log.warn("Failed to delete schema storage of topic: {}", topicName);
+                                }
+                                if (count.decrementAndGet() == 0) {
+                                    future.complete(null);
+                                }
+                            });
+                }
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
                     try {
@@ -937,19 +950,19 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean force) {
+    protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
         if (force) {
-            internalDeleteTopicForcefully(authoritative);
+            internalDeleteTopicForcefully(authoritative, deleteSchema);
         } else {
-            internalDeleteTopic(authoritative);
+            internalDeleteTopic(authoritative, deleteSchema);
         }
     }
 
-    protected void internalDeleteTopic(boolean authoritative) {
+    protected void internalDeleteTopic(boolean authoritative, boolean deleteSchema) {
         validateWriteOperationOnTopic(authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false, deleteSchema).get();
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();

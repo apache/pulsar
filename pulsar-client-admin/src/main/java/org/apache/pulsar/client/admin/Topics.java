@@ -451,10 +451,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws PulsarAdminException
      */
-    void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+    void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
+        deletePartitionedTopic(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic asynchronously.
@@ -466,10 +475,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
+        return deletePartitionedTopicAsync(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic.
@@ -507,6 +525,8 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -517,7 +537,14 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void delete(String topic, boolean force) throws PulsarAdminException;
+    void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#delete(String, boolean, boolean)
+     */
+    default void delete(String topic, boolean force) throws PulsarAdminException {
+        delete(topic, force, false);
+    }
 
     /**
      * Delete a topic asynchronously.
@@ -531,10 +558,19 @@ public interface Topics {
      *            topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the topic is deleted
      */
-    CompletableFuture<Void> deleteAsync(String topic, boolean force);
+    CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deleteAsync(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
+        return deleteAsync(topic, force, false);
+    }
 
     /**
      * Delete a topic.
