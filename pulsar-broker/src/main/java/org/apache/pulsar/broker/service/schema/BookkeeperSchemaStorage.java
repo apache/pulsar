@@ -368,6 +368,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                     log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
                                 }
                                 if (numOfLedgerIds.decrementAndGet() == 0) {
+                                    try {
+                                        ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
+                                    } catch (InterruptedException | KeeperException e) {
+                                        future.completeExceptionally(e);
+                                    }
                                     future.complete(version);
                                 }
                             }, null);
