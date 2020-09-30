@@ -222,7 +222,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force);
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force, false);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
