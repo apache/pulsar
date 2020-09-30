@@ -1730,7 +1730,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @throws PulsarAdminException
      */
     void setInactiveTopicPolicies(String topic
@@ -1739,7 +1739,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic asynchronously.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @return
      */
     CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies);

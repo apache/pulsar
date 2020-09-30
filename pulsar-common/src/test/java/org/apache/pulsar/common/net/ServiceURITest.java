@@ -147,6 +147,30 @@ public class ServiceURITest {
     }
 
     @Test
+    public void testMultiIpv6Uri() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650,[fec0:0:0:ffff::2]:6650;[fec0:0:0:ffff::3]:6650/path/to/namespace";
+        assertServiceUri(
+                serviceUri,
+                "pulsar",
+                new String[0],
+                "pulsaruser",
+                new String[] { "[fec0:0:0:ffff::1]:6650", "[fec0:0:0:ffff::2]:6650", "[fec0:0:0:ffff::3]:6650" },
+                "/path/to/namespace");
+    }
+
+    @Test
+    public void testMultiIpv6UriWithoutPulsarPort() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1],[fec0:0:0:ffff::2];[fec0:0:0:ffff::3]/path/to/namespace";
+        assertServiceUri(
+                serviceUri,
+                "pulsar",
+                new String[0],
+                "pulsaruser",
+                new String[] { "[fec0:0:0:ffff::1]:6650", "[fec0:0:0:ffff::2]:6650", "[fec0:0:0:ffff::3]:6650" },
+                "/path/to/namespace");
+    }
+
+    @Test
     public void testMultipleHostsSemiColon() {
         String serviceUri = "pulsar://host1:6650;host2:6650;host3:6650/path/to/namespace";
         assertServiceUri(

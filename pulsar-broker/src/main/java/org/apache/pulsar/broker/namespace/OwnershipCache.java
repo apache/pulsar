@@ -220,14 +220,14 @@ public class OwnershipCache {
     /**
      * Method to get the current owner of the <code>ServiceUnit</code>
      *
-     * @param suId
-     *            identifier of the <code>ServiceUnit</code>
+     * @param suName
+     *            name of the <code>ServiceUnit</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
      * @throws Exception
      *             throws exception if no ownership info is found
      */
-    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suname) {
-        String path = ServiceUnitZkUtils.path(suname);
+    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
+        String path = ServiceUnitZkUtils.path(suName);
 
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(path);
         if (ownedBundleFuture != null) {
@@ -245,8 +245,8 @@ public class OwnershipCache {
     /**
      * Method to get the current owner of the <code>ServiceUnit</code> or set the local broker as the owner if absent
      *
-     * @param suId
-     *            identifier of the <code>NamespaceBundle</code>
+     * @param bundle
+     *            the <code>NamespaceBundle</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
      * @throws Exception
      */

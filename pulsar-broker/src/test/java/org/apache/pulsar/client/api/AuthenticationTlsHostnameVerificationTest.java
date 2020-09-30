@@ -231,7 +231,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     }
 
     /**
-     * This test verifies {@link DefaultHostnameVerifier} behavior and gives fair idea about host matching result
+     * This test verifies {@link TlsHostnameVerifier} behavior and gives fair idea about host matching result
      *
      * @throws Exception
      */
