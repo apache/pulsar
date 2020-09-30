@@ -451,10 +451,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws PulsarAdminException
      */
-    void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+    void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
+        deletePartitionedTopic(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic asynchronously.
@@ -466,10 +475,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
+        return deletePartitionedTopicAsync(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic.
