@@ -657,7 +657,8 @@ public class FunctionsImpl extends ComponentImpl {
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
-        FunctionConfigUtils.inferMissingArguments(functionConfig);
+        FunctionConfigUtils.inferMissingArguments(
+            functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
 
         if (!StringUtils.isEmpty(functionConfig.getJar())) {
             String builtinArchive = functionConfig.getJar();

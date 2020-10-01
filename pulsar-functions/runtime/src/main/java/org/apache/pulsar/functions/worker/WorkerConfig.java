@@ -444,6 +444,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int maxPendingAsyncRequests = 1000;
 
+    @FieldContext(
+        doc = "Whether to forward the source message properties to the output message"
+    )
+    private boolean forwardSourceMessageProperty = true;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

@@ -202,7 +202,7 @@ public class LocalRunner {
             String userCodeFile;
             int parallelism;
             if (functionConfig != null) {
-                FunctionConfigUtils.inferMissingArguments(functionConfig);
+                FunctionConfigUtils.inferMissingArguments(functionConfig, true);
                 ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
