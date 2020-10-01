@@ -598,6 +598,28 @@ class SchemaTest(TestCase):
         self.assertEqual(MyEnum.C, msg.value().v)
         client.close()
 
+    def test_default_value(self):
+        class MyRecord(Record):
+            A = Integer()
+            B = String()
+            C = Boolean()
+
+        topic = "my-default-value-topic"
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                    topic=topic,
+                    schema=JsonSchema(MyRecord))
+
+        consumer = client.subscribe(topic, 'test', schema=JsonSchema(MyRecord))
+
+        r = MyRecord(A=5, B="text")
+        producer.send(r)
+
+        msg = consumer.receive()
+        self.assertEqual(5, msg.value().A)
+        self.assertEqual('test', msg.value().B)
+        self.assertEqual(False, msg.value().C)
 
 if __name__ == '__main__':
     main()
