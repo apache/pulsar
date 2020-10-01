@@ -40,6 +40,12 @@ public class GenericJsonRecord extends VersionedGenericRecord {
 
     GenericJsonRecord(byte[] schemaVersion,
                       List<Field> fields,
+                      JsonNode jn) {
+        this(schemaVersion, fields, jn, null);
+    }
+
+    GenericJsonRecord(byte[] schemaVersion,
+                      List<Field> fields,
                       JsonNode jn, SchemaInfo schemaInfo) {
         super(schemaVersion, fields);
         this.jn = jn;

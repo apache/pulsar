@@ -49,12 +49,21 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
         this.schemaInfo = schemaInfo;
     }
 
+    public GenericJsonReader(List<Field> fields){
+        this(fields, null);
+    }
+
+    public GenericJsonReader(byte[] schemaVersion, List<Field> fields){
+        this(schemaVersion, fields, null);
+    }
+
     public GenericJsonReader(byte[] schemaVersion, List<Field> fields, SchemaInfo schemaInfo){
         this.objectMapper = new ObjectMapper();
         this.fields = fields;
         this.schemaVersion = schemaVersion;
         this.schemaInfo = schemaInfo;
     }
+
     @Override
     public GenericJsonRecord read(byte[] bytes, int offset, int length) {
         try {
