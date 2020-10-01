@@ -143,6 +143,7 @@ where command is one of:
     standalone          Run a broker server with local bookies and local zookeeper
 
     initialize-cluster-metadata     One-time metadata initialization
+    delete-cluster-metadata         Delete a cluster's metadata
     initialize-transaction-coordinator-metadata     One-time transaction coordinator metadata initialization
     initialize-namespace     namespace initialization
     compact-topic       Run compaction against a topic
@@ -339,6 +340,8 @@ elif [ $COMMAND == "standalone" ]; then
     exec $JAVA $OPTS $ASPECTJ_AGENT ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
+elif [ $COMMAND == "delete-cluster-metadata" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataTeardown $@
 elif [ $COMMAND == "initialize-transaction-coordinator-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup $@
 elif [ $COMMAND == "initialize-namespace" ]; then
