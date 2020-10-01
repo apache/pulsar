@@ -1621,18 +1621,25 @@
         "Message": {
             "type": "object",
             "properties": {
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "publishTime": {
+                    "type": "integer",
+                    "format": "int64"
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "topicName": {
+                    "type": "string"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "redeliveryCount": {
                     "type": "integer",
@@ -1645,18 +1652,18 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",
@@ -1672,16 +1679,9 @@
                         "format": "byte"
                     }
                 },
-                "publishTime": {
+                "sequenceId": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
                 },
                 "value": {
                     "type": "object"
