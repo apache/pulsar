@@ -73,8 +73,8 @@ func newInstanceConf() *instanceConf {
 				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
 				InputSpecs: map[string]*pb.ConsumerSpec{
 					cfg.SourceSpecTopic: {
-						SchemaType:     "",
-						IsRegexPattern: false,
+						SchemaType:     cfg.SourceSchemaType,
+						IsRegexPattern: cfg.IsRegexPatternSubscription,
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
 							Value: cfg.ReceiverQueueSize,
 						},
