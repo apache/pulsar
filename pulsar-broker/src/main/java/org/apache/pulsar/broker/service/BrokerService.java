@@ -1419,7 +1419,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    public boolean isTopicNsOwnedByBroker(TopicName topicName) throws RuntimeException {
+    public boolean isTopicNsOwnedByBroker(TopicName topicName) {
         try {
             return pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
@@ -1447,14 +1447,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return checkFuture;
     }
 
-    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
+    public void checkTopicNsOwnership(final String topic) throws BrokerServiceException {
         try {
             checkTopicNsOwnershipAsync(topic).join();
         } catch (CompletionException ex) {
-            if (ex.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) ex.getCause();
+            if (ex.getCause() instanceof BrokerServiceException) {
+                throw (BrokerServiceException) ex.getCause();
             }
-            throw new RuntimeException(ex.getCause());
+            throw new BrokerServiceException(ex.getCause());
+        } catch (Exception ex) {
+            throw new BrokerServiceException(ex);
         }
     }
 
@@ -2036,9 +2038,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (RuntimeException re) {
-            log.error("Failed to create pending topic {} {}", topic, re);
-            pendingTopic.getRight().completeExceptionally(re.getCause());
+        } catch (Exception e) {
+            log.error("Failed to create pending topic {}", topic, e);
+            pendingTopic.getRight()
+                    .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
         }
