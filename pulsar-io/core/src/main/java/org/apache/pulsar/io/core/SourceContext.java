@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
  * Interface for a source connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
-public interface SourceContext extends Context {
+public interface SourceContext extends ConnectorContext {
 
     /**
      * Get the output topic of the source.
