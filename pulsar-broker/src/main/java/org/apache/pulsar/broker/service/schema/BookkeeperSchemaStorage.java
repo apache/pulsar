@@ -140,6 +140,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             if (!locator.isPresent()) {
                 result.complete(Collections.emptyList());
+                return;
             }
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
