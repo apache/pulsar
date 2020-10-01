@@ -1953,7 +1953,8 @@ public class ServerCnx extends PulsarHandler {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
-        if (!ctx.channel().config().isAutoRead() && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
+        if (ctx != null && !ctx.channel().config().isAutoRead() &&
+                !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
@@ -1962,7 +1963,7 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void disableCnxAutoRead() {
-        if (ctx.channel().config().isAutoRead() ) {
+        if (ctx != null && ctx.channel().config().isAutoRead() ) {
             ctx.channel().config().setAutoRead(false);
         }
     }
