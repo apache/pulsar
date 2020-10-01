@@ -25,6 +25,7 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.annotations.AfterClass;
@@ -47,6 +48,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
     @Test
     public void createReplicatedSubscription() throws Exception {
+        this.conf.setEnableReplicatedSubscriptions(true);
         String topic = "createReplicatedSubscription-" + System.nanoTime();
 
         @Cleanup
@@ -68,6 +70,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
     @Test
     public void upgradeToReplicatedSubscription() throws Exception {
+        this.conf.setEnableReplicatedSubscriptions(true);
         String topic = "upgradeToReplicatedSubscription-" + System.nanoTime();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -93,6 +96,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
     @Test
     public void upgradeToReplicatedSubscriptionAfterRestart() throws Exception {
+        this.conf.setEnableReplicatedSubscriptions(true);
         String topic = "upgradeToReplicatedSubscriptionAfterRestart-" + System.nanoTime();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -116,5 +120,16 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         stats = admin.topics().getStats(topic);
         assertTrue(stats.subscriptions.get("sub").isReplicated);
         consumer.close();
+    }
+
+    @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
+    public void testDisableReplicatedSubscriptions() throws PulsarClientException {
+        this.conf.setEnableReplicatedSubscriptions(false);
+        String topic = "disableReplicatedSubscriptions-" + System.nanoTime();
+        pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .replicateSubscriptionState(true)
+                .subscribe();
     }
 }
