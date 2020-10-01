@@ -18,26 +18,37 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.impl.schema.StructSchema;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Generic json record.
  */
+@Slf4j
 public class GenericJsonRecord extends VersionedGenericRecord {
 
     private final JsonNode jn;
+    private final SchemaInfo schemaInfo;
 
     GenericJsonRecord(byte[] schemaVersion,
                       List<Field> fields,
-                      JsonNode jn) {
+                      JsonNode jn, SchemaInfo schemaInfo) {
         super(schemaVersion, fields);
         this.jn = jn;
+        this.schemaInfo = schemaInfo;
     }
 
     public JsonNode getJsonNode() {
@@ -53,7 +64,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
                 .stream()
                 .map(f -> new Field(f, idx.getAndIncrement()))
                 .collect(Collectors.toList());
-            return new GenericJsonRecord(schemaVersion, fields, fn);
+            return new GenericJsonRecord(schemaVersion, fields, fn, schemaInfo);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
         } else if (fn.isFloatingPointNumber()) {
@@ -72,8 +83,47 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             } catch (IOException e) {
                 return fn.asText();
             }
+        } else if (isBinaryValue(fieldName)) {
+            try {
+                return fn.binaryValue();
+            } catch (IOException e) {
+                return fn.asText();
+            }
         } else {
             return fn.asText();
         }
+    }
+
+    private boolean isBinaryValue(String fieldName) {
+        boolean isBinary = false;
+
+        do {
+            if (schemaInfo == null) {
+                break;
+            }
+
+            try {
+                org.apache.avro.Schema schema = parseAvroSchema(schemaInfo.getSchemaDefinition());
+                org.apache.avro.Schema.Field field = schema.getField(fieldName);
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
+                for (JsonNode node : jsonNode) {
+                    JsonNode jn = node.get("type");
+                    if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {
+                        isBinary = true;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("parse schemaInfo failed. ", e);
+            }
+        } while (false);
+
+        return isBinary;
+    }
+
+    private org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+        final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
+        parser.setValidateDefaults(false);
+        return parser.parse(schemaJson);
     }
 }
