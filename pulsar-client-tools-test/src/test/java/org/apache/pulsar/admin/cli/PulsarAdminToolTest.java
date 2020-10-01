@@ -681,7 +681,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
@@ -812,7 +812,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
