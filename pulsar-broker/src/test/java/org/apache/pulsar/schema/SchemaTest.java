@@ -19,7 +19,6 @@
 package org.apache.pulsar.schema;
 
 import com.google.common.collect.Sets;
-import javassist.bytecode.ByteArray;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -167,9 +166,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         bytesRecord.setId(1);
         bytesRecord.setName("Tom");
         bytesRecord.setAddress("test".getBytes());
-
-        byte[] bytesRecordSeri = Schema.JSON(Schemas.BytesRecord.class).encode(bytesRecord);
-        log.info("bytesRecordSeri: []", bytesRecordSeri);
 
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test-sub")

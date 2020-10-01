@@ -18,20 +18,15 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
