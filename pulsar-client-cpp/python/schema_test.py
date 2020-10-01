@@ -232,6 +232,29 @@ class SchemaTest(TestCase):
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
 
+    def test_schema_version(self):
+        class Example(Record):
+            a = Integer()
+            b = Integer()
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                        'my-avro-python-schema-version-topic',
+                        schema=AvroSchema(Example))
+
+        r = Example(a=1, b=2)
+        producer.send(r)
+
+        consumer = client.subscribe('my-avro-python-schema-version-topic', 'sub-1',
+                                    schema=AvroSchema(Example))
+
+        msg = consumer.receive()
+
+        self.assertIsNotNone(msg.schema_version())
+        self.assertEqual(r, msg.value())
+
+        client.close()
+
     def test_serialize_wrong_types(self):
         class Example(Record):
             a = Integer()
