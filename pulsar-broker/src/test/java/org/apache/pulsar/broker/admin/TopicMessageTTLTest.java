@@ -167,6 +167,11 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(500);
         Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace), 0);
         Assert.assertEquals((int)method.invoke(persistentTopic), 0);
+
+        admin.namespaces().removeNamespaceMessageTTL(myNamespace);
+        Thread.sleep(500);
+        Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace), 3600);
+        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
     }
 
 }
