@@ -499,6 +499,20 @@ class Client:
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
+        * `batching_type`:
+          Sets the batching type for the producer.
+          There are two batching type: DefaultBatching and KeyBasedBatching.
+            - Default batching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+
+            - KeyBasedBatching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
