@@ -32,14 +32,28 @@ public class TestS3Offload extends TestBaseOffload {
 
     private S3Container s3Container;
 
-    @BeforeClass
-    public void setupS3() {
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+
+        log.info("s3 container init");
         s3Container = new S3Container(
                 pulsarCluster.getClusterName(),
                 S3Container.NAME)
                 .withNetwork(pulsarCluster.getNetwork())
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
+        log.info("s3 container start finish.");
+    }
+
+    @BeforeClass
+    public void setupS3() {
+//        s3Container = new S3Container(
+//                pulsarCluster.getClusterName(),
+//                S3Container.NAME)
+//                .withNetwork(pulsarCluster.getNetwork())
+//                .withNetworkAliases(S3Container.NAME);
+//        s3Container.start();
     }
 
     @AfterClass

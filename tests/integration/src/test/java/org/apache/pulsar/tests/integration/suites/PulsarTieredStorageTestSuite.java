@@ -50,16 +50,17 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
             .clusterName(clusterName)
             .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
-            getEnv().forEach(brokerContainer::withEnv);
-        }
-
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup", spec.clusterName());
+        setupCluster(spec);
+//        log.info("Setting up cluster {} with {} bookies, {} brokers",
+//                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+//        pulsarCluster = PulsarCluster.forSpec(spec);
+//        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
+//            getEnv().forEach(brokerContainer::withEnv);
+//        }
+//
+//        pulsarCluster.start();
+//
+//        log.info("Cluster {} is setup", spec.clusterName());
     }
 
     @AfterSuite
@@ -74,4 +75,12 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
     }
 
     protected abstract Map<String, String> getEnv();
+
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            getEnv().forEach(brokerContainer::withEnv);
+        }
+    }
 }
