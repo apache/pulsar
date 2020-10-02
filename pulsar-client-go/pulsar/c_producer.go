@@ -280,7 +280,7 @@ type sendCallbackWithMsgID struct {
 }
 
 //export pulsarProducerSendCallbackProxy
-func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_message_t, ctx unsafe.Pointer) {
+func pulsarProducerSendCallbackProxy(res C.pulsar_result, messageId *C.pulsar_message_id_t, ctx unsafe.Pointer) {
 	sendCallback := restorePointer(ctx).(sendCallback)
 
 	if res != C.pulsar_result_Ok {
