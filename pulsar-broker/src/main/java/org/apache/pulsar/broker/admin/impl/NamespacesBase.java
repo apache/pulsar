@@ -557,11 +557,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetNamespaceMessageTTL(int messageTTL) {
+    protected void internalSetNamespaceMessageTTL(Integer messageTTL) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.TTL, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        if (messageTTL < 0) {
+        if (messageTTL != null && messageTTL < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
 
@@ -2174,7 +2174,7 @@ public abstract class NamespacesBase extends AdminResource {
         // Validate cluster names and permissions
         policies.replication_clusters.forEach(cluster -> validateClusterForTenant(ns.getTenant(), cluster));
 
-        if (policies.message_ttl_in_seconds < 0) {
+        if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
 

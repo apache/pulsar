@@ -777,6 +777,20 @@ public interface Namespaces {
     CompletableFuture<Void> setNamespaceMessageTTLAsync(String namespace, int ttlInSeconds);
 
     /**
+     * Remove the messages Time to Live for all the topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceMessageTTL(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the messages Time to Live for all the topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceMessageTTLAsync(String namespace);
+
+    /**
      * Get the subscription expiration time for a namespace.
      * <p/>
      * Response example:
