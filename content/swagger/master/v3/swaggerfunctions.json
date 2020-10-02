@@ -1629,6 +1629,10 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "topicName": {
                     "type": "string"
                 },
@@ -1637,33 +1641,6 @@
                 },
                 "replicatedFrom": {
                     "type": "string"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",
@@ -1679,9 +1656,32 @@
                         "format": "byte"
                     }
                 },
-                "sequenceId": {
+                "replicated": {
+                    "type": "boolean"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
+                    "format": "int32"
                 },
                 "value": {
                     "type": "object"
