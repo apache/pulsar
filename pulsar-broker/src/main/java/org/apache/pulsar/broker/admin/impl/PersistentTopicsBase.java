@@ -2952,6 +2952,10 @@ public class PersistentTopicsBase extends AdminResource {
     private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
         try {
             Subscription sub = topic.getSubscription(subName);
+            if (sub == null) {
+                sub = topic.createSubscription(subName, InitialPosition.Earliest, false).get();
+            }
+
             return Preconditions.checkNotNull(sub);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
