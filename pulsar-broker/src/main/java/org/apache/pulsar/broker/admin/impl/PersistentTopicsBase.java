@@ -2089,20 +2089,23 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
-        verifyReadOperation(authoritative);
+        verifyReadOperation();
+
+        TopicName partitionedTopicName = topicName;
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
+            partitionedTopicName = topicName.getPartition(0);
         }
+
         validateAdminAccessForSubscriber(subName, authoritative);
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
+        if (!(getTopicReference(partitionedTopicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), partitionedTopicName,
                     subName);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Skip messages on a non-persistent topic is not allowed");
         }
 
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        PersistentTopic topic = (PersistentTopic) getTopicReference(partitionedTopicName);
         PersistentReplicator repl = null;
         PersistentSubscription sub = null;
         Entry entry = null;
@@ -2131,13 +2134,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private void verifyReadOperation(boolean authoritative) {
+    private void verifyReadOperation() {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
-        }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
     }
 

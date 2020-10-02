@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -32,8 +31,10 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -66,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -540,5 +540,28 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(admin.topics().getLastMessageId(topicName) instanceof MessageIdImpl);
 
+    }
+
+    @Test
+    public void testPeekMessagesOnPartitionedTopic() throws Exception {
+        final String topicName = "testTopic";
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                testTenant,
+                testNamespace,
+                topicName).toString();
+
+        admin.topics().createPartitionedTopic(topic, 3);
+        admin.topics().createSubscription(topic, "sub1", MessageId.latest);
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < 100; ++i) {
+            producer.send("test" + i);
+        }
+
+        List<Message<byte[]>> messages = admin.topics()
+                .peekMessages(topic, "sub1", 5);
+
+        Assert.assertEquals(messages.size(), 5);
     }
 }
