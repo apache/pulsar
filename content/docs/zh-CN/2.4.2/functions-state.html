@@ -30,18 +30,18 @@
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
 </code></pre>
-<p>The application can use <code>incrCounter</code> to change the counter of a given <code>key</code> by the given <code>amount</code>.</p>
+<p><code>incrCounter</code>为应用提供了根据指定 <code>key</code>增加指定 <code>值</code> 的计数器功能。</p>
 <h4><a class="anchor" aria-hidden="true" id="incrcounterasync"></a><a href="#incrcounterasync" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounterAsync</h4>
 <pre><code class="hljs css language-java">     <span class="hljs-comment">/**
-     * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
+     * 内置的根据key 增加对应值的分布式计数器
+     * 不必等待增加操作完成即可返回
      *
      * <span class="hljs-doctag">@param</span> key The name of the key
      * <span class="hljs-doctag">@param</span> amount The amount to be incremented
      */</span>
     <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">incrCounterAsync</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
 </code></pre>
-<p>The application can use <code>incrCounterAsync</code> to asynchronously change the counter of a given <code>key</code> by the given <code>amount</code>.</p>
+<p><code>incrCounterAsync</code>为应用提供了异步的根据指定 <code>key</code> 增加指定 <code>值</code> 的计数器功能。</p>
 <h4><a class="anchor" aria-hidden="true" id="getcounter"></a><a href="#getcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getCounter</h4>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Retrieve the counter value for the key.
@@ -51,19 +51,19 @@
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
 </code></pre>
-<p>The application can use <code>getCounter</code> to retrieve the counter of a given <code>key</code> mutated by <code>incrCounter</code>.</p>
+<p>应用可以使用<code>getCounter</code>，根据<code>key</code>获取到<code>incrCounter</code>方法累加后的计数器的值。</p>
 <p>Besides the <code>counter</code> API, Pulsar also exposes a general key/value API for functions to store general key/value state.</p>
 <h4><a class="anchor" aria-hidden="true" id="getcounterasync"></a><a href="#getcounterasync" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getCounterAsync</h4>
 <pre><code class="hljs css language-java">     <span class="hljs-comment">/**
-     * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
+     * 根据 key 获取计数器的值, 但不必等待
+     * 操作完成即可返回
      *
      * <span class="hljs-doctag">@param</span> key name of the key
      * <span class="hljs-doctag">@return</span> the amount of the counter value for this key
      */</span>
     <span class="hljs-function">CompletableFuture&lt;Long&gt; <span class="hljs-title">getCounterAsync</span><span class="hljs-params">(String key)</span></span>;
 </code></pre>
-<p>The application can use <code>getCounterAsync</code> to asynchronously retrieve the counter of a given <code>key</code> mutated by <code>incrCounterAsync</code>.</p>
+<p>应用可以使用<code>getCounter</code>，根据 <code>key</code> 异步的获取到<code>incrCounter</code> 方法累加后的计数器的值。</p>
 <h4><a class="anchor" aria-hidden="true" id="putstate"></a><a href="#putstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>putState</h4>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Update the state value for the key.
@@ -75,14 +75,14 @@
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="putstateasync"></a><a href="#putstateasync" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>putStateAsync</h4>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
-     * Update the state value for the key, but don't wait for the operation to be completed
+     * 根据 Key 更新状态的值，但不需要等待操作完成即可返回
      *
      * <span class="hljs-doctag">@param</span> key name of the key
      * <span class="hljs-doctag">@param</span> value state value of the key
      */</span>
     <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">putStateAsync</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
 </code></pre>
-<p>The application can use <code>putStateAsync</code> to asynchronously update the state of a given <code>key</code>.</p>
+<p>应用能够使用<code>putStateAsync</code>方法异步的根据<code>key</code>去更新其状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="getstate"></a><a href="#getstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getState</h4>
 <pre><code class="hljs">    /**
      * Retrieve the <span class="hljs-keyword">state</span> value <span class="hljs-keyword">for</span> the key.
@@ -94,14 +94,14 @@
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="getstateasync"></a><a href="#getstateasync" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getStateAsync</h4>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     * 获取到 key 的状态值, 但是不必等到操作完成即可返回。
      *
-     * <span class="hljs-doctag">@param</span> key name of the key
-     * <span class="hljs-doctag">@return</span> the state value for the key.
+     * <span class="hljs-doctag">@param</span> key的名称
+     * <span class="hljs-doctag">@return</span>  key的状态值
      */</span>
     <span class="hljs-function">CompletableFuture&lt;ByteBuffer&gt; <span class="hljs-title">getStateAsync</span><span class="hljs-params">(String key)</span></span>;
 </code></pre>
-<p>The application can use <code>getStateAsync</code> to asynchronously retrieve the state of a given <code>key</code>.</p>
+<p>应用能够使用<code>getStateAsync</code>异步的根据<code>key</code>获取到其状态值。</p>
 <h3><a class="anchor" aria-hidden="true" id="python-api"></a><a href="#python-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python API</h3>
 <p>State currently is not supported at <a href="/docs/zh-CN/2.4.2/functions-api#python-sdk-functions">Python SDK</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="query-state"></a><a href="#query-state" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Query State</h2>

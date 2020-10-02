@@ -41,7 +41,7 @@
   <span class="hljs-attr">threadGroupName:</span> <span class="hljs-string">"Your Function Container Group"</span>
 </code></pre>
 <p><em>Thread</em> runtime is only supported in Java function.</p>
-<h2><a class="anchor" aria-hidden="true" id="配置进程模式运行"></a><a href="#配置进程模式运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置进程模式运行</h2>
+<h2><a class="anchor" aria-hidden="true" id="配置进程模式运行1"></a><a href="#配置进程模式运行1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置进程模式运行1</h2>
 <p>When you enable <em>Process</em> runtime, you do not need to configure anything.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">processContainerFactory:</span>
   <span class="hljs-comment"># 这个目录用来保存函数的日志</span>
@@ -55,9 +55,9 @@
 </code></pre>
 <p><em>Process</em> runtime is supported in Java, Python, and Go functions.</p>
 <h2><a class="anchor" aria-hidden="true" id="配置-kubernetes-运行"></a><a href="#配置-kubernetes-运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Kubernetes 运行</h2>
-<p>当函数 worker 生成 Kubernetes manifests 并应用这份 manifests 时，Kubernetes 就会开始工作。 如果你将函数运行在 Kubernetes 里面，你能够使用<code>serviceAccount</code> 去关联正在运行该函数的 Pod。 否则，可以将其配置为与 Kubernetes 集群进行通信。</p>
+<p>当函数 worker 生成 Kubernetes manifests 并应用这份 manifests 时，Kubernetes 就会开始工作。 如果你将函数运行在 Kubernetes 里面，你能够使用<code>serviceAccount</code> 去关联正在运行该函数的 Pod。 然后，可以将其配置为与 Kubernetes 集群进行通信。</p>
 <p>Mainifests 由函数 worker 生成，包含一个<code>StatefulSet</code>，一个<code>Service</code>（用于 pods 之间通信），和一个<code>Secret</code>（在需要的情况下，用于身份认证)。 默认情况下，<code>StatefulSet</code>只有一个 Pod，函数的 “并行度” 决定它的数量。 Pode 启动时， Pod 会下载函数的运行内容 （通过函数 worker 的REST API 下载）。 Pod 的容器镜像是可以配置的，但是必须先有函数运行时。</p>
-<p>Kubernetes 运行时是支持 secrets 的，所以你能够创建一个 Kubernetes secret，并将其作为环境变量在 Pod 内可见。 Kubernetes 运行时是可扩展的，你可以实现类并定制：如何生成 Kubernetes manifests、如果 传递认证数据给pod，如何整合 secrets等。</p>
+<p>Kubernetes 运行时是支持 secrets 的，所以你能够创建一个 Kubernetes secret，并将其作为环境变量在 Pod 内可见。 Kubernetes 运行时是可扩展的，你可以实现类并定制，比如：如何生成 Kubernetes manifests、如果 传递认证数据给pod，如何整合 secrets等。</p>
 <h3><a class="anchor" aria-hidden="true" id="基础配置"></a><a href="#基础配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基础配置</h3>
 <p>It is easy to configure Kubernetes runtime. You can just uncomment the settings of <code>kubernetesContainerFactory</code> in the <code>functions_worker.yaml</code> file. The following is an example.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">kubernetesContainerFactory:</span>
@@ -162,7 +162,7 @@ io.kubernetes.client.ApiException: Forbidden
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="集成-kubernetes-secrets"></a><a href="#集成-kubernetes-secrets" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集成 Kubernetes secrets</h3>
 <p>为了确保信息安全 ，Pulsar 函数可以引用Kubernetes secrets。 如果要启用此功能，请将参数<code>secretsProviderConfiguratorClassName</code>设置为<code>org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator</code>。</p>
-<p>你可以在部署函数的命名空间中创建一个 secret。 例如，你的函数部署在 Kubernetes 的命名空间 <code>pulsar-func</code>中，你有一个名为<code>database-creds</code>的secret，它有一个字段<code>password</code>，你希望将其作为一个环境变量传递到 中，并且想用名称<code>DATABASE_PASSWORD</code>获取到它。 那么下面的函数配置允许你将这个 secret 以环境变量的形式传递到 pod 里面。</p>
+<p>你可以在部署函数的 kubernetes 命名空间中创建一个 secret。 例如，你的函数部署在 Kubernetes 的命名空间 <code>pulsar-func</code>中，你有一个名为<code>database-creds</code>的secret，它有一个字段<code>password</code>，你希望将其作为一个环境变量传递到 pod 中，并且想用名称<code>DATABASE_PASSWORD</code>获取到它。 那么下面的函数配置允许你将这个 secret 以环境变量的形式传递到 pod 里面。</p>
 <pre><code class="hljs css language-Yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"mytenant"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"mynamespace"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"myfunction"</span>
@@ -182,8 +182,8 @@ io.kubernetes.client.ApiException: Forbidden
 <p>Pulsar 自带了令牌身份认证的实现，并通过相同的方式实现了分发证书授权。 配置如下：</p>
 <pre><code class="hljs css language-Yaml"><span class="hljs-attr">functionAuthProviderClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider</span>
 </code></pre>
-<p>Token 身份认证，函数 worker 会获取到 token，将其用于部署或者更新函数。 Token 通过 secret 的方式挂载到 pod 里面。</p>
-<p>普通的认证或者TLS， 你必须去实现上面的接口或者使用替代机制实现身份认证。 如果你在集群中使用 Token 身份认证和 TLS 加密实现安全通信，Pulsar 会将证书授权(CA)传递给客户端，所以客户端就可以获取到集群认证所需的内容，同时信任集群所签发的证书。</p>
+<p>使用 Token 身份认证时，函数 worker 会获取到 token，并将其用于部署或者更新函数。 Token 通过 secret 的方式挂载到 pod 里面。</p>
+<p>自定义的认证方式或者TLS， 你必须去实现上面的接口或者使用替代机制实现身份认证。 如果你在集群中使用 Token 身份认证和 TLS 加密实现安全通信，Pulsar 会将证书授权(CA)传递给客户端，所以客户端就可以获取到集群认证所需的内容，同时信任集群所签发的证书。</p>
 <blockquote>
 <p><strong>注意</strong>  <br>
 如果你使用过期的 token 部署函数，那么这些令牌将不可用。</p>
@@ -211,7 +211,7 @@ io.kubernetes.client.ApiException: Forbidden
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="定制-kubernetes-运行时"></a><a href="#定制-kubernetes-运行时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>定制 Kubernetes 运行时</h3>
 <p>Kubernetes 集成允许你实现类并自定义如何生成manifests. 你可以为配置文件<code>functions-worker.yml</code>的配置项<code>runtimeCustomizerClassName</code>指定一个全路径的类名。 这个类必须实现<code>org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer</code>接口。</p>
-<p>函数(数据来源/ 数据去向) API提供了一个标记，<code>customRuntimeOptions</code>，传递到这个接口。</p>
+<p>函数(数据来源/ 数据去向) API 会提供了一个标记，<code>customRuntimeOptions</code>，传递到这个接口。</p>
 <p>Pulsar 自带了一些实现。 若要使用基本的功能，可以将<code>runtimeCustomizerClassName</code>设置为<code>org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer</code>。 内置实现允许你通过通过 JSON 格式传递一些属性，以增强 manifests 的生成方式。 The following is an example.</p>
 <pre><code class="hljs css language-Json">{
   <span class="hljs-attr">"jobNamespace"</span>: <span class="hljs-string">"namespace"</span>, <span class="hljs-comment">// the k8s namespace to run this function in</span>
@@ -244,7 +244,7 @@ io.kubernetes.client.ApiException: Forbidden
 }
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="使用跨域复制运行集群"></a><a href="#使用跨域复制运行集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用跨域复制运行集群</h2>
-<p>如果你想使用跨域复制运行多个集群，每个集群必须使用不同的函数命名空间。 否则，函数会共享同一个命名空间，并可能跨集群调度。</p>
+<p>如果你想使用跨域复制运行多个集群，每个集群必须使用不同的函数命名空间。 否则，函数会共享同一个命名空间，可能跨集群调度。</p>
 <p>例如，假设你有两个集群：<code>east-1</code> 和<code>west-1</code>, 你可能对这两个函数做如下的运行配置：</p>
 <pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">east-1</span>
 <span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-east-1</span>
@@ -252,7 +252,7 @@ io.kubernetes.client.ApiException: Forbidden
 <pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">west-1</span>
 <span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-west-1</span>
 </code></pre>
-<p>这确保了两个不同的函数 Worker 使用两个不同的主题进行内部协调。</p>
+<p>这确保了两个不同的函数 Worker 使用两个不同的主题进行内部调度。</p>
 <h2><a class="anchor" aria-hidden="true" id="配置函数worker-独立运行"></a><a href="#配置函数worker-独立运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置函数worker 独立运行</h2>
 <p>当需要配置独立运行函数 worker 时，你必须在 broker 里面配置如下参数，尤其是你需要使用 TLS 时。 然后函数 Worker 才可以和 broker 进行通信。</p>
 <p>你必须需配置一下必选参数。</p>
@@ -266,7 +266,7 @@ io.kubernetes.client.ApiException: Forbidden
 <span class="hljs-attr">useTls:</span> <span class="hljs-literal">true</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
 
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置线程模式运行">配置线程模式运行</a></li><li><a href="#配置进程模式运行">配置进程模式运行</a></li><li><a href="#配置-kubernetes-运行">配置 Kubernetes 运行</a><ul class="toc-headings"><li><a href="#基础配置">基础配置</a></li><li><a href="#kubernetes-运行独立的函数-worker">Kubernetes 运行独立的函数 worker</a></li><li><a href="#kubernetes-集群中运行-rbac">Kubernetes 集群中运行 RBAC</a></li><li><a href="#集成-kubernetes-secrets">集成 Kubernetes secrets</a></li><li><a href="#启用-token-认证">启用 Token 认证</a></li><li><a href="#启用身份认证">启用身份认证</a></li><li><a href="#定制-kubernetes-运行时">定制 Kubernetes 运行时</a></li></ul></li><li><a href="#使用跨域复制运行集群">使用跨域复制运行集群</a></li><li><a href="#配置函数worker-独立运行">配置函数worker 独立运行</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置线程模式运行">配置线程模式运行</a></li><li><a href="#配置进程模式运行1">配置进程模式运行1</a></li><li><a href="#配置-kubernetes-运行">配置 Kubernetes 运行</a><ul class="toc-headings"><li><a href="#基础配置">基础配置</a></li><li><a href="#kubernetes-运行独立的函数-worker">Kubernetes 运行独立的函数 worker</a></li><li><a href="#kubernetes-集群中运行-rbac">Kubernetes 集群中运行 RBAC</a></li><li><a href="#集成-kubernetes-secrets">集成 Kubernetes secrets</a></li><li><a href="#启用-token-认证">启用 Token 认证</a></li><li><a href="#启用身份认证">启用身份认证</a></li><li><a href="#定制-kubernetes-运行时">定制 Kubernetes 运行时</a></li></ul></li><li><a href="#使用跨域复制运行集群">使用跨域复制运行集群</a></li><li><a href="#配置函数worker-独立运行">配置函数worker 独立运行</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

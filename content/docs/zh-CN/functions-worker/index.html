@@ -90,13 +90,13 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <p>To enable functions-worker running as part of a broker, you need to set <code>functionsWorkerEnabled</code> to <code>true</code> in the <code>broker.conf</code> file.</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre>
-<p>如果<code>functionsWorkerEnabled</code>设置为<code>true</code>，broker 上的 function worker 进程就会启动运行。 You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
+<p>如果<code>functionsWorkerEnabled</code>设置为<code>true</code>，Functions-worker 会作为 broker 的一部分运行。 You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
 <p>在与 broker 一起运行 Functions-worker 时，需要先配置 Functions-worker，再与 broker 一起启动。</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-functions-worker-以与-brokers-一起运行"></a><a href="#配置-functions-worker-以与-brokers-一起运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Functions-Worker 以与 brokers 一起运行</h3>
 <p>在这个模式下，从 <code>functions-worker</code> 在broker上运行开始，大多数配置已经从 broker 的配置上继承过来了(如配置存储设置，权限配置等等)。</p>
 <p>Pay attention to the following required settings when configuring functions-worker in this mode.</p>
 <ul>
-<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 对于生产部署，为确保其高可用性，需设置为大于 <code>2</code> 。</li>
+<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 对于生产环境部署，为确保其高可用性，需设置为大于 <code>2</code> 。</li>
 <li><code>pulsarFunctionsCluster</code>：设置 Pulsar 集群名称 (与 <code>clusterName</code> 在 broker 配置中的设置相同)。</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
@@ -162,7 +162,7 @@ tlsEnabled:</span> <span class="hljs-literal">true</span>
 <span class="hljs-string">tlsKeyFilePath:</span>         <span class="hljs-regexp">/path/</span>to/functions-worker.key-pk8.pem
 <span class="hljs-string">tlsTrustCertsFilePath:</span>  <span class="hljs-regexp">/path/</span>to/ca.cert.pem
 
-<span class="hljs-comment">//  Pulsar 客户端用于和 Pulsar broker 通信所需的证书的存放路径。</span>
+<span class="hljs-comment">//  Pulsar 客户端用于和 Pulsar broker 可靠通信所需的证书的存放路径。</span>
 <span class="hljs-string">brokerClientTrustCertsFilePath:</span> <span class="hljs-regexp">/path/</span>to/ca.cert.pem
 </code></pre>
 <p>For details on TLS encryption, refer to <a href="/docs/zh-CN/security-tls-transport">Transport Encryption using TLS</a>.</p>
@@ -194,7 +194,7 @@ authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.au
   # <span class="hljs-attribute">tokenPublicKey</span>:     <span class="hljs-attribute">file</span>:<span class="hljs-comment">///path/to/public.key </span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="启用授权提供程序"></a><a href="#启用授权提供程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用授权提供程序</h5>
-<p>如果需要开启函数 Worker 授权机制，你必须配置<code>authorizationEnabled</code>，<code>authorizationProvider</code>和<code>configurationStoreServers</code>。 The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
+<p>如果需要启用函数 Worker 授权机制，你必须配置<code>authorizationEnabled</code>，<code>authorizationProvider</code>和<code>configurationStoreServers</code>。 The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
 <span class="hljs-attr">authorizationProvider:</span> <span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
 <span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">&lt;configuration-store-servers&gt;</span>

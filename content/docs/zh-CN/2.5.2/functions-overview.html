@@ -151,7 +151,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="基于内容的路由示例"></a><a href="#基于内容的路由示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基于内容的路由示例</h3>
 <p>Pulsar Functions are used in many cases. The following is a sophisticated example that involves content-based routing.</p>
-<p>For example, a function takes items (strings) as input and publishes them to either a <code>fruits</code> or <code>vegetables</code> topic, depending on the item. 或者说，如果这个元素既不属于 fruit 主题或者vegetable主题，那么就往<a href="/docs/zh-CN/2.5.2/functions-develop#logger">日志主题</a>记录一个警告的信息。 The following is a visual representation.</p>
+<p>For example, a function takes items (strings) as input and publishes them to either a <code>fruits</code> or <code>vegetables</code> topic, depending on the item. 或者说，如果这个元素既不属于 fruit 或者 vegetable，那么就往<a href="/docs/zh-CN/2.5.2/functions-develop#logger">日志主题</a>记录一个警告的信息。 The following is a visual representation.</p>
 <p><img src="/docs/assets/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example"></p>
 <p>If you implement this routing functionality in Python, it looks something like this:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
@@ -211,7 +211,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="apply-processing-guarantees-to-a-function"></a><a href="#apply-processing-guarantees-to-a-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apply processing guarantees to a function</h3>
-<p>创建 Function 时，您可以为 Pulsar Function 设置 processing guarantees 。 使用如下 <a href="/docs/zh-CN/2.5.2/pulsar-admin#create-1"><code>pulsar-function create</code></a> 命令创建一个具有 effectively-once 语义的函数，保证消息至少被处理一次。</p>
+<p>创建 Function 时，您可以为 Pulsar Function 设置 processing guarantees 。 使用如下 <a href="/docs/zh-CN/2.5.2/pulsar-admin#create-1"><code>pulsar-function create</code></a> 命令创建一个具有 effectively-once(严格一次) 语义的函数，保证消息只能被处理一次。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
