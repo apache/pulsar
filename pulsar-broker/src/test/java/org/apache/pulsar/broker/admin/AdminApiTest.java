@@ -769,7 +769,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
         assertEquals(topicStats.publishers.size(), 0);
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, subName, 3);
@@ -1036,10 +1036,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Thread.sleep(1000);
 
-        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0);
+        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0, false);
         assertEquals(internalStats0.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
 
-        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1);
+        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1, false);
         assertEquals(internalStats1.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
 
         // expected internal stats

@@ -238,7 +238,7 @@ public class PulsarKafkaSimpleConsumer extends SimpleConsumer {
         for (TopicAndPartition topicMetadata : request.requestInfo) {
             final String topicName = getTopicName(topicMetadata);
             try {
-                PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+                PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName, false);
                 CursorStats cursor = stats.cursors != null ? stats.cursors.get(groupId) : null;
                 if (cursor != null) {
                     String readPosition = cursor.readPosition;
