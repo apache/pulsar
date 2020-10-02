@@ -185,7 +185,7 @@ configs:
 </span></div></div><div id="tab-group-4000-content-4003" class="tab-pane" data-group="group_4000" tabindex="-1"><div><span><ul>
 <li><p>Create a source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                  String fileName)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -208,7 +208,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数 | 描述 |---|---- <code>sourceConfig</code> | 源配置对象 <code>pkgUrl</code> | 可以从其中下载pkg 的 URL</p>
 <p><strong>异常</strong></p>
 <table>
@@ -232,7 +232,7 @@ configs:
 </span></div></div><div id="tab-group-4004-content-4007" class="tab-pane" data-group="group_4004" tabindex="-1"><div><span><ul>
 <li><p>Create a sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -253,7 +253,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数 | 描述 |---|---- <code>sourceConfig</code> | 源配置对象 <code>pkgUrl</code> | 可以从其中下载pkg 的 URL</p>
 <p><strong>异常</strong></p>
 <table>
@@ -402,14 +402,14 @@ configs:
 </span></div></div><div id="tab-group-4034-content-4037" class="tab-pane" data-group="group_4034" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SourceStatus <span class="hljs-title">getSourceStatus</span><span class="hljs-params">(String tenant,<br />                            String namespace,<br />                            String source)</span><br />                    <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数|描述 |---|---- <code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>sink</code> | 源名称</p>
 <p><strong>异常</strong></p>
 <p>名称 | 描述 |---|---- <code>PulsarAdminException</code> | 意外错误</p>
 <p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSourceStatus</code></a>.</p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java">SourceStatus.SourceInstanceStatus.<span class="hljs-function">SourceInstanceStatusData <span class="hljs-title">getSourceStatus</span><span class="hljs-params">(String tenant,<br />                                                                           String namespace,<br />                                                                           String source,<br />                                                                           <span class="hljs-keyword">int</span> id)</span><br />                                                                    <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Source instanceID</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
@@ -432,14 +432,14 @@ configs:
 </span></div></div><div id="tab-group-4038-content-4041" class="tab-pane" data-group="group_4038" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SinkStatus <span class="hljs-title">getSinkStatus</span><span class="hljs-params">(String tenant,<br />                         String namespace,<br />                         String sink)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数|描述 |---|---- <code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>sink</code> | 源名称</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
 <p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-"><code>getSinkStatus</code></a>.</p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java">SinkStatus.SinkInstanceStatus.<span class="hljs-function">SinkInstanceStatusData <span class="hljs-title">getSinkStatus</span><span class="hljs-params">(String tenant,<br />                                                                   String namespace,<br />                                                                   String sink,<br />                                                                   <span class="hljs-keyword">int</span> id)</span><br />                                                            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Sink instanceID</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
@@ -459,7 +459,7 @@ configs:
 </span></div></div><div id="tab-group-4042-content-4045" class="tab-pane" data-group="group_4042" tabindex="-1"><div><span><ul>
 <li><p>Update a running source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                String fileName)</span><br />        <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -488,7 +488,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -523,7 +523,7 @@ configs:
 </span></div></div><div id="tab-group-4046-content-4049" class="tab-pane" data-group="group_4046" tabindex="-1"><div><span><ul>
 <li><p>Update a running sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />     <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -552,7 +552,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -596,7 +596,7 @@ configs:
 </span></div></div><div id="tab-group-4050-content-4053" class="tab-pane" data-group="group_4050" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />        <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -611,7 +611,7 @@ configs:
 <ul>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source,<br />                <span class="hljs-keyword">int</span> instanceId)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -640,7 +640,7 @@ configs:
 </span></div></div><div id="tab-group-4054-content-4057" class="tab-pane" data-group="group_4054" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,<br />            String namespace,<br />            String sink)</span><br />    <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -655,7 +655,7 @@ configs:
 <ul>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,<br />              String namespace,<br />              String sink,<br />              <span class="hljs-keyword">int</span> instanceId)</span><br />       <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -687,7 +687,7 @@ configs:
 </span></div></div><div id="tab-group-4058-content-4061" class="tab-pane" data-group="group_4058" tabindex="-1"><div><span><ul>
 <li><p>Restart <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String source)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -702,7 +702,7 @@ configs:
 <ul>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String source,<br />                   <span class="hljs-keyword">int</span> instanceId)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -731,7 +731,7 @@ configs:
 </span></div></div><div id="tab-group-4062-content-4065" class="tab-pane" data-group="group_4062" tabindex="-1"><div><span><ul>
 <li><p>重启所有 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,<br />                 String namespace,<br />                 String sink)</span><br />          <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -746,7 +746,7 @@ configs:
 <ul>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,<br />                 String namespace,<br />                 String sink,<br />                 <span class="hljs-keyword">int</span> instanceId)</span><br />          <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -772,7 +772,7 @@ configs:
 </p>
 </span></div></div><div id="tab-group-4066-content-4069" class="tab-pane" data-group="group_4066" tabindex="-1"><div><span><p>删除源连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,<br />                  String namespace,<br />                  String source)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -806,7 +806,7 @@ configs:
 </p>
 </span></div></div><div id="tab-group-4070-content-4073" class="tab-pane" data-group="group_4070" tabindex="-1"><div><span><p>删除 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>

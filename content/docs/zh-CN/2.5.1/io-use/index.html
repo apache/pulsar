@@ -185,7 +185,7 @@ configs:
 </span></div></div><div id="tab-group-4218-content-4221" class="tab-pane" data-group="group_4218" tabindex="-1"><div><span><ul>
 <li><p>Create a source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                  String fileName)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -208,7 +208,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数 | 描述 |---|---- <code>sourceConfig</code> | 源配置对象 <code>pkgUrl</code> | 可以从其中下载pkg 的 URL</p>
 <p><strong>异常</strong></p>
 <table>
@@ -232,7 +232,7 @@ configs:
 </span></div></div><div id="tab-group-4222-content-4225" class="tab-pane" data-group="group_4222" tabindex="-1"><div><span><ul>
 <li><p>Create a sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -253,7 +253,7 @@ configs:
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数 | 描述 |---|---- <code>sourceConfig</code> | 源配置对象 <code>pkgUrl</code> | 可以从其中下载pkg 的 URL</p>
 <p><strong>异常</strong></p>
 <table>
@@ -492,7 +492,7 @@ configs:
                             String source)</span>
                     <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数|描述 |---|---- <code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>sink</code> | 源名称</p>
 <p><strong>异常</strong></p>
 <p>名称 | 描述 |---|---- <code>PulsarAdminException</code> | 意外错误</p>
@@ -504,7 +504,7 @@ configs:
                                                                            <span class="hljs-keyword">int</span> id)</span>
                                                                     <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Source instanceID</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
@@ -525,7 +525,7 @@ configs:
                          String sink)</span>
                   <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>参数|描述 |---|---- <code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>sink</code> | 源名称</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
@@ -537,7 +537,7 @@ configs:
                                                                    <span class="hljs-keyword">int</span> id)</span>
                                                             <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Sink instanceID</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述| --- | ---<code>PulsarAdminException</code> |意外的错误</p>
@@ -557,7 +557,7 @@ void updateSource(SourceConfig sourceConfig,
         throws PulsarAdminException
 ```
 
-**Parameter**
+**参数名**
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -585,7 +585,7 @@ void updateSource(SourceConfig sourceConfig,
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -620,7 +620,7 @@ void updateSink(SinkConfig sinkConfig,
      throws PulsarAdminException
 ```
 
-**Parameter**
+**参数名**
 
 | Name         | Description |
 | ------------ | ----------- |
@@ -648,7 +648,7 @@ void updateSink(SinkConfig sinkConfig,
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
 </ul>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -690,7 +690,7 @@ void updateSink(SinkConfig sinkConfig,
                 String source)</span>
         <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -719,7 +719,7 @@ void updateSink(SinkConfig sinkConfig,
                 <span class="hljs-keyword">int</span> instanceId)</span>
          <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -755,7 +755,7 @@ void updateSink(SinkConfig sinkConfig,
             String sink)</span>
     <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -784,7 +784,7 @@ void updateSink(SinkConfig sinkConfig,
               <span class="hljs-keyword">int</span> instanceId)</span>
        <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -823,7 +823,7 @@ void updateSink(SinkConfig sinkConfig,
                    String source)</span>
             <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -852,7 +852,7 @@ void updateSink(SinkConfig sinkConfig,
                    <span class="hljs-keyword">int</span> instanceId)</span>
             <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -888,7 +888,7 @@ void updateSink(SinkConfig sinkConfig,
                  String sink)</span>
           <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -917,7 +917,7 @@ void updateSink(SinkConfig sinkConfig,
                  <span class="hljs-keyword">int</span> instanceId)</span>
           <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -952,7 +952,7 @@ void updateSink(SinkConfig sinkConfig,
                   String source)</span>
            <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>
@@ -986,7 +986,7 @@ void updateSink(SinkConfig sinkConfig,
                 String source)</span>
          <span class="hljs-keyword">throws</span> PulsarAdminException
 </span></code></pre>
-<p><strong>Parameter</strong></p>
+<p><strong>参数名</strong></p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th></tr>

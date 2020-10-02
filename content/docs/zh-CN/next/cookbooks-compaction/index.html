@@ -22,7 +22,7 @@
 <p>如要使用压缩：</p>
 <ul>
 <li>你需要给定消息的 key ，因为 Pulsar 的主题压缩是 <em>基于 key 的</em> （也就是说，消息是根据它们的 key 进行压缩的）。 对于股票报价器这个使用场景，股票代码 <code>AAPL</code> 或 <code>GOOG</code>---都可以用作这里需要的 key （详情请看 <a href="#when-should-i-use-compacted-topics">下面</a>）。 没有 key 的消息会被压缩过程单独留出。</li>
-<li>Compaction can be configured to run <a href="#configuring-compaction-to-run-automatically">automatically</a>, or you can manually <a href="#triggering-compaction-manually">trigger</a> compaction using the Pulsar administrative API.</li>
+<li>压缩可以配置为<a href="#configuring-compaction-to-run-automatically">自动运行</a>，也可以通过 Pulsar Admin API 去<a href="#triggering-compaction-manually">触发</a>压缩。</li>
 <li>你的消费者必须 <a href="#consumer-configuration">被配置为</a> 从压缩主题中进行读取 （比如，对于 <a href="#java">Java 消费者</a> 来说， <code>readCompacted</code> 设置项必须设置为 <code>true</code> ）。 如果没这么配置，消费者将仍能从非压缩主题中进行读取。</li>
 </ul>
 <blockquote>

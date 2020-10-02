@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar 函数包 · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 Packaging the window function in Java is the same as [packaging a function in Java](#java)."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar 函数包 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 Packaging the window function in Java is the same as [packaging a function in Java](#java)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar 函数打包 · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 在 Java 中打包窗口函数和 [Java 函数打包](#java)一样。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar 函数打包 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 在 Java 中打包窗口函数和 [Java 函数打包](#java)一样。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,18 +18,18 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar 函数包</h1></header><article><div><span><p>你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 Packaging the window function in Java is the same as <a href="#java">packaging a function in Java</a>.</p>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar 函数打包</h1></header><article><div><span><p>你可以在 Java ，Python 和 Go 中打包 Pulsar 函数。 在 Java 中打包窗口函数和 <a href="#java">Java 函数打包</a>一样。</p>
 <blockquote>
-<p><strong>Note</strong>    <br>
-Currently, the window function is not available in Python and Go.</p>
+<p><strong>注意</strong>    <br>
+当前，Python 和 Go 不允许使用窗口函数。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="前提条件"></a><a href="#前提条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>前提条件</h2>
-<p>Before running a Pulsar function, you need to start Pulsar. You can <a href="/docs/zh-CN/next/standalone-docker">run a standalone Pulsar in Docker</a>, or <a href="/docs/zh-CN/next/kubernetes-helm">run Pulsar in Kubernetes</a>.</p>
-<p>To check whether the Docker image starts, you can use the <code>docker ps</code> command.</p>
+<p>在运行 Pulsar 函数之前，你必须先启动 Pulsar。 你可以<a href="/docs/zh-CN/next/standalone-docker">在 Docker 内独立运行 Pulsar </a>或者<a href="/docs/zh-CN/next/kubernetes-helm">在 Kubernetes 内运行 Pulsar </a>。</p>
+<p>验证 Docker 镜像是否启动，你可以使用命令<code>docker ps</code>。</p>
 <h2><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h2>
-<p>To package a function in Java, complete the following steps.</p>
+<p>在Java 内打包一个函数，需要完成如下步骤。</p>
 <ol>
-<li><p>Create a new maven project with a pom file. In the following code sample, the value of <code>mainClass</code> is your package name.</p>
+<li><p>使用 pom 文件创建一个新的  maven 项目。 如下代码示例，假设你的包名称是<code>mainClass</code>。</p>
 <pre><code class="hljs css language-Java">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;project xmlns="http://maven.apache.org/POM/4.0.0"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -86,7 +86,7 @@ Currently, the window function is not available in Python and Go.</p>
 
 &lt;/project&gt;
 </code></pre></li>
-<li><p>Write a Java function.</p>
+<li><p>编写 Java 函数</p>
 <pre><code class="hljs">package org.example.test;
 
 <span class="hljs-keyword">import</span> java.util<span class="hljs-function">.<span class="hljs-keyword">function</span>.<span class="hljs-title">Function</span></span>;
@@ -98,13 +98,13 @@ Currently, the window function is not available in Python and Go.</p>
     }
 }
 </code></pre>
-<p>For the imported package, you can use one of the following interfaces:</p>
+<p>对于包的应用，你可以使用以下接口之一：</p>
 <ul>
-<li>Function interface provided by Java 8: <code>java.util.function.Function</code></li>
-<li>Pulsar Function interface: <code>org.apache.pulsar.functions.api.Function</code></li>
+<li>Java 8 提供的 Function 接口： <code>java.util.function.Function</code></li>
+<li>Pulsar Function 提供的接口：<code>org.apache.pulsar.functions.api.Function</code></li>
 </ul>
-<p>The main difference between the two interfaces is that the <code>org.apache.pulsar.functions.api.Function</code> interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.</p>
-<p>The following example uses <code>org.apache.pulsar.functions.api.Function</code> interface with context.</p>
+<p>两个接口主要的不同是，接口<code>org.apache.pulsar.functions.api.Function</code>接口提供了 Context 接口。 当你编写一个函数，并想和它交互时，你能够通过 Context 获的关于 Pulsar Function 的各种各样的信息和功能。</p>
+<p>下面的例子使用了接口<code>org.apache.pulsar.functions.api.Function</code>提供的 Context 对象。</p>
 <pre><code class="hljs">package org.example.<span class="hljs-keyword">functions</span>;
 <span class="hljs-keyword">import</span> org.apache.pulsar.<span class="hljs-keyword">functions</span>.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.<span class="hljs-keyword">functions</span>.api.<span class="hljs-keyword">Function</span>;
@@ -122,18 +122,18 @@ Currently, the window function is not available in Python and Go.</p>
    }
  }
 </code></pre></li>
-<li><p>Package the Java function.</p>
+<li><p>Java 函数打包</p>
 <pre><code class="hljs css language-bash">mvn package
 </code></pre>
-<p>After the Java function is packaged, a <code>target</code> directory is created automatically. Open the <code>target</code> directory to check if there is a JAR package similar to <code>java-function-1.0-SNAPSHOT.jar</code>.</p></li>
+<p>Java 函数打包完成后，会自动创建<code>target</code>目录。 打开<code>target</code>目录可以看到一个叫做<code>java-function-1.0-SNAPSHOT.jar</code>的 JAR 文件。</p></li>
 </ol>
 <ol start="4">
-<li><p>Run the Java function.</p>
-<p>(1) Copy the packaged jar file to the Pulsar image.</p>
+<li><p>运行 Java 函数。</p>
+<p>(1) 把 jar 包拷贝到 Pulsar 镜像里面</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
 docker cp &lt;path of java-function-1.0-SNAPSHOT.jar&gt;  CONTAINER ID:/pulsar
 </code></pre>
-<p>(2) Run the Java function using the following command.</p>
+<p>(2) 使用如下命令运行 Java 函数。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
 --classname org.example.test.ExclamationFunction \
 --jar java-function-1.0-SNAPSHOT.jar \
@@ -143,23 +143,23 @@ docker cp &lt;path of java-function-1.0-SNAPSHOT.jar&gt;  CONTAINER ID:/pulsar
 --namespace default \
 --name JavaFunction
 </code></pre>
-<p>The following log indicates that the Java function starts successfully.</p>
+<p>显示如下日志，表明 Java 函数运行成功。</p>
 <pre><code class="hljs css language-text">...
 07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
 ...
 </code></pre></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h2>
-<p>Python Function supports the following three formats:</p>
+<p>Python 函数支持以下三种格式：</p>
 <ul>
-<li>One python file</li>
-<li>ZIP file</li>
+<li>单个 Python 文件</li>
+<li>ZIP 压缩文件</li>
 <li>PIP</li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="one-python-file"></a><a href="#one-python-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>One python file</h3>
-<p>To package a function with <strong>one python file</strong> in Python, complete the following steps.</p>
+<h3><a class="anchor" aria-hidden="true" id="单个-python-文件"></a><a href="#单个-python-文件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单个 Python 文件</h3>
+<p>Python 打包<strong>单个Python文件</strong>的函数，需要完成如下步骤。</p>
 <ol>
-<li><p>Write a Python function.</p>
+<li><p>写一个Python 函数。</p>
 <pre><code class="hljs"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function //  <span class="hljs-keyword">import</span> the Function module <span class="hljs-keyword">from</span> Pulsar
 
 <span class="hljs-comment"># The classic ExclamationFunction that appends an exclamation at the end</span>
@@ -171,22 +171,22 @@ docker cp &lt;path of java-function-1.0-SNAPSHOT.jar&gt;  CONTAINER ID:/pulsar
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
     <span class="hljs-keyword">return</span> input + <span class="hljs-string">'!'</span>
 </code></pre>
-<p>In this example, when you write a Python function, you need to inherit the Function class and implement the <code>process()</code> method.</p>
-<p><code>process()</code> mainly has two parameters:</p>
+<p>这个例子中，当你写Python 函数时，你必须去继承 Funciton 类，并且实现这个<code>process()</code>方法。</p>
+<p><code>process()</code> 方法主要有两个参数：</p>
 <ul>
-<li><p><code>input</code> represents your input.</p></li>
-<li><p><code>context</code> represents an interface exposed by the Pulsar Function. You can get the attributes in the Python function based on the provided context object.</p></li>
+<li><p><code>input</code> 表示你的输入。</p></li>
+<li><p><code>context</code>是由 Pulsar 函数暴露的一个接口。 基于提供的上下文对象，您可以获取 Python 函数中的属性。</p></li>
 </ul></li>
-<li><p>Install a Python client.</p>
-<p>The implementation of a Python function depends on the Python client, so before deploying a Python function, you need to install the corresponding version of the Python client.</p>
+<li><p>安装Python 客户端。</p>
+<p>Python 函数的实现取决于 Python 客户端，所以在部署一个函数之前，你必须去安装对应的 Python 客户端版本。</p>
 <pre><code class="hljs css language-bash">pip install python-client==2.6.0
 </code></pre></li>
-<li><p>Run the Python Function.</p>
-<p>(1) Copy the Python function file to the Pulsar image.</p>
+<li><p>运行 Python 函数</p>
+<p>(1) 拷贝 Python 函数到 Pulsar 镜像内。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
 docker cp &lt;path of Python <span class="hljs-keyword">function</span> file&gt;  CONTAINER ID:/pulsar
 </code></pre>
-<p>(2) Run the Python function using the following command.</p>
+<p>(2) 使用如下命令运行 Python 函数。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
 --classname org.example.test.ExclamationFunction \
 --py &lt;path of Python Function file&gt; \
@@ -196,35 +196,35 @@ docker cp &lt;path of Python <span class="hljs-keyword">function</span> file&gt;
 --namespace default \
 --name PythonFunction
 </code></pre>
-<p>The following log indicates that the Python function starts successfully.</p>
+<p>显示如下日志，表明 Java 函数运行成功。</p>
 <pre><code class="hljs css language-text">...
 07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
 ...
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="zip-file"></a><a href="#zip-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIP file</h3>
-<p>To package a function with the <strong>ZIP file</strong> in Python, complete the following steps.</p>
+<h3><a class="anchor" aria-hidden="true" id="zip-压缩文件"></a><a href="#zip-压缩文件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIP 压缩文件</h3>
+<p>Python 使用<strong>ZIP压缩文件</strong>打包函数，需要完成如下步骤。</p>
 <ol>
-<li><p>Prepare the ZIP file.</p>
-<p>The following is required when packaging the ZIP file of the Python Function.</p>
-<pre><code class="hljs css language-text">Assuming the zip file is named as `func.zip`, unzip the `func.zip` folder:
+<li><p>准备ZIP 压缩文件</p>
+<p>Python 函数打包成ZIP 压缩文件，需要包含一下内容。</p>
+<pre><code class="hljs css language-text">假设 ZIP 文件的名称是 `func.zip`，那么解压后的目录结构应如下：
     "func/src"
     "func/requirements.txt"
     "func/deps"
 </code></pre>
-<p>Take <a href="https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples">exclamation.zip</a> as an example. The internal structure of the example is as follows.</p>
+<p>以<a href="https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples">exclamation.zip</a>为例。 这个例子内部的结构如下。</p>
 <pre><code class="hljs css language-text">.
 ├── deps
 │   └── sh-1.12.14-py2.py3-none-any.whl
 └── src
     └── exclamation.py
 </code></pre></li>
-<li><p>Run the Python Function.</p>
-<p>(1) Copy the ZIP file to the Pulsar image.</p>
+<li><p>运行 Python 函数</p>
+<p>(1) 拷贝 ZIP 文件到 Pulsar 镜像里面。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
 docker cp &lt;path of ZIP file&gt;  CONTAINER ID:/pulsar
 </code></pre>
-<p>(2) Run the Python function using the following command.</p>
+<p>(2) 使用如下命令运行 Python 函数。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
 --classname exclamation \
 --py &lt;path of ZIP file&gt; \
@@ -234,20 +234,20 @@ docker cp &lt;path of ZIP file&gt;  CONTAINER ID:/pulsar
 --namespace default \
 --name PythonFunction
 </code></pre>
-<p>The following log indicates that the Python function starts successfully.</p>
+<p>显示如下日志，表明 Java 函数运行成功。</p>
 <pre><code class="hljs css language-text">...
 07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
 ...
 </code></pre></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="pip"></a><a href="#pip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIP</h3>
-<p>The PIP method is only supported in Kubernetes runtime. To package a function with <strong>PIP</strong> in Python, complete the following steps.</p>
+<p>PIP 方式仅在  Kubernetes 运行时支持。 Python 使用<strong>PIP</strong>方式打包函数，需要完成如下步骤。</p>
 <ol>
-<li><p>Configure the <code>functions_worker.yml</code> file.</p>
+<li><p>配置<code>functions_worker.yml</code>文件。</p>
 <pre><code class="hljs css language-text">#### Kubernetes Runtime ####
 installUserCodeDependencies: true
 </code></pre></li>
-<li><p>Write your Python Function.</p>
+<li><p>编写 Python 函数。</p>
 <pre><code class="hljs"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 <span class="hljs-keyword">import</span> js2xml
 
@@ -261,24 +261,24 @@ installUserCodeDependencies: true
   // <span class="hljs-symbol">add</span> <span class="hljs-symbol">your</span> <span class="hljs-symbol">logic</span>
   <span class="hljs-symbol">return</span> <span class="hljs-symbol">input</span> + '!'
 </code></pre>
-<p>You can introduce additional dependencies. When Python Function detects that the file currently used is <code>whl</code> and the <code>installUserCodeDependencies</code> parameter is specified, the system uses the <code>pip install</code> command to install the dependencies required in Python Function.</p></li>
-<li><p>Generate the <code>whl</code> file.</p>
+<p>您可以引入额外的依赖关系。 当 Python 函数发现这个文件使用<code>whl</code>并且参数<code>installUserCodeDependencies</code>是打开的，那么系统会使用<code>pip install</code>命令安装Python 函数所需要的依赖。</p></li>
+<li><p>生成<code>whl</code>文件。</p>
 <pre><code class="hljs css language-shell script"><span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> <span class="hljs-variable">$PULSAR_HOME</span>/pulsar-functions/scripts/python</span>
 <span class="hljs-meta">$</span><span class="bash"> chmod +x generate.sh</span>
 <span class="hljs-meta">$</span><span class="bash"> ./generate.sh &lt;path of your Python Function&gt; &lt;path of the whl output dir&gt; &lt;the version of whl&gt;</span>
-<span class="hljs-meta">#</span><span class="bash"> e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0</span>
+<span class="hljs-meta">#</span><span class="bash"> 例子: ./generate.sh /path/to/python /path/to/python/output 1.0.0</span>
 </code></pre>
-<p>The output is written in <code>/path/to/python/output</code>:</p>
+<p>执行后会在目录<code>/path/to/python/output</code>生成如下文件：</p>
 <pre><code class="hljs css language-text">-rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
 -rw-r--r--  1 root  staff   1.4K  8 27 14:29 pulsarfunction-1.0.0.tar.gz
 -rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
 </code></pre></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="go"></a><a href="#go" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Go</h2>
-<p>To package a function in Go, complete the following steps.</p>
+<p>Go 打包函数，需要完成如下步骤。</p>
 <ol>
-<li><p>Write a Go function.</p>
-<p>Currently, Go function can be <strong>only</strong> implemented using SDK and the interface of the function is exposed in the form of SDK. Before using the Go function, you need to import &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;.</p>
+<li><p>编写 Go 函数。</p>
+<p>当前，Go 函数<strong>仅仅</strong>只能使用 SDK 实现，并且函数的接口是 SDK 暴露出来的。 在使用 Go 函数之前，你必须先引入 “github.com/apache/pulsar/pulsar-function-go/pf”包。</p>
 <pre><code class="hljs"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"context"</span>
     <span class="hljs-string">"fmt"</span>
@@ -295,16 +295,16 @@ installUserCodeDependencies: true
     pf.Start(HandleRequest)
 }
 </code></pre>
-<p>You can use context to connect to the Go function.</p>
+<p>你能够使用 Context 对象和 Go 函数交互。</p>
 <pre><code class="hljs">if fc, ok := pf.FromContext(ctx); ok {
     fmt.Printf(<span class="hljs-string">"function ID is:%s, "</span>, fc.GetFuncID())
     fmt.Printf(<span class="hljs-string">"function version is:%s\n"</span>, fc.GetFuncVersion())
  }
 </code></pre>
-<p>When writing a Go function, remember that</p>
+<p>写 Go 函数时，需要记得下面几点：</p>
 <ul>
-<li><p>In <code>main()</code>, you <strong>only</strong> need to register the function name to <code>Start()</code>. <strong>Only</strong> one function name is received in <code>Start()</code>.</p></li>
-<li><p>Go function uses Go reflection, which is based on the received function name, to verify whether the parameter list and returned value list are correct. The parameter list and returned value list <strong>must be</strong> one of the following sample functions:</p>
+<li><p>在<code>main()</code>函数中，你<strong>仅仅</strong>需要将函数名称注册到<code>Start()</code>. <strong>仅仅</strong>在函数<code>Start()</code>会收到函数名称。</p></li>
+<li><p>Go 函数用到的 Go 反射机制，基于收到的函数名称，去校验参数列表和返回值列表是否正确。 参数列表和返回值列表<strong>必须是</strong>如下函数例子中的一个：</p>
 <pre><code class="hljs"> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">()</span></span>
  <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">()</span> <span class="hljs-title">error</span></span>
  <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(input)</span> <span class="hljs-title">error</span></span>
@@ -316,15 +316,15 @@ installUserCodeDependencies: true
  <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(context.Context, input)</span> <span class="hljs-params">(output, error)</span></span>
 </code></pre></li>
 </ul></li>
-<li><p>Build the Go function.</p>
+<li><p>构建 Go 函数。</p>
 <pre><code class="hljs">go build &lt;your Go <span class="hljs-keyword">Function</span> <span class="hljs-title">filename&gt;.go</span> 
 </code></pre></li>
-<li><p>Run the Go Function.</p>
-<p>(1) Copy the Go function file to the Pulsar image.</p>
+<li><p>运行 Go 函数</p>
+<p>(1)  拷贝 Go 函数到 Pulsar 镜像里面。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
-docker cp &lt;your go <span class="hljs-keyword">function</span> path&gt;  CONTAINER ID:/pulsar
+docker cp &lt;your go <span class="hljs-keyword">function</span> path&gt; CONTAINER ID:/pulsar
 </code></pre>
-<p>(2) Run the Go function with the following command.</p>
+<p>(2) 使用如下命令运行 Go 函数。</p>
 <pre><code class="hljs">./bin/pulsar-admin functions localrun \
     --go [your go <span class="hljs-function"><span class="hljs-keyword">function</span></span> path] 
     --inputs [input topics] \
@@ -333,18 +333,18 @@ docker cp &lt;your go <span class="hljs-keyword">function</span> path&gt;  CONTA
     --namespace [<span class="hljs-keyword">default</span>:<span class="hljs-keyword">default</span>] \
     --<span class="hljs-keyword">name</span> [custom unique go <span class="hljs-function"><span class="hljs-keyword">function</span></span> <span class="hljs-keyword">name</span>] 
 </code></pre>
-<p>The following log indicates that the Go function starts successfully.</p>
+<p>显示如下日志，表明 Java 函数运行成功。</p>
 <pre><code class="hljs css language-text">...
 07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
 ...
 </code></pre></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="start-functions-in-cluster-mode"></a><a href="#start-functions-in-cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Functions in cluster mode</h2>
-<p>If you want to start a function in cluster mode, replace <code>localrun</code> with <code>create</code> in the commands above. The following log indicates that your function starts successfully.</p>
+<h2><a class="anchor" aria-hidden="true" id="集群模式部署函数"></a><a href="#集群模式部署函数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集群模式部署函数</h2>
+<p>如果你想在集群模式下启动函数，你可以将上面命令的<code>localrun</code>替换为<code>create</code>。 显示如下日志，表明 Java 函数运行成功。</p>
 <pre><code class="hljs css language-text">  "Created successfully"
 </code></pre>
-<p>For information about parameters on <code>--classname</code>, <code>--jar</code>, <code>--py</code>, <code>--go</code>, <code>--inputs</code>, run the command <code>./bin/pulsar-admin functions</code> or see <a href="/docs/zh-CN/next/pulsar-admin#functions">here</a>.</p>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#java">Java</a></li><li><a href="#python">Python</a><ul class="toc-headings"><li><a href="#one-python-file">One python file</a></li><li><a href="#zip-file">ZIP file</a></li><li><a href="#pip">PIP</a></li></ul></li><li><a href="#go">Go</a></li><li><a href="#start-functions-in-cluster-mode">Start Functions in cluster mode</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<p>更多关于参数的信息，如<code>--classname</code>，<code>--jar</code>，<code>--py</code>，<code>--go</code>，<code>--inputs</code>，可以运行命令<code>./bin/pulsar-admin functions</code> 或者点击查看<a href="/docs/zh-CN/next/pulsar-admin#functions">here</a>。</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#java">Java</a></li><li><a href="#python">Python</a><ul class="toc-headings"><li><a href="#单个-python-文件">单个 Python 文件</a></li><li><a href="#zip-压缩文件">ZIP 压缩文件</a></li><li><a href="#pip">PIP</a></li></ul></li><li><a href="#go">Go</a></li><li><a href="#集群模式部署函数">集群模式部署函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

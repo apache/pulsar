@@ -131,7 +131,7 @@
 <p>The following configurable parameters are available for Pulsar clients:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>URL</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. See <a href="#urls">above</a> for more info</td><td style="text-align:left"></td></tr>
@@ -239,7 +239,7 @@ msg := pulsar.ProducerMessage{
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.3.1/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
@@ -357,7 +357,7 @@ consumer, err := client.Subscribe(consumerOpts)
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.3.1/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
@@ -443,7 +443,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.3.1/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
@@ -473,7 +473,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <p>The following methods parameters are available for <code>ProducerMessage</code> objects:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Payload</code></td><td style="text-align:left">The actual data payload of the message</td></tr>

@@ -393,7 +393,7 @@
       brokerDeduplicationEntriesInterval
     </td>
 <pre><code class="hljs">&lt;td&gt;
-  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+  去重快照生成后，允许存储的去重信息数量。 A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
 &lt;/td&gt;
 
 &lt;td&gt;
