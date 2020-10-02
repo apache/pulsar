@@ -563,5 +563,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .peekMessages(topic, "sub1", 5);
 
         Assert.assertEquals(messages.size(), 5);
+        producer.close();
     }
 }
