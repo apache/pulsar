@@ -678,6 +678,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
         policies.max_unacked_messages_per_subscription = 200000;
         policies.max_unacked_messages_per_consumer = 50000;
+        policies.message_ttl_in_seconds = pulsar.getConfiguration().getTtlDurationDefaultInSeconds();
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.namespace_auth);
