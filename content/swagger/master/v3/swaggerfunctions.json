@@ -1621,23 +1621,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "producerName": {
-                    "type": "string"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1646,17 +1629,13 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicated": {
-                    "type": "boolean"
-                },
                 "topicName": {
                     "type": "string"
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "replicatedFrom": {
+                    "type": "string"
+                },
+                "producerName": {
                     "type": "string"
                 },
                 "encryptionCtx": {
@@ -1668,6 +1647,17 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "data": {
                     "type": "array",
@@ -1682,6 +1672,16 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "value": {
                     "type": "object"

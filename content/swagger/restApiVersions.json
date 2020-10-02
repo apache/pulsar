@@ -26,8 +26,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersource",
-                "swaggersink"
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
@@ -122,8 +122,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggersink"
             ]
         }
     ],
