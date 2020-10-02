@@ -20,11 +20,11 @@ package org.apache.pulsar.io.mongodb;
 
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
+import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
-import com.mongodb.reactivestreams.client.Success;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -160,7 +160,7 @@ public class MongoSink implements Sink<byte[]> {
             collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert,recordsToInsert));
         }
     }
-    private class DocsToInsertSubscriber implements Subscriber<Success>{
+    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult>{
         final List<Document> docsToInsert;
         final List<Record<byte[]>> recordsToInsert;
         final List<Integer> idxToAck ;
@@ -176,7 +176,7 @@ public class MongoSink implements Sink<byte[]> {
         }
 
         @Override
-        public void onNext(Success success) {
+        public void onNext(InsertManyResult success) {
 
         }
 
