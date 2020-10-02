@@ -725,7 +725,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.subscriptions.get("my-sub").msgBacklog, 10);
         assertEquals(topicStats.publishers.size(), 0);
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, "my-sub", 3);

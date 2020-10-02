@@ -468,10 +468,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-m",
+        "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getInternalStats(topic));
+            print(topics.getInternalStats(topic, metadata));
         }
     }
 
@@ -823,7 +827,7 @@ public class CmdTopics extends CmdBase {
             long sizeThreshold = validateSizeString(sizeThresholdStr);
             String persistentTopic = validatePersistentTopic(params);
 
-            PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic);
+            PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic, false);
             if (stats.ledgers.size() < 1) {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }

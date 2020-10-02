@@ -795,6 +795,26 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
+
+    /**
+     * Get the internal stats for the topic.
+     * <p/>
+     * Access the internal state of the topic
+     *
+     * @param topic
+     *            topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -811,7 +831,17 @@ public interface Topics {
      *
      * @param topic
      *            topic Name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return a future that can be used to track when the internal topic statistics are returned
+     */
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+
+    /**
+     * Get the internal stats for the topic asynchronously.
      *
+     * @param topic
+     *            topic Name
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);

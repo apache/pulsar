@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1066,14 +1067,19 @@ public class PersistentTopicsBase extends AdminResource {
         return topic.getStats(getPreciseBacklog);
     }
 
-    protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative) {
+    protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getInternalStats();
+        try {
+            boolean includeMetadata = metadata && hasSuperUserAccess();
+            return topic.getInternalStats(includeMetadata).get();
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+        }
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
@@ -1264,7 +1270,7 @@ public class PersistentTopicsBase extends AdminResource {
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 try {
                     topicStatsFutureList.add(pulsar().getAdminClient().topics()
-                            .getInternalStatsAsync((topicName.getPartition(i).toString())));
+                            .getInternalStatsAsync((topicName.getPartition(i).toString()), false));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
