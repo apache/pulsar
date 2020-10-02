@@ -251,6 +251,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertIsNotNone(msg.schema_version())
+
+        self.assertEqual(0, int.from_bytes(msg.schema_version().encode(), byteorder='big'))
+
         self.assertEqual(r, msg.value())
 
         client.close()
