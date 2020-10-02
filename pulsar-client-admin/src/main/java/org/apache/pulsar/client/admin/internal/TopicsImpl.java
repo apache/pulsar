@@ -659,6 +659,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
+        return getInternalStats(topic, false);
+    }
+
+    @Override
     public PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException {
         try {
             return getInternalStatsAsync(topic, metadata).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -670,6 +675,11 @@ public class TopicsImpl extends BaseResource implements Topics {
         } catch (TimeoutException e) {
             throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
+        return getInternalStatsAsync(topic, false);
     }
 
     @Override

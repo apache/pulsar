@@ -773,6 +773,24 @@ public interface Topics {
     PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
 
     /**
+     * Get the internal stats for the topic.
+     * <p/>
+     * Access the internal state of the topic
+     *
+     * @param topic
+     *            topic name
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException;
+
+    /**
      * Get the internal stats for the topic asynchronously.
      *
      * @param topic
@@ -782,6 +800,15 @@ public interface Topics {
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+
+    /**
+     * Get the internal stats for the topic asynchronously.
+     *
+     * @param topic
+     *            topic Name
+     * @return a future that can be used to track when the internal topic statistics are returned
+     */
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.
