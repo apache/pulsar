@@ -107,7 +107,4 @@ void Producer::producerFailMessages(Result result) {
     }
 }
 
-HandlerBase Producer::getHandlerBase() {
-    if (impl_)
-}
 }  // namespace pulsar

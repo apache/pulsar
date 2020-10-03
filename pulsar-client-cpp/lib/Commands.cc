@@ -304,7 +304,8 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
-                                   const SchemaInfo& schemaInfo, uint64_t epoch, bool userProvidedProducerName) {
+                                   const SchemaInfo& schemaInfo, uint64_t epoch,
+                                   bool userProvidedProducerName) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
