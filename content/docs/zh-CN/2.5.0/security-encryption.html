@@ -76,9 +76,9 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Encryption</h1></header><article><div><span><p>应用程序可以使用 Pulsar 加密在生产者侧加密消息，并在消费者侧解密消息。 你可以使用应用程序配置的公钥私钥对进行加密。 只有拥有有效密钥的消费者可以解密加密过的消息。</p>
 <h2><a class="anchor" aria-hidden="true" id="对称加密与非对称加密"></a><a href="#对称加密与非对称加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>对称加密与非对称加密</h2>
-<p>Pulsar使用动态生成的AES秘钥来加密消息(数据)。 你可以使用应用程序提供的 ECDSA/RSA 密钥对来加密 AES 密钥(数据密钥)， 所以你不必与大家分享秘密。</p>
+<p>Pulsar使用动态生成的对称AES秘钥来加密消息(数据)。 你可以使用应用程序提供的 ECDSA/RSA 密钥对来加密 AES 密钥(数据密钥)， 所以你不必与大家分享秘密。</p>
 <p>Key is a public and private key pair used for encryption or decryption. The producer key is the public key of the key pair, and the consumer key is the private key of the key pair.</p>
-<p>应用程序用公钥配置生产者。 你可以使用此密钥来加密 AES 数据密钥。 The encrypted data key is sent as part of message header. 只有拥有私钥的实体 (在这种情况下是消费者) 才能解密用于解密消息的数据密钥。</p>
+<p>应用程序用公钥配置生产者。 你可以使用此密钥来加密 AES 数据密钥。 加密数据秘钥作为消息头部的一部分发送。 只有拥有私钥的实体 (在这种情况下是消费者) 才能解密用于解密消息的数据密钥。</p>
 <p>You can encrypt a message with more than one key. Any one of the keys used for encrypting the message is sufficient to decrypt the message.</p>
 <p>Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.</p>
 <h2><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者(Producer)</h2>
@@ -90,10 +90,10 @@
 <li>输入下面的命令来创建你的 ECDSA 或 RSA 公钥私钥对。</li>
 </ol>
 <pre><code class="hljs css language-shell">openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
+openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
 </code></pre>
 <ol start="2">
-<li><p>Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.</p></li>
+<li><p>将公钥和私钥添加到秘钥管理中，并且配置你的生产者去得到公钥，消费者去得到私钥。</p></li>
 <li><p>Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which Pulsar client invokes to load the key.</p></li>
 <li><p>Add encryption key to producer configuration: conf.addEncryptionKey(&quot;myapp.key&quot;).</p></li>
 <li><p>Add CryptoKeyReader implementation to producer or consumer config: conf.setCryptoKeyReader(keyReader).</p></li>
