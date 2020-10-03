@@ -91,7 +91,7 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
 class LoggerWrapper: public Logger {
     std::string _logger;
     PyObject* _pyLogger;
-    int _currentPythonLogLevel = 10 + (Logger::LEVEL_INFO*10);
+    int _currentPythonLogLevel = _getLogLevelValue(Logger::LEVEL_INFO);
 
     void _updateCurrentPythonLogLevel() {
         PyGILState_STATE state = PyGILState_Ensure();
@@ -104,6 +104,10 @@ class LoggerWrapper: public Logger {
 
         PyGILState_Release(state);
     };
+
+    int _getLogLevelValue(Level level) {
+        return 10 + (level * 10);
+    }
 
    public:
 
@@ -130,7 +134,7 @@ class LoggerWrapper: public Logger {
     }
 
     bool isEnabled(Level level) {
-        return 10 + (level*10) >= _currentPythonLogLevel;
+        return _getLogLevelValue(level) >= _currentPythonLogLevel;
     }
 
     void log(Level level, int line, const std::string& message) {
