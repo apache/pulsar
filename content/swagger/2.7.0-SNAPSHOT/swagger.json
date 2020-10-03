@@ -2908,6 +2908,36 @@
             "description" : "Invalid TTL"
           }
         }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set message TTL in seconds for namespace",
+        "description" : "",
+        "operationId" : "removeNamespaceMessageTTL",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          },
+          "412" : {
+            "description" : "Invalid TTL"
+          }
+        }
       }
     },
     "/namespaces/{tenant}/{namespace}/offloadDeletionLagMs" : {
@@ -5895,6 +5925,12 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
+          "name" : "metadata",
+          "in" : "query",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10361,6 +10397,12 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "name" : "metadata",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -14612,10 +14654,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         }
       }
@@ -14865,6 +14907,9 @@
         },
         "offloaded" : {
           "type" : "boolean"
+        },
+        "metadata" : {
+          "type" : "string"
         }
       }
     },
@@ -15000,30 +15045,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
@@ -15035,6 +15056,30 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -15212,10 +15257,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         }
       }
@@ -15511,13 +15556,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
+        "s3Driver" : {
+          "type" : "boolean"
+        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
-          "type" : "boolean"
-        },
-        "s3Driver" : {
           "type" : "boolean"
         }
       }
@@ -16089,10 +16134,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         }
       }
@@ -16191,11 +16236,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
