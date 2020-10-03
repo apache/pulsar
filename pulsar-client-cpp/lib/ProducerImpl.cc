@@ -142,9 +142,9 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     ClientImplPtr client = client_.lock();
     int requestId = client->newRequestId();
 
-    SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
-                                             conf_.getProperties(),
-                                             conf_.getSchema(), epoch_, userProvidedProducerName_);
+    SharedBuffer cmd =
+        Commands::newProducer(topic_, producerId_, producerName_, requestId, conf_.getProperties(),
+                              conf_.getSchema(), epoch_, userProvidedProducerName_);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx,
                                std::placeholders::_1, std::placeholders::_2));
