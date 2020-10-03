@@ -18,7 +18,6 @@
  */
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
-#include <lib/LogUtils.h>
 
 #include "../lib/Future.h"
 #include "../lib/Utils.h"
