@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
+import logging
 from unittest import TestCase, main
 import time
 import os
@@ -95,6 +94,10 @@ class PulsarTest(TestCase):
         self.assertEqual(conf.consumer_name(), '')
         conf.consumer_name("my-name")
         self.assertEqual(conf.consumer_name(), "my-name")
+
+    def test_client_logger(self):
+        logger = logging.getLogger("pulsar")
+        Client(self.serviceUrl, logger=logger)
 
     def test_simple_producer(self):
         client = Client(self.serviceUrl)
