@@ -603,6 +603,7 @@ class SchemaTest(TestCase):
             A = Integer()
             B = String()
             C = Boolean()
+            D = Double(default=6.4)
 
         topic = "my-default-value-topic"
 
@@ -617,9 +618,14 @@ class SchemaTest(TestCase):
         producer.send(r)
 
         msg = consumer.receive()
-        self.assertEqual(5, msg.value().A)
-        self.assertEqual('test', msg.value().B)
-        self.assertEqual(False, msg.value().C)
+        self.assertEqual(msg.value().A, 5)
+        self.assertEqual(msg.value().B, u'test')
+        self.assertEqual(msg.value().C, False)
+        self.assertEqual(msg.value().D, 6.4)
+
+        producer.close()
+        consumer.close()
+        client.close()
 
 if __name__ == '__main__':
     main()

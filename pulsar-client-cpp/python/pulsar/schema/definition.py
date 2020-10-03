@@ -168,7 +168,10 @@ class Boolean(Field):
         return bool
 
     def default(self):
-        return False
+        if self._default is not None:
+            return self._default
+        else:
+            return False
 
 
 class Integer(Field):
@@ -179,7 +182,10 @@ class Integer(Field):
         return int
 
     def default(self):
-        return 0
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 
 
 class Long(Field):
@@ -190,7 +196,10 @@ class Long(Field):
         return int
 
     def default(self):
-        return 0
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 
 
 class Float(Field):
@@ -201,7 +210,10 @@ class Float(Field):
         return float
 
     def default(self):
-        return 0.0
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 
 
 class Double(Field):
@@ -212,7 +224,10 @@ class Double(Field):
         return float
 
     def default(self):
-        return 0.0
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 
 
 class Bytes(Field):
@@ -223,7 +238,10 @@ class Bytes(Field):
         return bytes
 
     def default(self):
-        return bytes('')
+        if self._default is not None:
+            return self._default
+        else:
+            return bytes('')
 
 
 class String(Field):
@@ -240,7 +258,10 @@ class String(Field):
         return val
 
     def default(self):
-        return str('')
+        if self._default is not None:
+            return self._default
+        else:
+            return str('')
 
 # Complex types
 
