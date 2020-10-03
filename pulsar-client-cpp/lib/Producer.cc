@@ -106,4 +106,8 @@ void Producer::producerFailMessages(Result result) {
         producerImpl->failPendingMessages(result);
     }
 }
+
+HandlerBase Producer::getHandlerBase() {
+    if (impl_)
+}
 }  // namespace pulsar

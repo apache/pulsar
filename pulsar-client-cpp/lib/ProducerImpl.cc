@@ -52,6 +52,7 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
       pendingMessagesQueue_(conf_.getMaxPendingMessages()),
       partition_(partition),
       producerName_(conf_.getProducerName()),
+      userProvidedProducerName_(false),
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
       msgSequenceGenerator_(0),
@@ -62,6 +63,10 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
     int64_t initialSequenceId = conf.getInitialSequenceId();
     lastSequenceIdPublished_ = initialSequenceId;
     msgSequenceGenerator_ = initialSequenceId + 1;
+
+    if (!producerName_.empty()) {
+        userProvidedProducerName_ = true;
+    }
 
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
@@ -138,7 +143,7 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     int requestId = client->newRequestId();
 
     SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
-                                             conf_.getProperties(), conf_.getSchema());
+                                             conf_.getProperties(), conf_.getSchema() , epoch_, userProvidedProducerName_);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx,
                                std::placeholders::_1, std::placeholders::_2));
