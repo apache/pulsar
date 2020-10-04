@@ -383,7 +383,7 @@
     }
 }
 </code></pre>
-<p>If you want your function to produce logs, you need to specify a log topic when creating or running the function. Here's an example:</p>
+<p>If you want your function to produce logs, you need to specify a log topic when creating or running the function. 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar my-functions.jar \
   --classname my.package.LoggingFunction \
@@ -430,7 +430,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p>For all key/value pairs passed to Java Pulsar Functions, both the key <em>and</em> the value are <code>String</code>s. If you'd like the value to be of a different type, you will need to deserialize from the <code>String</code> type.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="java-metrics"></a><a href="#java-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java metrics</h3>
-<p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. Here's an example:</p>
+<p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. 下面是一个示例：</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 
@@ -528,7 +528,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="python-serde"></a><a href="#python-serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SerDe</h3>
-<p>Pulsar Functions use <a href="#serialization-and-deserialization-serde">SerDe</a> when publishing data to and consuming data from Pulsar topics (this is true of both <a href="#python-native-functions">native</a> functions and <a href="#python-sdk-functions">SDK</a> functions). You can specify the SerDe when <a href="/docs/zh-CN/2.4.2/functions-deploying#cluster-mode">creating</a> or <a href="/docs/zh-CN/2.4.2/functions-deploying#local-run-mode">running</a> functions. Here's an example:</p>
+<p>Pulsar Functions use <a href="#serialization-and-deserialization-serde">SerDe</a> when publishing data to and consuming data from Pulsar topics (this is true of both <a href="#python-native-functions">native</a> functions and <a href="#python-sdk-functions">SDK</a> functions). You can specify the SerDe when <a href="/docs/zh-CN/2.4.2/functions-deploying#cluster-mode">creating</a> or <a href="/docs/zh-CN/2.4.2/functions-deploying#local-run-mode">running</a> functions. 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --tenant public \
   --namespace default \
@@ -595,7 +595,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
         <span class="hljs-keyword">else</span>:
             logger.info(<span class="hljs-string">"Message {0} received\nContent: {1}"</span>.format(msg_id, input))
 </code></pre>
-<p>If you want your function to produce logs on a Pulsar topic, you need to specify a <strong>log topic</strong> when creating or running the function. Here's an example:</p>
+<p>If you want your function to produce logs on a Pulsar topic, you need to specify a <strong>log topic</strong> when creating or running the function. 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py logging_function.py \
   --classname logging_function.LoggingFunction \
@@ -622,7 +622,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
             logger.info(<span class="hljs-string">"The word of the day is {0}"</span>.format(wotd))
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python-metrics"></a><a href="#python-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python metrics</h3>
-<p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. Here's an example:</p>
+<p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. 下面是一个示例：</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MetricRecorderFunction</span><span class="hljs-params">(Function)</span>:</span>

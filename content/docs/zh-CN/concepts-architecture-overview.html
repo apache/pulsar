@@ -127,7 +127,7 @@
 <li>Bookies被设计成可以承载数千的并发读写的ledgers。 使用多个磁盘设备，一个用于日志，另一个用于一般存储，这样Bookies可以将读操作的影响和对于写操作的延迟分隔开。</li>
 </ul>
 <p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. Cursors是消费端<a href="/docs/zh-CN/reference-terminology#subscription">订阅</a>消费的位置。 BookKeeper让Pulsar可以用一种可扩展的方式存储消费位置。</p>
-<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
+<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. 下面是一个示例：</p>
 <pre><code class="hljs css language-http">persistent://tenant/namespace/topic
 </code></pre>
 <blockquote>
@@ -159,7 +159,7 @@
 <blockquote>
 <p>为了性能和容错，你可以运行任意个Pulsar proxy。</p>
 </blockquote>
-<p>架构上来看，Pulsar Proxy从ZooKeeper上面读取他所需要的所有信息。 当启动代理时，你只需要提供用于集群独有和实例范围的配置存储的ZooKeeper连接串。 Here's an example:</p>
+<p>架构上来看，Pulsar Proxy从ZooKeeper上面读取他所需要的所有信息。 当启动代理时，你只需要提供用于集群独有和实例范围的配置存储的ZooKeeper连接串。 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --configuration-store-servers zk-0,zk-1,zk-2

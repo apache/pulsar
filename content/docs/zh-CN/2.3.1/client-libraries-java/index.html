@@ -172,7 +172,7 @@ producer.closeAsync()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="生产者配置"></a><a href="#生产者配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者配置</h3>
 <p>如果实例化 <code>生产者</code> 对象时仅指定主题topic名称 (如上面的示例所示), 则生产者将使用默认配置。 要使用非默认配置, 你可以设置多种可配置的参数。 For a full listing, see the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
- class. Here's an example:</p>
+ class. 下面是一个示例：</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
     .topic(<span class="hljs-string">"my-topic"</span>)
     .batchingMaxPublishDelay(<span class="hljs-number">10</span>, TimeUnit.MILLISECONDS)
@@ -231,7 +231,7 @@ producer.closeAsync()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="消费者配置"></a><a href="#消费者配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者配置</h3>
 <p>如果实例化 <code>消费者</code> 对象, 仅指定主题和订阅名称, 如上面的示例所示, 消费者将采用默认配置。 要使用非默认配置, 你可以设置多种可配置的参数。 有关完整列表, 请参阅 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
-类javadoc文档。 Here's an example:</p>
+类javadoc文档。 下面是一个示例：</p>
 <p>这是一个示例配置：</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -242,7 +242,7 @@ producer.closeAsync()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="异步接收"></a><a href="#异步接收" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>异步接收</h3>
 <p><code>receive</code>方法将异步接受消息（消费者处理器将被阻塞，直到有消息到达）。 你也可以使用<a href="concepts-messaging.md#receive-modes">异步接收方法</a>，这将在一个新消息到达时立即返回一个<a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>对象。</p>
-<p>Here's an example:</p>
+<p>下面是一个示例：</p>
 <pre><code class="hljs css language-java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
 </code></pre>
 <p>Async receive operations return a <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Message">Message</a>
@@ -292,7 +292,7 @@ Consumer multiTopicConsumer = consumerBuilder
         )
         .subscribe();
 </code></pre>
-<p>You can also subscribe to multiple topics asynchronously using the <code>subscribeAsync</code> method rather than the synchronous <code>subscribe</code> method. Here's an example:</p>
+<p>You can also subscribe to multiple topics asynchronously using the <code>subscribeAsync</code> method rather than the synchronous <code>subscribe</code> method. 下面是一个示例：</p>
 <pre><code class="hljs css language-java">Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default.*"</span>);
 consumerBuilder
         .topics(topics)
@@ -313,7 +313,7 @@ consumerBuilder
  objects by specifying a topic, a <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
 , and <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ReaderConfiguration">ReaderConfiguration</a>
 .</p>
-<p>Here's an example:</p>
+<p>下面是一个示例：</p>
 <pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
 <span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// 一些消息ID 的字节数组</span>
 MessageId id = MessageId.fromByteArray(msgIdBytes);
@@ -330,7 +330,7 @@ Reader reader = pulsarClient.newReader()
 <p>在上面的示例中，实例化一个<code>Reader</code>对象对指定的主题和消息（ID）; reader将遍历主题中<code>msgIdBytes</code>(取值方式取决于应用程序) 之后的消息。</p>
 <p>上面的示例代码展示了<code>Reader</code>对象指向特定的消息(ID)，但你也可以使用<code>MessageId.earliest</code>来指向topic上最早可用的消息，使用<code>MessageId.latest</code>指向最新的消息。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
-<p>在Pulsar中，所有的消息数据都在字节数组中，<a href="concepts-schema-registry.md">消息schema</a>允许在构造和处理消息时使用其他类型的数据（从简单类型(如字符串)到更复杂的特定应用程序的类型）。 如果在不指定schema的情况下构造 <a href="#producers">生产者</a>，则生产者只能生成类型为 <code>byte[]</code>的消息。 Here's an example:</p>
+<p>在Pulsar中，所有的消息数据都在字节数组中，<a href="concepts-schema-registry.md">消息schema</a>允许在构造和处理消息时使用其他类型的数据（从简单类型(如字符串)到更复杂的特定应用程序的类型）。 如果在不指定schema的情况下构造 <a href="#producers">生产者</a>，则生产者只能生成类型为 <code>byte[]</code>的消息。 下面是一个示例：</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(topic)
         .create();

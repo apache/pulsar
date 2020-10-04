@@ -207,7 +207,7 @@
 <li>基于 <a href="#command-line-interface">命令行参数</a>通过 <a href="/docs/zh-CN/2.3.1/pulsar-admin#functions">pulsar-admin functions</code></a> 接口</li>
 <li>基于<a href="http://yaml.org/">yaml</a> 配置文件</li>
 </ul>
-<p>If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:</p>
+<p>If you're supplying a YAML configuration, you must specify a path to the file on the command line. 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --<span class="hljs-keyword">function</span>-config-file ./my-function.yaml
 </code></pre>
@@ -301,13 +301,13 @@
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
-<p>默认情况下，函数连接到同一机器上运行的 Pulsar 集群通过本地的broker服务，URL是 <code>pulsar://localhost:6650</code>。 如果您想使用localrun模式来运行一个函数，但连接到非本地Pulsar 集群，你可以通过 <code>--brokerServiceUrl</code> 标志来指定一个不同的broker URL。 Here's an example:</p>
+<p>默认情况下，函数连接到同一机器上运行的 Pulsar 集群通过本地的broker服务，URL是 <code>pulsar://localhost:6650</code>。 如果您想使用localrun模式来运行一个函数，但连接到非本地Pulsar 集群，你可以通过 <code>--brokerServiceUrl</code> 标志来指定一个不同的broker URL。 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --broker-service-url pulsar://my-cluster-host:6650 \
   <span class="hljs-comment"># Other function parameters</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="cluster-run-mode"></a><a href="#cluster-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster run mode</h3>
-<p>当你运行 Pulsar Function在<strong>集群模式</strong>下时, 函数代码将被上传到Pulsar broker上，并与<em>代理broker</em>一起运行，而不是在您的<a href="#local-run-mode">本地环境</a>中运行。 您可以使用 <a href="/docs/zh-CN/2.3.1/pulsar-admin#create-1"><code>create</code></a> 命令在群集模式下运行函数。 Here's an example:</p>
+<p>当你运行 Pulsar Function在<strong>集群模式</strong>下时, 函数代码将被上传到Pulsar broker上，并与<em>代理broker</em>一起运行，而不是在您的<a href="#local-run-mode">本地环境</a>中运行。 您可以使用 <a href="/docs/zh-CN/2.3.1/pulsar-admin#create-1"><code>create</code></a> 命令在群集模式下运行函数。 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py myfunc.py \
   --classname myfunc.SomeFunction \

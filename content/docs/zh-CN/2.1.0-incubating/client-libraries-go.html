@@ -108,7 +108,7 @@
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="creating-a-client"></a><a href="#creating-a-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating a client</h2>
-<p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). Here's an example:</p>
+<p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). 下面是一个示例：</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"log"</span>
     <span class="hljs-string">"runtime"</span>
@@ -362,7 +362,7 @@ consumer, err := client.Subscribe(consumerOpts)
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
-<p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. Here's an example:</p>
+<p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. 下面是一个示例：</p>
 <pre><code class="hljs css language-go">reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic: <span class="hljs-string">"my-golang-topic"</span>,
     StartMessageId: pulsar.LatestMessage,
@@ -422,7 +422,7 @@ consumer, err := client.Subscribe(consumerOpts)
     }
 }
 </code></pre>
-<p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. Here's an example:</p>
+<p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. 下面是一个示例：</p>
 <pre><code class="hljs css language-go">lastSavedId := <span class="hljs-comment">// Read last saved message id from external store as byte[]</span>
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
@@ -480,7 +480,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <li>Set <code>TLSTrustCertsFilePath</code> to the path to the TLS certs used by your client and the Pulsar broker</li>
 <li>Configure <code>Authentication</code> option</li>
 </ul>
-<p>Here's an example:</p>
+<p>下面是一个示例：</p>
 <pre><code class="hljs css language-go">opts := pulsar.ClientOptions{
     URL: <span class="hljs-string">"pulsar+ssl://my-cluster.com:6651"</span>,
     TLSTrustCertsFilePath: <span class="hljs-string">"/path/to/certs/my-cert.csr"</span>,

@@ -159,7 +159,7 @@
 <blockquote>
 <p>为了性能和容错，你可以运行任意个Pulsar proxy。</p>
 </blockquote>
-<p>架构上来看，Pulsar Proxy从ZooKeeper上面读取他所需要的所有信息。 当启动代理时，你只需要提供用于集群独有和实例范围的配置存储的ZooKeeper连接串。 Here's an example:</p>
+<p>架构上来看，Pulsar Proxy从ZooKeeper上面读取他所需要的所有信息。 当启动代理时，你只需要提供用于集群独有和实例范围的配置存储的ZooKeeper连接串。 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --configuration-store-servers zk-0,zk-1,zk-2

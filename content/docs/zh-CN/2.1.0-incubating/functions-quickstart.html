@@ -250,7 +250,7 @@ $ touch <span class="hljs-built_in">reverse</span>.py
   --namespace default \
   --name reverse
 </code></pre>
-<p>If you see <code>Created successfully</code>, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can <strong>trigger</strong> the function using the <a href="/docs/zh-CN/2.1.0-incubating/pulsar-admin#trigger"><code>trigger</code></a> command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:</p>
+<p>If you see <code>Created successfully</code>, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can <strong>trigger</strong> the function using the <a href="/docs/zh-CN/2.1.0-incubating/pulsar-admin#trigger"><code>trigger</code></a> command. This command will send a message that we specify to the function and also give us the function's output. 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
   --name reverse \
   --tenant public \

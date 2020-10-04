@@ -1320,7 +1320,7 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -1664,6 +1664,7 @@ class Client:
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                         properties=None,
+                        batching_type=BatchingType.Default,
                         ):
         """
         Create a new producer on a given topic.
@@ -1717,6 +1718,20 @@ class Client:
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
+        * `batching_type`:
+          Sets the batching type for the producer.
+          There are two batching type: DefaultBatching and KeyBasedBatching.
+            - Default batching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+
+            - KeyBasedBatching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -1732,6 +1747,7 @@ class Client:
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(BatchingType, batching_type, 'batching_type')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -1744,6 +1760,7 @@ class Client:
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
+        conf.batching_type(batching_type)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -3021,6 +3038,7 @@ producers and consumers.</p></div>
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                         properties=None,
+                        batching_type=BatchingType.Default,
                         ):
         """
         Create a new producer on a given topic.
@@ -3074,6 +3092,20 @@ producers and consumers.</p></div>
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
+        * `batching_type`:
+          Sets the batching type for the producer.
+          There are two batching type: DefaultBatching and KeyBasedBatching.
+            - Default batching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+
+            - KeyBasedBatching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -3089,6 +3121,7 @@ producers and consumers.</p></div>
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(BatchingType, batching_type, 'batching_type')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -3101,6 +3134,7 @@ producers and consumers.</p></div>
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
+        conf.batching_type(batching_type)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -3538,7 +3572,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f5374d63350&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fc64d02b450&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None, batching_type=_pulsar.BatchingType.Default)</p>
     </div>
     
 
@@ -3596,6 +3630,27 @@ producers and consumers.</p></div>
 <li><code>properties</code>:
   Sets the properties for the producer. The properties associated with a producer
   can be used for identify a producer at broker side.</li>
+<li>
+<p><code>batching_type</code>:
+  Sets the batching type for the producer.
+  There are two batching type: DefaultBatching and KeyBasedBatching.</p>
+<ul>
+<li>
+<p>Default batching
+incoming single messages:
+(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+batched into single batch message:
+[(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]</p>
+</li>
+<li>
+<p>KeyBasedBatching
+incoming single messages:
+(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+batched into single batch message:
+[(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]</p>
+</li>
+</ul>
+</li>
 </ul></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_producer', this);">Show source &equiv;</a></p>
@@ -3615,6 +3670,7 @@ producers and consumers.</p></div>
                     batching_max_publish_delay_ms=10,
                     message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                     properties=None,
+                    batching_type=BatchingType.Default,
                     ):
     """
     Create a new producer on a given topic.
@@ -3664,6 +3720,19 @@ producers and consumers.</p></div>
     * `properties`:
       Sets the properties for the producer. The properties associated with a producer
       can be used for identify a producer at broker side.
+    * `batching_type`:
+      Sets the batching type for the producer.
+      There are two batching type: DefaultBatching and KeyBasedBatching.
+        - Default batching
+        incoming single messages:
+        (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+        batched into single batch message:
+        [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+        - KeyBasedBatching
+        incoming single messages:
+        (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+        batched into single batch message:
+        [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
     """
     _check_type(str, topic, 'topic')
     _check_type_or_none(str, producer_name, 'producer_name')
@@ -3679,6 +3748,7 @@ producers and consumers.</p></div>
     _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
     _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
     _check_type_or_none(dict, properties, 'properties')
+    _check_type(BatchingType, batching_type, 'batching_type')
     conf = _pulsar.ProducerConfiguration()
     conf.send_timeout_millis(send_timeout_millis)
     conf.compression_type(compression_type)
@@ -3690,6 +3760,7 @@ producers and consumers.</p></div>
     conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
     conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
     conf.partitions_routing_mode(message_routing_mode)
+    conf.batching_type(batching_type)
     if producer_name:
         conf.producer_name(producer_name)
     if initial_sequence_id:
@@ -3711,7 +3782,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f5374d6fa10&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fc64d039b10&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -3890,7 +3961,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f5374d6f990&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fc64d039a90&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
     </div>
     
 
