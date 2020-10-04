@@ -610,6 +610,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // close replication clients
         replicationClients.forEach((cluster, client) -> {
             try {
+                log.info("[hangc-1] shutdown {}-{}", cluster, client);
                 client.shutdown();
             } catch (PulsarClientException e) {
                 log.warn("Error shutting down repl client for cluster {}", cluster, e);
@@ -619,6 +620,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // close replication admins
         clusterAdmins.forEach((cluster, admin) -> {
             try {
+                log.info("[hangc-2] shutdown {}-{}", cluster, admin);
                 admin.close();
             } catch (Exception e) {
                 log.warn("Error shutting down repl admin for cluster {}", cluster, e);
@@ -633,13 +635,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
+        acceptorGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
+
         if (interceptor != null) {
             interceptor.close();
             interceptor = null;
         }
 
-        acceptorGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
         inactivityMonitor.shutdown();
         messageExpiryMonitor.shutdown();

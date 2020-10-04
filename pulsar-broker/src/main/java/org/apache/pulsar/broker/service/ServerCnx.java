@@ -215,7 +215,9 @@ public class ServerCnx extends PulsarHandler {
         super.channelInactive(ctx);
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
-        getBrokerService().getInterceptor().onConnectionClosed(this);
+        if (getBrokerService().getInterceptor() != null) {
+            getBrokerService().getInterceptor().onConnectionClosed(this);
+        }
         // Connection is gone, close the producers immediately
         producers.values().forEach((producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
@@ -223,7 +225,6 @@ public class ServerCnx extends PulsarHandler {
                 producer.closeNow(true);
             }
         });
-
         consumers.values().forEach((consumerFuture) -> {
             Consumer consumer;
             if (consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
