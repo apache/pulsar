@@ -1895,10 +1895,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-        getManagedLedger().getConfig().setLedgerOffloader(
-                brokerService.pulsar().getManagedLedgerOffloader(
-                        TopicName.get(topic).getNamespaceObject(), data.offload_policies));
-
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
