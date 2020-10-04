@@ -41,25 +41,25 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
+                "swaggerfunctions",
                 "swaggersource"
             ]
         }
     ],
     "2.4.0": [
         {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ],

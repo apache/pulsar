@@ -7988,7 +7988,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -14654,10 +14654,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -15045,25 +15045,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -15078,8 +15063,23 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
         "loadReportType" : {
           "type" : "string"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -15257,10 +15257,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -16134,10 +16134,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }

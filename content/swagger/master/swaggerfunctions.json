@@ -1401,13 +1401,8 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
+        "producerName" : {
+          "type" : "string"
         },
         "topicName" : {
           "type" : "string"
@@ -1419,9 +1414,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "replicatedFrom" : {
           "type" : "string"
         },
@@ -1429,7 +1421,7 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "schemaVersion" : {
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1439,15 +1431,15 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "orderingKey" : {
+        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "data" : {
           "type" : "array",
@@ -1462,6 +1454,14 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "value" : {
           "type" : "object"
