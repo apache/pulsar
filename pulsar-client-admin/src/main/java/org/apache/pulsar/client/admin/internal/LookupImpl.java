@@ -101,7 +101,7 @@ public class LookupImpl extends BaseResource implements Lookup {
             }
 
             Map<String, String> lookupResult = new LinkedHashMap<>(partitions);
-            for (int i = 0; i < partitions; i ++) {
+            for (int i = 0; i < partitions; i++) {
                 String partitionTopicName = topic + "-partition-" + i;
                 lookupResult.put(partitionTopicName,
                         lookupTopicAsync(partitionTopicName).get(readTimeoutMs, TimeUnit.MILLISECONDS));
