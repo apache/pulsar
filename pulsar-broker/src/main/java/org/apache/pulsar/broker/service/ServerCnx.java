@@ -225,6 +225,7 @@ public class ServerCnx extends PulsarHandler {
                 producer.closeNow(true);
             }
         });
+
         consumers.values().forEach((consumerFuture) -> {
             Consumer consumer;
             if (consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
