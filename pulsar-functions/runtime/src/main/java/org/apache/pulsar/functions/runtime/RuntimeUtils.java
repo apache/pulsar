@@ -161,6 +161,9 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
         }
+        if (instanceConfig.getFunctionDetails().getUserConfig() != null) {
+            goInstanceConfig.setUserConfig(instanceConfig.getFunctionDetails().getUserConfig());
+        }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
         }
