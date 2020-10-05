@@ -35,7 +35,6 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class LookupImpl extends BaseResource implements Lookup {
@@ -128,7 +127,7 @@ public class LookupImpl extends BaseResource implements Lookup {
                    return;
                }
                Map<String, String> result = new LinkedHashMap<>();
-               for(Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
+               for (Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
                    try {
                        result.put(entry.getKey(), entry.getValue().get());
                    } catch (InterruptedException | ExecutionException e) {
