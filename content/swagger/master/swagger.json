@@ -7988,7 +7988,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "307" : {
@@ -15045,11 +15045,9 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -15060,26 +15058,28 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -15251,13 +15251,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -16128,13 +16128,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -16236,11 +16236,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
