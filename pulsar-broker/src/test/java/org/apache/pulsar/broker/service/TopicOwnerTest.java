@@ -25,6 +25,9 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -547,5 +550,35 @@ public class TopicOwnerTest {
         // Check connect to a topic which owner broker invalidate all namespace bundles cache
         Consumer<byte[]> consumer = client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
         Assert.assertTrue(consumer.isConnected());
+    }
+
+    @Test
+    public void testLookupPartitionedTopic() throws Exception {
+        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
+        TenantInfo tenantInfo = new TenantInfo();
+        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
+        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
+        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
+
+        final int partitions = 5;
+        final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
+
+        pulsarAdmins[0].topics().createPartitionedTopic(topic, partitions);
+
+        Map<String, String> allPartitionMap = pulsarAdmins[0].lookups().lookupPartitionedTopic(topic);
+        Assert.assertEquals(partitions, allPartitionMap.size());
+
+        Map<String, String> partitionedMap = new LinkedHashMap<>();
+        for(int i = 0; i < partitions; i++) {
+           String partitionTopicName = topic + "-partition-" + i;
+           partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
+        }
+
+        Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
+
+        for(Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
+            Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
+        }
+
     }
 }

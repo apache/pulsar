@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class LookupImpl extends BaseResource implements Lookup {
 
@@ -92,21 +94,7 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException {
         try {
-            PartitionedTopicMetadata partitionedTopicMetadata =
-                    topics.getPartitionedTopicMetadataAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-            int partitions = partitionedTopicMetadata.partitions;
-            if (partitions <= 0) {
-                throw new ExecutionException(
-                        new PulsarAdminException("Topic " + topic + " is not a partitioned topic"));
-            }
-
-            Map<String, String> lookupResult = new LinkedHashMap<>(partitions);
-            for (int i = 0; i < partitions; i++) {
-                String partitionTopicName = topic + "-partition-" + i;
-                lookupResult.put(partitionTopicName,
-                        lookupTopicAsync(partitionTopicName).get(readTimeoutMs, TimeUnit.MILLISECONDS));
-            }
-            return lookupResult;
+            return lookupPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -115,6 +103,48 @@ public class LookupImpl extends BaseResource implements Lookup {
         } catch (TimeoutException e) {
             throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> lookupPartitionedTopicAsync(String topic) {
+        CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        topics.getPartitionedTopicMetadataAsync(topic).thenAccept(partitionedTopicMetadata -> {
+            int partitions = partitionedTopicMetadata.partitions;
+            if (partitions <= 0) {
+               future.completeExceptionally(
+                        new PulsarAdminException("Topic " + topic + " is not a partitioned topic"));
+               return;
+            }
+
+            Map<String, CompletableFuture<String>> lookupResult = new LinkedHashMap<>(partitions);
+            for (int i = 0; i < partitions; i++) {
+                String partitionTopicName = topic + "-partition-" + i;
+                lookupResult.put(partitionTopicName, lookupTopicAsync(partitionTopicName));
+            }
+
+            FutureUtil.waitForAll(new ArrayList<>(lookupResult.values())).whenComplete((url, throwable) ->{
+               if (throwable != null) {
+                   future.completeExceptionally(getApiException(throwable.getCause()));
+                   return;
+               }
+               Map<String, String> result = new LinkedHashMap<>();
+               for(Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
+                   try {
+                       result.put(entry.getKey(), entry.getValue().get());
+                   } catch (InterruptedException | ExecutionException e) {
+                       future.completeExceptionally(e);
+                       return;
+                   }
+               }
+               future.complete(result);
+            });
+
+        }).exceptionally(throwable -> {
+            future.completeExceptionally(getApiException(throwable.getCause()));
+            return null;
+        });
+
+        return future;
     }
 
 
