@@ -972,19 +972,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public long getEstimatedBacklogSize() {
 
         PositionImpl pos = getMarkDeletePositionOfSlowestConsumer();
+        boolean posFound = pos != null;
 
         while (true) {
-            if (pos == null) {
-                return 0;
-            }
             long size = 0;
-            final long slowestConsumerLedgerId = pos.getLedgerId();
+            final long slowestConsumerLedgerId = posFound ? pos.getLedgerId() : -1;
 
             // Subtract size of ledgers that were already fully consumed but not trimmed yet
             synchronized (this) {
                 size = getTotalSize();
-                size -= ledgers.values().stream().filter(li -> li.getLedgerId() < slowestConsumerLedgerId)
-                        .mapToLong(LedgerInfo::getSize).sum();
+                if(posFound) {
+                    size -= ledgers.values().stream().filter(li -> li.getLedgerId() < slowestConsumerLedgerId)
+                    	       .mapToLong(LedgerInfo::getSize).sum();
+                }
+            }
+            
+            // Estimated backlog size with no consumers matches total size
+            if (!posFound) {
+            	return size;
             }
 
             LedgerInfo ledgerInfo = null;
@@ -1012,7 +1017,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
     }
-
+    
     long estimateBacklogFromPosition(PositionImpl pos) {
         synchronized (this) {
             LedgerInfo ledgerInfo = ledgers.get(pos.getLedgerId());
