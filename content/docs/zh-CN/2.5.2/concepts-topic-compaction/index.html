@@ -83,7 +83,7 @@
 <ul>
 <li>允许通过主题日志更快地 &quot;后退&quot;</li>
 <li>仅适用于 <a href="/docs/zh-CN/2.5.2/concepts-architecture-overview#persistent-storage">持久topic</a></li>
-<li>当backlog达到一定大小时，可以被自动出发，或者通过命令行手动出发。请参见<a href="/docs/zh-CN/2.5.2/cookbooks-compaction">Topic compaction cookbook</a></li>
+<li>当backlog达到一定大小时，可以被自动触发，或者通过命令行手动触发。请参见<a href="/docs/zh-CN/2.5.2/cookbooks-compaction">Topic compaction cookbook</a></li>
 <li>在概念上和操作上与<a href="/docs/zh-CN/2.5.2/concepts-messaging#message-retention-and-expiry"> retention和expiry </a>是不同的。 但是，在topic压缩中，还是<em>会</em>尊重retention。 如果retention已经从topic的backlog中移除了消息，那么此条消息在压缩的topic账簿上也是无法被读取的。</li>
 </ul>
 <blockquote>

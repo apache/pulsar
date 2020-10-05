@@ -47,7 +47,7 @@
             ]
         }
     ],
-    "2.4.0": [
+    "2.4.1": [
         {
             "version": "v2",
             "fileName": [
@@ -79,7 +79,7 @@
             ]
         }
     ],
-    "2.4.1": [
+    "2.4.0": [
         {
             "version": "v2",
             "fileName": [
@@ -105,9 +105,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggerfunctions"
             ]
         }
     ],
