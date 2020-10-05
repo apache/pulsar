@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -31,9 +32,12 @@ type FunctionContext struct {
 }
 
 func NewFuncContext() *FunctionContext {
+	instanceConf := newInstanceConf()
+	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
+
 	fc := &FunctionContext{
-		instanceConf: newInstanceConf(),
-		userConfigs:  make(map[string]interface{}),
+		instanceConf: instanceConf,
+		userConfigs:  userConfigs,
 	}
 	return fc
 }
@@ -116,8 +120,9 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 // This prevents collisions with keys defined in other packages.
 type key struct{}
 
-// contextKey is the key for user.User values in Contexts. It is
-// unexported; clients use user.NewContext and user.FromContext
+// contextKey is the key for FunctionContext values in context.Context.
+// It is unexported;
+// clients should use FunctionContext.NewContext and FunctionContext.FromContext
 // instead of using this key directly.
 var contextKey = &key{}
 
@@ -130,4 +135,12 @@ func NewContext(parent context.Context, fc *FunctionContext) context.Context {
 func FromContext(ctx context.Context) (*FunctionContext, bool) {
 	fc, ok := ctx.Value(contextKey).(*FunctionContext)
 	return fc, ok
+}
+
+func buildUserConfig(data string) map[string]interface{} {
+	m := make(map[string]interface{})
+
+	json.Unmarshal([]byte(data), &m)
+
+	return m
 }
