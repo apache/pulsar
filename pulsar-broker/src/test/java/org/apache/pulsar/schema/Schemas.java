@@ -28,14 +28,14 @@ public class Schemas {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class PersonOne{
+    public static class PersonOne {
         int id;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class PersonTwo{
+    public static class PersonTwo {
         int id;
 
         @AvroDefault("\"Tom\"")
@@ -45,7 +45,7 @@ public class Schemas {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class PersonThree{
+    public static class PersonThree {
         int id;
 
         String name;
@@ -54,11 +54,20 @@ public class Schemas {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class PersonFour{
+    public static class PersonFour {
         int id;
 
         String name;
 
         int age;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BytesRecord {
+        int id;
+        String name;
+        byte[] address;
     }
 }
