@@ -1190,8 +1190,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (compactionSub != null) {
                     backlogEstimate = compactionSub.estimateBacklogSize();
                 } else {
-                    // compaction has never run, so take full backlog size
-                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                    // compaction has never run, so take full backlog size (or total size if we have no durable subs yet)
+                    backlogEstimate = subscriptions.isEmpty() ? ledger.getTotalSize() : ledger.getEstimatedBacklogSize();
                 }
 
                 if (backlogEstimate > compactionThreshold) {
