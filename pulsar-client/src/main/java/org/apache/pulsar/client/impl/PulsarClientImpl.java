@@ -41,8 +41,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,7 +67,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -110,6 +111,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+    private final ExecutorService ioExecutorService;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
@@ -145,6 +147,8 @@ public class PulsarClientImpl implements PulsarClient {
         conf.getAuthentication().start();
         this.cnxPool = cnxPool;
         externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), getThreadFactory("pulsar-external-listener"));
+        ioExecutorService = new ThreadPoolExecutor(conf.getNumIoThreads(), conf.getNumIoThreads(), 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(), getThreadFactory("pulsar-io-thread"));
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
@@ -815,6 +819,9 @@ public class PulsarClientImpl implements PulsarClient {
         return CompletableFuture.completedFuture(schema);
     }
 
+    public ExecutorService getIoExecutorService() {
+        return ioExecutorService;
+    }
     //
     // Transaction related API
     //
