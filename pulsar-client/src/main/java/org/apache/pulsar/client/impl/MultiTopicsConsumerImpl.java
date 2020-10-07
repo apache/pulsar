@@ -230,7 +230,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 } else {
                     // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
                     // recursion and stack overflow
-                    client.getIoExecutorService().execute(() -> receiveMessageFromConsumer(consumer));
+                    client.getInternalExecutorService().execute(() -> receiveMessageFromConsumer(consumer));
                 }
             } finally {
                 lock.writeLock().unlock();
@@ -312,7 +312,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     }
 
                     // if messages are readily available on consumer we will attempt to writeLock on the same thread
-                    client.getIoExecutorService().execute(() -> {
+                    client.getInternalExecutorService().execute(() -> {
                         receiveMessageFromConsumer(consumer);
                     });
                 }
