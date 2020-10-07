@@ -1405,6 +1405,9 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "topicName" : {
+          "type" : "string"
+        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1412,9 +1415,6 @@
         "eventTime" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
@@ -1429,13 +1429,6 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
         },
@@ -1443,6 +1436,13 @@
           "$ref" : "#/definitions/EncryptionContext"
         },
         "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
