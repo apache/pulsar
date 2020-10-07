@@ -677,19 +677,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (opBatchReceive == null || opBatchReceive.future == null) {
             return;
         }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
+        synchronized (incomingMessages) {
+            notifyPendingBatchReceivedCallBack(opBatchReceive);
+        }
     }
 
     protected void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-            Message<T> msg = null;
-            try {
-                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                // ignore
-            }
+            Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
                 Message<T> interceptMsg = beforeConsume(msg);

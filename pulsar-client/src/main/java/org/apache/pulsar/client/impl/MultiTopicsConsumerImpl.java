@@ -218,7 +218,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(consumer, message);
 
-            // we're modifying pausedConsumers
             int size = incomingMessages.size();
             if (size >= maxReceiverQueueSize
                     || (size > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
@@ -251,12 +250,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             unAckedMessageTracker.add(topicMessage.getMessageId());
             listenerExecutor.execute(() -> receivedFuture.complete(topicMessage));
         } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
-            try {
-                lock.writeLock().lock();
-                notifyPendingBatchReceivedCallBack();
-            } finally {
-                lock.writeLock().unlock();
-            }
+            notifyPendingBatchReceivedCallBack();
         }
 
         if (listener != null) {
