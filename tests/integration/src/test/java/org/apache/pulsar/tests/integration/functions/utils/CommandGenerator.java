@@ -77,7 +77,7 @@ public class CommandGenerator {
 
     public String generateLocalRunCommand(String codeFile) {
         StringBuilder commandBuilder = new StringBuilder(PulsarCluster.ADMIN_SCRIPT);
-        commandBuilder.append(" functions localrun ");
+        commandBuilder.append(" functions localrun");
         if (adminUrl != null) {
             commandBuilder.append(" --broker-service-url " + adminUrl);
         }

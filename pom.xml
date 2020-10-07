@@ -161,7 +161,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.48</jcommander.version>
+    <jcommander.version>1.78</jcommander.version>
     <commons-lang3.version>3.6</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.5</commons-io.version>
