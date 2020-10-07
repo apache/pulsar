@@ -9743,7 +9743,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -17571,10 +17571,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -17990,23 +17990,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18016,6 +17999,23 @@
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -18205,16 +18205,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -18515,10 +18515,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "s3Driver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
-                "gcsDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
@@ -19114,16 +19114,16 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }

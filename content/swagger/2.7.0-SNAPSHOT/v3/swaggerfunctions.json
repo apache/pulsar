@@ -1621,12 +1621,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "topicName": {
-                    "type": "string"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1635,12 +1629,19 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1649,18 +1650,24 @@
                         "format": "byte"
                     }
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1675,13 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
                 },
                 "value": {
                     "type": "object"
