@@ -215,7 +215,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
-        if (config.getProviderCredentials() == null) {
+        if (config.getCredentials() == null) {
             AWSCredentials awsCredentials = null;
             try {
                 DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();

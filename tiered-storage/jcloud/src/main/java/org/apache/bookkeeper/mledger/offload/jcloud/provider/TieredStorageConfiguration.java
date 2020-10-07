@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
 import org.jclouds.blobstore.BlobStore;
@@ -72,6 +73,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     }
 
     private final Map<String, String> configProperties;
+    @Getter
     private Credentials credentials;
     private JCloudBlobStoreProvider provider;
 
