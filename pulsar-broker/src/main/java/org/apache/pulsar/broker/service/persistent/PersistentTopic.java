@@ -1517,7 +1517,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // add publish-latency metrics
         this.addEntryLatencyStatsUsec.refresh();
-        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        NamespaceStats.add(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
         this.addEntryLatencyStatsUsec.reset();
     }
 
