@@ -72,6 +72,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxn;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -153,6 +154,7 @@ public class LocalBookkeeperEnsemble {
 
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
+    DatadirCleanupManager zkDataCleanupManager;
     ZooKeeper zkc;
 
     static int zkSessionTimeOut = 5000;
@@ -188,6 +190,9 @@ public class LocalBookkeeperEnsemble {
             serverFactory = new NIOServerCnxnFactory();
             serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
             serverFactory.startup(zks);
+
+            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 0, 1 /* hour */);
+            zkDataCleanupManager.start();
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
 
@@ -479,6 +484,10 @@ public class LocalBookkeeperEnsemble {
         zkc.close();
         zks.shutdown();
         serverFactory.shutdown();
+
+        if (zkDataCleanupManager != null) {
+            zkDataCleanupManager.shutdown();
+        }
         LOG.debug("Local ZK/BK stopped");
     }
 
