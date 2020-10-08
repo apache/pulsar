@@ -130,7 +130,6 @@ public class PulsarRecordCursor implements RecordCursor {
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
                 offloadProperties.putAll(offloadPropertyMap);
                 offloadPolicies = OffloadPolicies.create(offloadProperties);
-                offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
                 offloadPolicies.setManagedLedgerOffloadMaxThreads(
                         pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
                 log.debug("Record cursor is using offload policy %s", offloadPolicies);
@@ -281,7 +280,8 @@ public class PulsarRecordCursor implements RecordCursor {
                                             }
                                         }, pulsarConnectorConfig.getMaxMessageSize());
                             } catch (IOException e) {
-                                log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
+                                log.error(e, "Failed to parse message from pulsar topic %s",
+                                        topicName.toString());
                                 throw new RuntimeException(e);
                             }
                             // stats for time spend deserializing entries
@@ -624,7 +624,8 @@ public class PulsarRecordCursor implements RecordCursor {
 
     private void checkFieldType(int field, Class<?> expected) {
         Class<?> actual = getType(field).getJavaType();
-        checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
+        checkArgument(actual == expected, "Expected field %s to be type %s but is %s",
+                field, expected, actual);
     }
 
     @VisibleForTesting

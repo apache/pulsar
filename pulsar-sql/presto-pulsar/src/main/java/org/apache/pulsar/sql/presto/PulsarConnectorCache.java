@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -94,7 +95,7 @@ public class PulsarConnectorCache {
     }
 
     private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
-        throws Exception {
+            throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
                 .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
@@ -152,22 +153,25 @@ public class PulsarConnectorCache {
 
         try {
             if (StringUtils.isNotBlank(offloadPolicies.getManagedLedgerOffloadDriver())) {
-                checkNotNull(offloadPolicies.getOffloadersDirectory(),
+                checkNotNull(pulsarConnectorConfig.getOffloadersDirectory(),
                         "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory(),
+                this.offloaderManager = OffloaderUtils.searchForOffloaders(
+                        pulsarConnectorConfig.getOffloadersDirectory(),
                         pulsarConnectorConfig.getNarExtractionDirectory());
                 LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
 
                 try {
                     return offloaderFactory.create(
-                        offloadPolicies,
-                        ImmutableMap.of(
-                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
-                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
-                        ),
-                        getOffloaderScheduler(offloadPolicies));
+                            offloadPolicies,
+                            ImmutableMap.of(
+                                    LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(),
+                                    PulsarVersion.getVersion(),
+                                    LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(),
+                                    PulsarVersion.getGitSha()
+                            ),
+                            getOffloaderScheduler(offloadPolicies));
                 } catch (IOException ioe) {
                     log.error("Failed to create offloader: ", ioe);
                     throw new RuntimeException(ioe.getMessage(), ioe.getCause());
