@@ -72,6 +72,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return new TieredStorageConfiguration(props);
     }
 
+    @Getter
     private final Map<String, String> configProperties;
     @Getter
     private Credentials credentials;
