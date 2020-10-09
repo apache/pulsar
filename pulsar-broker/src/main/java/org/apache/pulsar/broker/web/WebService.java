@@ -155,7 +155,7 @@ public class WebService implements AutoCloseable {
             });
         }
 
-        if (!pulsar.getConfig().getBrokerInterceptors().isEmpty()) {
+        if (!pulsar.getConfig().getBrokerInterceptors().isEmpty() || !pulsar.getConfig().isDisableBrokerInterceptors()) {
             // Enable PreInterceptFilter only when interceptors are enabled
             context.addFilter(new FilterHolder(new PreInterceptFilter(pulsar.getBrokerInterceptor())),
                 MATCH_ALL, EnumSet.allOf(DispatcherType.class));
