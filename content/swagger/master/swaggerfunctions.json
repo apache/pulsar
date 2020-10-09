@@ -1401,6 +1401,33 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
@@ -1411,9 +1438,9 @@
             "format" : "byte"
           }
         },
-        "publishTime" : {
+        "redeliveryCount" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1421,16 +1448,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "data" : {
           "type" : "array",
@@ -1445,23 +1462,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "replicated" : {
-          "type" : "boolean"
-        },
-        "topicName" : {
-          "type" : "string"
         },
         "value" : {
           "type" : "object"
