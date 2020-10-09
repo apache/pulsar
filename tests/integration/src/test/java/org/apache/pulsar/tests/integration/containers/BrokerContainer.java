@@ -35,17 +35,12 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     @Override
     protected void beforeStart() {
         super.beforeStart();
-
-        DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                "mkdir", "-p", "/var/log/pulsar");
-        DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                "touch", "/var/log/pulsar/broker.log");
-        DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/var/log/pulsar/broker.log");
     }
 
     @Override
     protected void afterStart() {
         super.afterStart();
+        DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                "tail", "-f","-n", "100000", "/var/log/pulsar/broker.log");
     }
 }

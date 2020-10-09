@@ -258,6 +258,17 @@ public class OffloadPolicies implements Serializable {
 
     public static Properties toProperties(OffloadPolicies offloadPolicies) {
         Properties properties = new Properties();
+
+        setProperty(properties, "managedLedgerOffloadDriver", offloadPolicies.getManagedLedgerOffloadDriver());
+        setProperty(properties, "managedLedgerOffloadMaxThreads",
+                offloadPolicies.getManagedLedgerOffloadMaxThreads());
+        setProperty(properties, "managedLedgerOffloadPrefetchRounds",
+                offloadPolicies.getManagedLedgerOffloadPrefetchRounds());
+        setProperty(properties, "managedLedgerOffloadThresholdInBytes",
+                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
+                offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+
         if (offloadPolicies.isS3Driver()) {
             setProperty(properties, "s3ManagedLedgerOffloadRegion",
                     offloadPolicies.getS3ManagedLedgerOffloadRegion());
