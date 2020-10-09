@@ -619,7 +619,7 @@ class SchemaTest(TestCase):
 
         msg = consumer.receive()
         self.assertEqual(msg.value().A, 5)
-        self.assertEqual(msg.value().B, u'test')
+        self.assertEqual(msg.value().B, u'text')
         self.assertEqual(msg.value().C, False)
         self.assertEqual(msg.value().D, 6.4)
 
