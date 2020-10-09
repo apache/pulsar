@@ -1331,6 +1331,12 @@ class Boolean(Field):
     def python_type(self):
         return bool
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return False
+
 
 class Integer(Field):
     def type(self):
@@ -1338,6 +1344,12 @@ class Integer(Field):
 
     def python_type(self):
         return int
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 
 
 class Long(Field):
@@ -1347,6 +1359,12 @@ class Long(Field):
     def python_type(self):
         return int
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
+
 
 class Float(Field):
     def type(self):
@@ -1354,6 +1372,12 @@ class Float(Field):
 
     def python_type(self):
         return float
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 
 
 class Double(Field):
@@ -1363,6 +1387,12 @@ class Double(Field):
     def python_type(self):
         return float
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
+
 
 class Bytes(Field):
     def type(self):
@@ -1370,6 +1400,12 @@ class Bytes(Field):
 
     def python_type(self):
         return bytes
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return bytes('')
 
 
 class String(Field):
@@ -1384,6 +1420,12 @@ class String(Field):
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return str('')
 
 # Complex types
 
@@ -1730,6 +1772,12 @@ class Map(Field):
 
     def python_type(self):
         return bool
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return False
 </code></pre>
   </div>
 </div>
@@ -1787,7 +1835,10 @@ class Map(Field):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Boolean.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Boolean.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return False
 </code></pre>
   </div>
 </div>
@@ -1909,6 +1960,12 @@ class Map(Field):
 
     def python_type(self):
         return bytes
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return bytes('')
 </code></pre>
   </div>
 </div>
@@ -1966,7 +2023,10 @@ class Map(Field):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Bytes.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Bytes.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return bytes('')
 </code></pre>
   </div>
 </div>
@@ -2088,6 +2148,12 @@ class Map(Field):
 
     def python_type(self):
         return float
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 </code></pre>
   </div>
 </div>
@@ -2145,7 +2211,10 @@ class Map(Field):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Double.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Double.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return 0.0
 </code></pre>
   </div>
 </div>
@@ -2443,6 +2512,12 @@ def type(self):
 
     def python_type(self):
         return float
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 </code></pre>
   </div>
 </div>
@@ -2500,7 +2575,10 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Float.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Float.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return 0.0
 </code></pre>
   </div>
 </div>
@@ -2622,6 +2700,12 @@ def type(self):
 
     def python_type(self):
         return int
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 </code></pre>
   </div>
 </div>
@@ -2679,7 +2763,10 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Integer.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Integer.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return 0
 </code></pre>
   </div>
 </div>
@@ -2801,6 +2888,12 @@ def type(self):
 
     def python_type(self):
         return int
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 </code></pre>
   </div>
 </div>
@@ -2858,7 +2951,10 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Long.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Long.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return 0
 </code></pre>
   </div>
 </div>
@@ -3627,6 +3723,12 @@ def schema(cls):
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return str('')
 </code></pre>
   </div>
 </div>
@@ -3684,7 +3786,10 @@ def schema(cls):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.String.default', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.String.default" class="source">
     <pre><code>def default(self):
-    return self._default
+    if self._default is not None:
+        return self._default
+    else:
+        return str('')
 </code></pre>
   </div>
 </div>
