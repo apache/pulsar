@@ -488,6 +488,15 @@ public class Namespaces extends NamespacesBase {
         internalSetPublishRate(publishRate);
     }
 
+    @DELETE
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void removePublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalRemovePublishRate();
+    }
+
     @GET
     @Path("/{property}/{namespace}/publishRate")
     @ApiOperation(hidden = true, value = "Get publish-rate configured for the namespace, -1 represents not configured yet")

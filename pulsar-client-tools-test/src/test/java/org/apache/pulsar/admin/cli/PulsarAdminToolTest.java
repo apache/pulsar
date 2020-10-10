@@ -503,6 +503,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-publish-rate myprop/clust/ns1"));
         verify(mockNamespaces).getPublishRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-publish-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removePublishRate("myprop/clust/ns1");
+
         namespaces.run(split("set-subscribe-rate myprop/clust/ns1 -sr 2 -st 60"));
         verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", new SubscribeRate(2, 60));
 

@@ -1803,6 +1803,15 @@ public interface Namespaces {
     void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException;
 
     /**
+     * Remove message-publish-rate (topics under this namespace can publish this many messages per second).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removePublishRate(String namespace) throws PulsarAdminException;
+
+    /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
      *
      * @param namespace
@@ -1810,6 +1819,13 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate);
+
+    /**
+     * Remove message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removePublishRateAsync(String namespace);
 
     /**
      * Get message-publish-rate (topics under this namespace can publish this many messages per second).
