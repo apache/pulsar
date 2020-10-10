@@ -164,7 +164,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             return null;
         }
         for (JCloudBlobStoreProvider provider : JCloudBlobStoreProvider.values()) {
-            if (provider.driver.equals(driver)) {
+            if (provider.driver.equalsIgnoreCase(driver)) {
                 return provider;
             }
         }

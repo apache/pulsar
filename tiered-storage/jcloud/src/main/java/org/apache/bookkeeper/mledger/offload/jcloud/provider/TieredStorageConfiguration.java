@@ -183,7 +183,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     public JCloudBlobStoreProvider getProvider() {
         if (provider == null) {
-            provider = JCloudBlobStoreProvider.getProvider(getBlobStoreProviderKey().toUpperCase());
+            provider = JCloudBlobStoreProvider.getProvider(getBlobStoreProviderKey());
         }
         return provider;
     }
