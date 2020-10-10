@@ -1401,10 +1401,11 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "producerName" : {
-          "type" : "string"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
         },
-        "topicName" : {
+        "producerName" : {
           "type" : "string"
         },
         "publishTime" : {
@@ -1415,39 +1416,8 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "replicatedFrom" : {
+        "topicName" : {
           "type" : "string"
-        },
-        "replicated" : {
-          "type" : "boolean"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "data" : {
           "type" : "array",
@@ -1462,6 +1432,36 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "value" : {
           "type" : "object"

@@ -17990,13 +17990,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "underLoaded": {
                     "type": "boolean"
                 },
@@ -18005,6 +17998,9 @@
                 },
                 "loadReportType": {
                     "type": "string"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -18023,6 +18019,10 @@
                     "format": "int64"
                 },
                 "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 }
@@ -18515,10 +18515,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "gcsDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
-                "s3Driver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
@@ -19222,11 +19222,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
