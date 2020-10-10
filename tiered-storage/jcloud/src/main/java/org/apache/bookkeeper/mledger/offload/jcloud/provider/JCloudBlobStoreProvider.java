@@ -107,7 +107,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public void buildCredentials(TieredStorageConfiguration config) {
-            if (config.getProviderCredentials() == null) {
+            if (config.getCredentials() == null) {
                 try {
                     String gcsKeyContent = Files.toString(
                             new File(config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile")),
