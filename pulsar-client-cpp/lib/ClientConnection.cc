@@ -499,6 +499,9 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
     incomingBuffer_.bytesWritten(bytesTransferred);
 
     if (err || bytesTransferred == 0) {
+        if (err) {
+            LOG_ERROR(cnxString_ << "Read failed: " << err.message());
+        } // else: bytesTransferred == 0, which means server has closed the connection
         close();
     } else if (bytesTransferred < minReadSize) {
         // Read the remaining part, use a slice of buffer to write on the next
