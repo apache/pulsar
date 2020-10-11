@@ -2433,9 +2433,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         static OpForAckCallBack create(ByteBuf cmd, CompletableFuture<Void> callback,
                                        MessageId messageId, TxnID txnID) {
             OpForAckCallBack op = RECYCLER.get();
-            if (op.cmd != null) {
-                op.cmd.release();
-            }
             op.callback = callback;
             op.cmd = cmd;
             op.messageId = (MessageIdImpl) messageId;
@@ -2448,6 +2445,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         void recycle() {
+            if (cmd != null) {
+                ReferenceCountUtil.safeRelease(cmd);
+            }
             recyclerHandle.recycle(this);
         }
 
