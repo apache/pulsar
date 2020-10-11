@@ -1821,9 +1821,9 @@ public interface Namespaces {
     CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate);
 
     /**
-     * Remove message-publish-rate 
-     * (topics under this namespace can publish this many messages per second) asynchronously.
-     *
+     * Remove message-publish-rate asynchronously.
+     * <p/>
+     * topics under this namespace can publish this many messages per second
      * @param namespace
      */
     CompletableFuture<Void> removePublishRateAsync(String namespace);
