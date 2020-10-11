@@ -138,7 +138,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     }
 
     public String getBlobStoreProviderKey() {
-        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
     }
 
     public String getDriver() {
