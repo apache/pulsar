@@ -498,7 +498,7 @@ public abstract class AbstractTopic implements Topic {
                 : null;
 
         //both namespace-level and topic-level policy are not set, try to use broker-level policy
-        ServiceConfiguration serviceConfiguration = brokerService.getPulsar().getConfiguration();
+        ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
         if (publishRate == null) {
             PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()
                     , serviceConfiguration.getMaxPublishRatePerTopicInBytes());

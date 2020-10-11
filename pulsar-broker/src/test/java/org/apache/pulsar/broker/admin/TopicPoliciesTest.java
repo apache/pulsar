@@ -1099,16 +1099,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPublishRateInDifferentLevelPolicy() throws Exception {
-        stopBroker();
+        cleanup();
         conf.setMaxPublishRatePerTopicInMessages(5);
         conf.setMaxPublishRatePerTopicInBytes(50L);
-        startBroker();
+        setup();
+        //wait for cache init
+        Thread.sleep(3000);
         final String topicName = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         pulsarClient.newProducer().topic(topicName).create().close();
-        //wait for cache init
-        Thread.sleep(1000);
         Field publishMaxMessageRate = PublishRateLimiterImpl.class.getDeclaredField("publishMaxMessageRate");
         publishMaxMessageRate.setAccessible(true);
         Field publishMaxByteRate = PublishRateLimiterImpl.class.getDeclaredField("publishMaxByteRate");
@@ -1130,7 +1130,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 20, 200);
+        }, 5, 200);
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 10);
         Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 100L);
@@ -1140,12 +1140,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setPublishRate(topicName, publishMsgRate2);
         retryStrategically((x) -> {
             try {
-                PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
-                return (int)publishMaxMessageRate.get(limiter) == 11;
+                return admin.topics().getPublishRate(topicName) != null;
             } catch (Exception e) {
                 return false;
             }
-        }, 20, 200);
+        }, 5, 200);
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 11);
         Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 101L);
@@ -1154,12 +1153,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().removePublishRate(topicName);
         retryStrategically((x) -> {
             try {
-                PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
-                return (int)publishMaxMessageRate.get(limiter) == 10;
+                return admin.topics().getPublishRate(topicName) == null;
             } catch (Exception e) {
                 return false;
             }
-        }, 20, 200);
+        }, 5, 200);
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 10);
         Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 100L);
@@ -1173,7 +1171,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 20, 200);
+        }, 5, 200);
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 5);
         Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 50L);
