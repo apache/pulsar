@@ -2461,33 +2461,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this;
     }
 
-    @Override
-    protected void updatePublishDispatcher(PublishRate publishRate) {
-        if (publishRate != null && (publishRate.publishThrottlingRateInByte > 0
-            || publishRate.publishThrottlingRateInMsg > 0)) {
-            log.info("Enabling publish rate limiting {} ", publishRate);
-            if (!preciseTopicPublishRateLimitingEnable) {
-                this.brokerService.setupBrokerPublishRateLimiterMonitor();
-            }
-
-            if (this.topicPublishRateLimiter == null
-                || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                // create new rateLimiter if rate-limiter is disabled
-                if (preciseTopicPublishRateLimitingEnable) {
-                    this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate, ()-> this.enableCnxAutoRead());
-                } else {
-                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
-                }
-            } else {
-                this.topicPublishRateLimiter.update(publishRate);
-            }
-        } else {
-            log.info("Disabling publish throttling for {}", this.topic);
-            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerReadForPublishRateLimiting();
-        }
-    }
-
     private void registerTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled() &&
                 brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {

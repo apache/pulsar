@@ -493,7 +493,7 @@ public abstract class AbstractTopic implements Topic {
 
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+        final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
 
@@ -505,33 +505,8 @@ public abstract class AbstractTopic implements Topic {
             updatePublishDispatcher(brokerPublishRate);
             return;
         }
-
-        if (publishRate != null
-                && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
-            log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
-
-            // if not precise mode, lazy init Publish-rateLimiting monitoring if not initialized yet
-            if (!preciseTopicPublishRateLimitingEnable) {
-                this.brokerService.setupTopicPublishRateLimiterMonitor();
-            }
-
-            if (this.topicPublishRateLimiter == null
-                    || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                // create new rateLimiter if rate-limiter is disabled
-                if (preciseTopicPublishRateLimitingEnable) {
-                    this.topicPublishRateLimiter = new PrecisPublishLimiter(policies, clusterName,
-                            () -> AbstractTopic.this.enableCnxAutoRead());
-                } else {
-                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
-                }
-            } else {
-                this.topicPublishRateLimiter.update(policies, clusterName);
-            }
-        } else {
-            log.info("Disabling publish throttling for {}", this.topic);
-            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerReadForPublishRateLimiting();
-        }
+        //publishRate is not null , use namespace-level policy
+        updatePublishDispatcher(publishRate);
     }
 
     public long getMsgInCounter() { return this.msgInCounter.longValue(); }
@@ -595,6 +570,28 @@ public abstract class AbstractTopic implements Topic {
      * update topic publish dispatcher for this topic.
      */
     protected void updatePublishDispatcher(PublishRate publishRate) {
-        // noop
+        if (publishRate != null && (publishRate.publishThrottlingRateInByte > 0
+                || publishRate.publishThrottlingRateInMsg > 0)) {
+            log.info("Enabling publish rate limiting {} ", publishRate);
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupTopicPublishRateLimiterMonitor();
+            }
+
+            if (this.topicPublishRateLimiter == null
+                    || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                // create new rateLimiter if rate-limiter is disabled
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate, ()-> this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+                }
+            } else {
+                this.topicPublishRateLimiter.update(publishRate);
+            }
+        } else {
+            log.info("Disabling publish throttling for {}", this.topic);
+            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            enableProducerReadForPublishRateLimiting();
+        }
     }
 }
