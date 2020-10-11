@@ -1185,19 +1185,6 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAckReceipt(long requestId, long consumerId) {
-        CommandAckResponse.Builder commandAckReceiptBuilder = CommandAckResponse.newBuilder();
-        commandAckReceiptBuilder.setConsumerId(consumerId);
-        commandAckReceiptBuilder.setRequestId(requestId);
-        CommandAckResponse commandAck = commandAckReceiptBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.ACK_RESPONSE).setAckResponse(commandAck));
-        commandAckReceiptBuilder.recycle();
-        commandAck.recycle();
-
-        return res;
-    }
-
     public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
         CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
         commandAckResponseBuilder.setConsumerId(consumerId);
