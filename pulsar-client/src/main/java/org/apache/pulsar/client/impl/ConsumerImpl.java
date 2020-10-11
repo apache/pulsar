@@ -77,6 +77,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -108,6 +109,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1051,7 +1053,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (!ackRequests.isEmpty()) {
             ackRequests.forEach((key, value) -> value.callback
-                    .completeExceptionally(new TransactionConflictException("Consumer has closed!")));
+                    .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!")));
             ackRequests.clear();
         }
 
@@ -2404,7 +2406,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(ackResponse.getRequestId() >= 0);
         OpForAckCallBack callBackOp = ackRequests.remove(ackResponse.getRequestId());
         if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.error("Ack request has been handled requestId : {}", ackResponse.getRequestId());
+            log.info("Ack request has been handled requestId : {}", ackResponse.getRequestId());
         } else if (!ackResponse.hasError()) {
             callBackOp.callback.complete(null);
             if (log.isDebugEnabled()) {
@@ -2413,7 +2415,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             callBackOp.recycle();
         } else {
-            callBackOp.callback.completeExceptionally(new TransactionConflictException(ackResponse.getMessage()));
+            callBackOp.callback.completeExceptionally(new MessageAcknowledgeException
+                    (new TransactionAckConflictException(ackResponse.getMessage())));
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
             }

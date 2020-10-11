@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,14 +20,14 @@
 package org.apache.pulsar.transaction.common.exception;
 
 /**
- * Exception thrown when a transaction conflict.
+ * Exception thrown when a transaction try to abort when it shouldn't.
  *
  */
-public class TransactionConflictException extends Exception {
+public class TransactionAbortConflictException extends TransactionConflictException {
 
     private static final long serialVersionUID = 0L;
 
-    public TransactionConflictException(String message) {
+    public TransactionAbortConflictException(String message) {
         super(message);
     }
 }

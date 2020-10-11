@@ -19,14 +19,14 @@
 package org.apache.pulsar.transaction.common.exception;
 
 /**
- * Exception thrown when a transaction conflict.
+ * Exception thrown when a transaction try to acknowledge message when it shouldn't.
  *
  */
-public class TransactionConflictException extends Exception {
+public class TransactionAckConflictException extends TransactionConflictException {
 
     private static final long serialVersionUID = 0L;
 
-    public TransactionConflictException(String message) {
+    public TransactionAckConflictException(String message) {
         super(message);
     }
 }

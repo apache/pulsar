@@ -67,11 +67,10 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -412,7 +411,7 @@ public class PersistentSubscription implements Subscription {
      * @param txnId                  TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link Position}(s) it try to ack.
      * @param ackType                {@link AckType}.
-     * @throws TransactionConflictException if try to do cumulative ack when another ongoing transaction already doing
+     * @throws TransactionAckConflictException if try to do cumulative ack when another ongoing transaction already doing
      *  cumulative ack or try to single ack message already acked by any ongoing transaction.
      * @throws IllegalArgumentException if try to cumulative ack but passed in multiple positions.
      */
@@ -425,14 +424,14 @@ public class PersistentSubscription implements Subscription {
                                   " try to cumulative ack message while transaction:" + this.pendingCumulativeAckTxnId +
                                   " already cumulative acked messages.";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                return FutureUtil.failedFuture(new TransactionAckConflictException(errorMsg));
             }
 
             if (positions.size() != 1) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                   " invalid cumulative ack received with multiple message ids.";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                return FutureUtil.failedFuture(new TransactionAckConflictException(errorMsg));
             }
 
             Position position = positions.get(0);
@@ -443,7 +442,7 @@ public class PersistentSubscription implements Subscription {
                         " try to cumulative ack position: " + position + " within range of cursor's " +
                         "markDeletePosition: " + cursor.getMarkDeletedPosition();
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                return FutureUtil.failedFuture(new TransactionAckConflictException(errorMsg));
             }
 
             if (log.isDebugEnabled()) {
@@ -481,7 +480,7 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                       " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    return FutureUtil.failedFuture(new TransactionAckConflictException(errorMsg));
                 }
 
                 // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
@@ -489,7 +488,7 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                             " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    return FutureUtil.failedFuture(new TransactionAckConflictException(errorMsg));
                 }
 
                 pendingAckMessageForCurrentTxn.add(position);

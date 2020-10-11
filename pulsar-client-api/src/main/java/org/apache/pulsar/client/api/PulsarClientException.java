@@ -763,6 +763,32 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class MessageAcknowledgeException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public MessageAcknowledgeException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public MessageAcknowledgeException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -821,6 +847,8 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (t instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
+        } else if (t instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -906,6 +934,8 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (cause instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
+        } else if (cause instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
         } else {
@@ -936,6 +966,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
                 || t instanceof ConsumerAssignException
+                || t instanceof MessageAcknowledgeException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;
