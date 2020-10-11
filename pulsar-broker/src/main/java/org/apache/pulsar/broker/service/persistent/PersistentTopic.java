@@ -2465,7 +2465,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected void updatePublishDispatcher(PublishRate publishRate) {
         if (publishRate != null && (publishRate.publishThrottlingRateInByte > 0
             || publishRate.publishThrottlingRateInMsg > 0)) {
-            log.info("Enabling topic policy publish rate limiting {} on topic {}", publishRate, this.topic);
+            log.info("Enabling publish rate limiting {} ", publishRate);
             if (!preciseTopicPublishRateLimitingEnable) {
                 this.brokerService.setupBrokerPublishRateLimiterMonitor();
             }
