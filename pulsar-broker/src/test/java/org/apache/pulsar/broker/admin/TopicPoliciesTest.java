@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import static org.testng.Assert.assertEquals;
 
@@ -549,15 +551,47 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(limiter.getDispatchRateOnMsg(), 100);
         admin.topics().removeDispatchRate(topic);
         for (int i = 0; i < 10; i++) {
+            Thread.sleep(500);
             if (admin.topics().getDispatchRate(topic) == null) {
                 break;
             }
-            Thread.sleep(500);
         }
         //2 Remove level policy ,DispatchRateLimiter should us ns level policy
         limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
         Assert.assertEquals(limiter.getDispatchRateOnByte(), 30000);
         Assert.assertEquals(limiter.getDispatchRateOnMsg(), 300);
+    }
+
+    @Test(timeOut = 20000)
+    public void testRestart() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        //wait for cache init
+        Thread.sleep(1000);
+        InactiveTopicPolicies inactiveTopicPolicies =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up,100,true);
+        admin.namespaces().setInactiveTopicPolicies(myNamespace, inactiveTopicPolicies);
+        //wait for zk
+        Thread.sleep(500);
+        inactiveTopicPolicies =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,200,false);
+        admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
+        for (int i = 0; i < 10; i++) {
+            Thread.sleep(500);
+            if (admin.topics().getInactiveTopicPolicies(topic) != null) {
+                break;
+            }
+        }
+        // restart broker, policy should still take effect
+        stopBroker();
+        Thread.sleep(500);
+        startBroker();
+
+        //wait for cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Thread.sleep(2000);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        Assert.assertEquals(persistentTopic.getInactiveTopicPolicies(), inactiveTopicPolicies);
     }
 
     @Test
