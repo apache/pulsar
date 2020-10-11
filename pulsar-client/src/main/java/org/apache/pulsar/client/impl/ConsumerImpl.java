@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -188,8 +189,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunckedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
-
+    
     private final ConcurrentLongHashMap<OpForAckCallBack> ackRequests;
+
+    private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -357,12 +360,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId);
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
-                cnx.removeConsumer(consumerId);
-                unAckedMessageTracker.close();
-                if (possibleSendToDeadLetterTopicMessages != null) {
-                    possibleSendToDeadLetterTopicMessages.clear();
-                }
-                client.cleanupConsumer(ConsumerImpl.this);
+                closeConsumerTasks();
+                deregisterFromClientCnx();
+                client.cleanupConsumer(this);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 setState(State.Closed);
                 unsubscribeFuture.complete(null);
@@ -787,13 +787,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (getState() == State.Closing || getState() == State.Closed) {
             setState(State.Closed);
             closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
             failPendingReceive();
             clearReceiverQueue();
             return;
         }
         setClientCnx(cnx);
-        cnx.registerConsumer(consumerId, this);
 
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
 
@@ -850,7 +850,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
                     // drops the consumer on its side
                     setState(State.Closed);
-                    cnx.removeConsumer(consumerId);
+                    deregisterFromClientCnx();
+                    client.cleanupConsumer(this);
                     cnx.channel().close();
                     return;
                 }
@@ -864,10 +865,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // For readers too (isDurable==false), the partition idx will be set though we have to
             // send available permits immediately after establishing the reader session
             if (!(firstTimeConnect && hasParentConsumer && isDurable) && conf.getReceiverQueueSize() != 0) {
-                sendFlowPermitsToBroker(cnx, conf.getReceiverQueueSize());
+                increaseAvailablePermits(cnx, conf.getReceiverQueueSize());
             }
         }).exceptionally((e) -> {
-            cnx.removeConsumer(consumerId);
+            deregisterFromClientCnx();
             if (getState() == State.Closing || getState() == State.Closed) {
                 // Consumer was closed while reconnecting, close the connection to make sure the broker
                 // drops the consumer on its side
@@ -957,7 +958,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     /**
      * send the flow command to have the broker start pushing messages
      */
-    void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
+    private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
         if (cnx != null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
@@ -978,6 +979,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
             }
+            closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
         }
     }
@@ -993,6 +996,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
             closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -1008,16 +1012,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
         if (null == cnx) {
-            cleanupAtClose(closeFuture);
+            cleanupAtClose(closeFuture, null);
         } else {
             ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-                cnx.removeConsumer(consumerId);
-                if (exception == null || !cnx.ctx().channel().isActive()) {
-                    cleanupAtClose(closeFuture);
-                } else {
-                    closeFuture.completeExceptionally(exception);
+                boolean ignoreException = !cnx.ctx().channel().isActive();
+                if (ignoreException && exception != null) {
+                    log.debug("Exception ignored in closing consumer", exception);
                 }
+                cleanupAtClose(closeFuture, ignoreException ? null : exception);
                 return null;
             });
         }
@@ -1025,11 +1028,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return closeFuture;
     }
 
-    private void cleanupAtClose(CompletableFuture<Void> closeFuture) {
+    private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
         log.info("[{}] [{}] Closed consumer", topic, subscription);
         setState(State.Closed);
         closeConsumerTasks();
-        closeFuture.complete(null);
+        if (exception != null) {
+            closeFuture.completeExceptionally(exception);
+        } else {
+            closeFuture.complete(null);
+        }
+        deregisterFromClientCnx();
         client.cleanupConsumer(this);
         // fail all pending-receive futures to notify application
         failPendingReceive();
@@ -2228,7 +2236,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void setClientCnx(ClientCnx clientCnx) {
-        this.connectionHandler.setClientCnx(clientCnx);
+        if (clientCnx != null) {
+            this.connectionHandler.setClientCnx(clientCnx);
+            clientCnx.registerConsumer(consumerId, this);
+        }
+        ClientCnx previousClientCnx = clientCnxUsedForConsumerRegistration.getAndSet(clientCnx);
+        if (previousClientCnx != null && previousClientCnx != clientCnx) {
+            previousClientCnx.removeConsumer(consumerId);
+        }
+    }
+
+    void deregisterFromClientCnx() {
+        setClientCnx(null);
     }
 
     void reconnectLater(Throwable exception) {

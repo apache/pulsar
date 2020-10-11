@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,22 +40,35 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     private final ObjectMapper objectMapper;
     private final byte[] schemaVersion;
     private final List<Field> fields;
-    public GenericJsonReader(List<Field> fields){
+    private SchemaInfo schemaInfo;
+
+    public GenericJsonReader(List<Field> fields, SchemaInfo schemaInfo){
         this.fields = fields;
         this.schemaVersion = null;
         this.objectMapper = new ObjectMapper();
+        this.schemaInfo = schemaInfo;
+    }
+
+    public GenericJsonReader(List<Field> fields){
+        this(fields, null);
     }
 
     public GenericJsonReader(byte[] schemaVersion, List<Field> fields){
+        this(schemaVersion, fields, null);
+    }
+
+    public GenericJsonReader(byte[] schemaVersion, List<Field> fields, SchemaInfo schemaInfo){
         this.objectMapper = new ObjectMapper();
         this.fields = fields;
         this.schemaVersion = schemaVersion;
+        this.schemaInfo = schemaInfo;
     }
+
     @Override
     public GenericJsonRecord read(byte[] bytes, int offset, int length) {
         try {
             JsonNode jn = objectMapper.readTree(new String(bytes, offset, length, UTF_8));
-            return new GenericJsonRecord(schemaVersion, fields, jn);
+            return new GenericJsonRecord(schemaVersion, fields, jn, schemaInfo);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }
@@ -64,7 +78,7 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     public GenericRecord read(InputStream inputStream) {
         try {
             JsonNode jn = objectMapper.readTree(inputStream);
-            return new GenericJsonRecord(schemaVersion, fields, jn);
+            return new GenericJsonRecord(schemaVersion, fields, jn, schemaInfo);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         } finally {

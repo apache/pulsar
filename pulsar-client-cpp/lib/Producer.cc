@@ -106,4 +106,5 @@ void Producer::producerFailMessages(Result result) {
         producerImpl->failPendingMessages(result);
     }
 }
+
 }  // namespace pulsar

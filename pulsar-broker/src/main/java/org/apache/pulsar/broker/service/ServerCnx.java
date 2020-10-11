@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
@@ -215,7 +216,10 @@ public class ServerCnx extends PulsarHandler {
         super.channelInactive(ctx);
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
-        getBrokerService().getInterceptor().onConnectionClosed(this);
+        BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
+        if (brokerInterceptor != null) {
+            brokerInterceptor.onConnectionClosed(this);
+        }
         // Connection is gone, close the producers immediately
         producers.values().forEach((producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
@@ -1965,7 +1969,8 @@ public class ServerCnx extends PulsarHandler {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
-        if (!ctx.channel().config().isAutoRead() && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
+        if (ctx != null && !ctx.channel().config().isAutoRead() &&
+                !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
@@ -1974,7 +1979,7 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void disableCnxAutoRead() {
-        if (ctx.channel().config().isAutoRead() ) {
+        if (ctx != null && ctx.channel().config().isAutoRead() ) {
             ctx.channel().config().setAutoRead(false);
         }
     }

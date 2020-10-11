@@ -44,6 +44,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
+
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.StreamingOutput;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -540,6 +544,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             future.completeExceptionally(
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
+
+        if (replicatedSubscriptionState
+                && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
+            future.completeExceptionally(
+                    new NotAllowedException("Replicated Subscriptions is disabled by broker.")
+            );
             return future;
         }
 
@@ -1079,9 +1091,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             future.completeExceptionally(new ServerMetadataException(e));
             return future;
         }
-
         //Ignore current broker's config for messageTTL for replication.
-        final int newMessageTTLinSeconds = getMessageTTL(getTopicPolicies(name), policies, -1);
+        final int newMessageTTLinSeconds;
+        try {
+            newMessageTTLinSeconds = getMessageTTL();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(new ServerMetadataException(e));
+        }
 
         Set<String> configuredClusters;
         if (policies.replication_clusters != null) {
@@ -1131,16 +1147,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkMessageExpiry() {
-        TopicName name = TopicName.get(topic);
-        Policies policies;
         try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
-                    .orElseThrow(() -> new KeeperException.NoNodeException());
-            int defaultTTL = brokerService.pulsar().getConfiguration().getTtlDurationDefaultInSeconds();
-            TopicPolicies topicPolicies = getTopicPolicies(name);
             //If topic level policy or message ttl is not set, fall back to namespace level config.
-            int message_ttl_in_seconds = getMessageTTL(topicPolicies, policies, defaultTTL);
+            int message_ttl_in_seconds = getMessageTTL();
 
             if (message_ttl_in_seconds != 0) {
                 subscriptions.forEach((subName, sub) -> sub.expireMessages(message_ttl_in_seconds));
@@ -1580,7 +1589,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats() {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
+
+        CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
 
         ManagedLedgerImpl ml = (ManagedLedgerImpl) ledger;
@@ -1601,6 +1612,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
+        List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
         ml.getLedgersInfo().forEach((id, li) -> {
             LedgerInfo info = new LedgerInfo();
             info.ledgerId = li.getLedgerId();
@@ -1608,6 +1620,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             info.size = li.getSize();
             info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
             stats.ledgers.add(info);
+            if (futures != null) {
+                futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                    if (ex == null) {
+                        info.metadata = lMetadata;
+                    }
+                    return null;
+                }));
+            }
         });
 
         // Add ledger info for compacted topic ledger if exist.
@@ -1617,8 +1637,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         info.size = -1;
 
         try {
-            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext =
-                    ((CompactedTopicImpl)compactedTopic).getCompactedTopicContext();
+            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext = ((CompactedTopicImpl) compactedTopic)
+                    .getCompactedTopicContext();
             if (compactedTopicContext.isPresent()) {
                 CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
                 info.ledgerId = ledgerContext.getLedger().getId();
@@ -1649,7 +1669,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });
-        return stats;
+        if (futures != null) {
+            FutureUtil.waitForAll(futures).handle((res, ex) -> {
+                statFuture.complete(stats);
+                return null;
+            });
+        } else {
+            statFuture.complete(stats);
+        }
+        return statFuture;
     }
 
     public long getBacklogSize() {
@@ -1895,10 +1923,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-        getManagedLedger().getConfig().setLedgerOffloader(
-                brokerService.pulsar().getManagedLedgerOffloader(
-                        TopicName.get(topic).getNamespaceObject(), data.offload_policies));
-
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -2172,19 +2196,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     /**
      * Get message TTL for this topic.
-     * @param topicPolicies TopicPolicies
-     * @param policies      NameSpace policy
-     * @param brokerDefaultMessageTTL
      * @return Message TTL in second.
      */
-    private int getMessageTTL(TopicPolicies topicPolicies, Policies policies, int brokerDefaultMessageTTL) {
+    private int getMessageTTL() throws Exception {
         //Return Topic level message TTL if exist. If topic level policy or message ttl is not set,
         //fall back to namespace level message ttl then message ttl set for current broker.
-        return (topicPolicies == null || topicPolicies.getMessageTTLInSeconds() == null) ?
-                ((policies.message_ttl_in_seconds <= 0 && brokerDefaultMessageTTL > 0) ?
-                        brokerDefaultMessageTTL :
-                        policies.message_ttl_in_seconds) :
-                topicPolicies.getMessageTTLInSeconds();
+        TopicName name = TopicName.get(topic);
+        TopicPolicies topicPolicies = getTopicPolicies(name);
+        Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, name.getNamespace()))
+                .orElseThrow(KeeperException.NoNodeException::new);
+        if (topicPolicies != null && topicPolicies.isMessageTTLSet()) {
+            return topicPolicies.getMessageTTLInSeconds();
+        }
+        if (policies.message_ttl_in_seconds != null) {
+            return policies.message_ttl_in_seconds;
+        }
+        return brokerService.getPulsar().getConfiguration().getTtlDurationDefaultInSeconds();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
@@ -2219,14 +2247,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
+        boolean isEnableReplicatedSubscriptions = brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
-        if (shouldBeEnabled && !isCurrentlyEnabled) {
+        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
-        } else if (isCurrentlyEnabled && !shouldBeEnabled) {
+        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
-            replicatedSubscriptionsController.get().close();
+            replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
         }
     }

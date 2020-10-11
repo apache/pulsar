@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.util.netty.ChannelFutures.toCompletableFuture;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.dns.DnsNameResolver;
@@ -294,11 +295,14 @@ public class ConnectionPool implements Closeable {
      */
     private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port, InetSocketAddress sniHost) {
         InetSocketAddress remoteAddress = new InetSocketAddress(ipAddress, port);
-        return adapt(bootstrap.register())
-                .thenCompose(channel -> clientConfig.isUseTls()
-                        ? channelInitializerHandler.initTls(channel, sniHost != null ? sniHost : remoteAddress)
-                        : CompletableFuture.completedFuture(channel))
-                .thenCompose(channel -> adapt(channel.connect(remoteAddress)));
+        if (clientConfig.isUseTls()) {
+            return toCompletableFuture(bootstrap.register())
+                    .thenCompose(channel -> channelInitializerHandler
+                            .initTls(channel, sniHost != null ? sniHost : remoteAddress))
+                    .thenCompose(channel -> toCompletableFuture(channel.connect(remoteAddress)));
+        } else {
+            return toCompletableFuture(bootstrap.connect(remoteAddress));
+        }
     }
 
     public void releaseConnection(ClientCnx cnx) {
@@ -346,16 +350,5 @@ public class ConnectionPool implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
-    private static CompletableFuture<Channel> adapt(ChannelFuture channelFuture) {
-        CompletableFuture<Channel> adapter = new CompletableFuture<>();
-        channelFuture.addListener((ChannelFuture cf) ->{
-            if (cf.isSuccess()) {
-                adapter.complete(channelFuture.channel());
-            } else {
-                adapter.completeExceptionally(channelFuture.cause());
-            }
-        });
-        return adapter;
-    }
 }
 

@@ -44,7 +44,7 @@ class GenericJsonSchema extends GenericSchemaImpl {
                       boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo, useProvidedSchemaAsReaderSchema);
         setWriter(new GenericJsonWriter());
-        setReader(new GenericJsonReader(fields));
+        setReader(new GenericJsonReader(fields, schemaInfo));
     }
 
     @Override
@@ -64,7 +64,7 @@ class GenericJsonSchema extends GenericSchemaImpl {
                     readerSchema.getFields()
                             .stream()
                             .map(f -> new Field(f.name(), f.pos()))
-                            .collect(Collectors.toList()));
+                            .collect(Collectors.toList()), schemaInfo);
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),

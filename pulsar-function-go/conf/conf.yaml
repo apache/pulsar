@@ -35,6 +35,7 @@ secretsMap: ""
 runtime: 0
 autoAck: true
 parallelism: 0
+userConfig: '{"word-of-the-day": "hapax legomenon"}'
 # source config
 subscriptionType: 0
 timeoutMs: 0
