@@ -2427,14 +2427,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private Optional<Policies> getNamespacePolicies(){
-        try {
-            return Optional.ofNullable(brokerService.pulsar().getAdminClient().namespaces()
-                    .getPolicies(TopicName.get(topic).getNamespace()));
-        } catch (Exception e) {
-            log.warn("get namespace policies fail", e);
-        }
-        return Optional.empty();
+    private Optional<Policies> getNamespacePolicies() {
+        return DispatchRateLimiter.getPolicies(brokerService, topic);
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
