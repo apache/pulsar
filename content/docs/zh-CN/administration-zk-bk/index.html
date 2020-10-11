@@ -122,13 +122,13 @@
 </code></pre>
 <p>As before, create the <code>myid</code> files for each server on <code>data/global-zookeeper/myid</code>.</p>
 <h4><a class="anchor" aria-hidden="true" id="multi-cluster-pulsar-instance"></a><a href="#multi-cluster-pulsar-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multi-cluster Pulsar instance</h4>
-<p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域， 配置存储必须是一个高度可用和高度一致的元数据存储服务，能够容忍整个区域的故障和分区。</p>
-<p>这里的关键是确保 ZK 成员至少分布在3个区域，其他区域以观察员身份运行。</p>
+<p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和高一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
+<p>这里的关键是确保 ZK 成员投票节点必须分布在3个区域，其他区域以观察员身份运行。</p>
 <p>Again, given the very low expected load on the configuration store servers, you can share the same hosts used for the local ZooKeeper quorum.</p>
 <p>For example, you can assume a Pulsar instance with the following clusters <code>us-west</code>, <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>. Also you can assume, each cluster has its own local ZK servers named such as</p>
 <pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
 </code></pre>
-<p>In this scenario you want to pick the quorum participants from few clusters and let all the others be ZK observers. 例如，要形成7个服务器的法定人数，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
+<p>In this scenario you want to pick the quorum participants from few clusters and let all the others be ZK observers. 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
 <p>This guarantees that writes to configuration store is possible even if one of these regions is unreachable.</p>
 <p>所有服务器中的 ZK 配置如下：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
@@ -194,10 +194,10 @@
 <p>To start a bookie in the background, use the <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
 </code></pre>
-<p>You can verify that the bookie works properly using the <code>bookiesanity</code> command for the <a href="/docs/zh-CN/reference-cli-tools#bookkeeper-shell">BookKeeper shell</a>:</p>
+<p>你可以通过运行<a href="/docs/zh-CN/reference-cli-tools#bookkeeper-shell">BookKeeper shell</a>上的<code>bookiesanity</code>命令验证 bookie 是否正常工作：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
 </code></pre>
-<p>This command creates a new ledger on the local bookie, writes a few entries, reads them back and finally deletes the ledger.</p>
+<p>这个命令会在本地的 bookie 创建一个临时的 BookKeeper ledger，往里面写一些条目，然后读取它，最后删除这个 ledger。</p>
 <h3><a class="anchor" aria-hidden="true" id="硬件条件"></a><a href="#硬件条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件条件</h3>
 <p>Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, ensuring that the bookies have a suitable hardware configuration is essential. You can choose two key dimensions to bookie hardware capacity:</p>
 <ul>
@@ -206,8 +206,8 @@
 </ul>
 <p>Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
 <ul>
-<li>A <strong>journal</strong> to ensure durability. For sequential writes, having fast <a href="https://linux.die.net/man/2/fsync">fsync</a> operations on bookie hosts is critical. Typically, small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) should suffice, or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a>s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.</li>
-<li>A <strong>ledger storage device</strong> is where data is stored until all consumers have acknowledged the message. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.</li>
+<li>A <strong>journal</strong> to ensure durability. 对于连续写入来说 ，在 bookie 机器上必须有快速的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作， Typically, small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) should suffice, or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a>s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.</li>
+<li>A <strong>ledger storage device</strong> is where data is stored until all consumers have acknowledged the message. 写入操作是在后台运行的，所以写入的 I/O 性能不是一个大问题。 大部分的读取操作是连续的。backlog 只有在没有消费者的情况下，才会被删除。 要存储大量的数据，典型的配置是多块 HDD 硬盘和 一个RAID 控制器构建硬盘阵列。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="configure-bookkeeper"></a><a href="#configure-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure BookKeeper</h3>
 <p>you can find configurable parameters for BookKeeper bookies in the <a href="/docs/zh-CN/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a> file.</p>
