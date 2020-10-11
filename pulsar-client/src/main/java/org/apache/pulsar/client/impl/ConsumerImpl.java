@@ -1049,6 +1049,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleSendToDeadLetterTopicMessages.clear();
         }
 
+        if (!ackRequests.isEmpty()) {
+            ackRequests.forEach((key, value) -> value.callback
+                    .completeExceptionally(new TransactionConflictException("Consumer has closed!")));
+            ackRequests.clear();
+        }
+
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
