@@ -63,7 +63,7 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -462,7 +462,7 @@ public class Consumer {
         } else {
             String error = "Transaction acknowledge only support the `PersistentSubscription`.";
             log.error(error);
-            return FutureUtil.failedFuture(new TransactionConflictException(error));
+            return FutureUtil.failedFuture(new TransactionAckConflictException(error));
         }
     }
 
