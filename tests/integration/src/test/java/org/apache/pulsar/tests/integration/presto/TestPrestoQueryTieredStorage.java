@@ -38,6 +38,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -110,13 +111,13 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
     }
 
     // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage1() throws Exception {
         testSimpleSQLQuery(false);
     }
 
     // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage2() throws Exception {
         testSimpleSQLQuery(true);
     }
