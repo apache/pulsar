@@ -27,7 +27,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.Properties;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
@@ -49,12 +48,8 @@ import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
-import org.jclouds.osgi.ApiRegistry;
-import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.providers.AnonymousProviderMetadata;
 import org.jclouds.providers.ProviderMetadata;
-import org.jclouds.s3.S3ApiMetadata;
-import org.jclouds.s3.reference.S3Constants;
 
 /**
  * Enumeration of the supported JCloud Blob Store Providers.
@@ -216,39 +211,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
-
-        Properties overrides = new Properties();
-        // This property controls the number of parts being uploaded in parallel.
-        overrides.setProperty("jclouds.mpu.parallel.degree", "1");
-        overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(config.getMaxBlockSizeInBytes()));
-        overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
-        overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
-
-        if (config.getProvider().equals(AWS_S3)) {
-            ApiRegistry.registerApi(new S3ApiMetadata());
-            ProviderRegistry.registerProvider(new AWSS3ProviderMetadata());
-        } else if (config.getProvider().equals(GOOGLE_CLOUD_STORAGE)) {
-            ProviderRegistry.registerProvider(new GoogleCloudStorageProviderMetadata());
-        }
-
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
-        contextBuilder.overrides(overrides);
+        contextBuilder.overrides(config.getOverrides());
 
         if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
             contextBuilder.endpoint(config.getServiceEndpoint());
-            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
         }
 
         if (config.getProviderCredentials() != null) {
                 return contextBuilder
                         .credentials(config.getProviderCredentials().identity,
                                      config.getProviderCredentials().credential)
-                        .overrides(config.getOverrides())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             } else {
                 return contextBuilder
-                        .overrides(config.getOverrides())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             }
