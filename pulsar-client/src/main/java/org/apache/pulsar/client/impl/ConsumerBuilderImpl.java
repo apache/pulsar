@@ -202,13 +202,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> ackResponseTimeout(long ackResponseTimeout, TimeUnit timeUnit) {
-        checkArgument(ackResponseTimeout >= 0, "ackResponseTimeout needs to be >= 0");
-        conf.setAckResponseTimeout(timeUnit.toMillis(ackResponseTimeout));
-        return this;
-    }
-
-    @Override
     public ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit) {
         checkArgument(redeliveryDelay >= 0, "redeliveryDelay needs to be >= 0");
         conf.setNegativeAckRedeliveryDelayMicros(timeUnit.toMicros(redeliveryDelay));

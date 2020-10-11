@@ -88,25 +88,4 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
     }
-
-    @Test
-    public void testAckResponseTimeout() throws PulsarClientException, InterruptedException {
-        String topic = "testAckResponseTimeout";
-
-        @Cleanup
-        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .ackResponseTimeout(1, TimeUnit.NANOSECONDS)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscribe();
-        MessageId messageId = new MessageIdImpl(1, 1, 1);
-        try {
-            consumer.acknowledgeAsync(messageId, transaction).get();
-            Assert.fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
-        }
-    }
 }

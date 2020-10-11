@@ -27,8 +27,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -150,17 +149,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getAck().recycle();
                 break;
 
-            case ACK_RECEIPT:
-                checkArgument(cmd.hasAckReceipt());
-                handleAckReceipt(cmd.getAckReceipt());
-                cmd.getAckReceipt().recycle();
+            case ACK_RESPONSE:
+                checkArgument(cmd.hasAckResponse());
+                handleAckResponse(cmd.getAckResponse());
+                cmd.getAckResponse().recycle();
                 break;
-
-            case ACK_ERROR:
-                 checkArgument(cmd.hasAckError());
-                 handleAckError(cmd.getAckError());
-                 cmd.getAckError().recycle();
-                 break;
 
             case CLOSE_CONSUMER:
                 checkArgument(cmd.hasCloseConsumer());
@@ -569,11 +562,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleAckReceipt(CommandAckReceipt ackReceipt) {
-        throw new UnsupportedOperationException();
-    }
-
-    protected void handleAckError(CommandAckError ackError) {
+    protected void handleAckResponse(CommandAckResponse ackResponse) {
         throw new UnsupportedOperationException();
     }
 
