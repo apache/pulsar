@@ -203,9 +203,6 @@ enum ServerError {
     NotAllowedError = 22; // Not allowed error
 
     TransactionAckConflictException = 23; // Ack with transaction conflict
-    TransactionCommitConflictException = 24; //Transaction commit conflict
-    TransactionAbortConflictException = 25; //Transaction abort conflict
-
 }
 
 enum AuthMethod {

@@ -63,7 +63,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -166,7 +165,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() throws TransactionConflictException {
+    public void testCanAcknowledgeAndCommitForTransaction() {
         List<Position> expectedSinglePositions = new ArrayList<>();
         expectedSinglePositions.add(new PositionImpl(1, 1));
         expectedSinglePositions.add(new PositionImpl(1, 3));

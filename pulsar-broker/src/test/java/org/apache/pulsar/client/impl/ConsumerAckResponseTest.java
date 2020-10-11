@@ -30,7 +30,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 
 import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
