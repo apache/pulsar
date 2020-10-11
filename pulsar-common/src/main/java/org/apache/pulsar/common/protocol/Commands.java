@@ -53,8 +53,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -1187,32 +1186,37 @@ public class Commands {
     }
 
     public static ByteBuf newAckReceipt(long requestId, long consumerId) {
-        CommandAckReceipt.Builder commandAckReceiptBuilder = CommandAckReceipt.newBuilder();
+        CommandAckResponse.Builder commandAckReceiptBuilder = CommandAckResponse.newBuilder();
         commandAckReceiptBuilder.setConsumerId(consumerId);
         commandAckReceiptBuilder.setRequestId(requestId);
-        CommandAckReceipt commandAckReceipt = commandAckReceiptBuilder.build();
+        CommandAckResponse commandAck = commandAckReceiptBuilder.build();
         ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.ACK_RECEIPT).setAckReceipt(commandAckReceipt));
+                BaseCommand.newBuilder().setType(Type.ACK_RESPONSE).setAckResponse(commandAck));
         commandAckReceiptBuilder.recycle();
-        commandAckReceipt.recycle();
+        commandAck.recycle();
 
         return res;
     }
 
-    public static ByteBuf newAckError(long requestId, ServerError error, String errorMsg, long consumerId) {
-        CommandAckError.Builder commandAckErrorBuilder = CommandAckError.newBuilder();
-        commandAckErrorBuilder.setConsumerId(consumerId);
-        commandAckErrorBuilder.setError(error);
-        commandAckErrorBuilder.setRequestId(requestId);
-        if (errorMsg != null) {
-            commandAckErrorBuilder.setMessage(errorMsg);
+    public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
+        CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
+        commandAckResponseBuilder.setConsumerId(consumerId);
+        commandAckResponseBuilder.setRequestId(requestId);
+
+        if (error != null) {
+            commandAckResponseBuilder.setError(error);
         }
 
-        CommandAckError commandAckError = commandAckErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK_ERROR).setAckError(commandAckError));
+        if (errorMsg != null) {
+            commandAckResponseBuilder.setMessage(errorMsg);
+        }
 
-        commandAckErrorBuilder.recycle();
-        commandAckError.recycle();
+        CommandAckResponse commandAckResponse = commandAckResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                .setType(Type.ACK_RESPONSE).setAckResponse(commandAckResponseBuilder));
+
+        commandAckResponseBuilder.recycle();
+        commandAckResponse.recycle();
 
         return res;
     }
