@@ -19,7 +19,7 @@
 package org.apache.pulsar.transaction.common.exception;
 
 /**
- * Exception thrown when a transaction try to acknowledge message when it shouldn't.
+ * Exception thrown when a transaction conflict.
  *
  */
 public class TransactionConflictException extends Exception {

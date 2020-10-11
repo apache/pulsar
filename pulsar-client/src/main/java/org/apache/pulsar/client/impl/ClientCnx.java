@@ -64,8 +64,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
@@ -81,8 +80,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
@@ -405,37 +403,20 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAckReceipt(CommandAckReceipt ackReceipt) {
+    protected void handleAckResponse(CommandAckResponse ackResponse) {
         checkArgument(state == State.Ready);
-
-        long consumerId = ackReceipt.getConsumerId();
-
-        consumers.get(consumerId).ackReceipt(ackReceipt);
+        long consumerId = ackResponse.getConsumerId();
+        consumers.get(consumerId).ackResponse(ackResponse);
     }
 
-    @Override
-    protected void handleAckError(CommandAckError ackError) {
+
+    protected void handleRedeliverUnacknowledgedResponse(
+            CommandRedeliverUnacknowledgedMessagesResponse redeliverResponse) {
         checkArgument(state == State.Ready);
 
-        long consumerId = ackError.getConsumerId();
+        long consumerId = redeliverResponse.getConsumerId();
 
-        consumers.get(consumerId).ackError(ackError);
-    }
-
-    protected void handleRedeliverUnacknowledgedReceipt(CommandRedeliverUnacknowledgedMessagesReceipt redeliverReciept) {
-        checkArgument(state == State.Ready);
-
-        long consumerId = redeliverReciept.getConsumerId();
-
-        consumers.get(consumerId).redeliverReceipt(redeliverReciept);
-    }
-
-    protected void handleRedeliverUnacknowledgedError(CommandRedeliverUnacknowledgedMessagesError redeliverError) {
-        checkArgument(state == State.Ready);
-
-        long consumerId = redeliverError.getConsumerId();
-
-        consumers.get(consumerId).redeliverError(redeliverError);
+        consumers.get(consumerId).redeliverResponse(redeliverResponse);
     }
 
 

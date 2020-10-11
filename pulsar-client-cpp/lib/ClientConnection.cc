@@ -120,6 +120,15 @@ static Result getResult(ServerError serverError) {
 
         case NotAllowedError:
             return ResultNotAllowedError;
+
+        case TransactionAckConflictException:
+            return ResultTransactionAckConflictException;
+
+        case TransactionCommitConflictException:
+            return ResultTransactionCommitConflictException;
+
+        case TransactionAbortConflictException:
+            return ResultTransactionAbortConflictException;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding

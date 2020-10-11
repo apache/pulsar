@@ -77,22 +77,21 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.client.impl.AckTimeoutTracker.OpForAckCallBack;
-import org.apache.pulsar.client.impl.RedeliverTimeoutTracker.OpForRedeliverCallBack;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
@@ -108,8 +107,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -192,9 +193,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-    private final AckTimeoutTracker<T> ackTimeTracker;
-    private final RedeliverTimeoutTracker<T> redeliverTimeoutTracker;
-
     protected static class RequestTime {
         final long creationTimeMs;
         final long requestId;
@@ -204,6 +202,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.requestId = requestId;
         }
     }
+
+    private final ConcurrentLongHashMap<OpForAckCallBack> ackRequests;
+
+    private final ConcurrentLongHashMap<OpForRedeliverCallBack> redeliverRequests;
+
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
@@ -346,8 +349,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
-        this.ackTimeTracker = new AckTimeoutTracker<>(this);
-        this.redeliverTimeoutTracker = new RedeliverTimeoutTracker<>(this);
+        this.redeliverRequests = new ConcurrentLongHashMap<>(16, 1);
+        this.ackRequests = new ConcurrentLongHashMap<>(16, 1);
         grabCnx();
     }
 
@@ -877,7 +880,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // For readers too (isDurable==false), the partition idx will be set though we have to
             // send available permits immediately after establishing the reader session
             if (!(firstTimeConnect && hasParentConsumer && isDurable) && conf.getReceiverQueueSize() != 0) {
-                sendFlowPermitsToBroker(cnx, conf.getReceiverQueueSize());
+                increaseAvailablePermits(cnx, conf.getReceiverQueueSize());
             }
         }).exceptionally((e) -> {
             deregisterFromClientCnx();
@@ -970,7 +973,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     /**
      * send the flow command to have the broker start pushing messages
      */
-    void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
+    private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
         if (cnx != null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
@@ -1061,18 +1064,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleSendToDeadLetterTopicMessages.clear();
         }
 
+        if (!ackRequests.isEmpty()) {
+            ackRequests.forEach((key, value) -> value.callback
+                    .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!")));
+            ackRequests.clear();
+        }
+
+
+
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
         }
 
-        if (ackTimeTracker != null) {
-            ackTimeTracker.cancel();
-        }
-
-        if (redeliverTimeoutTracker != null) {
-            redeliverTimeoutTracker.cancel();
-        }
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
@@ -1760,7 +1764,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID) {
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
-            int currentSize = 0;
+            int currentSize;
             synchronized (this) {
                 currentSize = incomingMessages.size();
                 incomingMessages.clear();
@@ -1772,7 +1776,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             long requestId = client.newRequestId();
             ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessagesWithRequestId(consumerId, txnID, requestId);
             OpForRedeliverCallBack op = OpForRedeliverCallBack.create(cmd, txnID, callBack, requestId);
-            redeliverTimeoutTracker.add(op, requestId);
+            this.redeliverRequests.put(requestId, op);
             cmd.retain();
             cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
 
@@ -2442,38 +2446,31 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAck(consumerId, ledgerId, entryId,
                 bitSetRecyclable, ackType,
-                validationError, properties, txnID.getMostSigBits(), txnID.getLeastSigBits(), requestId);
+                validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
-        ackTimeTracker.add(op, requestId);
+        ackRequests.put(requestId, op);
         unAckedMessageTracker.remove(messageId);
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;
     }
 
-    protected void ackReceipt(PulsarApi.CommandAckReceipt commandAckReceipt) {
-        checkArgument(commandAckReceipt.getRequestId() >= 0);
-        OpForAckCallBack callBackOp = ackTimeTracker.remove(commandAckReceipt.getRequestId());
+    protected void ackResponse(CommandAckResponse ackResponse) {
+        checkArgument(ackResponse.getRequestId() >= 0);
+        OpForAckCallBack callBackOp = ackRequests.remove(ackResponse.getRequestId());
         if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.error("Ack request has been handled requestId : {}", commandAckReceipt.getRequestId());
-        } else {
+            log.info("Ack request has been handled requestId : {}", ackResponse.getRequestId());
+        } else if (!ackResponse.hasError()) {
             callBackOp.callback.complete(null);
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
                         + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
             }
             callBackOp.recycle();
-        }
-    }
-
-    protected void ackError(PulsarApi.CommandAckError commandAckError) {
-        checkArgument(commandAckError.getRequestId() >= 0);
-        OpForAckCallBack callBackOp = ackTimeTracker.remove(commandAckError.getRequestId());
-        if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.error("Ack request has been handled requestId : {}", commandAckError.getRequestId());
         } else {
-            callBackOp.callback.completeExceptionally(new TransactionConflictException(commandAckError.getMessage()));
+            callBackOp.callback.completeExceptionally(new MessageAcknowledgeException
+                    (new TransactionAckConflictException(ackResponse.getMessage())));
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
             }
@@ -2481,12 +2478,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    protected void redeliverReceipt(CommandRedeliverUnacknowledgedMessagesReceipt commandReceipt) {
-        checkArgument(commandReceipt.getRequestId() >= 0);
-        OpForRedeliverCallBack callBackOp = redeliverTimeoutTracker.remove(commandReceipt.getRequestId());
+    protected void redeliverResponse(CommandRedeliverUnacknowledgedMessagesResponse redeliverResponse) {
+        checkArgument(redeliverResponse.getRequestId() >= 0);
+        OpForRedeliverCallBack callBackOp = redeliverRequests.remove(redeliverResponse.getRequestId());
         if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.error("Redeliver request has been handled requestId : {}", commandReceipt.getRequestId());
-        } else {
+            log.info("Redeliver request has been handled requestId : {}", redeliverResponse.getRequestId());
+        } else if (!redeliverResponse.hasError()) {
             callBackOp.callback.complete(null);
             if (log.isDebugEnabled()) {
                 if (callBackOp.txnID != null) {
@@ -2496,17 +2493,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }
             callBackOp.recycle();
-        }
-    }
-
-    protected void redeliverError(CommandRedeliverUnacknowledgedMessagesError commandError) {
-        checkArgument(commandError.getRequestId() >= 0);
-        OpForRedeliverCallBack callBackOp = redeliverTimeoutTracker.remove(commandError.getRequestId());
-        if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.error("Ack request has been handled requestId : {}", commandError.getRequestId());
         } else {
             callBackOp.callback.completeExceptionally(
-                    new TransactionConflictException(commandError.getMessage()));
+                    new TransactionConflictException(redeliverResponse.getMessage()));
             if (callBackOp.txnID != null) {
                 log.debug("RequestId : [{}], don't redeliver by TxnId : {}", callBackOp.requestId, callBackOp.txnID);
             } else {
@@ -2514,6 +2503,76 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             callBackOp.recycle();
         }
+    }
+
+    private static class OpForAckCallBack {
+        protected ByteBuf cmd;
+        protected CompletableFuture<Void> callback;
+        protected MessageIdImpl messageId;
+        protected TxnID txnID;
+
+        static OpForAckCallBack create(ByteBuf cmd, CompletableFuture<Void> callback,
+                                       MessageId messageId, TxnID txnID) {
+            OpForAckCallBack op = RECYCLER.get();
+            if (op.cmd != null) {
+                op.cmd.release();
+            }
+            op.callback = callback;
+            op.cmd = cmd;
+            op.messageId = (MessageIdImpl) messageId;
+            op.txnID = txnID;
+            return op;
+        }
+
+        private OpForAckCallBack(Recycler.Handle<OpForAckCallBack> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        void recycle() {
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForAckCallBack> recyclerHandle;
+        private static final Recycler<OpForAckCallBack> RECYCLER = new Recycler<OpForAckCallBack>() {
+            @Override
+            protected OpForAckCallBack newObject(Handle<OpForAckCallBack> handle) {
+                return new OpForAckCallBack(handle);
+            }
+        };
+    }
+
+    protected static class OpForRedeliverCallBack {
+        protected ByteBuf cmd;
+        protected CompletableFuture<Void> callback;
+        protected TxnID txnID;
+        protected long requestId;
+
+        static OpForRedeliverCallBack create(ByteBuf cmd, TxnID txnID, CompletableFuture<Void> callback, long requestId) {
+            OpForRedeliverCallBack op = RECYCLER.get();
+            op.callback = callback;
+            op.cmd = cmd;
+            op.requestId = requestId;
+            op.txnID = txnID;
+            return op;
+        }
+        private OpForRedeliverCallBack(Recycler.Handle<OpForRedeliverCallBack> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        void recycle() {
+            if (cmd != null) {
+                ReferenceCountUtil.safeRelease(cmd);
+            }
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForRedeliverCallBack> recyclerHandle;
+        private static final Recycler<OpForRedeliverCallBack> RECYCLER = new Recycler<OpForRedeliverCallBack>() {
+            @Override
+            protected OpForRedeliverCallBack newObject(Handle<OpForRedeliverCallBack> handle) {
+                return new OpForRedeliverCallBack(handle);
+            }
+        };
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

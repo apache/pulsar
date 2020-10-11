@@ -149,6 +149,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
+    <scala-library.version>2.11.12</scala-library.version>
     <debezium.version>1.0.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
@@ -160,7 +161,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.48</jcommander.version>
+    <jcommander.version>1.78</jcommander.version>
     <commons-lang3.version>3.6</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.5</commons-io.version>

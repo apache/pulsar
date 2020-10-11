@@ -177,7 +177,7 @@ public class BacklogQuotaManagerTest {
 
             // make sure ledgers are trimmed
             PersistentTopicInternalStats internalStats =
-              admin.topics().getInternalStats(topic1);
+              admin.topics().getInternalStats(topic1, false);
 
             // check there is only one ledger left
             // TODO in theory there shouldn't be any ledgers left if we are using readers.
@@ -238,7 +238,7 @@ public class BacklogQuotaManagerTest {
             }
 
             // make sure ledgers are trimmed
-            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1);
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1, false);
 
             // check there is only one ledger left
             assertEquals(internalStats.ledgers.size(), 1);

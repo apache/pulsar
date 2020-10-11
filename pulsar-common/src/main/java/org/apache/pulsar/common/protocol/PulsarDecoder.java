@@ -27,8 +27,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -69,8 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -152,17 +150,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getAck().recycle();
                 break;
 
-            case ACK_RECEIPT:
-                checkArgument(cmd.hasAckReceipt());
-                handleAckReceipt(cmd.getAckReceipt());
-                cmd.getAckReceipt().recycle();
+            case ACK_RESPONSE:
+                checkArgument(cmd.hasAckResponse());
+                handleAckResponse(cmd.getAckResponse());
+                cmd.getAckResponse().recycle();
                 break;
-
-            case ACK_ERROR:
-                 checkArgument(cmd.hasAckError());
-                 handleAckError(cmd.getAckError());
-                 cmd.getAckError().recycle();
-                 break;
 
             case CLOSE_CONSUMER:
                 checkArgument(cmd.hasCloseConsumer());
@@ -311,16 +303,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getRedeliverUnacknowledgedMessages().recycle();
                 break;
 
-            case REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT:
-                checkArgument(cmd.hasRedeliverReceipt());
-                handleRedeliverUnacknowledgedReceipt(cmd.getRedeliverReceipt());
-                cmd.getAckReceipt().recycle();
-                break;
-
-            case REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR:
-                checkArgument(cmd.hasRedeliverError());
-                handleRedeliverUnacknowledgedError(cmd.getRedeliverError());
-                cmd.getAckError().recycle();
+            case REDELIVER_UNACKNOWLEDGED_MESSAGES_RESPONSE:
+                checkArgument(cmd.hasAckResponse());
+                handleRedeliverUnacknowledgedResponse(cmd.getRedeliverResponse());
+                cmd.getRedeliverResponse().recycle();
                 break;
 
             case CONSUMER_STATS:
@@ -583,11 +569,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleAckReceipt(CommandAckReceipt ackReceipt) {
-        throw new UnsupportedOperationException();
-    }
-
-    protected void handleAckError(CommandAckError ackError) {
+    protected void handleAckResponse(CommandAckResponse ackResponse) {
         throw new UnsupportedOperationException();
     }
 
@@ -599,11 +581,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleRedeliverUnacknowledgedReceipt(CommandRedeliverUnacknowledgedMessagesReceipt ackReceipt) {
-        throw new UnsupportedOperationException();
-    }
-
-    protected void handleRedeliverUnacknowledgedError(CommandRedeliverUnacknowledgedMessagesError ackError) {
+    protected void handleRedeliverUnacknowledgedResponse(
+            CommandRedeliverUnacknowledgedMessagesResponse redeliverResponse) {
         throw new UnsupportedOperationException();
     }
 

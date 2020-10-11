@@ -306,6 +306,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove Message TTL for a namespace")
+    private class RemoveMessageTTL extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeNamespaceMessageTTL(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription expiration time for a namespace")
     private class SetSubscriptionExpirationTime extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1710,6 +1722,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
 
         jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
         jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());

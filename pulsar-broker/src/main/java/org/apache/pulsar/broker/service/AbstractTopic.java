@@ -311,7 +311,11 @@ public abstract class AbstractTopic implements Topic {
         return schemaRegistryService.getSchema(id)
                 .thenCompose(schema -> {
                     if (schema != null) {
-                        return schemaRegistryService.deleteSchema(id, "");
+                        // It's different from `SchemasResource.deleteSchema` because when we delete a topic, the schema
+                        // history is meaningless. But when we delete a schema of a topic, a new schema could be
+                        // registered in the future.
+                        log.info("Delete schema storage of id: {}", id);
+                        return schemaRegistryService.deleteSchemaStorage(id);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }

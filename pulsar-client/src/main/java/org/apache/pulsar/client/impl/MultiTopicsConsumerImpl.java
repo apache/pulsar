@@ -204,7 +204,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                consumer.sendFlowPermitsToBroker(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
+                consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
                 receiveMessageFromConsumer(consumer);
             });
         }

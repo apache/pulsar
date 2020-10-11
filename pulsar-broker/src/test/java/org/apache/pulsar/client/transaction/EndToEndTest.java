@@ -247,9 +247,9 @@ public class EndToEndTest extends TransactionTestBase {
                 Message<byte[]> message = consumer.receive();
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}", message.getMessageId());
-                consumer.acknowledgeAsync(message.getMessageId(), txn);
+                consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000);
+            Thread.sleep(1000);
 
             consumer.redeliverUnacknowledgedMessages();
 
@@ -265,7 +265,7 @@ public class EndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                consumer.acknowledgeAsync(message.getMessageId(), commitTxn);
+                consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
                 log.info("receive msgId: {}", message.getMessageId());
             }
 
@@ -386,7 +386,7 @@ public class EndToEndTest extends TransactionTestBase {
 
     private String getMarkDeletePosition(String topic, Integer partition, String subName) throws Exception {
         topic = TopicName.get(topic).getPartition(partition).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
         return stats.cursors.get(subName).markDeletePosition;
     }
 

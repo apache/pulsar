@@ -53,8 +53,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -97,8 +96,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -1188,33 +1186,25 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAckReceipt(long requestId, long consumerId) {
-        CommandAckReceipt.Builder commandAckReceiptBuilder = CommandAckReceipt.newBuilder();
-        commandAckReceiptBuilder.setConsumerId(consumerId);
-        commandAckReceiptBuilder.setRequestId(requestId);
-        CommandAckReceipt commandAckReceipt = commandAckReceiptBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.ACK_RECEIPT).setAckReceipt(commandAckReceipt));
-        commandAckReceiptBuilder.recycle();
-        commandAckReceipt.recycle();
+    public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
+        CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
+        commandAckResponseBuilder.setConsumerId(consumerId);
+        commandAckResponseBuilder.setRequestId(requestId);
 
-        return res;
-    }
-
-    public static ByteBuf newAckError(long requestId, ServerError error, String errorMsg, long consumerId) {
-        CommandAckError.Builder commandAckErrorBuilder = CommandAckError.newBuilder();
-        commandAckErrorBuilder.setConsumerId(consumerId);
-        commandAckErrorBuilder.setError(error);
-        commandAckErrorBuilder.setRequestId(requestId);
-        if (errorMsg != null) {
-            commandAckErrorBuilder.setMessage(errorMsg);
+        if (error != null) {
+            commandAckResponseBuilder.setError(error);
         }
 
-        CommandAckError commandAckError = commandAckErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK_ERROR).setAckError(commandAckError));
+        if (errorMsg != null) {
+            commandAckResponseBuilder.setMessage(errorMsg);
+        }
 
-        commandAckErrorBuilder.recycle();
-        commandAckError.recycle();
+        CommandAckResponse commandAckResponse = commandAckResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                .setType(Type.ACK_RESPONSE).setAckResponse(commandAckResponseBuilder));
+
+        commandAckResponseBuilder.recycle();
+        commandAckResponse.recycle();
 
         return res;
     }
@@ -1274,32 +1264,25 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newRedeliverUnacknowledgedMessagesReceipt(long consumerId, long requestId) {
-        CommandRedeliverUnacknowledgedMessagesReceipt.Builder redeliverReceiptBuilder =
-                CommandRedeliverUnacknowledgedMessagesReceipt.newBuilder();
-        redeliverReceiptBuilder.setConsumerId(consumerId);
-        redeliverReceiptBuilder.setRequestId(requestId);
-        CommandRedeliverUnacknowledgedMessagesReceipt redeliverReceipt = redeliverReceiptBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES_RECEIPT)
-                .setRedeliverReceipt(redeliverReceipt));
-        redeliverReceipt.recycle();
-        redeliverReceiptBuilder.recycle();
-        return res;
-    }
-
-    public static ByteBuf newRedeliverUnacknowledgedMessagesError(long requestId, ServerError error,
+    public static ByteBuf newRedeliverUnacknowledgedMessagesResponse(long requestId, ServerError error,
                                                                   String errorMsg, long consumerId) {
-        CommandRedeliverUnacknowledgedMessagesError.Builder redeliverErrorBuilder =
-                CommandRedeliverUnacknowledgedMessagesError.newBuilder();
-        redeliverErrorBuilder.setConsumerId(consumerId);
-        redeliverErrorBuilder.setError(error);
-        redeliverErrorBuilder.setMessage(errorMsg);
-        redeliverErrorBuilder.setRequestId(requestId);
-        CommandRedeliverUnacknowledgedMessagesError redeliverError = redeliverErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES_ERROR)
-                .setRedeliverError(redeliverError));
-        redeliverError.recycle();
-        redeliverErrorBuilder.recycle();
+        CommandRedeliverUnacknowledgedMessagesResponse.Builder redeliverResponseBuilder =
+                CommandRedeliverUnacknowledgedMessagesResponse.newBuilder();
+        redeliverResponseBuilder.setConsumerId(consumerId);
+
+        if (error != null) {
+            redeliverResponseBuilder.setError(error);
+        }
+
+        if (errorMsg != null) {
+            redeliverResponseBuilder.setMessage(errorMsg);
+        }
+        redeliverResponseBuilder.setRequestId(requestId);
+        CommandRedeliverUnacknowledgedMessagesResponse redeliverResponse = redeliverResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES_RESPONSE)
+                .setRedeliverResponse(redeliverResponse));
+        redeliverResponse.recycle();
+        redeliverResponseBuilder.recycle();
         return res;
     }
 
