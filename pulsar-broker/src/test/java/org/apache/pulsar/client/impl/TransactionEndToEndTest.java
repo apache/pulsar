@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.transaction;
+package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -57,7 +57,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
-public class EndToEndTest extends TransactionTestBase {
+public class TransactionEndToEndTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
 
