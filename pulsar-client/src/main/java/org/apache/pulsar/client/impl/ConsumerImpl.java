@@ -1772,7 +1772,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID) {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxnID(TxnID txnID) {
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
             int currentSize;

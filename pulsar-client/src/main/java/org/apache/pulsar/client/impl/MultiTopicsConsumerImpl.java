@@ -640,12 +640,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID) {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxnID(TxnID txnID) {
         lock.writeLock().lock();
         List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
         try {
             consumers.values().stream().forEach(consumer -> {
-                completableFutures.add(consumer.redeliverUnacknowledgedMessages(txnID));
+                completableFutures.add(consumer.redeliverUnacknowledgedMessagesWithTxnID(txnID));
                 consumer.unAckedChunckedMessageIdSequenceMap.clear();
             });
             incomingMessages.clear();

@@ -82,7 +82,7 @@ public class RedeliverResponseTest extends ProducerConsumerBase {
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
         TxnID txnID = null;
-        consumer.redeliverUnacknowledgedMessages(txnID).get();
+        consumer.redeliverUnacknowledgedMessagesWithTxnID(txnID).get();
         Assert.assertEquals(consumer.receive().getMessageId(), message.getMessageId());
     }
 }
