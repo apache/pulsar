@@ -121,7 +121,7 @@ static Result getResult(ServerError serverError) {
         case NotAllowedError:
             return ResultNotAllowedError;
 
-        case TransactionAckConflictError:
+        case TransactionAckConflictException:
             return ResultTransactionAckConflictError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
