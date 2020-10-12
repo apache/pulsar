@@ -1051,8 +1051,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (!ackRequests.isEmpty()) {
-            ackRequests.forEach((key, value) -> value.callback
-                    .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!")));
+            ackRequests.forEach((key, value) -> {
+                value.callback
+                        .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!"));
+                value.recycle();
+            });
+
             ackRequests.clear();
         }
 

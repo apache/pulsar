@@ -515,9 +515,11 @@ message CommandAck {
 
 message CommandAckResponse {
     required uint64 consumer_id = 1;
-    required uint64 request_id = 2;
-    optional ServerError error = 3;
-    optional string message = 4;
+    optional uint64 txnid_least_bits  = 2 [default = 0];
+    optional uint64 txnid_most_bits = 3 [default = 0];
+    optional ServerError error = 4;
+    optional string message = 5;
+    optional uint64 request_id = 6;
 }
 
 // changes on active consumer
