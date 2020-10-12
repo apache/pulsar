@@ -60,6 +60,8 @@ RUN apt-get update \
      && apt install -y /pulsar/cpp-client/*.deb \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
+RUN chown -R 0:0 /pulsar \
+    && chmod -R g=u /pulsar
 
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
