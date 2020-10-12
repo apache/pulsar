@@ -1412,6 +1412,10 @@
         "topicName" : {
           "type" : "string"
         },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1432,16 +1436,12 @@
             "format" : "byte"
           }
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "replicated" : {
-          "type" : "boolean"
-        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "producerName" : {
           "type" : "string"
