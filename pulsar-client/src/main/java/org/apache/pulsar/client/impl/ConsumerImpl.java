@@ -78,6 +78,7 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
+import org.apache.pulsar.client.api.PulsarClientException.RedeliverUnAcknowledgeMessageException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -1069,7 +1070,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ackRequests.clear();
         }
 
-
+        if (!redeliverRequests.isEmpty()) {
+            redeliverRequests.forEach((key, value) -> {
+                value.callback
+                        .completeExceptionally(new RedeliverUnAcknowledgeMessageException("Consumer has closed!"));
+                value.recycle();
+            });
+            redeliverRequests.clear();
+        }
 
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
@@ -2494,7 +2502,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             callBackOp.recycle();
         } else {
             callBackOp.callback.completeExceptionally(
-                    new TransactionConflictException(redeliverResponse.getMessage()));
+                    new RedeliverUnAcknowledgeMessageException(redeliverResponse.getMessage()));
             if (callBackOp.txnID != null) {
                 log.debug("RequestId : [{}], don't redeliver by TxnId : {}", callBackOp.requestId, callBackOp.txnID);
             } else {

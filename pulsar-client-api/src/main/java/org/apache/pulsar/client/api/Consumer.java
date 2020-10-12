@@ -497,17 +497,16 @@ public interface Consumer<T> extends Closeable {
     void redeliverUnacknowledgedMessages();
 
     /**
-     * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
-     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
-     * the connected consumers. If txnID is not null, it will redeliver the transaction in pending ack message or else
-     * will redeliver unacknowledged messages. This is a non blocking call and doesn't throw an exception.
-     * In case the connection breaks, the messages are redelivered after reconnect.
+     * Redelivers all the unacknowledged messages. If txnID is not null, it will redeliver the transaction
+     * in pending ack message or else will redeliver unacknowledged messages.In Failover mode, the request is ignored
+     * if the consumer is not active for the given topic. In Shared mode, the consumers messages to be redelivered are
+     * distributed across all the connected consumers.
      *
      * @param txnID
      *            The {@link TxnID} to redeliver
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> redeliverUnacknowledgedMessages(TxnID txnID);
+    CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxnID(TxnID txnID);
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.

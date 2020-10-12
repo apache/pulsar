@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -35,10 +34,11 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 public class RedeliverResponseTest extends ProducerConsumerBase {
 
@@ -64,7 +64,7 @@ public class RedeliverResponseTest extends ProducerConsumerBase {
 
     @Test
     public void testRedeliverResponse() throws PulsarClientException, InterruptedException, ExecutionException {
-        String topic = "testAckResponse";
+        String topic = "testRedeliverResponse";
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
@@ -81,31 +81,8 @@ public class RedeliverResponseTest extends ProducerConsumerBase {
 
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
-        consumer.redeliverUnacknowledgedMessages(new TxnID(transaction.getTxnIdMostBits(),
-                transaction.getTxnIdLeastBits())).get();
+        TxnID txnID = null;
+        consumer.redeliverUnacknowledgedMessages(txnID).get();
         Assert.assertEquals(consumer.receive().getMessageId(), message.getMessageId());
     }
-
-    @Test
-    public void testRedeliverTimeout() throws PulsarClientException, InterruptedException {
-        String topic = "testRedeliverTimeout";
-
-        @Cleanup
-        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Failover)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .redeliverTimeout(1, TimeUnit.MILLISECONDS)
-                .subscribe();
-
-        try {
-            consumer.redeliverUnacknowledgedMessages(new TxnID(transaction.getTxnIdMostBits(),
-                    transaction.getTxnIdLeastBits())).get();
-            Assert.fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
-        }
-    }
-
 }
