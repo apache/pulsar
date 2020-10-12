@@ -31,6 +31,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import io.netty.util.Timeout;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -80,6 +82,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
+    protected final Lock reentrantLock = new ReentrantLock();
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -614,8 +617,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
-        if (canEnqueueMessage(message)) {
-            incomingMessages.add(message);
+        if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
             INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
                     this, message.getData() == null ? 0 : message.getData().length);
         }
@@ -679,19 +681,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (opBatchReceive == null || opBatchReceive.future == null) {
             return;
         }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
+        try {
+            reentrantLock.lock();
+            notifyPendingBatchReceivedCallBack(opBatchReceive);
+        } finally {
+            reentrantLock.unlock();
+        }
     }
 
     protected void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-            Message<T> msg = null;
-            try {
-                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                // ignore
-            }
+            Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
                 Message<T> interceptMsg = beforeConsume(msg);

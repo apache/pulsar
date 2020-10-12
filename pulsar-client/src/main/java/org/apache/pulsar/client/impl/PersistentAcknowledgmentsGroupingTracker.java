@@ -181,7 +181,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
                                             Map<String, Long> properties, TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties,
+                    txn == null ? -1 : txn.getTxnIdMostBits(),
+                    txn == null ? -1 : txn.getTxnIdLeastBits());
         } else if (ackType == AckType.Cumulative) {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
