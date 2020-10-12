@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.annotations.AfterMethod;
@@ -528,6 +529,11 @@ public class PulsarConsumerSourceTests {
         @Override
         public void redeliverUnacknowledgedMessages() {
 
+        }
+
+        @Override
+        public CompletableFuture<Void> redeliverUnacknowledgedMessagesWithTxnID(TxnID txnID) {
+            return null;
         }
 
         @Override
