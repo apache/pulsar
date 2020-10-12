@@ -1318,7 +1318,6 @@ public class ServerCnx extends PulsarHandler {
                     if (redeliver.hasTxnidLeastBits() && redeliver.hasTxnidMostBits()) {
                         consumer.getSubscription().endTxn(redeliver.getTxnidMostBits(),
                                 redeliver.getTxnidLeastBits(), PulsarApi.TxnAction.ABORT.getNumber()).thenRun(() -> {
-                            consumer.redeliverUnacknowledgedMessages();
                             ctx.writeAndFlush(Commands.newRedeliverUnacknowledgedMessagesResponse(
                                     redeliver.getConsumerId(), null, null, redeliver.getRequestId()));
                         }).exceptionally(e -> {

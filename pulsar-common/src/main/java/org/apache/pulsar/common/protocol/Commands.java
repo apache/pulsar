@@ -1279,8 +1279,8 @@ public class Commands {
         }
         redeliverResponseBuilder.setRequestId(requestId);
         CommandRedeliverUnacknowledgedMessagesResponse redeliverResponse = redeliverResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES_RESPONSE)
-                .setRedeliverResponse(redeliverResponse));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                .setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES_RESPONSE).setRedeliverResponse(redeliverResponse));
         redeliverResponse.recycle();
         redeliverResponseBuilder.recycle();
         return res;

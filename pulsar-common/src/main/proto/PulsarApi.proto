@@ -578,7 +578,7 @@ message CommandRedeliverUnacknowledgedMessages {
 message CommandRedeliverUnacknowledgedMessagesResponse{
     required uint64 request_id = 1;
     required uint64 consumer_id = 2;
-    required ServerError error = 3;
+    optional ServerError error = 3;
     optional string message = 4;
 }
 
