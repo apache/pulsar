@@ -34,7 +34,7 @@ public class JCloudBlobStoreProviderTests {
     @Test
     public void awsValidationSuccessTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.bucket", "test bucket");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
@@ -45,7 +45,7 @@ public class JCloudBlobStoreProviderTests {
     @Test
     public void awsValidationDefaultBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.bucket", "test bucket");
         config = new TieredStorageConfiguration(map);
@@ -56,7 +56,7 @@ public class JCloudBlobStoreProviderTests {
             expectedExceptionsMessageRegExp = "Either Region or ServiceEndpoint must specified for aws-s3 offload")
     public void awsValidationMissingRegionTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.bucket", "my-bucket");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "999999");
         config = new TieredStorageConfiguration(map);
@@ -67,7 +67,7 @@ public class JCloudBlobStoreProviderTests {
             expectedExceptionsMessageRegExp = "Bucket cannot be empty for aws-s3 offload")
     public void awsValidationMissingBucketTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
         config = new TieredStorageConfiguration(map);
@@ -80,7 +80,7 @@ public class JCloudBlobStoreProviderTests {
                     + "be less than 5MB for aws-s3 offload")
     public void awsValidationBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.bucket", "test bucket");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
