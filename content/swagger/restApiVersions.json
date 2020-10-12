@@ -17,17 +17,17 @@
     ],
     "2.3.1": [
         {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ],
@@ -49,17 +49,17 @@
     ],
     "2.4.0": [
         {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ],
@@ -74,8 +74,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersource",
-                "swaggersink"
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
@@ -143,22 +143,6 @@
             ]
         }
     ],
-    "2.6.0": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
     "2.6.1": [
         {
             "version": "v2",
@@ -192,6 +176,22 @@
         }
     ],
     "master": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.6.0": [
         {
             "version": "v2",
             "fileName": [

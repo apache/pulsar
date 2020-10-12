@@ -14651,10 +14651,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -15054,24 +15054,6 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -15080,6 +15062,24 @@
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -15251,13 +15251,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -15556,13 +15556,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "fileSystemDriver" : {
-          "type" : "boolean"
-        },
         "s3Driver" : {
           "type" : "boolean"
         },
         "gcsDriver" : {
+          "type" : "boolean"
+        },
+        "fileSystemDriver" : {
           "type" : "boolean"
         }
       }
@@ -16128,13 +16128,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
