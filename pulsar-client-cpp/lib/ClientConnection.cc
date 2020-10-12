@@ -498,6 +498,9 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
     incomingBuffer_.bytesWritten(bytesTransferred);
 
     if (err || bytesTransferred == 0) {
+        if (err) {
+            LOG_ERROR(cnxString_ << "Read failed: " << err.message());
+        }  // else: bytesTransferred == 0, which means server has closed the connection
         close();
     } else if (bytesTransferred < minReadSize) {
         // Read the remaining part, use a slice of buffer to write on the next
@@ -1378,27 +1381,38 @@ void ClientConnection::close() {
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
-    ConsumersMap consumers;
-    consumers.swap(consumers_);
-    ProducersMap producers;
-    producers.swap(producers_);
-    lock.unlock();
 
-    LOG_INFO(cnxString_ << "Connection closed");
+    if (tlsSocket_) {
+        tlsSocket_->lowest_layer().close();
+    }
+
+    if (executor_) {
+        executor_.reset();
+    }
+
+    // Move the internal fields to process them after `mutex_` was unlocked
+    auto consumers = std::move(consumers_);
+    auto producers = std::move(producers_);
+    auto pendingRequests = std::move(pendingRequests_);
+    auto pendingLookupRequests = std::move(pendingLookupRequests_);
+    auto pendingConsumerStatsMap = std::move(pendingConsumerStatsMap_);
+    auto pendingGetLastMessageIdRequests = std::move(pendingGetLastMessageIdRequests_);
+    auto pendingGetNamespaceTopicsRequests = std::move(pendingGetNamespaceTopicsRequests_);
+
+    numOfPendingLookupRequest_ = 0;
 
     if (keepAliveTimer_) {
-        lock.lock();
         keepAliveTimer_->cancel();
         keepAliveTimer_.reset();
-        lock.unlock();
     }
 
     if (consumerStatsRequestTimer_) {
-        lock.lock();
         consumerStatsRequestTimer_->cancel();
         consumerStatsRequestTimer_.reset();
-        lock.unlock();
     }
+
+    lock.unlock();
+    LOG_INFO(cnxString_ << "Connection closed");
 
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
@@ -1410,38 +1424,22 @@ void ClientConnection::close() {
 
     connectPromise_.setFailed(ResultConnectError);
 
-    // Fail all pending operations on the connection
-    for (PendingRequestsMap::iterator it = pendingRequests_.begin(); it != pendingRequests_.end(); ++it) {
-        it->second.promise.setFailed(ResultConnectError);
+    // Fail all pending requests, all these type are map whose value type contains the Promise object
+    for (auto& kv : pendingRequests) {
+        kv.second.promise.setFailed(ResultConnectError);
     }
-
-    // Fail all pending lookup-requests on the connection
-    lock.lock();
-    PendingLookupRequestsMap pendingLookupRequests;
-    pendingLookupRequests_.swap(pendingLookupRequests);
-    numOfPendingLookupRequest_ -= pendingLookupRequests.size();
-
-    PendingConsumerStatsMap pendingConsumerStatsMap;
-    pendingConsumerStatsMap_.swap(pendingConsumerStatsMap);
-    lock.unlock();
-
-    for (PendingLookupRequestsMap::iterator it = pendingLookupRequests.begin();
-         it != pendingLookupRequests.end(); ++it) {
-        it->second.promise->setFailed(ResultConnectError);
+    for (auto& kv : pendingLookupRequests) {
+        kv.second.promise->setFailed(ResultConnectError);
     }
-
-    for (PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap.begin();
-         it != pendingConsumerStatsMap.end(); ++it) {
+    for (auto& kv : pendingConsumerStatsMap) {
         LOG_ERROR(cnxString_ << " Closing Client Connection, please try again later");
-        it->second.setFailed(ResultConnectError);
+        kv.second.setFailed(ResultConnectError);
     }
-
-    if (tlsSocket_) {
-        tlsSocket_->lowest_layer().close();
+    for (auto& kv : pendingGetLastMessageIdRequests) {
+        kv.second.setFailed(ResultConnectError);
     }
-
-    if (executor_) {
-        executor_.reset();
+    for (auto& kv : pendingGetNamespaceTopicsRequests) {
+        kv.second.setFailed(ResultConnectError);
     }
 }
 
