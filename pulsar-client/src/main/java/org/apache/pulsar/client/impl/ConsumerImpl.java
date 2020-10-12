@@ -1065,8 +1065,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (!ackRequests.isEmpty()) {
-            ackRequests.forEach((key, value) -> value.callback
-                    .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!")));
+            ackRequests.forEach((key, value) -> {
+                value.callback
+                        .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!"));
+                value.recycle();
+            });
+
             ackRequests.clear();
         }
 
@@ -2438,11 +2442,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             entryId = batchMessageId.getEntryId();
             if (ackType == AckType.Cumulative) {
                 batchMessageId.ackCumulative();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBatchSize());
+                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
                 batchMessageId.ackIndividual();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBatchSize());
+                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
         } else {
