@@ -48,6 +48,7 @@ func newInstanceConf() *instanceConf {
 	if cfg == nil {
 		panic("config file is nil.")
 	}
+
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -96,6 +97,7 @@ func newInstanceConf() *instanceConf {
 				MaxMessageRetries: cfg.MaxMessageRetries,
 				DeadLetterTopic:   cfg.DeadLetterTopic,
 			},
+			UserConfig: cfg.UserConfig,
 		},
 	}
 	return instanceConf

@@ -105,6 +105,7 @@ class HandlerBase {
 
     State state_;
     Backoff backoff_;
+    uint64_t epoch_;
 
    private:
     DeadlineTimerPtr timer_;

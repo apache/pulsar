@@ -102,6 +102,11 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+        return service.deleteSchemaStorage(schemaId);
+    }
+
+    @Override
     public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
