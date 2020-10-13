@@ -63,7 +63,7 @@ public class PulsarClusterMetadataTeardown {
         @Parameter(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
         private String configurationStore;
 
-        @Parameter(names = { "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper", required = true)
+        @Parameter(names = { "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
         private String bkMetadataServiceUri;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
@@ -87,20 +87,22 @@ public class PulsarClusterMetadataTeardown {
 
         ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
 
-        List<Long> ledgers = new ArrayList<>();
-        ledgers.addAll(getManagedLedgers(localZk));
-        ledgers.addAll(getSchemaLedgers(localZk));
-        BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
-        ledgers.forEach(ledger -> {
-            try {
-                bookKeeper.deleteLedger(ledger);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (BKException e) {
-                log.warn("Failed to delete ledger {}: {}", ledger, e);
-            }
-        });
-        bookKeeper.close();
+        if (arguments.bkMetadataServiceUri != null) {
+            List<Long> ledgers = new ArrayList<>();
+            ledgers.addAll(getManagedLedgers(localZk));
+            ledgers.addAll(getSchemaLedgers(localZk));
+            BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
+            ledgers.forEach(ledger -> {
+                try {
+                    bookKeeper.deleteLedger(ledger);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } catch (BKException e) {
+                    log.warn("Failed to delete ledger {}: {}", ledger, e);
+                }
+            });
+            bookKeeper.close();
+        }
 
         deleteZkNodeRecursively(localZk, "/bookies");
         deleteZkNodeRecursively(localZk, "/counters");
