@@ -143,6 +143,7 @@ Key | Type | Required? | Explanation
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
 `priorityLevel` | int | no | Define a [priority](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-) for the consumer
+`negativeAckRedeliveryDelay` | int | no | When a negative acked message will be redelivered to DLQ.
 
 ##### Receiving messages
 
@@ -180,6 +181,17 @@ Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
+#### Negative acknowledging the message
+```json
+{
+  "type": "negativeAcknowledge",
+  "messageId": "CAAQAw=="
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`messageId`| string | yes | Message ID of the processed message
 
 ### Reader endpoint
 
