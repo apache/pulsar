@@ -95,6 +95,12 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/netty/src/main/java/org/apache/pulsar/io/netty/NettySource.java)
 
+### NSQ
+
+* [Configuration](io-nsq-source.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/nsq/src/main/java/org/apache/pulsar/io/nsq/NSQSource.java)
+
 ### RabbitMQ
 
 * [Configuration](io-rabbitmq-source.md#configuration)
