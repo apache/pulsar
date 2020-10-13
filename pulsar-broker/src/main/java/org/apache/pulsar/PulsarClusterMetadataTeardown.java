@@ -172,7 +172,7 @@ public class PulsarClusterMetadataTeardown {
                         List<Long> topicLedgers = ledgerInfo.getLedgerInfoList().stream()
                                 .map(ManagedLedgerInfo.LedgerInfo::getLedgerId)
                                 .collect(Collectors.toList());
-                        log.info("Detect topic ledgers: {} of {}", topicLedgers, topic);
+                        log.debug("Detect topic ledgers: {} of {}", topicLedgers, topic);
                         ledgers.addAll(topicLedgers);
 
                         List<Long> cursorLedgers = getChildren(zooKeeper, topicRoot).stream().map(subscription -> {
@@ -181,12 +181,12 @@ public class PulsarClusterMetadataTeardown {
                                 return ManagedCursorInfo.parseFrom(getData(zooKeeper, subscriptionRoot)).getCursorsLedgerId();
                             } catch (InvalidProtocolBufferException e) {
                                 log.warn("Invalid data format from {}: {}", subscriptionRoot, e);
-                                return null;
+                                return -1L;
                             }
-                            // some cursor ledger id could be set to -1 to mark deleted
-                        }).filter(ledgerId -> (ledgerId != null && ledgerId >= 0)).collect(Collectors.toList());
+                            // some cursor ledger id could also be set to -1 to mark deleted
+                        }).filter(ledgerId -> (ledgerId >= 0)).collect(Collectors.toList());
                         if (!cursorLedgers.isEmpty()) {
-                            log.info("Detect cursor ledgers: {} of {}", cursorLedgers, topicRoot);
+                            log.debug("Detect cursor ledgers: {} of {}", cursorLedgers, topicRoot);
                             ledgers.addAll(cursorLedgers);
                         }
                     } catch (InvalidProtocolBufferException e) {
@@ -213,7 +213,7 @@ public class PulsarClusterMetadataTeardown {
                         List<Long> schemaLedgers = locator.getIndexList().stream()
                                 .map(indexEntry -> indexEntry.getPosition().getLedgerId())
                                 .collect(Collectors.toList());
-                        log.info("Detect schema ledgers: {} of {}", schemaLedgers, topicRoot);
+                        log.debug("Detect schema ledgers: {} of {}", schemaLedgers, topicRoot);
                         ledgers.addAll(schemaLedgers);
                     } catch (InvalidProtocolBufferException e) {
                         log.warn("Invalid data format from {}: {}", topicRoot, e);
