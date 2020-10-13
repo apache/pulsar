@@ -45,7 +45,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
-public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends StructSchema<T> {
+public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends AvroBasedStructSchema<T> {
 
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 

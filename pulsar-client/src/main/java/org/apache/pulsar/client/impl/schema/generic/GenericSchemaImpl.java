@@ -18,19 +18,24 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * A generic schema representation.
+ *
+ * warning :
+ * GenericSchemaImpl will continue to have for backward compatibility and only support AvroBasedGenericSchema ,but qmay deprecate on future ,
+ * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
  */
-public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
+@Deprecated
+public abstract class GenericSchemaImpl extends AbstractAvroBasedGenericSchema {
 
     protected final List<Field> fields;
     // the flag controls whether to use the provided schema as reader schema
@@ -40,7 +45,7 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
 
     protected GenericSchemaImpl(SchemaInfo schemaInfo,
                                 boolean useProvidedSchemaAsReaderSchema) {
-        super(schemaInfo);
+        super(schemaInfo,useProvidedSchemaAsReaderSchema);
 
         this.fields = schema.getFields()
                 .stream()

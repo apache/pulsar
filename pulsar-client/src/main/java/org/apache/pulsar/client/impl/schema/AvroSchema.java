@@ -40,7 +40,7 @@ import java.util.Map;
  * An AVRO schema implementation.
  */
 @Slf4j
-public class AvroSchema<T> extends StructSchema<T> {
+public class AvroSchema<T> extends AvroBasedStructSchema<T> {
     private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
 
     private ClassLoader pojoClassLoader;

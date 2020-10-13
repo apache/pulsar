@@ -18,16 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -41,24 +32,32 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.annotations.Test;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
 /**
  * Unit testing generic schemas.
+ * this test is duplicated with GenericSchemaImplTest independent of GenericSchemaImpl
  */
 @Slf4j
-@Deprecated
-public class GenericSchemaImplTest {
+public class GenericSchemaTest {
 
     @Test
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
-        GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
+        GenericSchema decodeSchema = GenericAvroSchema.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
     @Test
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
-        GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
+        GenericSchema decodeSchema = GenericJsonSchema.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
@@ -86,7 +85,7 @@ public class GenericSchemaImplTest {
     public void testAutoJsonSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
+        GenericSchema genericAvroSchema = GenericAvroSchema.of(Schema.AVRO(Foo.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));
 
@@ -124,7 +123,7 @@ public class GenericSchemaImplTest {
     public void testKeyValueSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
+        GenericSchema genericAvroSchema = GenericAvroSchema.of(Schema.AVRO(Foo.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(
                     KeyValueSchemaInfo.encodeKeyValueSchemaInfo(

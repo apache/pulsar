@@ -40,7 +40,7 @@ import java.util.Map;
  * A schema implementation to deal with json data.
  */
 @Slf4j
-public class JSONSchema<T> extends StructSchema<T> {
+public class JSONSchema<T> extends AvroBasedStructSchema<T> {
     // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
     // return shaded version of object mapper
     private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {

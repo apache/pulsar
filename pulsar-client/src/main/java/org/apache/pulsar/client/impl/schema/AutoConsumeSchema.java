@@ -26,10 +26,10 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.concurrent.ExecutionException;
 
@@ -147,13 +147,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     private GenericSchema generateSchema(SchemaInfo schemaInfo) {
-        if (schemaInfo.getType() != SchemaType.AVRO
-            && schemaInfo.getType() != SchemaType.JSON) {
-            throw new RuntimeException("Currently auto consume only works for topics with avro or json schemas");
-        }
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
-        return GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
+        final boolean useProvidedSchemaAsReaderSchema = false;
+        switch (schemaInfo.getType()) {
+            case JSON:
+                return GenericJsonSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+            case AVRO:
+                return GenericAvroSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+            default:
+                throw new IllegalArgumentException("Currently auto consume works for type '"
+                        + schemaInfo.getType() + "' is not supported yet");
+        }
     }
 
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {
@@ -191,8 +196,9 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case LOCAL_DATE_TIME:
                 return LocalDateTimeSchema.of();
             case JSON:
+                return GenericJsonSchema.of(schemaInfo);
             case AVRO:
-                return GenericSchemaImpl.of(schemaInfo);
+                return GenericAvroSchema.of(schemaInfo);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
                     KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);

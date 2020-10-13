@@ -22,17 +22,16 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-import java.util.List;
 
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.
  */
 class AvroRecordBuilderImpl implements GenericRecordBuilder {
 
-    private final GenericSchemaImpl genericSchema;
+    private final GenericAvroSchema genericSchema;
     private final org.apache.avro.generic.GenericRecordBuilder avroRecordBuilder;
 
-    AvroRecordBuilderImpl(GenericSchemaImpl genericSchema) {
+    AvroRecordBuilderImpl(GenericAvroSchema genericSchema) {
         this.genericSchema = genericSchema;
         this.avroRecordBuilder =
             new org.apache.avro.generic.GenericRecordBuilder(genericSchema.getAvroSchema());

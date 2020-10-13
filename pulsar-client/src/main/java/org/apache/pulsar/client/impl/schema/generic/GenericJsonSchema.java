@@ -34,7 +34,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * A generic json schema.
  */
 @Slf4j
-class GenericJsonSchema extends GenericSchemaImpl {
+public class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         this(schemaInfo, true);
