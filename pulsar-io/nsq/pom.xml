@@ -22,7 +22,7 @@
     <dependency>
       <groupId>com.sproutsocial</groupId>
       <artifactId>nsq-j</artifactId>
-      <version>1.0</version>
+      <version>${nsqclient-version}</version>
     </dependency>
 
     <dependency>
