@@ -64,12 +64,16 @@ public class NonPersistentSubscription implements Subscription {
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
+    // Timestamp of when this subscription was last seen active
+    private volatile long lastActive;
+
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
+        this.lastActive = System.currentTimeMillis();
     }
 
     @Override
@@ -89,6 +93,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             throw new SubscriptionFencedException("Subscription is fenced");
@@ -173,6 +178,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
+        updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
@@ -483,4 +489,11 @@ public class NonPersistentSubscription implements Subscription {
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
 
+    public long getLastActive() {
+        return lastActive;
+    }
+
+    public void updateLastActive() {
+        this.lastActive = System.currentTimeMillis();
+    }
 }

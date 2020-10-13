@@ -60,7 +60,6 @@ public class SharedPulsarClient {
      *
      * @param componentId
      *            the id of the spout/bolt
-     * @param serviceUrl
      * @param clientConf
      * @return
      * @throws PulsarClientException

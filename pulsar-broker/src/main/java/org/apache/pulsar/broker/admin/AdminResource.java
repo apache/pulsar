@@ -366,6 +366,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
             }
         } catch ( InterruptedException  | ExecutionException e) {
+            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}", domain(), tenant, namespace, topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
     }
@@ -501,7 +502,7 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
         }
 
-        if (policies.message_ttl_in_seconds <= 0) {
+        if (policies.message_ttl_in_seconds == null) {
             policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
         }
     }

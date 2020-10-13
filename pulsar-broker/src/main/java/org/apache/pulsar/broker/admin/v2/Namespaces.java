@@ -148,10 +148,11 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public void deleteNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
+            @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(tenant, namespace);
-            internalDeleteNamespace(asyncResponse, authoritative);
+            internalDeleteNamespace(asyncResponse, authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -169,9 +170,10 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace bundle is not empty") })
     public void deleteNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
+            @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
-        internalDeleteNamespaceBundle(bundleRange, authoritative);
+        internalDeleteNamespaceBundle(bundleRange, authoritative, force);
     }
 
     @GET
@@ -291,6 +293,17 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "TTL in seconds for the specified namespace", required = true) int messageTTL) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceMessageTTL(messageTTL);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceMessageTTL(null);
     }
 
     @GET

@@ -751,11 +751,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+    )
+    private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
         doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
         + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
         + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
+
 
     /**** --- Messaging Protocols --- ****/
 
@@ -920,6 +927,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long httpMaxRequestSize = -1;
 
     @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
@@ -972,6 +991,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " a certain time Using a value of 0, is disabling the speculative reads")
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
     @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Number of channels per bookie"
+    )
+    private int bookkeeperNumberOfChannelsPerBookie = 16;
+    @FieldContext(
+        dynamic = true,
         category = CATEGORY_STORAGE_BK,
         doc = "Use older Bookkeeper wire protocol with bookie"
     )

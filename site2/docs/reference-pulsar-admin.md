@@ -1787,6 +1787,15 @@ Subcommands
 * `reset-cursor`
 * `get-message-by-id`
 * `last-message-id`
+* `get-backlog-quotas`
+* `set-backlog-quota`
+* `remove-backlog-quota`
+* `get-persistence`
+* `set-persistence`
+* `remove-persistence`
+* `get-message-ttl`
+* `set-message-ttl`
+* `remove-message-ttl`
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
@@ -2205,6 +2214,21 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `get-backlog-quotas`
+Get the backlog quota policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-backlog-quotas tenant/namespace/topic
+```
+
+### `set-backlog-quota`
+Set a backlog quota policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
+=======
 ### `get-deduplication`
 Get a deduplication policy for a topic.
 
@@ -2223,6 +2247,77 @@ $ pulsar-admin topics set-deduplication tenant/namespace/topic
 
 Options
 |Flag|Description|Default|
+|----|---|---|
+|`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
+|`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+
+### `remove-backlog-quota`
+Remove a backlog quota policy from a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-backlog-quota tenant/namespace/topic
+```
+
+### `get-persistence`
+Get the persistence policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-persistence tenant/namespace/topic
+```
+
+### `set-persistence`
+Set the persistence policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-persistence tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
+|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (garanteed copies) to wait for each entry|0|
+|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
+
+### `remove-persistence`
+Remove the persistence policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-persistence tenant/namespace/topic
+```
+### `get-message-ttl`
+Get the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-message-ttl tenant/namespace/topic
+```
+
+### `set-message-ttl`
+Set the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-message-ttl tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-ttl`, `--messageTTL`|Message TTL for a topic in second, allowed range from 1 to `Integer.MAX_VALUE` |0|
+
+### `remove-message-ttl`
+Remove the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
+=======
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
 |`--disable`, `-d`|Disable message deduplication on the specified topic.|false|

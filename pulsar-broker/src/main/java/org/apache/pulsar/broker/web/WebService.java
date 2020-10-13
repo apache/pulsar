@@ -155,13 +155,22 @@ public class WebService implements AutoCloseable {
             });
         }
 
-        context.addFilter(new FilterHolder(new EventListenerFilter(pulsar.getBrokerInterceptor())),
+        if (!pulsar.getConfig().getBrokerInterceptors().isEmpty() || !pulsar.getConfig().isDisableBrokerInterceptors()) {
+            // Enable PreInterceptFilter only when interceptors are enabled
+            context.addFilter(new FilterHolder(new PreInterceptFilter(pulsar.getBrokerInterceptor())),
                 MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(
                                                            pulsar.getBrokerService().getAuthenticationService()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (pulsar.getConfiguration().isHttpRequestsLimitEnabled()) {
+            context.addFilter(
+                    new FilterHolder(new RateLimitingFilter(pulsar.getConfiguration().getHttpRequestsMaxPerSecond())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
         if (pulsar.getConfig().getHttpMaxRequestSize() > 0) {

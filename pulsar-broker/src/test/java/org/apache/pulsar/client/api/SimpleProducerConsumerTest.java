@@ -449,6 +449,48 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeWithUnloading() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/pause-and-resume-with-unloading";
+        final String subName = "sub";
+        final int receiverQueueSize = 20;
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(receiverQueueSize).messageListener((c1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+        consumer.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        // Paused consumer receives only `receiverQueueSize` messages
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        // Make sure no flow permits are sent when the consumer reconnects to the topic
+        admin.topics().unload(topicName);
+        Thread.sleep(2000);
+        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+        consumer.resume();
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        consumer.unsubscribe();
+        producer.close();
+    }
+
     @Test(dataProvider = "batch")
     public void testBackoffAndReconnect(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);

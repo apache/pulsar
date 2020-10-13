@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 /**
  * Admin interface for Topics management.
@@ -450,10 +451,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws PulsarAdminException
      */
-    void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+    void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
+        deletePartitionedTopic(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic asynchronously.
@@ -465,10 +475,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
+        return deletePartitionedTopicAsync(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic.
@@ -506,6 +525,8 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -516,7 +537,14 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void delete(String topic, boolean force) throws PulsarAdminException;
+    void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#delete(String, boolean, boolean)
+     */
+    default void delete(String topic, boolean force) throws PulsarAdminException {
+        delete(topic, force, false);
+    }
 
     /**
      * Delete a topic asynchronously.
@@ -530,10 +558,19 @@ public interface Topics {
      *            topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the topic is deleted
      */
-    CompletableFuture<Void> deleteAsync(String topic, boolean force);
+    CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deleteAsync(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
+        return deleteAsync(topic, force, false);
+    }
 
     /**
      * Delete a topic.
@@ -758,6 +795,26 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
+
+    /**
+     * Get the internal stats for the topic.
+     * <p/>
+     * Access the internal state of the topic
+     *
+     * @param topic
+     *            topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -774,7 +831,17 @@ public interface Topics {
      *
      * @param topic
      *            topic Name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return a future that can be used to track when the internal topic statistics are returned
+     */
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+
+    /**
+     * Get the internal stats for the topic asynchronously.
      *
+     * @param topic
+     *            topic Name
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
@@ -1729,7 +1796,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @throws PulsarAdminException
      */
     void setInactiveTopicPolicies(String topic
@@ -1738,7 +1805,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic asynchronously.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @return
      */
     CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies);
@@ -2005,6 +2072,70 @@ public interface Topics {
      *              unexpected error
      */
     CompletableFuture<Void> removeDispatchRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Set subscription-message-dispatch-rate for the topic.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set subscription-message-dispatch-rate for the topic asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get subscription-message-dispatch-rate for the topic.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic);
+
+    /**
+     * Remove subscription-message-dispatch-rate for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeSubscriptionDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
 
     /**
      * Get the compactionThreshold for a topic. The maximum number of bytes
@@ -2301,7 +2432,6 @@ public interface Topics {
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
 
-
     /**
      * Get the max number of consumer for specified topic.
      *
@@ -2353,4 +2483,66 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxConsumersAsync(String topic);
+
+    /**
+     * Set topic-subscribe-rate (topic will limit by subscribeRate).
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /**
+     * Set topic-subscribe-rate (topics will limit by subscribeRate) asynchronously.
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String topic, SubscribeRate subscribeRate);
+
+    /**
+     * Get topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get topic-subscribe-rate asynchronously.
+     * <p/>
+     * Topic allow subscribe times per consumer in a period.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
+
+    /**
+     * Remove topic-subscribe-rate.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removeSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove topic-subscribe-rate asynchronously.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
 }

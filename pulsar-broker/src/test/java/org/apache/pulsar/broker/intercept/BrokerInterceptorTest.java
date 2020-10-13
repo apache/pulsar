@@ -51,6 +51,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
+        this.conf.setDisableBrokerInterceptors(false);
+
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
         this.listener2 = mock(BrokerInterceptor.class);
@@ -86,10 +88,9 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testInitialize() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        listeners.initialize(conf);
-        verify(listener1, times(1)).initialize(same(conf));
-        verify(listener2, times(1)).initialize(same(conf));
+        listeners.initialize(pulsar);
+        verify(listener1, times(1)).initialize(same(pulsar));
+        verify(listener2, times(1)).initialize(same(pulsar));
     }
 
     @Test

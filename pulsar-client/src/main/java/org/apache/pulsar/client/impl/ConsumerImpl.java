@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -185,6 +186,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
+    private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -351,12 +353,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId);
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
-                cnx.removeConsumer(consumerId);
-                unAckedMessageTracker.close();
-                if (possibleSendToDeadLetterTopicMessages != null) {
-                    possibleSendToDeadLetterTopicMessages.clear();
-                }
-                client.cleanupConsumer(ConsumerImpl.this);
+                closeConsumerTasks();
+                deregisterFromClientCnx();
+                client.cleanupConsumer(this);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 setState(State.Closed);
                 unsubscribeFuture.complete(null);
@@ -484,10 +483,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType,
-                                   Map<String,Long> properties) {
+                                   Map<String,Long> properties, TransactionImpl txn) {
         boolean isAllMsgsAcked;
         if (ackType == AckType.Individual) {
-            isAllMsgsAcked = batchMessageId.ackIndividual();
+            isAllMsgsAcked = txn == null && batchMessageId.ackIndividual();
         } else {
             isAllMsgsAcked = batchMessageId.ackCumulative();
         }
@@ -523,7 +522,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties,
-                                                    TransactionImpl txnImpl) {
+                                                    TransactionImpl txn) {
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -537,7 +536,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
-            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties) && txnImpl == null) {
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            if (ackType == AckType.Cumulative && txn != null) {
+                return sendAcknowledge(messageId, ackType, properties, txn);
+            }
+            if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] acknowledging message - {}, acktype {}", subscription, consumerName, messageId,
@@ -545,17 +548,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             } else {
                 if (conf.isBatchIndexAckEnabled()) {
-                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                     acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
-                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(), ackType, properties,
-                            txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
-                            txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
+                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
+                            ackType, properties, txn);
                 }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
         }
-        return sendAcknowledge(messageId, ackType, properties, txnImpl);
+        return sendAcknowledge(messageId, ackType, properties, txn);
     }
 
     @Override
@@ -575,14 +576,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         for (MessageId messageId : messageIdList) {
             MessageIdImpl messageIdImpl;
             if (messageId instanceof BatchMessageIdImpl
-                    && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
+                    && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties, txn)) {
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
                 acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                        batchMessageId.getBatchSize(), ackType, properties,
-                        txn == null ? -1 : txn.getTxnIdMostBits(),
-                        txn == null ? -1 : txn.getTxnIdLeastBits());
+                        batchMessageId.getBatchSize(), ackType, properties, txn);
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
@@ -600,6 +599,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         return CompletableFuture.completedFuture(null);
     }
+
 
     @SuppressWarnings("unchecked")
     @Override
@@ -755,9 +755,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties,
-                txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
-                txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties, txnImpl);
 
         // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
         // the messages will be re-delivered
@@ -777,13 +775,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (getState() == State.Closing || getState() == State.Closed) {
             setState(State.Closed);
             closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
             failPendingReceive();
             clearReceiverQueue();
             return;
         }
         setClientCnx(cnx);
-        cnx.registerConsumer(consumerId, this);
 
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
 
@@ -840,7 +838,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
                     // drops the consumer on its side
                     setState(State.Closed);
-                    cnx.removeConsumer(consumerId);
+                    deregisterFromClientCnx();
+                    client.cleanupConsumer(this);
                     cnx.channel().close();
                     return;
                 }
@@ -854,10 +853,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // For readers too (isDurable==false), the partition idx will be set though we have to
             // send available permits immediately after establishing the reader session
             if (!(firstTimeConnect && hasParentConsumer && isDurable) && conf.getReceiverQueueSize() != 0) {
-                sendFlowPermitsToBroker(cnx, conf.getReceiverQueueSize());
+                increaseAvailablePermits(cnx, conf.getReceiverQueueSize());
             }
         }).exceptionally((e) -> {
-            cnx.removeConsumer(consumerId);
+            deregisterFromClientCnx();
             if (getState() == State.Closing || getState() == State.Closed) {
                 // Consumer was closed while reconnecting, close the connection to make sure the broker
                 // drops the consumer on its side
@@ -947,7 +946,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     /**
      * send the flow command to have the broker start pushing messages
      */
-    void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
+    private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
         if (cnx != null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
@@ -968,6 +967,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
             }
+            closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
         }
     }
@@ -983,6 +984,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
             closeConsumerTasks();
+            deregisterFromClientCnx();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -998,16 +1000,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
         if (null == cnx) {
-            cleanupAtClose(closeFuture);
+            cleanupAtClose(closeFuture, null);
         } else {
             ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-                cnx.removeConsumer(consumerId);
-                if (exception == null || !cnx.ctx().channel().isActive()) {
-                    cleanupAtClose(closeFuture);
-                } else {
-                    closeFuture.completeExceptionally(exception);
+                boolean ignoreException = !cnx.ctx().channel().isActive();
+                if (ignoreException && exception != null) {
+                    log.debug("Exception ignored in closing consumer", exception);
                 }
+                cleanupAtClose(closeFuture, ignoreException ? null : exception);
                 return null;
             });
         }
@@ -1015,11 +1016,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return closeFuture;
     }
 
-    private void cleanupAtClose(CompletableFuture<Void> closeFuture) {
+    private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
         log.info("[{}] [{}] Closed consumer", topic, subscription);
         setState(State.Closed);
         closeConsumerTasks();
-        closeFuture.complete(null);
+        if (exception != null) {
+            closeFuture.completeExceptionally(exception);
+        } else {
+            closeFuture.complete(null);
+        }
+        deregisterFromClientCnx();
         client.cleanupConsumer(this);
         // fail all pending-receive futures to notify application
         failPendingReceive();
@@ -1150,7 +1156,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgMetadata.recycle();
                     return;
                 }
-                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
+                BatchMessageAcker batchMessageAcker = BatchMessageAcker.newAcker(ackBitSet);
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, batchMessageAcker);
             }
 
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
@@ -2218,7 +2225,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void setClientCnx(ClientCnx clientCnx) {
-        this.connectionHandler.setClientCnx(clientCnx);
+        if (clientCnx != null) {
+            this.connectionHandler.setClientCnx(clientCnx);
+            clientCnx.registerConsumer(consumerId, this);
+        }
+        ClientCnx previousClientCnx = clientCnxUsedForConsumerRegistration.getAndSet(clientCnx);
+        if (previousClientCnx != null && previousClientCnx != clientCnx) {
+            previousClientCnx.removeConsumer(consumerId);
+        }
+    }
+
+    void deregisterFromClientCnx() {
+        setClientCnx(null);
     }
 
     void reconnectLater(Throwable exception) {

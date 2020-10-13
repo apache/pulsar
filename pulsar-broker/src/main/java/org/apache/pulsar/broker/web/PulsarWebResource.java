@@ -167,6 +167,15 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected boolean hasSuperUserAccess() {
+        try {
+            validateSuperUserAccess();
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Checks whether the user has Pulsar Super-User access to the system.
      *
@@ -203,6 +212,7 @@ public abstract class PulsarWebResource {
                                               appId, originalPrincipal));
                     }
                 } catch (InterruptedException | ExecutionException e) {
+                    log.error("Error validating super-user access : "+ e.getMessage(), e);
                     throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
                 log.debug("Successfully authorized {} (proxied by {}) as super-user",
@@ -342,7 +352,6 @@ public abstract class PulsarWebResource {
                 // redirect to the cluster requested
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(), redirect, cluster);
-
                 }
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
