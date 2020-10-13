@@ -22,7 +22,6 @@ from distutils.core import Extension
 from distutils.util import strtobool
 from os import environ
 import subprocess
-import sys
 
 from distutils.command import build_ext
 
@@ -57,11 +56,6 @@ NAME = get_name()
 print(VERSION)
 print(NAME)
 
-if sys.version_info[0] == 2:
-    PY2 = True
-else:
-    PY2 = False
-
 # This is a workaround to have setuptools to include
 # the already compiled _pulsar.so library
 class my_build_ext(build_ext.build_ext):
@@ -83,16 +77,13 @@ dependencies = [
     'protobuf>=3.6.1',
     'six',
     'certifi',
+    'enum34>=1.1.9; python_version < "3.4"',
 
     # functions dependencies
     "apache-bookkeeper-client>=4.9.2",
     "prometheus_client",
     "ratelimit"
 ]
-
-if PY2:
-    # Python 2 compat dependencies
-    dependencies += ['enum34>=1.1.9']
 
 setup(
     name=NAME,
