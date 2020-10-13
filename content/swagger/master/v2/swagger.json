@@ -9743,7 +9743,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -17990,10 +17990,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18003,6 +17999,10 @@
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgThroughputOut": {
                     "type": "number",
@@ -18014,6 +18014,9 @@
                 "overLoaded": {
                     "type": "boolean"
                 },
+                "loadReportType": {
+                    "type": "string"
+                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18022,9 +18025,6 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "loadReportType": {
-                    "type": "string"
                 }
             }
         },
@@ -18208,10 +18208,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "producerName": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -19117,10 +19117,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "producerName": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
