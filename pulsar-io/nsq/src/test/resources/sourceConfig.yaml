@@ -1,2 +1,3 @@
 topic: "testTopic"
 lookupds: "test1,test2"
+channel: "testChannel"
