@@ -1046,7 +1046,7 @@ public class ClientCnx extends PulsarHandler {
         case NotAllowedError:
             return new PulsarClientException.NotAllowedException(errorMsg);
         case TransactionConflictException:
-            return new PulsarClientException.MessageAcknowledgeException(errorMsg);
+            return new PulsarClientException.TransactionConflictException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
