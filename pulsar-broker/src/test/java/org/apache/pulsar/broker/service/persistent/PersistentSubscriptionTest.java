@@ -256,7 +256,7 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                 "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
         }
