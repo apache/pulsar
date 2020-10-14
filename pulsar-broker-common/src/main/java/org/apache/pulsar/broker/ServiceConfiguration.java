@@ -1797,6 +1797,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String transactionBufferProviderClassName =
             "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack store provider"
+    )
+    private String transactionPendingAckStoreProviderClassName =
+            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

@@ -313,6 +313,60 @@ public class PendingAckHandleImpl implements PendingAckHandle {
         }
     }
 
+    @Override
+    public void handleMetadataEntry(TxnID txnId, Position position, AckType ackType) {
+        if (AckType.Cumulative == ackType) {
+            PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, txnId);
+            POSITION_UPDATER.set(this, position);
+        } else {
+            if (pendingIndividualAckMessagesMap == null) {
+                pendingIndividualAckMessagesMap = new ConcurrentOpenHashMap<>();
+            }
+
+            if (pendingAckMessages == null) {
+                pendingAckMessages = new ConcurrentOpenHashMap<>();
+            }
+            ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
+                    pendingIndividualAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashMap<>());
+
+            if (((PositionImpl) position).isBatchPosition()) {
+                PositionImpl currentPosition = (PositionImpl) position;
+                if (pendingAckBatchMessageMap == null) {
+                    this.pendingAckBatchMessageMap = new ConcurrentOpenHashMap<>();
+                }
+                ConcurrentOpenHashSet<TxnID> txnSet = this.pendingAckBatchMessageMap
+                        .computeIfAbsent(position, txn -> new ConcurrentOpenHashSet<>());
+
+                if (pendingAckMessageForCurrentTxn.containsKey(currentPosition)) {
+                    ((PositionImpl) pendingAckMessageForCurrentTxn
+                            .get(currentPosition)).andAckSet(currentPosition);
+                } else {
+                    pendingAckMessageForCurrentTxn.put(currentPosition, currentPosition);
+                }
+
+                if (!pendingAckMessages.containsKey(currentPosition)) {
+                    this.pendingAckMessages.put(currentPosition, currentPosition);
+                } else {
+                    ((PositionImpl) this.pendingAckMessages.get(currentPosition)).andAckSet(currentPosition);
+                }
+                txnSet.add(txnId);
+            } else {
+                pendingAckMessageForCurrentTxn.put(position, position);
+                this.pendingAckMessages.putIfAbsent(position, position);
+            }
+        }
+    }
+
+    @Override
+    public String getTopicName() {
+        return topicName;
+    }
+
+    @Override
+    public String getSubName() {
+        return subName;
+    }
+
     private void redeliverUnacknowledgedMessagesCommon(PositionImpl position, List<PositionImpl> pendingPositions,
                                                        PositionImpl cumulativeAckPosition) {
         if (position.isBatchPosition()) {

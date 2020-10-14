@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 import java.util.List;
 import java.util.Map;
@@ -78,4 +79,9 @@ public interface PendingAckHandle {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
+    void handleMetadataEntry(TxnID txnId, Position position, AckType ackType);
+
+    String getTopicName();
+
+    String getSubName();
 }

@@ -78,6 +78,10 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return ledgerId;
     }
 
+    public long[] getAckSet() {
+        return ackSet;
+    }
+
     public long getEntryId() {
         return entryId;
     }
