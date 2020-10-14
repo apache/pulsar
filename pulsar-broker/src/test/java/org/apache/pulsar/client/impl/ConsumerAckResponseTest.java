@@ -28,7 +28,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -88,7 +87,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
             consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
             fail();
         } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof TransactionConflictException);
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
         }
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
