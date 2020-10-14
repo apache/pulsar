@@ -119,7 +119,7 @@ public class TransactionImpl implements Transaction {
         }
     }
 
-    public synchronized void registerReceiveConsumer(ConsumerBase<?> consumer) {
+    public synchronized void registerCumulativeAckConsumer(ConsumerBase<?> consumer) {
         cumulativeAckConsumers.add(consumer);
     }
 

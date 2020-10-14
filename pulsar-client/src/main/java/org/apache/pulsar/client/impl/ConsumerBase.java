@@ -432,7 +432,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
         if (txn != null) {
             if (ackType == AckType.Cumulative) {
-                txn.registerReceiveConsumer(this);
+                txn.registerCumulativeAckConsumer(this);
             }
             txn.registerAckedTopic(getTopic(), subscription);
             return txn.registerAckOp(ackFuture);
@@ -450,7 +450,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
             if (ackType == AckType.Cumulative) {
-                txn.registerReceiveConsumer(this);
+                txn.registerCumulativeAckConsumer(this);
             }
             txn.registerAckedTopic(getTopic(), subscription);
             // register the ackFuture as part of the transaction
