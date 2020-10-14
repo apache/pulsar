@@ -217,7 +217,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));
         positions.add(new PositionImpl(2, 3));
@@ -253,7 +253,7 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
             fail("Single acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }

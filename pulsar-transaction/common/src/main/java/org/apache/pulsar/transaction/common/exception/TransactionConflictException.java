@@ -22,11 +22,11 @@ package org.apache.pulsar.transaction.common.exception;
  * Exception thrown when a transaction try to acknowledge message when it shouldn't.
  *
  */
-public class TransactionAckConflictException extends Exception {
+public class TransactionConflictException extends Exception {
 
     private static final long serialVersionUID = 0L;
 
-    public TransactionAckConflictException(String message) {
+    public TransactionConflictException(String message) {
         super(message);
     }
 }
