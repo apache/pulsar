@@ -50,7 +50,7 @@ public interface PendingAckHandle {
      * @param positions              {@link Position}(s) it try to ack.
      * @param ackType                {@link PulsarApi.CommandAck.AckType}.
      *  cumulative ack or try to single ack message already acked by any ongoing transaction.
-     * @throws IllegalArgumentException if try to cumulative ack but passed in multiple positions.
+     * @return the future of this operation.
      */
     CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, PulsarApi.CommandAck.AckType ackType);
 
@@ -59,7 +59,7 @@ public interface PendingAckHandle {
      *
      * @param txnId         {@link TxnID} to identify the transaction.
      * @param properties    Additional user-defined properties that can be associated with a particular cursor position.
-     * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
+     * @return the future of this operation.
      */
     CompletableFuture<Void> commitTxn(TxnID txnId, Map<String,Long> properties);
 
@@ -68,8 +68,7 @@ public interface PendingAckHandle {
      *
      * @param txnId  {@link TxnID} to identify the transaction.
      * @param consumer {@link Consumer} which aborting transaction.
-     *
-     * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
+     * @return the future of this operation.
      */
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
 
