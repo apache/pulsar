@@ -202,7 +202,7 @@ enum ServerError {
     InvalidTxnStatus = 21; // Invalid txn status error
     NotAllowedError = 22; // Not allowed error
 
-    TransactionAckConflictException = 23; // Ack with transaction conflict
+    TransactionConflictException = 23; // Ack with transaction conflict
 }
 
 enum AuthMethod {
