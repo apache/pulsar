@@ -105,6 +105,11 @@ public class TenantsBase extends AdminResource {
 
         try {
             NamedEntity.checkName(tenant);
+            List<String> tenants = globalZk().getChildren(path(POLICIES), false);
+            //No locks for precise control
+            if (tenants != null && tenants.size() >= pulsar().getConfiguration().getMaxTenants()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
+            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
