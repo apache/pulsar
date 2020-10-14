@@ -305,8 +305,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <p>Many large-scale deployment systems, such as <a href="deploy-kubernetes">Kubernetes</a>, have service discovery systems built in. 如果你在这样的系统上运行 Pulsar，你可能不需要自己构建服务发现系统。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="service-discovery-setup"></a><a href="#service-discovery-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery setup</h3>
-<p>The service discovery mechanism that included with Pulsar maintains a list of active brokers, which stored in ZooKeeper, and supports lookup using HTTP and also the <a href="/docs/zh-CN/next/develop-binary-protocol">binary protocol</a> of Pulsar.</p>
-<p>To get started setting up the built-in service of discovery of Pulsar, you need to change a few parameters in the <a href="/docs/zh-CN/next/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a> configuration file. Set the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a> parameter to the ZooKeeper quorum connection string of the cluster and the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a> setting to the <a href="/docs/zh-CN/next/reference-terminology#configuration-store">configuration store</a> quorum connection string.</p>
+<p>Pulsar 自带的服务发现策略维护了一个活跃 broker 的列表，该列表保存在Zookeeper中，并支持通过 HTTP 和<a href="/docs/zh-CN/next/develop-binary-protocol">二进制协议</a>去查询。</p>
+<p>若需要启用 Pulsar 内置的服务发现系统，你必须修改配置文件<a href="/docs/zh-CN/next/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a>里面的一些参数。 Set the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a> parameter to the ZooKeeper quorum connection string of the cluster and the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a> setting to the <a href="/docs/zh-CN/next/reference-terminology#configuration-store">configuration store</a> quorum connection string.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Zookeeper quorum connection string</span>
 <span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-comment">
@@ -328,21 +328,21 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 </code></pre>
-<p>In this command, users who identify with <code>test-admin-role</code> role can administer the configuration for the <code>test-tenant</code> tenant. The <code>test-tenant</code> tenant can only use the <code>us-west</code> cluster. From now on, this tenant can manage its resources.</p>
-<p>Once you create a tenant, you need to create <a href="/docs/zh-CN/next/reference-terminology#namespace">namespaces</a> for topics within that tenant.</p>
+<p>在这个命令中，使用<code>test-admin-role</code>角色的用户可以管理租户<code>test-tenant</code>的配置。 租户<code>test-tenant</code>只能在集群<code>us-west</code>内使用。 从现在起，这个租户能够管理其他的资源了。</p>
+<p>一旦你创建了一个租户，你必须为该租户的主题创建<a href="/docs/zh-CN/next/reference-terminology#namespace">命名空间</a></p>
 <p>The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create <span class="hljs-built_in">test</span>-tenant/ns1</span>
 </code></pre>
-<h5><a class="anchor" aria-hidden="true" id="test-producer-and-consumer"></a><a href="#test-producer-and-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Test producer and consumer</h5>
-<p>Everything is now ready to send and receive messages. The quickest way to test the system is through the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> client tool.</p>
-<p>You can use a topic in the namespace that you have just created. Topics are automatically created the first time when a producer or a consumer tries to use them.</p>
+<h5><a class="anchor" aria-hidden="true" id="测试生产和消费"></a><a href="#测试生产和消费" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>测试生产和消费</h5>
+<p>所有事情都准备好了，现在可以发送和接受消息了。最快测试系统是通过<a href="/docs/zh-CN/next/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>命令行。</p>
+<p>你可以在你刚刚创建的命名空间内使用一个主题。当第一次生产或者消费主题时，主题会自动创建。</p>
 <p>The topic name in this case could be:</p>
 <pre><code class="hljs css language-http">persistent://test-tenant/ns1/my-topic
 </code></pre>
-<p>Start a consumer that creates a subscription on the topic and waits for messages:</p>
+<p>开始创建主题订阅并等待消息的消费者：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf consume persistent://<span class="hljs-built_in">test</span>-tenant/ns1/my-topic</span>
 </code></pre>
-<p>Start a producer that publishes messages at a fixed rate and reports stats every 10 seconds:</p>
+<p>创建一个以固定速度发布消息的生产者，并每10秒报告统计数据：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf produce persistent://<span class="hljs-built_in">test</span>-tenant/ns1/my-topic</span>
 </code></pre>
 <p>To report the topic stats:</p>
