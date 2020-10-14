@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import org.apache.pulsar.broker.service.PublishRateLimiter;
+import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -49,6 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
 import java.util.UUID;
 
 @Slf4j
@@ -1129,4 +1132,83 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
+
+    @Test
+    public void testPublishRateInDifferentLevelPolicy() throws Exception {
+        cleanup();
+        conf.setMaxPublishRatePerTopicInMessages(5);
+        conf.setMaxPublishRatePerTopicInBytes(50L);
+        setup();
+        //wait for cache init
+        Thread.sleep(3000);
+        final String topicName = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Field publishMaxMessageRate = PublishRateLimiterImpl.class.getDeclaredField("publishMaxMessageRate");
+        publishMaxMessageRate.setAccessible(true);
+        Field publishMaxByteRate = PublishRateLimiterImpl.class.getDeclaredField("publishMaxByteRate");
+        publishMaxByteRate.setAccessible(true);
+
+        //1 use broker-level policy by default
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PublishRateLimiterImpl publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+        Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 5);
+        Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 50L);
+
+        //2 set namespace-level policy
+        PublishRate publishMsgRate = new PublishRate(10, 100L);
+        admin.namespaces().setPublishRate(myNamespace, publishMsgRate);
+        retryStrategically((x) -> {
+            PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+            try {
+                return (int)publishMaxMessageRate.get(limiter) == 10;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+        publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+        Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 10);
+        Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 100L);
+
+        //3 set topic-level policy, namespace-level policy should be overwritten
+        PublishRate publishMsgRate2 = new PublishRate(11, 101L);
+        admin.topics().setPublishRate(topicName, publishMsgRate2);
+        retryStrategically((x) -> {
+            try {
+                return admin.topics().getPublishRate(topicName) != null;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+        publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+        Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 11);
+        Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 101L);
+
+        //4 remove topic-level policy, namespace-level policy will take effect
+        admin.topics().removePublishRate(topicName);
+        retryStrategically((x) -> {
+            try {
+                return admin.topics().getPublishRate(topicName) == null;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+        publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+        Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 10);
+        Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 100L);
+
+        //5 remove namespace-level policy, broker-level policy will take effect
+        admin.namespaces().removePublishRate(myNamespace);
+        retryStrategically((x) -> {
+            PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+            try {
+                return (int)publishMaxMessageRate.get(limiter) == 5;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+        publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+        Assert.assertEquals(publishMaxMessageRate.get(publishRateLimiter), 5);
+        Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 50L);
+    }
+
 }
