@@ -23,9 +23,7 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.Sets;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -36,22 +34,16 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.client.impl.PartitionedProducerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -219,6 +211,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnAckTestBatchAndSharedSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Shared);
+    }
+
+
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
@@ -242,7 +240,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction txn = getTxn();
 
-            int messageCnt = 10;
+            int messageCnt = 130;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
@@ -255,7 +253,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}", message.getMessageId());
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(1000);
 
             consumer.redeliverUnacknowledgedMessages();
 
@@ -266,7 +263,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             // 1) txn abort
             txn.abort().get();
 
-            consumer.redeliverUnacknowledgedMessages();
+            Thread.sleep(2000L);
             // after transaction abort, the messages could be received
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
@@ -278,6 +275,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             // 2) ack committed by a new txn
             commitTxn.commit().get();
+            Thread.sleep(2000L);
 
             // after transaction commit, the messages can't be received
             message = consumer.receive(2, TimeUnit.SECONDS);
@@ -290,7 +288,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceofp
+                Assert.assertTrue(reCommitError.getCause() instanceof
                         TransactionCoordinatorClientException.InvalidTxnStatusException);
             }
         }
@@ -385,7 +383,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     @Test
     public void txnAckTestBatchAndCumulativeSub() throws Exception {
-        txnCumulativeAckTest(true, 5, SubscriptionType.Failover);
+        txnCumulativeAckTest(true, 200, SubscriptionType.Failover);
     }
 
     @Test
@@ -411,22 +409,20 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(normalTopic)
                 .enableBatching(batchEnable)
                 .batchingMaxMessages(maxBatchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .create();
 
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction abortTxn = getTxn();
-            int messageCnt = 10;
+            int messageCnt = 130;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
             }
             Message<byte[]> message = null;
-            // consume and ack messages with txn
-            List<Message<byte[]>> list = new ArrayList<>();
-            consumer.redeliverUnacknowledgedMessages();
+            Thread.sleep(1000L);
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(1, TimeUnit.SECONDS);
-                list.add(message);
                 Assert.assertNotNull(message);
                 if (i % 3 == 0) {
                     consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
@@ -437,16 +433,18 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
                 fail("not ack conflict ");
             } catch (Exception e) {
-                Assert.assertTrue(e.getCause().getCause() instanceof TransactionAckConflictException);
+                Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
             }
             abortTxn.abort().get();
-            consumer.redeliverUnacknowledgedMessages();
+            Thread.sleep(2000);
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
+                message = consumer.receive(1, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
                 if (i % 3 == 0) {
-                    consumer.acknowledgeCumulativeAsync(list.get(i).getMessageId(), commitTxn).get();
+                    consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTxn).get();
                 }
-                log.info("receive msgId commit: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
             }
             commitTxn.commit().get();
             Thread.sleep(2000);
@@ -461,6 +459,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 Assert.assertTrue(reCommitError.getCause() instanceof
                         TransactionCoordinatorClientException.InvalidTxnStatusException);
             }
+
+            Thread.sleep(2000);
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            Assert.assertNull(message);
         }
     }
 

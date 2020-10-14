@@ -21,11 +21,9 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 
 import java.util.List;
 import java.util.Map;
@@ -51,7 +49,6 @@ public interface PendingAckHandle {
      * @param txnId                  TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link Position}(s) it try to ack.
      * @param ackType                {@link PulsarApi.CommandAck.AckType}.
-     * @throws TransactionAckConflictException if try to do cumulative ack when another ongoing transaction already doing
      *  cumulative ack or try to single ack message already acked by any ongoing transaction.
      * @throws IllegalArgumentException if try to cumulative ack but passed in multiple positions.
      */
@@ -65,6 +62,7 @@ public interface PendingAckHandle {
      * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
      */
     CompletableFuture<Void> commitTxn(TxnID txnId, Map<String,Long> properties);
+
     /**
      * Abort a transaction.
      *
@@ -73,7 +71,6 @@ public interface PendingAckHandle {
      *
      * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
      */
-
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
 
     void setPersistentSubscription(PersistentSubscription persistentSubscription);

@@ -70,7 +70,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -371,7 +371,7 @@ public class PersistentSubscription implements Subscription {
         checkArgument(txnId != null, "TransactionID can not be null.");
         if (pendingAckHandle == null) {
             return FutureUtil.failedFuture(
-                    new TransactionAckConflictException("Broker does't support Transaction pending ack!"));
+                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
         }
 
         return pendingAckHandle.acknowledgeMessage(txnId, positions, ackType);

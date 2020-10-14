@@ -789,6 +789,32 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class TransactionConflictException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public TransactionConflictException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public TransactionConflictException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -849,6 +875,8 @@ public class PulsarClientException extends IOException {
             return new ConsumerAssignException(msg);
         } else if (t instanceof MessageAcknowledgeException) {
             return new MessageAcknowledgeException(msg);
+        } else if (t instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -936,6 +964,8 @@ public class PulsarClientException extends IOException {
             return new ConsumerAssignException(msg);
         } else if (cause instanceof MessageAcknowledgeException) {
             return new MessageAcknowledgeException(msg);
+        } else if (cause instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
         } else {
@@ -967,6 +997,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof CryptoException
                 || t instanceof ConsumerAssignException
                 || t instanceof MessageAcknowledgeException
+                || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;

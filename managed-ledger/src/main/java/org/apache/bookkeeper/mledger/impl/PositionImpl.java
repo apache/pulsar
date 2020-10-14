@@ -121,7 +121,7 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         thisAckSet.flip(0, thisAckSet.size());
         otherAckSet.flip(0, otherAckSet.size());
         thisAckSet.and(otherAckSet);
-        boolean isAckSetRepeated = thisAckSet.isEmpty();
+        boolean isAckSetRepeated = !thisAckSet.isEmpty();
         thisAckSet.recycle();
         otherAckSet.recycle();
         return isAckSetRepeated;
@@ -174,17 +174,9 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     public boolean equals(Object obj) {
         if (obj instanceof PositionImpl) {
             PositionImpl other = (PositionImpl) obj;
-            if ((other.ackSet != null && ackSet == null) || (other.ackSet == null && ackSet != null)) {
-                return false;
-            }
-            if (ackSet == null) {
-                return ledgerId == other.ledgerId && entryId == other.entryId;
-            } else {
-                BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
-                BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
-                return ledgerId == other.ledgerId && entryId == other.entryId && thisAckSet.equals(otherAckSet);
-            }
+            return ledgerId == other.ledgerId && entryId == other.entryId;
         }
+
         return false;
     }
 

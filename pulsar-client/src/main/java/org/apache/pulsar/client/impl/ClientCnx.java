@@ -91,6 +91,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -404,8 +405,14 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleAckResponse(CommandAckResponse ackResponse) {
         checkArgument(state == State.Ready);
+        checkArgument(ackResponse.getRequestId() >= 0);
         long consumerId = ackResponse.getConsumerId();
-        consumers.get(consumerId).ackResponse(ackResponse);
+        if (!ackResponse.hasError()) {
+            consumers.get(consumerId).ackReceipt(ackResponse.getRequestId());
+        } else {
+            consumers.get(consumerId).ackError(ackResponse.getRequestId(),
+                    getPulsarClientException(ackResponse.getError(), ackResponse.getMessage()));
+        }
     }
 
 
@@ -1038,6 +1045,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.ConsumerAssignException(errorMsg);
         case NotAllowedError:
             return new PulsarClientException.NotAllowedException(errorMsg);
+        case TransactionConflict:
+            return new PulsarClientException.TransactionConflictException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

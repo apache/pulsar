@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -69,6 +70,7 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
+    private final Set<ConsumerBase<?>> cumulativeAckConsumers;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -83,6 +85,7 @@ public class TransactionImpl implements Transaction {
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
         this.tcClient = client.getTcClient();
+        this.cumulativeAckConsumers = new HashSet<>();
     }
 
     public long nextSequenceId() {
@@ -116,6 +119,10 @@ public class TransactionImpl implements Transaction {
         }
     }
 
+    public synchronized void registerReceiveConsumer(ConsumerBase<?> consumer) {
+        cumulativeAckConsumers.add(consumer);
+    }
+
     public synchronized CompletableFuture<Void> registerAckOp(CompletableFuture<Void> ackFuture) {
         CompletableFuture<Void> transactionalAckFuture = new CompletableFuture<>();
         TransactionalAckOp ackOp = new TransactionalAckOp(
@@ -139,6 +146,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
+        cumulativeAckConsumers.forEach(ConsumerBase::clearIncomingMessages);
         return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
             sendOps.values().forEach(txnSendOp -> {
                 txnSendOp.sendFuture.whenComplete(((messageId, t) -> {

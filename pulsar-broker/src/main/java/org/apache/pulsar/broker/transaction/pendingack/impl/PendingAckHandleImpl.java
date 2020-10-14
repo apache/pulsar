@@ -13,7 +13,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -76,7 +76,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                         " invalid cumulative ack received with multiple message ids.";
                 log.error(errorMsg);
-                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                 return completableFuture;
             }
 
@@ -86,7 +86,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         " try to cumulative ack position: " + position + " within range of cursor's " +
                         "markDeletePosition: " + persistentSubscription.getCursor().getMarkDeletedPosition();
                 log.error(errorMsg);
-                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                 return completableFuture;
             }
 
@@ -104,10 +104,10 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 POSITION_UPDATER.set(this, position);
             } else {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
-                        " try to cumulative batch ack position: " + position + " within range of current  " +
+                        " try to cumulative batch ack position: " + position + " within range of current " +
                         "currentPosition: " + this.pendingCumulativeAckMessage;
                 log.error(errorMsg);
-                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                 return completableFuture;
             }
         } else {
@@ -126,7 +126,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                         " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
-                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                 return completableFuture;
             }
 
@@ -137,7 +137,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                         " try to ack message:" + position + " in pending ack status.";
                 log.error(errorMsg);
-                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                 return completableFuture;
             }
 
@@ -149,7 +149,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                             " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                    completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                     return completableFuture;
                 }
 
@@ -181,7 +181,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                             " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
+                    completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
                     return completableFuture;
                 }
                 ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
@@ -242,6 +242,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (PENDING_CUMULATIVE_ACK_TXNID_UPDATER.get(this).equals(txnId)) {
                 POSITION_UPDATER.set(this, null);
                 PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
+                redeliverUnacknowledgedMessages(consumer);
             }
         } else if (this.pendingIndividualAckMessagesMap != null){
             ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
@@ -261,6 +262,8 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         this.pendingAckMessages.remove(position);
                     }
                 }
+                redeliverUnacknowledgedMessages(consumer,
+                        (List<PositionImpl>) (List<?>) pendingAckMessageForCurrentTxn.values());
             }
         }
         abortFuture.complete(null);

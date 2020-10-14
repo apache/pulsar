@@ -109,7 +109,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2406,21 +2406,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return callBack;
     }
 
-    protected void ackResponse(CommandAckResponse ackResponse) {
-        checkArgument(ackResponse.getRequestId() >= 0);
-        OpForAckCallBack callBackOp = ackRequests.remove(ackResponse.getRequestId());
+    protected void ackReceipt(long requestId) {
+        OpForAckCallBack callBackOp = ackRequests.remove(requestId);
         if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.info("Ack request has been handled requestId : {}", ackResponse.getRequestId());
-        } else if (!ackResponse.hasError()) {
+            log.info("Ack request has been handled requestId : {}", requestId);
+        } else {
             callBackOp.callback.complete(null);
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
                         + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
             }
-            callBackOp.recycle();
+        }
+    }
+
+    protected void ackError(long requestId, PulsarClientException pulsarClientException) {
+        OpForAckCallBack callBackOp = ackRequests.remove(requestId);
+        if (callBackOp == null || callBackOp.callback.isDone()) {
+            log.info("Ack request has been handled requestId : {}", requestId);
         } else {
-            callBackOp.callback.completeExceptionally(new MessageAcknowledgeException
-                    (new TransactionAckConflictException(ackResponse.getMessage())));
+            callBackOp.callback.completeExceptionally(pulsarClientException);
             if (log.isDebugEnabled()) {
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
             }

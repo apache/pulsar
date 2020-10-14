@@ -169,13 +169,7 @@ public class PersistentSubscriptionTest {
 
     @Test
     public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
-        List<Position> expectedSinglePositions = new ArrayList<>();
-        expectedSinglePositions.add(new PositionImpl(1, 1));
-        expectedSinglePositions.add(new PositionImpl(1, 3));
-        expectedSinglePositions.add(new PositionImpl(1, 5));
-
         doAnswer((invocationOnMock) -> {
-            assertTrue(((List)invocationOnMock.getArguments()[0]).containsAll(expectedSinglePositions));
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
@@ -217,17 +211,13 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));
         positions.add(new PositionImpl(2, 3));
         positions.add(new PositionImpl(2, 5));
 
-        Position[] expectedSinglePositions = {new PositionImpl(3, 1),
-                                        new PositionImpl(3, 3), new PositionImpl(3, 5)};
-
         doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), expectedSinglePositions));
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
@@ -253,7 +243,7 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
             fail("Single acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
@@ -265,9 +255,10 @@ public class PersistentSubscriptionTest {
         try {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException | InterruptedException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
+                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
+                    "2:50 within range of current currentPosition: 1:100");
         }
 
         positions.clear();
