@@ -25,7 +25,7 @@ class Events extends React.Component {
               <h1><translate>Events</translate></h1>
               <hr />
             </header>
-            <h2><translate>Calander</translate></h2>
+            <h2><translate>Calender</translate></h2>
 
             <iframe src={iframeSrc} 
               style={{borderWidth: 0}} 
@@ -46,7 +46,10 @@ class Events extends React.Component {
               - [Pulsar Training: Developing Pulsar Applications with Jesse Anderson](https://www.eventbrite.com/e/developing-pulsar-applications-online-training-tickets-122334542911)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
+              - [Pulsar monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
             </MarkdownBlock>
             <MarkdownBlock>
               - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
