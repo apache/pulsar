@@ -7988,7 +7988,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -15045,26 +15045,32 @@
           "type" : "number",
           "format" : "double"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -15074,12 +15080,6 @@
         },
         "loadReportType" : {
           "type" : "string"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -15556,13 +15556,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "s3Driver" : {
-          "type" : "boolean"
-        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
+          "type" : "boolean"
+        },
+        "s3Driver" : {
           "type" : "boolean"
         }
       }

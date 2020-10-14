@@ -1629,12 +1629,22 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "topicName": {
+                    "type": "string"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1650,23 +1660,13 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "replicated": {
                     "type": "boolean"
                 },
-                "topicName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
                     "type": "string"
                 },
                 "data": {

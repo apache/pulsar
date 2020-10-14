@@ -73,8 +73,8 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersink",
                 "swaggerfunctions",
+                "swaggersink",
                 "swaggersource"
             ]
         }
