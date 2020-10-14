@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import javax.validation.constraints.NotNull;
 
@@ -62,6 +63,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
+import org.apache.zookeeper.ZKUtil;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
@@ -80,9 +82,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private final ZooKeeperCache localZkCache;
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
-
-    // schemaId => ledgers of the schemaId
-    private final Map<String, List<Long>> schemaLedgers = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations = new ConcurrentHashMap<>();
 
@@ -375,40 +374,108 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         });
     }
 
+    /**
+     * Delete ledgers asynchronously and ignore the exception if failed to delete any ledger
+     */
+    @NotNull
+    private CompletableFuture<Void> deleteLedgers(Stream<Long> ledgers, final int numOfLedgers) {
+        if (numOfLedgers == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger numOfDeletedLedgers = new AtomicInteger(0);
+        ledgers.forEach(ledgerId -> {
+            bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                if (rc == BKException.Code.OK) {
+                    log.debug("Schema ledger {} is deleted", ledgerId);
+                } else {
+                    // It's not a serious error, we didn't need call future.completeExceptionally()
+                    log.warn("Failed to delete ledger {}: {}", ledgerId, rc);
+                }
+                if (numOfDeletedLedgers.incrementAndGet() == numOfLedgers) {
+                    future.complete(null);
+                }
+            }, null);
+        });
+        return future;
+    }
+
+    /**
+     * Delete the ledgers recorded in z-node `/schemas/<tenant>/<namespace>/<topic>`'s data
+     */
+    @NotNull
+    private CompletableFuture<Void> deleteUsedLedgers(final String schemaId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        getSchemaLocator(getSchemaPath(schemaId)).whenComplete((optional, e) -> {
+            if (e != null) {
+                future.completeExceptionally(e);
+                return;
+            }
+            if (optional.isPresent()) {
+                List<SchemaStorageFormat.IndexEntry> entries = optional.get().locator.getIndexList();
+                deleteLedgers(entries.stream().map(entry -> entry.getPosition().getLedgerId()), entries.size())
+                        .thenApply(future::complete);
+            } else {
+                future.completeExceptionally(null);
+            }
+        });
+        return future;
+    }
+
+    /**
+     * Delete the ledgers recorded in z-node `/schemas/<tenant>/<namespace>/<topic>/unusedLedger`'s children
+     */
+    @NotNull
+    private CompletableFuture<Void> deleteUnusedLedgers(final String schemaId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        zooKeeper.getChildren(getUnusedLedgerPath(schemaId), null, (rc, path, ctx, children) -> {
+            Code code = Code.get(rc);
+            if (code == Code.OK) {
+                deleteLedgers(children.stream().map(Long::parseLong), children.size()).whenComplete((ignored, e) -> {
+                    future.complete(null);
+                });
+            } else if (code == Code.NONODE) { // a non-partitioned topic has no unused ledgers
+                future.complete(null);
+            } else {
+                future.completeExceptionally(new RuntimeException("Failed to get children of " + path + ": " + code));
+                log.error("Failed to get children of {}: {}", path, code);
+            }
+        }, null);
+
+        return future;
+    }
+
+    /**
+     * Delete the associated z-node of `schemaId`
+     */
+    @NotNull
+    private CompletableFuture<Void> deleteMetadata(final String schemaId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        final String path = getSchemaPath(schemaId);
+        try {
+            ZKUtil.deleteRecursive(zooKeeper, path);
+            future.complete(null);
+            log.info("z-node {} is deleted recursively", path);
+        } catch (InterruptedException | KeeperException e) {
+            future.completeExceptionally(e);
+            log.error("Failed to delete z-node {} recursively", path);
+        }
+
+        return future;
+    }
+
     @NotNull
     private CompletableFuture<Long> deleteSchema(String schemaId) {
         return getSchema(schemaId).thenCompose(schemaAndVersion -> {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                // The version is only for the compatibility of the current interface
-                final long version = -1;
-                final List<Long> ledgerIds = schemaLedgers.get(schemaId);
-                if (ledgerIds != null) {
-                    CompletableFuture<Long> future = new CompletableFuture<>();
-                    final AtomicInteger numOfLedgerIds = new AtomicInteger(ledgerIds.size());
-                    for (long ledgerId : ledgerIds) {
-                        bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-                            if (rc != BKException.Code.OK) {
-                                // It's not a serious error, we didn't need call future.completeExceptionally()
-                                log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
-                            }
-                            if (numOfLedgerIds.decrementAndGet() == 0) {
-                                try {
-                                    ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
-                                } catch (InterruptedException | KeeperException e) {
-                                    future.completeExceptionally(e);
-                                }
-                                future.complete(version);
-                            }
-                        }, null);
-                    }
-                    return future;
-                } else {
-                    // It should never reach here
-                    log.warn("No ledgers for schema id: {}", schemaId);
-                    return completedFuture(version);
-                }
+                return deleteUsedLedgers(schemaId)
+                        .thenCompose(ignored -> deleteUnusedLedgers(schemaId))
+                        .thenCompose(ignored -> deleteMetadata(schemaId))
+                        .thenApply(ignored -> -1L);
             }
         });
     }
@@ -575,10 +642,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         if (rc != BKException.Code.OK) {
                             future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1));
                         } else {
-                            schemaLedgers.computeIfAbsent(
-                                    schemaId,
-                                    key -> Collections.synchronizedList(new ArrayList<>())
-                            ).add(handle.getId());
                             future.complete(handle);
                         }
                     }, null, metadata);
