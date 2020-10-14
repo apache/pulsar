@@ -37,7 +37,10 @@ class Events extends React.Component {
               - [Pulsar Summit Asia 2020](https://pulsar-summit.org/en/event/asia-2020)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [ApacheCon @Home](https://hopin.to/events/apachecon-home)
+              - [Pulsar Summit Virtual Conference](https://www.youtube.com/playlist?list=PLqRma1oIkcWjVlPfaWlf3VO9W-XWsF_4-)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [ApacheCon @Home](https://www.youtube.com/watch?v=iIABx20uvmw&list=PLU2OcwpQkYCy_awEe5xwlxGTk5UieA37m)
             </MarkdownBlock>
             <MarkdownBlock>
               - [ApacheCon @Home Pulsar/BookKeeper track](https://www.apachecon.com/acah2020/tracks/pulsar.html)
@@ -46,10 +49,10 @@ class Events extends React.Component {
               - [Pulsar Training: Developing Pulsar Applications with Jesse Anderson](https://www.eventbrite.com/e/developing-pulsar-applications-online-training-tickets-122334542911)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Pulsar monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev)
+              - [Monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev)
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Pulsar weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
+              - [Weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
             </MarkdownBlock>
             <MarkdownBlock>
               - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
