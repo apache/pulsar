@@ -21,14 +21,21 @@ package org.apache.pulsar.client.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -42,6 +49,7 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -121,15 +129,22 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         @Cleanup
         PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) producerBuilder.create();
 
-        Transaction txn1 = getTxn();
-        Transaction txn2 = getTxn();
+        TransactionImpl txn1 = (TransactionImpl) getTxn();
+        TransactionImpl txn2 = (TransactionImpl) getTxn();
+
+        Map<String, List<CompletableFuture<MessageId>>> topicMessageIdFutureMap = new HashMap<>();
+        topicMessageIdFutureMap.put(getTxnKey(txn1), new ArrayList<>());
+        topicMessageIdFutureMap.put(getTxnKey(txn2), new ArrayList<>());
+        Set<String> sendMessageIdSet = new HashSet<>();
 
         int messageCnt = 20;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 2 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                topicMessageIdFutureMap.get(getTxnKey(txn1)).add(
+                        producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync());
             } else {
-                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                topicMessageIdFutureMap.get(getTxnKey(txn2)).add(
+                        producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync());
             }
         }
 
@@ -138,27 +153,36 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         txn1.commit().get();
+        for (CompletableFuture<MessageId> future : topicMessageIdFutureMap.get(getTxnKey(txn1))) {
+            sendMessageIdSet.add(getMessageIdStr(future.get()));
+        }
 
         // txn1 messages could be received after txn1 committed
         int receiveCnt = 0;
         for (int i = 0; i < messageCnt / 2; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
+            sendMessageIdSet.remove(getMessageIdStr(message.getMessageId()));
             log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt / 2, receiveCnt);
+        Assert.assertEquals(0, sendMessageIdSet.size());
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         txn2.commit().get();
+        for (CompletableFuture<MessageId> future : topicMessageIdFutureMap.get(getTxnKey(txn2))) {
+            sendMessageIdSet.add(getMessageIdStr(future.get()));
+        }
 
         // txn2 messages could be received after txn2 committed
         receiveCnt = 0;
         for (int i = 0; i < messageCnt / 2; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
+            sendMessageIdSet.remove(getMessageIdStr(message.getMessageId()));
             log.info("receive second msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
@@ -166,8 +190,27 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        Assert.assertEquals(0, sendMessageIdSet.size());
 
         log.info("message commit test enableBatch {}", enableBatch);
+    }
+
+    private String getTxnKey(TransactionImpl transaction) {
+        return transaction.getTxnIdMostBits() + ":" + transaction.getTxnIdLeastBits();
+    }
+
+    private String getMessageIdStr(MessageId messageId) {
+        MessageIdImpl messageIdImpl;
+        if (messageId instanceof TopicMessageIdImpl) {
+            messageIdImpl = (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
+        } else if (messageId instanceof MessageIdImpl) {
+            messageIdImpl = (MessageIdImpl) messageId;
+        } else {
+            return "";
+        }
+        return messageIdImpl.getLedgerId()
+                + ":" + messageIdImpl.getEntryId()
+                + ":" + messageIdImpl.getPartitionIndex();
     }
 
     @Test

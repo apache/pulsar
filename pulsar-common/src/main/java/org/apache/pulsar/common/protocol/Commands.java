@@ -1647,10 +1647,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandEndTxnResponse commandEndTxnResponse = CommandEndTxnResponse.newBuilder().setRequestId(requestId)
-                                                                           .setTxnidLeastBits(txnIdLeastBits)
-                                                                           .setTxnidMostBits(txnIdMostBits).build();
+    public static ByteBuf newEndTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                            List<PulsarApi.CommittedMarkerInfo> committedMarkerInfoList) {
+        CommandEndTxnResponse commandEndTxnResponse = CommandEndTxnResponse.newBuilder()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .addAllCommittedMarkerInfo(committedMarkerInfoList)
+                .build();
         ByteBuf res = serializeWithSize(
             BaseCommand.newBuilder().setType(Type.END_TXN_RESPONSE).setEndTxnResponse(commandEndTxnResponse));
         commandEndTxnResponse.recycle();
@@ -1687,12 +1691,19 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnOnPartitionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
+    public static ByteBuf newEndTxnOnPartitionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                                       long committedLedgerId, long committedEntryId) {
+        MessageIdData messageIdData = MessageIdData.newBuilder()
+                .setLedgerId(committedLedgerId)
+                .setEntryId(committedEntryId)
+                .build();
         CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse = CommandEndTxnOnPartitionResponse
-                                                                                .newBuilder().setRequestId(requestId)
-                                                                                .setTxnidLeastBits(txnIdLeastBits)
-                                                                                .setTxnidMostBits(txnIdMostBits)
-                                                                                .build();
+                .newBuilder()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .setCommittedMessageId(messageIdData)
+                .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION_RESPONSE)
                                                    .setEndTxnOnPartitionResponse(commandEndTxnOnPartitionResponse));
         commandEndTxnOnPartitionResponse.recycle();

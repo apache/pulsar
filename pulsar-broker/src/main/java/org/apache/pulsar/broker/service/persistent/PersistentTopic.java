@@ -2351,15 +2351,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    public CompletableFuture<PositionImpl> endTxn(TxnID txnID, int txnAction) {
+        CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
-            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
+            tb.endTxnOnPartition(txnID, txnAction).whenComplete((position, throwable) -> {
                 if (throwable != null) {
                     completableFuture.completeExceptionally(throwable);
                     return;
                 }
-                completableFuture.complete(null);
+                completableFuture.complete(position);
             });
         }).exceptionally(tbThrowable -> {
             completableFuture.completeExceptionally(tbThrowable);

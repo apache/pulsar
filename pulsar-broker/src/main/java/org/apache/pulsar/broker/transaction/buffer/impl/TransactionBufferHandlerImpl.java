@@ -27,8 +27,10 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
+import org.apache.pulsar.client.api.transaction.TransactionResult;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -71,8 +73,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+    public CompletableFuture<TransactionResult> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
+        CompletableFuture<TransactionResult> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
@@ -100,8 +102,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+    public CompletableFuture<TransactionResult> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
+        CompletableFuture<TransactionResult> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
@@ -143,8 +145,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             }
-            log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
-            op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+            TransactionEndOnTopicResult transactionEndOnTopicResult = TransactionEndOnTopicResult.builder()
+                    .txnID(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()))
+                    .committedLedgerId(response.getCommittedMessageId().getLedgerId())
+                    .committedEntryId(response.getCommittedMessageId().getEntryId())
+                    .build();
+            op.cb.complete(transactionEndOnTopicResult);
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(), response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
@@ -167,7 +173,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got end txn on subscription response for for request {}", op.topic, response.getRequestId());
             }
-            op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+            op.cb.complete(
+                    TransactionEndOnTopicResult.builder()
+                            .txnID(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()))
+                            .build());
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}", op.topic, response.getRequestId(), response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
@@ -270,10 +279,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         long requestId;
         String topic;
         ByteBuf byteBuf;
-        CompletableFuture<TxnID> cb;
+        CompletableFuture<TransactionResult> cb;
         long createdAt;
 
-        static OpRequestSend create(long requestId, String topic, ByteBuf byteBuf, CompletableFuture<TxnID> cb) {
+        static OpRequestSend create(long requestId, String topic, ByteBuf byteBuf, CompletableFuture<TransactionResult> cb) {
             OpRequestSend op = RECYCLER.get();
             op.requestId = requestId;
             op.topic = topic;

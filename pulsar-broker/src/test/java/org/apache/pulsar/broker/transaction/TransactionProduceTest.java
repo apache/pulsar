@@ -115,7 +115,7 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     // TODO flaky https://github.com/apache/pulsar/issues/8070
-    // @Test
+    @Test
     public void produceAndCommitTest() throws Exception {
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         Transaction tnx = pulsarClientImpl.newTransaction()
@@ -217,7 +217,7 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     // TODO flaky https://github.com/apache/pulsar/issues/8070
-    // @Test
+    @Test
     public void produceAndAbortTest() throws Exception {
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         TransactionImpl txn = (TransactionImpl) pulsarClientImpl.newTransaction()
@@ -357,7 +357,7 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     // TODO flaky https://github.com/apache/pulsar/issues/8070
-    // @Test
+    @Test
     public void ackCommitTest() throws Exception {
         final String subscriptionName = "ackCommitTest";
         Transaction txn = ((PulsarClientImpl) pulsarClient)
@@ -422,7 +422,7 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     // TODO flaky https://github.com/apache/pulsar/issues/8070
-    // @Test
+    @Test
     public void ackAbortTest() throws Exception {
         final String subscriptionName = "ackAbortTest";
         Transaction txn = ((PulsarClientImpl) pulsarClient)

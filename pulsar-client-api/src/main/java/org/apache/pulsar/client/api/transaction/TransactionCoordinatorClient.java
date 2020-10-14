@@ -157,7 +157,7 @@ public interface TransactionCoordinatorClient extends Closeable {
      * @param txnID txn id to commit.
      * @return a future represents the result of commit txn.
      */
-    CompletableFuture<Void> commitAsync(TxnID txnID);
+    CompletableFuture<TransactionResult> commitAsync(TxnID txnID);
 
     /**
      * Abort txn.

@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionResult;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -40,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -176,8 +180,33 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    public static class EndTxnResult {
+
+        private final Map<String, PositionImpl> committedPositionMap = new HashMap<>();
+
+        public void putCommittedPosition(String partition, PositionImpl position) {
+            committedPositionMap.putIfAbsent(partition, position);
+        }
+
+        public List<PulsarApi.CommittedMarkerInfo> getCommittedMarkerList() {
+            List<PulsarApi.CommittedMarkerInfo> markerInfoList = new ArrayList<>();
+            for (Map.Entry<String, PositionImpl> entry : committedPositionMap.entrySet()) {
+                PulsarApi.CommittedMarkerInfo.Builder builder = PulsarApi.CommittedMarkerInfo.newBuilder();
+                PulsarApi.CommittedMarkerInfo markerInfo = builder
+                        .setPartition(entry.getKey())
+                        .setCommittedLedgerId(entry.getValue().getLedgerId())
+                        .setCommittedEntryId(entry.getValue().getEntryId())
+                        .build();
+                builder.recycle();
+                markerInfoList.add(markerInfo);
+            }
+            return markerInfoList;
+        }
+
+    }
+
+    public CompletableFuture<EndTxnResult> endTransaction(TxnID txnID, int txnAction) {
+        CompletableFuture<EndTxnResult> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
             case PulsarApi.TxnAction.COMMIT_VALUE:
@@ -198,25 +227,31 @@ public class TransactionMetadataStoreService {
                 .thenCompose(ignored -> endToTB(txnID, txnAction));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
-                    .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
+                    .thenCompose(result ->
+                            updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING)
+                                    .thenCompose(ignored -> CompletableFuture.completedFuture(result)));
         } else if (TxnStatus.ABORTING.equals(newStatus)) {
             completableFuture = completableFuture
-                    .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING));
+                    .thenCompose(result ->
+                            updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING)
+                                    .thenCompose(ignored -> CompletableFuture.completedFuture(result)));
         }
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
+    private CompletableFuture<EndTxnResult> endToTB(TxnID txnID, int txnAction) {
+        CompletableFuture<EndTxnResult> resultFuture = new CompletableFuture<>();
+        List<CompletableFuture<TransactionResult>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
             if (throwable != null) {
                 resultFuture.completeExceptionally(throwable);
                 return;
             }
 
+            EndTxnResult transactionEndResult = new EndTxnResult();
+
             txnMeta.ackedPartitions().forEach(tbSub -> {
-                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+                CompletableFuture<TransactionResult> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnSubscription(
                             tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
@@ -230,9 +265,17 @@ public class TransactionMetadataStoreService {
             });
 
             txnMeta.producedPartitions().forEach(partition -> {
-                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+                CompletableFuture<TransactionResult> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits())
+                            .thenCompose(transactionEndOnTopicResult -> {
+                                transactionEndResult.putCommittedPosition(
+                                        partition,
+                                        PositionImpl.get(
+                                                ((TransactionEndOnTopicResult) transactionEndOnTopicResult).getCommittedLedgerId(),
+                                                ((TransactionEndOnTopicResult) transactionEndOnTopicResult).getCommittedEntryId()));
+                                return CompletableFuture.completedFuture(null);
+                            });
                 } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
                 } else {
@@ -247,7 +290,7 @@ public class TransactionMetadataStoreService {
                         resultFuture.completeExceptionally(waitThrowable);
                         return;
                     }
-                    resultFuture.complete(null);
+                    resultFuture.complete(transactionEndResult);
                 });
             } catch (Exception e) {
                 resultFuture.completeExceptionally(e);

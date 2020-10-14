@@ -269,10 +269,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendAsync(Message<?> message, Transaction txn) {
-        if (txn instanceof TransactionImpl) {
-            ((TransactionImpl) txn).registerProducedTopic(topic);
-        }
-
+        final long sequenceId = message.getSequenceId();
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
@@ -346,6 +343,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 nextCallback = scb;
             }
         });
+        if (txn instanceof TransactionImpl) {
+            ((TransactionImpl) txn).registerProducedTopic(topic);
+            return ((TransactionImpl) txn).registerSendOp(sequenceId, topic, future);
+        }
         return future;
     }
 

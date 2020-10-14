@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -251,6 +252,6 @@ public interface Topic {
      * @param txnAction Transaction action.
      * @return
      */
-    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction);
+    CompletableFuture<PositionImpl> endTxn(TxnID txnID, int txnAction);
 
 }

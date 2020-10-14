@@ -25,11 +25,15 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionResult;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionEndResult;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -226,18 +230,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+    public CompletableFuture<TransactionResult> commitAsync(TxnID txnID) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Commit txn {}", txnID);
         }
-        CompletableFuture<Void> callback = new CompletableFuture<>();
+        CompletableFuture<TransactionResult> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.COMMIT);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        OpForTxnResultCallBack op = OpForTxnResultCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -265,7 +269,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse response) {
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        OpBase op = pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got end txn response for timeout {} - {}", response.getTxnidMostBits(),
@@ -277,7 +281,19 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got end txn response success for request {}", response.getRequestId());
             }
-            op.callback.complete(null);
+            if (op instanceof OpForTxnResultCallBack) {
+                TransactionEndResult transactionEndResult = new TransactionEndResult();
+                for (PulsarApi.CommittedMarkerInfo markerInfo : response.getCommittedMarkerInfoList()) {
+                    transactionEndResult.putMessageId(markerInfo.getPartition(),
+                            new MessageIdImpl(
+                                    markerInfo.getCommittedLedgerId(),
+                                    markerInfo.getCommittedEntryId(),
+                                    TopicName.get(markerInfo.getPartition()).getPartitionIndex()));
+                }
+                op.callback.complete(transactionEndResult);
+            } else {
+                op.callback.complete(null);
+            }
         } else {
             LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
@@ -345,6 +361,33 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
         };
     }
+
+    private static class OpForTxnResultCallBack extends OpBase<TransactionResult> {
+
+        static OpForTxnResultCallBack create(ByteBuf cmd, CompletableFuture<TransactionResult> callback) {
+            OpForTxnResultCallBack op = RECYCLER.get();
+            op.callback = callback;
+            op.cmd = cmd;
+            return op;
+        }
+        private OpForTxnResultCallBack(Recycler.Handle<OpForTxnResultCallBack> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        @Override
+        void recycle() {
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForTxnResultCallBack> recyclerHandle;
+        private static final Recycler<OpForTxnResultCallBack> RECYCLER = new Recycler<OpForTxnResultCallBack>() {
+            @Override
+            protected OpForTxnResultCallBack newObject(Handle<OpForTxnResultCallBack> handle) {
+                return new OpForTxnResultCallBack(handle);
+            }
+        };
+    }
+
 
     private TransactionCoordinatorClientException getExceptionByServerError(PulsarApi.ServerError serverError, String msg) {
         switch (serverError) {

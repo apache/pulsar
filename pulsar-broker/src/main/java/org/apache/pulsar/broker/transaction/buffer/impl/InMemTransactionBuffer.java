@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -280,7 +281,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
+    public CompletableFuture<PositionImpl> endTxnOnPartition(TxnID txnID, int txnAction) {
         return FutureUtil.failedFuture(
                 new Exception("Unsupported operation endTxnOnPartition in InMemTransactionBuffer."));
     }

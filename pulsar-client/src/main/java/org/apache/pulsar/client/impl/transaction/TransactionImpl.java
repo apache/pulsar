@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -51,6 +53,7 @@ public class TransactionImpl implements Transaction {
     private static class TransactionalSendOp {
         private final CompletableFuture<MessageId> sendFuture;
         private final CompletableFuture<MessageId> transactionalSendFuture;
+        private final String partition;
     }
 
     @Data
@@ -69,6 +72,8 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
+
+    private final List<CompletableFuture<Void>> registerFutureList = new ArrayList<>();
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -93,16 +98,19 @@ public class TransactionImpl implements Transaction {
     public synchronized void registerProducedTopic(String topic) {
         if (producedTopics.add(topic)) {
             // we need to issue the request to TC to register the produced topic
-            tcClient.addPublishPartitionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
+            registerFutureList.add(
+                    tcClient.addPublishPartitionToTxnAsync(
+                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic)));
         }
     }
 
-    public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
+    public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId, String partition,
                                                                     CompletableFuture<MessageId> sendFuture) {
         CompletableFuture<MessageId> transactionalSendFuture = new CompletableFuture<>();
         TransactionalSendOp sendOp = new TransactionalSendOp(
             sendFuture,
-            transactionalSendFuture
+            transactionalSendFuture,
+            partition
         );
         sendOps.put(sequenceId, sendOp);
         return transactionalSendFuture;
@@ -112,7 +120,9 @@ public class TransactionImpl implements Transaction {
     public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
             // we need to issue the request to TC to register the acked topic
-            tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
+            registerFutureList.add(
+                    tcClient.addSubscriptionToTxnAsync(
+                            new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription));
         }
     }
 
@@ -128,13 +138,16 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
-                txnSendOp.sendFuture.whenComplete((messageId, t) -> {
-                    txnSendOp.transactionalSendFuture.complete(messageId);
+        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                .thenCompose(result -> {
+                    sendOps.values().forEach(txnSendOp -> {
+                        txnSendOp.sendFuture.whenComplete((messageId, t) -> {
+                            txnSendOp.transactionalSendFuture.complete(
+                                    ((TransactionEndResult) result).getMessageId(txnSendOp.partition));
+                        });
+                    });
+                    return CompletableFuture.completedFuture(null);
                 });
-            });
-        });
     }
 
     @Override

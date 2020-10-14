@@ -19,20 +19,20 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.collect.Sets;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
-import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.api.transaction.TransactionResult;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +77,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
             Topic mockTopic = Mockito.mock(Topic.class);
             Mockito.when(mockTopic.endTxn(Mockito.any(), Mockito.anyInt()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
+                    .thenReturn(CompletableFuture.completedFuture(PositionImpl.get(1, 1)));
             Mockito.when(mockTopic.getSubscription(Mockito.any())).thenReturn(mockSubscription);
 
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap =
@@ -93,53 +93,57 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
     @Test
     public void testCommitOnTopic() throws ExecutionException, InterruptedException {
-        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
+        List<CompletableFuture<TransactionResult>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
             futures.add(tbClient.commitTxnOnTopic(topic, 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
+            Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }
     }
 
     @Test
     public void testAbortOnTopic() throws ExecutionException, InterruptedException {
-        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
+        List<CompletableFuture<TransactionResult>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
             futures.add(tbClient.abortTxnOnTopic(topic, 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
+            Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }
     }
 
     @Test
     public void testCommitOnSubscription() throws ExecutionException, InterruptedException {
-        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
+        List<CompletableFuture<TransactionResult>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
             futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
+            Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }
     }
 
     @Test
     public void testAbortOnSubscription() throws ExecutionException, InterruptedException {
-        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
+        List<CompletableFuture<TransactionResult>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
             futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
+            Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }
     }
 }

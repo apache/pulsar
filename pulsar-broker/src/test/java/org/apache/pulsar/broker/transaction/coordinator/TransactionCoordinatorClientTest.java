@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -45,10 +46,14 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     public void init() throws Exception {
         super.setup();
 
+        TransactionEndOnTopicResult transactionEndOnTopicResult = Mockito.mock(TransactionEndOnTopicResult.class);
+        Mockito.when(transactionEndOnTopicResult.getCommittedLedgerId()).thenReturn(1L);
+        Mockito.when(transactionEndOnTopicResult.getCommittedEntryId()).thenReturn(1L);
+
         for (PulsarService pulsarService : pulsarServices) {
             TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
             Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
+                    .thenReturn(CompletableFuture.completedFuture(transactionEndOnTopicResult));
             Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))

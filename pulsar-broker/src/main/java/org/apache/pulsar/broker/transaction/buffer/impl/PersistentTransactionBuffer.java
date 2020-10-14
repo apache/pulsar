@@ -145,26 +145,26 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+    public CompletableFuture<PositionImpl> endTxn(TxnID txnID, int txnAction) {
         return FutureUtil.failedFuture(
                 new Exception("Unsupported operation endTxn in PersistentTransactionBuffer."));
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public CompletableFuture<PositionImpl> endTxnOnPartition(TxnID txnID, int txnAction) {
+        CompletableFuture<PositionImpl> future = new CompletableFuture<>();
         if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
             future = committingTxn(txnID);
         } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-            future = abortTxn(txnID);
+            future = abortTxn(txnID).thenCompose(ignored -> CompletableFuture.completedFuture(null));
         } else {
             future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
         }
         return future;
     }
 
-    private CompletableFuture<Void> committingTxn(TxnID txnID) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    private CompletableFuture<PositionImpl> committingTxn(TxnID txnID) {
+        CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
         txnCursor.getTxnMeta(txnID, false).whenComplete(((meta, txnMetaThrowable) -> {
 
             if (txnMetaThrowable != null) {
@@ -173,7 +173,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
             if (meta.status().equals(TxnStatus.COMMITTING)) {
                 // the transaction status is committing, so return complete success
-                completableFuture.complete(null);
+                TransactionMetaImpl txnMeta = (TransactionMetaImpl) meta;
+                completableFuture.complete(
+                        PositionImpl.get(txnMeta.committedAtLedgerId(), txnMeta.committedAtEntryId()));
                 return;
             } else if (!meta.status().equals(TxnStatus.OPEN)) {
                 // in normal, this condition should not happen
@@ -188,11 +190,27 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             publishMessage(txnID, committingMarker, sequenceId)
                     .thenCompose(position -> meta.committingTxn()
                     .thenAccept(committingTxn -> {
-                        pendingCommitTxn.add(txnID);
-                        if (!pendingCommitHandling) {
-                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
-                        }
-                        completableFuture.complete(null);
+
+                        commitPartitionTopic(txnID).thenCompose(committedPos ->
+                                commitTxn(txnID,
+                                        ((PositionImpl) committedPos).getLedgerId(),
+                                        ((PositionImpl) committedPos).getEntryId())
+                                        .whenComplete((ignored, throwable) -> {
+                                            if (throwable != null) {
+                                                log.error("Failed to commit txn.", throwable);
+                                                completableFuture.completeExceptionally(throwable);
+                                                return;
+                                            }
+                                            log.info("commit txn finished.");
+                                            completableFuture.complete((PositionImpl) committedPos);
+                                        }));
+
+
+//                        pendingCommitTxn.add(txnID);
+//                        if (!pendingCommitHandling) {
+//                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
+//                        }
+//                        completableFuture.complete(null);
                     }));
         }));
         return completableFuture;

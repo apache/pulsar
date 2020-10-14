@@ -34,9 +34,9 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the commit result
      */
-    CompletableFuture<TxnID> commitTxnOnTopic(String topic,
-                                              long txnIdMostBits,
-                                              long txnIdLeastBits);
+    CompletableFuture<TransactionResult> commitTxnOnTopic(String topic,
+                                                        long txnIdMostBits,
+                                                        long txnIdLeastBits);
 
     /**
      * Abort the transaction associated with the topic.
@@ -46,9 +46,9 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the abort result
      */
-    CompletableFuture<TxnID> abortTxnOnTopic(String topic,
-                                            long txnIdMostBits,
-                                            long txnIdLeastBits);
+    CompletableFuture<TransactionResult> abortTxnOnTopic(String topic,
+                                                       long txnIdMostBits,
+                                                       long txnIdLeastBits);
 
     /**
      * Commit the transaction associated with the topic subscription.
@@ -59,10 +59,10 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the commit result
      */
-    CompletableFuture<TxnID> commitTxnOnSubscription(String topic,
-                                                    String subscription,
-                                                    long txnIdMostBits,
-                                                    long txnIdLeastBits);
+    CompletableFuture<TransactionResult> commitTxnOnSubscription(String topic,
+                                                               String subscription,
+                                                               long txnIdMostBits,
+                                                               long txnIdLeastBits);
 
     /**
      * Abort the transaction associated with the topic subscription.
@@ -73,9 +73,9 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the abort result
      */
-    CompletableFuture<TxnID> abortTxnOnSubscription(String topic,
-                                                   String subscription,
-                                                   long txnIdMostBits,
-                                                   long txnIdLeastBits);
+    CompletableFuture<TransactionResult> abortTxnOnSubscription(String topic,
+                                                              String subscription,
+                                                              long txnIdMostBits,
+                                                              long txnIdLeastBits);
 
 }

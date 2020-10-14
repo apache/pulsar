@@ -36154,6 +36154,12 @@ public final class PulsarApi {
     // optional string message = 5;
     boolean hasMessage();
     String getMessage();
+    
+    // repeated .pulsar.proto.CommittedMarkerInfo committedMarkerInfo = 6;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> 
+        getCommittedMarkerInfoList();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo getCommittedMarkerInfo(int index);
+    int getCommittedMarkerInfoCount();
   }
   public static final class CommandEndTxnResponse extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -36262,12 +36268,34 @@ public final class PulsarApi {
       }
     }
     
+    // repeated .pulsar.proto.CommittedMarkerInfo committedMarkerInfo = 6;
+    public static final int COMMITTEDMARKERINFO_FIELD_NUMBER = 6;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> committedMarkerInfo_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> getCommittedMarkerInfoList() {
+      return committedMarkerInfo_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfoOrBuilder> 
+        getCommittedMarkerInfoOrBuilderList() {
+      return committedMarkerInfo_;
+    }
+    public int getCommittedMarkerInfoCount() {
+      return committedMarkerInfo_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo getCommittedMarkerInfo(int index) {
+      return committedMarkerInfo_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfoOrBuilder getCommittedMarkerInfoOrBuilder(
+        int index) {
+      return committedMarkerInfo_.get(index);
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
       error_ = org.apache.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
+      committedMarkerInfo_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -36277,6 +36305,12 @@ public final class PulsarApi {
       if (!hasRequestId()) {
         memoizedIsInitialized = 0;
         return false;
+      }
+      for (int i = 0; i < getCommittedMarkerInfoCount(); i++) {
+        if (!getCommittedMarkerInfo(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -36305,6 +36339,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeBytes(5, getMessageBytes());
       }
+      for (int i = 0; i < committedMarkerInfo_.size(); i++) {
+        output.writeMessage(6, committedMarkerInfo_.get(i));
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -36332,6 +36369,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getMessageBytes());
+      }
+      for (int i = 0; i < committedMarkerInfo_.size(); i++) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(6, committedMarkerInfo_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -36456,6 +36497,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         message_ = "";
         bitField0_ = (bitField0_ & ~0x00000010);
+        committedMarkerInfo_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -36509,6 +36552,11 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000010;
         }
         result.message_ = message_;
+        if (((bitField0_ & 0x00000020) == 0x00000020)) {
+          committedMarkerInfo_ = java.util.Collections.unmodifiableList(committedMarkerInfo_);
+          bitField0_ = (bitField0_ & ~0x00000020);
+        }
+        result.committedMarkerInfo_ = committedMarkerInfo_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -36530,6 +36578,16 @@ public final class PulsarApi {
         if (other.hasMessage()) {
           setMessage(other.getMessage());
         }
+        if (!other.committedMarkerInfo_.isEmpty()) {
+          if (committedMarkerInfo_.isEmpty()) {
+            committedMarkerInfo_ = other.committedMarkerInfo_;
+            bitField0_ = (bitField0_ & ~0x00000020);
+          } else {
+            ensureCommittedMarkerInfoIsMutable();
+            committedMarkerInfo_.addAll(other.committedMarkerInfo_);
+          }
+          
+        }
         return this;
       }
       
@@ -36537,6 +36595,12 @@ public final class PulsarApi {
         if (!hasRequestId()) {
           
           return false;
+        }
+        for (int i = 0; i < getCommittedMarkerInfoCount(); i++) {
+          if (!getCommittedMarkerInfo(i).isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }
@@ -36590,6 +36654,12 @@ public final class PulsarApi {
             case 42: {
               bitField0_ |= 0x00000010;
               message_ = input.readBytes();
+              break;
+            }
+            case 50: {
+              org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addCommittedMarkerInfo(subBuilder.buildPartial());
               break;
             }
           }
@@ -36721,6 +36791,95 @@ public final class PulsarApi {
         
       }
       
+      // repeated .pulsar.proto.CommittedMarkerInfo committedMarkerInfo = 6;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> committedMarkerInfo_ =
+        java.util.Collections.emptyList();
+      private void ensureCommittedMarkerInfoIsMutable() {
+        if (!((bitField0_ & 0x00000020) == 0x00000020)) {
+          committedMarkerInfo_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo>(committedMarkerInfo_);
+          bitField0_ |= 0x00000020;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> getCommittedMarkerInfoList() {
+        return java.util.Collections.unmodifiableList(committedMarkerInfo_);
+      }
+      public int getCommittedMarkerInfoCount() {
+        return committedMarkerInfo_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo getCommittedMarkerInfo(int index) {
+        return committedMarkerInfo_.get(index);
+      }
+      public Builder setCommittedMarkerInfo(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.set(index, value);
+        
+        return this;
+      }
+      public Builder setCommittedMarkerInfo(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.Builder builderForValue) {
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addCommittedMarkerInfo(org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.add(value);
+        
+        return this;
+      }
+      public Builder addCommittedMarkerInfo(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.add(index, value);
+        
+        return this;
+      }
+      public Builder addCommittedMarkerInfo(
+          org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.Builder builderForValue) {
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addCommittedMarkerInfo(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.Builder builderForValue) {
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllCommittedMarkerInfo(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo> values) {
+        ensureCommittedMarkerInfoIsMutable();
+        super.addAll(values, committedMarkerInfo_);
+        
+        return this;
+      }
+      public Builder clearCommittedMarkerInfo() {
+        committedMarkerInfo_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000020);
+        
+        return this;
+      }
+      public Builder removeCommittedMarkerInfo(int index) {
+        ensureCommittedMarkerInfoIsMutable();
+        committedMarkerInfo_.remove(index);
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandEndTxnResponse)
     }
     
@@ -36730,6 +36889,501 @@ public final class PulsarApi {
     }
     
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandEndTxnResponse)
+  }
+  
+  public interface CommittedMarkerInfoOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string partition = 1;
+    boolean hasPartition();
+    String getPartition();
+    
+    // required uint64 committedLedgerId = 2;
+    boolean hasCommittedLedgerId();
+    long getCommittedLedgerId();
+    
+    // required uint64 committedEntryId = 3;
+    boolean hasCommittedEntryId();
+    long getCommittedEntryId();
+  }
+  public static final class CommittedMarkerInfo extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements CommittedMarkerInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommittedMarkerInfo.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private CommittedMarkerInfo(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommittedMarkerInfo> RECYCLER = new io.netty.util.Recycler<CommittedMarkerInfo>() {
+            protected CommittedMarkerInfo newObject(Handle handle) {
+              return new CommittedMarkerInfo(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private CommittedMarkerInfo(boolean noInit) {}
+    
+    private static final CommittedMarkerInfo defaultInstance;
+    public static CommittedMarkerInfo getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommittedMarkerInfo getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required string partition = 1;
+    public static final int PARTITION_FIELD_NUMBER = 1;
+    private java.lang.Object partition_;
+    public boolean hasPartition() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public String getPartition() {
+      java.lang.Object ref = partition_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          partition_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getPartitionBytes() {
+      java.lang.Object ref = partition_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        partition_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    // required uint64 committedLedgerId = 2;
+    public static final int COMMITTEDLEDGERID_FIELD_NUMBER = 2;
+    private long committedLedgerId_;
+    public boolean hasCommittedLedgerId() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public long getCommittedLedgerId() {
+      return committedLedgerId_;
+    }
+    
+    // required uint64 committedEntryId = 3;
+    public static final int COMMITTEDENTRYID_FIELD_NUMBER = 3;
+    private long committedEntryId_;
+    public boolean hasCommittedEntryId() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public long getCommittedEntryId() {
+      return committedEntryId_;
+    }
+    
+    private void initFields() {
+      partition_ = "";
+      committedLedgerId_ = 0L;
+      committedEntryId_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasPartition()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasCommittedLedgerId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasCommittedEntryId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getPartitionBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, committedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeUInt64(3, committedEntryId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getPartitionBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(2, committedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(3, committedEntryId_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        partition_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        committedLedgerId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        committedEntryId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo result = org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.partition_ = partition_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.committedLedgerId_ = committedLedgerId_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.committedEntryId_ = committedEntryId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommittedMarkerInfo.getDefaultInstance()) return this;
+        if (other.hasPartition()) {
+          setPartition(other.getPartition());
+        }
+        if (other.hasCommittedLedgerId()) {
+          setCommittedLedgerId(other.getCommittedLedgerId());
+        }
+        if (other.hasCommittedEntryId()) {
+          setCommittedEntryId(other.getCommittedEntryId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasPartition()) {
+          
+          return false;
+        }
+        if (!hasCommittedLedgerId()) {
+          
+          return false;
+        }
+        if (!hasCommittedEntryId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              partition_ = input.readBytes();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              committedLedgerId_ = input.readUInt64();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              committedEntryId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string partition = 1;
+      private java.lang.Object partition_ = "";
+      public boolean hasPartition() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getPartition() {
+        java.lang.Object ref = partition_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          partition_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setPartition(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        partition_ = value;
+        
+        return this;
+      }
+      public Builder clearPartition() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        partition_ = getDefaultInstance().getPartition();
+        
+        return this;
+      }
+      void setPartition(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        partition_ = value;
+        
+      }
+      
+      // required uint64 committedLedgerId = 2;
+      private long committedLedgerId_ ;
+      public boolean hasCommittedLedgerId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public long getCommittedLedgerId() {
+        return committedLedgerId_;
+      }
+      public Builder setCommittedLedgerId(long value) {
+        bitField0_ |= 0x00000002;
+        committedLedgerId_ = value;
+        
+        return this;
+      }
+      public Builder clearCommittedLedgerId() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        committedLedgerId_ = 0L;
+        
+        return this;
+      }
+      
+      // required uint64 committedEntryId = 3;
+      private long committedEntryId_ ;
+      public boolean hasCommittedEntryId() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public long getCommittedEntryId() {
+        return committedEntryId_;
+      }
+      public Builder setCommittedEntryId(long value) {
+        bitField0_ |= 0x00000004;
+        committedEntryId_ = value;
+        
+        return this;
+      }
+      public Builder clearCommittedEntryId() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        committedEntryId_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommittedMarkerInfo)
+    }
+    
+    static {
+      defaultInstance = new CommittedMarkerInfo(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommittedMarkerInfo)
   }
   
   public interface CommandEndTxnOnPartitionOrBuilder
@@ -37354,6 +38008,10 @@ public final class PulsarApi {
     // optional string message = 5;
     boolean hasMessage();
     String getMessage();
+    
+    // required .pulsar.proto.MessageIdData committedMessageId = 6;
+    boolean hasCommittedMessageId();
+    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getCommittedMessageId();
   }
   public static final class CommandEndTxnOnPartitionResponse extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -37462,12 +38120,23 @@ public final class PulsarApi {
       }
     }
     
+    // required .pulsar.proto.MessageIdData committedMessageId = 6;
+    public static final int COMMITTEDMESSAGEID_FIELD_NUMBER = 6;
+    private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData committedMessageId_;
+    public boolean hasCommittedMessageId() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getCommittedMessageId() {
+      return committedMessageId_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
       error_ = org.apache.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
+      committedMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -37475,6 +38144,14 @@ public final class PulsarApi {
       if (isInitialized != -1) return isInitialized == 1;
       
       if (!hasRequestId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasCommittedMessageId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!getCommittedMessageId().isInitialized()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -37505,6 +38182,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeBytes(5, getMessageBytes());
       }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeMessage(6, committedMessageId_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -37532,6 +38212,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getMessageBytes());
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(6, committedMessageId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -37656,6 +38340,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         message_ = "";
         bitField0_ = (bitField0_ & ~0x00000010);
+        committedMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -37709,6 +38395,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000010;
         }
         result.message_ = message_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.committedMessageId_ = committedMessageId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -37730,11 +38420,22 @@ public final class PulsarApi {
         if (other.hasMessage()) {
           setMessage(other.getMessage());
         }
+        if (other.hasCommittedMessageId()) {
+          mergeCommittedMessageId(other.getCommittedMessageId());
+        }
         return this;
       }
       
       public final boolean isInitialized() {
         if (!hasRequestId()) {
+          
+          return false;
+        }
+        if (!hasCommittedMessageId()) {
+          
+          return false;
+        }
+        if (!getCommittedMessageId().isInitialized()) {
           
           return false;
         }
@@ -37790,6 +38491,16 @@ public final class PulsarApi {
             case 42: {
               bitField0_ |= 0x00000010;
               message_ = input.readBytes();
+              break;
+            }
+            case 50: {
+              org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
+              if (hasCommittedMessageId()) {
+                subBuilder.mergeFrom(getCommittedMessageId());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setCommittedMessageId(subBuilder.buildPartial());
+              subBuilder.recycle();
               break;
             }
           }
@@ -37919,6 +38630,49 @@ public final class PulsarApi {
         bitField0_ |= 0x00000010;
         message_ = value;
         
+      }
+      
+      // required .pulsar.proto.MessageIdData committedMessageId = 6;
+      private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData committedMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      public boolean hasCommittedMessageId() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getCommittedMessageId() {
+        return committedMessageId_;
+      }
+      public Builder setCommittedMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        committedMessageId_ = value;
+        
+        bitField0_ |= 0x00000020;
+        return this;
+      }
+      public Builder setCommittedMessageId(
+          org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        committedMessageId_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000020;
+        return this;
+      }
+      public Builder mergeCommittedMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (((bitField0_ & 0x00000020) == 0x00000020) &&
+            committedMessageId_ != org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance()) {
+          committedMessageId_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder(committedMessageId_).mergeFrom(value).buildPartial();
+        } else {
+          committedMessageId_ = value;
+        }
+        
+        bitField0_ |= 0x00000020;
+        return this;
+      }
+      public Builder clearCommittedMessageId() {
+        committedMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000020);
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandEndTxnOnPartitionResponse)
