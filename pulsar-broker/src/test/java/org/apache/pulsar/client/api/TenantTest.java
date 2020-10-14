@@ -56,6 +56,13 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 412);
             Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of tenants");
         }
+        //unlimited
+        conf.setMaxTenants(0);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        for (int i = 0; i < 10; i++) {
+            admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
+        }
     }
 
 }
