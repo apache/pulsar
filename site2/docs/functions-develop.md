@@ -570,8 +570,34 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
-<!--Go--> 
-Currently, the feature is not available in Go.
+<!--Go-->
+
+The Go SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --go path/to/go/binary
+  --user-config '{"word-of-the-day":"lackadaisical"}'
+```
+
+To access that value in a Go function:
+
+```go
+func contextFunc(ctx context.Context) {
+  fc, ok := pf.FromContext(ctx)
+  if !ok {
+    logutil.Fatal("Function context is not defined")
+  }
+
+  wotd := fc.GetUserConfValue("word-of-the-day")
+
+  if wotd == nil {
+    logutil.Warn("The word of the day is empty")
+  } else {
+    logutil.Infof("The word of the day is %s", wotd.(string))
+  }
+}
+```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 

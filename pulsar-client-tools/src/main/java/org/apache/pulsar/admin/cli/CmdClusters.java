@@ -128,13 +128,14 @@ public class CmdClusters extends CmdBase {
             if (deleteAll) {
                 for (String tenant : admin.tenants().getTenants()) {
                     for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                        for (String topic : admin.topics().getList(namespace)) {
-                            admin.topics().delete(topic, true);
-                            // TODO: Delete all the ledgers of the SchemaStorage
-                            // admin.schemas().deleteSchema(topic) won't delete the schema's ledger. Instead a new ledger will be created.
-                            //       https://github.com/apache/pulsar/issues/8134
+                        // Partitioned topic's schema must be deleted by deletePartitionedTopic() but not delete() for each partition
+                        for (String topic : admin.topics().getPartitionedTopicList(namespace)) {
+                            admin.topics().deletePartitionedTopic(topic, true, true);
                         }
-                        admin.namespaces().deleteNamespace(namespace);
+                        for (String topic : admin.topics().getList(namespace)) {
+                            admin.topics().delete(topic, true, true);
+                        }
+                        admin.namespaces().deleteNamespace(namespace, true);
                     }
                     admin.tenants().deleteTenant(tenant);
                 }

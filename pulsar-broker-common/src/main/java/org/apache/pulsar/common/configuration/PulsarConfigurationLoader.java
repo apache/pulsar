@@ -106,7 +106,7 @@ public class PulsarConfigurationLoader {
      * and value of the element is null or number value is not in a provided (min,max) range then consider as incomplete
      * object and throws exception with incomplete parameters
      *
-     * @param object
+     * @param obj
      * @return
      * @throws IllegalArgumentException
      *             if object is field values are not completed according to {@link FieldContext} constraints.

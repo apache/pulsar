@@ -224,6 +224,7 @@ public class EndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
+                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup
@@ -386,7 +387,7 @@ public class EndToEndTest extends TransactionTestBase {
 
     private String getMarkDeletePosition(String topic, Integer partition, String subName) throws Exception {
         topic = TopicName.get(topic).getPartition(partition).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
         return stats.cursors.get(subName).markDeletePosition;
     }
 

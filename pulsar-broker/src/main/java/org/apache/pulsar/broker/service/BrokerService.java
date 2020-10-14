@@ -146,6 +146,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -632,13 +633,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
+        acceptorGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
+
         if (interceptor != null) {
             interceptor.close();
             interceptor = null;
         }
 
-        acceptorGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
         inactivityMonitor.shutdown();
         messageExpiryMonitor.shutdown();
@@ -747,12 +749,32 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String topic) {
+        Optional<Topic> optTopic = getTopicReference(topic);
+        if (optTopic.isPresent()) {
+            return optTopic.get().deleteSchema();
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
+        return deleteTopic(topic, forceDelete, false);
+    }
+
+    public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete, boolean deleteSchema) {
         Optional<Topic> optTopic = getTopicReference(topic);
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
-                return t.deleteForcefully();
+                if (deleteSchema) {
+                    return t.deleteSchema().thenCompose(schemaVersion -> {
+                        log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
+                        return t.deleteForcefully();
+                    });
+                } else {
+                    return t.deleteForcefully();
+                }
             }
 
             // v2 topics have a global name so check if the topic is replicated.
@@ -764,7 +786,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
-            return t.delete();
+            if (deleteSchema) {
+                return t.deleteSchema().thenCompose(schemaVersion -> {
+                    log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
+                    return t.delete();
+                });
+            } else {
+                return t.delete();
+            }
         }
 
         // Topic is not loaded, though we still might be able to delete from metadata
@@ -1391,7 +1420,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    public boolean isTopicNsOwnedByBroker(TopicName topicName) throws RuntimeException {
+    public boolean isTopicNsOwnedByBroker(TopicName topicName) {
         try {
             return pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
@@ -1419,14 +1448,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return checkFuture;
     }
 
-    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
+    public void checkTopicNsOwnership(final String topic) throws BrokerServiceException {
         try {
             checkTopicNsOwnershipAsync(topic).join();
         } catch (CompletionException ex) {
-            if (ex.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) ex.getCause();
+            if (ex.getCause() instanceof BrokerServiceException) {
+                throw (BrokerServiceException) ex.getCause();
             }
-            throw new RuntimeException(ex.getCause());
+            throw new BrokerServiceException(ex.getCause());
+        } catch (Exception ex) {
+            throw new BrokerServiceException(ex);
         }
     }
 
@@ -2008,9 +2039,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (RuntimeException re) {
-            log.error("Failed to create pending topic {} {}", topic, re);
-            pendingTopic.getRight().completeExceptionally(re.getCause());
+        } catch (Exception e) {
+            log.error("Failed to create pending topic {}", topic, e);
+            pendingTopic.getRight()
+                    .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
         }

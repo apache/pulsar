@@ -33,6 +33,8 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -77,6 +79,7 @@ public class PulsarClientTool {
     String tlsTrustStorePassword = null;
 
     JCommander commandParser;
+    IUsageFormatter usageFormatter;
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
 
@@ -105,6 +108,8 @@ public class PulsarClientTool {
         consumeCommand = new CmdConsume();
 
         this.commandParser = new JCommander();
+        this.usageFormatter = new DefaultUsageFormatter(this.commandParser);
+
         commandParser.setProgramName("pulsar-client");
         commandParser.addObject(this);
         commandParser.addCommand("produce", produceCommand);
@@ -178,7 +183,7 @@ public class PulsarClientTool {
             System.out.println(e.getMessage());
             String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }

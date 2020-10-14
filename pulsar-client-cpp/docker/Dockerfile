@@ -102,12 +102,13 @@ RUN curl -L -O https://ftp.gnu.org/gnu/libtool/libtool-2.4.6.tar.gz && \
     rm -rf /libtool-2.4.6.tar.gz /libtool-2.4.6
 
 # Compile log4cxx
-RUN git clone https://github.com/apache/logging-log4cxx.git && \
-    cd logging-log4cxx && \
+RUN curl -O -L https://github.com/apache/logging-log4cxx/archive/v0.11.0.tar.gz && \
+    tar xvfz v0.11.0.tar.gz && \
+    cd logging-log4cxx-0.11.0 && \
     ./autogen.sh && \
     CXXFLAGS=-fPIC ./configure && \
     make && make install && \
-    rm -rf /logging-log4cxx
+    rm -rf /v0.11.0.tar.gz /logging-log4cxx-0.11.0
 
 # Compile expat
 RUN curl -O -L  https://github.com/libexpat/libexpat/archive/R_2_2_0.tar.gz && \
