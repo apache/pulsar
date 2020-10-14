@@ -204,13 +204,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                                             log.info("commit txn finished.");
                                             completableFuture.complete((PositionImpl) committedPos);
                                         }));
-
-
-//                        pendingCommitTxn.add(txnID);
-//                        if (!pendingCommitHandling) {
-//                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
-//                        }
-//                        completableFuture.complete(null);
                     }));
         }));
         return completableFuture;

@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTest
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionResult;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnSubResult;
 import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -127,7 +128,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            TransactionEndOnSubResult result = (TransactionEndOnSubResult) futures.get(i).get();
             Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
             Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }
@@ -141,7 +142,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i));
         }
         for (int i = 0; i < futures.size(); i++) {
-            TransactionEndOnTopicResult result = (TransactionEndOnTopicResult) futures.get(i).get();
+            TransactionEndOnSubResult result = (TransactionEndOnSubResult) futures.get(i).get();
             Assert.assertEquals(result.getTxnID().getMostSigBits(), 1L);
             Assert.assertEquals(result.getTxnID().getLeastSigBits(), i);
         }

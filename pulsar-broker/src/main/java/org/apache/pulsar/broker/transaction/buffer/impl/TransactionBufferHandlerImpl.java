@@ -28,6 +28,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionEndOnSubResult;
 import org.apache.pulsar.client.impl.transaction.TransactionEndOnTopicResult;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TransactionResult;
@@ -174,7 +175,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 log.debug("[{}] Got end txn on subscription response for for request {}", op.topic, response.getRequestId());
             }
             op.cb.complete(
-                    TransactionEndOnTopicResult.builder()
+                    TransactionEndOnSubResult.builder()
                             .txnID(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()))
                             .build());
         } else {
