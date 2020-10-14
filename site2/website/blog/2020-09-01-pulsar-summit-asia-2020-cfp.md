@@ -18,9 +18,9 @@ If you have questions about submitting a proposal, or want some feedback or advi
 
 ## Dates to remember
 - CFP opens: September 1, 2020
-- CFP closes: October 14, 2020 - 23:59 (CST: China Standard Time/UTC+8 time zone)
-- CFP notification: October 21, 2020
-- Schedule announcement: October 28, 2020
+- CFP closes: October 21, 2020 - 23:59 (CST: China Standard Time/UTC+8 time zone)
+- CFP notification: October 28, 2020
+- Schedule announcement: November 4, 2020
 
 ## Speaker benefits
 When your speaking proposal is approved, you will enjoy the following benefits:

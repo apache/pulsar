@@ -113,16 +113,23 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             });
                     })
                 );
-                if (listeners.get(topicName) != null) {
-                    for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                        listener.onUpdate(policies);
-                    }
-                }
             }
         });
-
-
         return result;
+    }
+
+    private void notifyListener(Message<PulsarEvent> msg) {
+        if (!EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
+            return;
+        }
+        TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
+        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+        if (listeners.get(topicName) != null) {
+            TopicPolicies policies = event.getPolicies();
+            for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                listener.onUpdate(policies);
+            }
+        }
     }
 
     @Override
@@ -243,6 +250,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
                 refreshTopicPoliciesCache(msg);
+                notifyListener(msg);
                 readMorePolicies(reader);
             } else {
                 if (ex instanceof PulsarClientException.AlreadyClosedException) {

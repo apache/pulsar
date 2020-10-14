@@ -227,9 +227,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
                 // recursion and stack overflow
-                client.eventLoopGroup().execute(() -> {
-                    receiveMessageFromConsumer(consumer);
-                });
+                client.getInternalExecutorService().execute(() -> receiveMessageFromConsumer(consumer));
             }
         });
     }
@@ -298,7 +296,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     break;
                 }
 
-                client.eventLoopGroup().execute(() -> {
+                client.getInternalExecutorService().execute(() -> {
                     receiveMessageFromConsumer(consumer);
                 });
             }
