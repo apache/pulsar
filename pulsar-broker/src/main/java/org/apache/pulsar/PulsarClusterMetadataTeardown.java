@@ -36,11 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 /**
  * Teardown the metadata for a existed Pulsar cluster
@@ -88,19 +85,9 @@ public class PulsarClusterMetadataTeardown {
         ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
 
         if (arguments.bkMetadataServiceUri != null) {
-            List<Long> ledgers = new ArrayList<>();
-            ledgers.addAll(getManagedLedgers(localZk));
-            ledgers.addAll(getSchemaLedgers(localZk));
             BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
-            ledgers.forEach(ledger -> {
-                try {
-                    bookKeeper.deleteLedger(ledger);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (BKException e) {
-                    log.warn("Failed to delete ledger {}: {}", ledger, e);
-                }
-            });
+            deleteManagedLedgers(localZk, bookKeeper);
+            deleteSchemaLedgers(localZk, bookKeeper);
             bookKeeper.close();
         }
 
@@ -150,7 +137,7 @@ public class PulsarClusterMetadataTeardown {
         }
     }
 
-    public static byte[] getData(ZooKeeper zooKeeper, String path) {
+    private static byte[] getData(ZooKeeper zooKeeper, String path) {
         try {
             return zooKeeper.getData(path, null, null);
         } catch (KeeperException | InterruptedException e) {
@@ -159,8 +146,18 @@ public class PulsarClusterMetadataTeardown {
         }
     }
 
-    public static List<Long> getManagedLedgers(ZooKeeper zooKeeper) {
-        List<Long> ledgers = Collections.synchronizedList(new ArrayList<>());
+    private static void deleteLedger(BookKeeper bookKeeper, long ledgerId) {
+        try {
+            bookKeeper.deleteLedger(ledgerId);
+            log.debug("Delete ledger id: {}", ledgerId);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (BKException e) {
+            log.warn("Failed to delete ledger {}: {}", ledgerId, e);
+        }
+    }
+
+    private static void deleteManagedLedgers(ZooKeeper zooKeeper, BookKeeper bookKeeper) {
         final String managedLedgersRoot = "/managed-ledgers";
         getChildren(zooKeeper, managedLedgersRoot).forEach(tenant -> {
             final String tenantRoot = managedLedgersRoot + "/" + tenant;
@@ -170,15 +167,12 @@ public class PulsarClusterMetadataTeardown {
                     final String topicRoot = namespaceRoot + "/" + topic;
                     byte[] topicData = getData(zooKeeper, topicRoot);
                     try {
-                        ManagedLedgerInfo ledgerInfo = ManagedLedgerInfo.parseFrom(topicData);
-                        List<Long> topicLedgers = ledgerInfo.getLedgerInfoList().stream()
+                        ManagedLedgerInfo.parseFrom(topicData).getLedgerInfoList().stream()
                                 .map(ManagedLedgerInfo.LedgerInfo::getLedgerId)
-                                .collect(Collectors.toList());
-                        log.debug("Detect topic ledgers: {} of {}", topicLedgers, topic);
-                        ledgers.addAll(topicLedgers);
+                                .forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
 
-                        List<Long> cursorLedgers = getChildren(zooKeeper, topicRoot).stream().map(subscription -> {
-                            final String subscriptionRoot = topicRoot + "/" +subscription;
+                        getChildren(zooKeeper, topicRoot).stream().map(subscription -> {
+                            final String subscriptionRoot = topicRoot + "/" + subscription;
                             try {
                                 return ManagedCursorInfo.parseFrom(getData(zooKeeper, subscriptionRoot)).getCursorsLedgerId();
                             } catch (InvalidProtocolBufferException e) {
@@ -186,22 +180,16 @@ public class PulsarClusterMetadataTeardown {
                                 return -1L;
                             }
                             // some cursor ledger id could also be set to -1 to mark deleted
-                        }).filter(ledgerId -> (ledgerId >= 0)).collect(Collectors.toList());
-                        if (!cursorLedgers.isEmpty()) {
-                            log.debug("Detect cursor ledgers: {} of {}", cursorLedgers, topicRoot);
-                            ledgers.addAll(cursorLedgers);
-                        }
+                        }).forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
                     } catch (InvalidProtocolBufferException e) {
                         log.warn("Invalid data format from {}: {}", topicRoot, e);
                     }
                 });
             });
         });
-        return ledgers;
     }
 
-    public static List<Long> getSchemaLedgers(ZooKeeper zooKeeper) {
-        List<Long> ledgers = Collections.synchronizedList(new ArrayList<>());
+    private static void deleteSchemaLedgers(ZooKeeper zooKeeper, BookKeeper bookKeeper) {
         final String schemaLedgersRoot = "/schemas";
         getChildren(zooKeeper, schemaLedgersRoot).forEach(tenant -> {
             final String tenantRoot = schemaLedgersRoot + "/" + tenant;
@@ -209,21 +197,16 @@ public class PulsarClusterMetadataTeardown {
                 final String namespaceRoot = tenantRoot + "/" + namespace;
                 getChildren(zooKeeper, namespaceRoot).forEach(topic -> {
                     final String topicRoot = namespaceRoot + "/" + topic;
-                    byte[] data = getData(zooKeeper, topicRoot);
                     try {
-                        SchemaLocator locator = SchemaLocator.parseFrom(data);
-                        List<Long> schemaLedgers = locator.getIndexList().stream()
+                        SchemaLocator.parseFrom(getData(zooKeeper, topicRoot)).getIndexList().stream()
                                 .map(indexEntry -> indexEntry.getPosition().getLedgerId())
-                                .collect(Collectors.toList());
-                        log.debug("Detect schema ledgers: {} of {}", schemaLedgers, topicRoot);
-                        ledgers.addAll(schemaLedgers);
+                                .forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
                     } catch (InvalidProtocolBufferException e) {
                         log.warn("Invalid data format from {}: {}", topicRoot, e);
                     }
                 });
             });
         });
-        return ledgers;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataTeardown.class);
