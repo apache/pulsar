@@ -423,6 +423,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
+    
+    @FieldContext(
+        category = CATEGORY_POLICIES, 
+        dynamic = true,
+        doc = "The maximum number of namespaces that each tenant can create")
+    private int maxNamespacePerTenant = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,

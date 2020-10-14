@@ -133,6 +133,12 @@ public abstract class NamespacesBase extends AdminResource {
         validatePolicies(namespaceName, policies);
 
         try {
+            List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+            int maxNamespacePerTenant = pulsar().getConfiguration().getMaxNamespacePerTenant();
+            if (maxNamespacePerTenant > 0 && namespaces != null && namespaces.size() > maxNamespacePerTenant) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+            }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             zkCreateOptimistic(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies));
