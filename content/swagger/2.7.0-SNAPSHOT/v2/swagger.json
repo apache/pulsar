@@ -17571,10 +17571,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -17990,26 +17990,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18019,12 +17999,32 @@
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -18211,10 +18211,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -19120,10 +19120,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -19222,11 +19222,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },

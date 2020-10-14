@@ -36,6 +36,7 @@ var searchData=
   ['resulttoomanylookuprequestexception',['ResultTooManyLookupRequestException',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba024fa5ba9fac2cb81fd4e8f6853a81a5',1,'pulsar']]],
   ['resulttopicnotfound',['ResultTopicNotFound',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad1921e33dd6a45431a0209b70588cf48',1,'pulsar']]],
   ['resulttopicterminated',['ResultTopicTerminated',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba62df217dec3d3f75c7099d1464c92750',1,'pulsar']]],
+  ['resulttransactionconflict',['ResultTransactionConflict',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba39c2049f4e7e428d2a4473b68223a53c',1,'pulsar']]],
   ['resulttransactioncoordinatornotfounderror',['ResultTransactionCoordinatorNotFoundError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba653a82475a2715f839ba52329a9b6414',1,'pulsar']]],
   ['resultunknownerror',['ResultUnknownError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba213e39d5c84b8794dd21ab4f60ff4b60',1,'pulsar']]],
   ['resultunsupportedversionerror',['ResultUnsupportedVersionError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba888578f8569121606cfcfa6044c594c3',1,'pulsar']]]

@@ -1401,16 +1401,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1419,25 +1409,12 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "replicated" : {
-          "type" : "boolean"
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
-        "topicName" : {
-          "type" : "string"
-        },
-        "data" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1456,12 +1433,35 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "redeliveryCount" : {
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "sequenceId" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
         },
         "replicatedFrom" : {
           "type" : "string"
+        },
+        "data" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "value" : {
           "type" : "object"
