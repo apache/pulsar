@@ -40,7 +40,7 @@ public class CompactorSubscription extends PersistentSubscription {
 
     public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
                                  String subscriptionName, ManagedCursor cursor) {
-        super(topic, subscriptionName, cursor, false);
+        super(topic, subscriptionName, cursor, false, null);
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
 

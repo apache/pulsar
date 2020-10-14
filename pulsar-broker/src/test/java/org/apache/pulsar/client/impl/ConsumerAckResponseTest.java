@@ -88,7 +88,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         try {
             consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
             fail();
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause().getCause() instanceof TransactionAckConflictException);
         }
         Message<Integer> message = consumer.receive();

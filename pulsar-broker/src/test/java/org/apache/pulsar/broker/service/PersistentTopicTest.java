@@ -571,7 +571,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testChangeSubscriptionType() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false, null);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
                 "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
@@ -603,7 +603,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testAddRemoveConsumer() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false, null);
 
         // 1. simple add consumer
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
@@ -637,7 +637,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(false).when(cursorMock).isDurable();
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false, null);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
                 "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
@@ -658,8 +658,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     public void testMaxConsumersShared() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
-        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false, null);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false, null);
 
         Method addConsumerToSubscription = AbstractTopic.class.getDeclaredMethod("addConsumerToSubscription",
                 Subscription.class, Consumer.class);
@@ -753,8 +753,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testMaxConsumersFailover() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
-        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false, null);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false, null);
 
         Method addConsumerToSubscription = AbstractTopic.class.getDeclaredMethod("addConsumerToSubscription",
                 Subscription.class, Consumer.class);
@@ -848,7 +848,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testUbsubscribeRaceConditions() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false, null);
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
                 50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer1);
@@ -1601,21 +1601,21 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // STEP1: prepare cursors
         // Open cursor1, add it into activeCursor-container and add it into subscription consumer list
         ManagedCursor cursor1 = ledger.openCursor("c1");
-        PersistentSubscription sub1 = new PersistentSubscription(topic, "sub-1", cursor1, false);
+        PersistentSubscription sub1 = new PersistentSubscription(topic, "sub-1", cursor1, false, null);
         Consumer consumer1 = new Consumer(sub1, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
             50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         topic.getSubscriptions().put(Codec.decode(cursor1.getName()), sub1);
         sub1.addConsumer(consumer1);
         // Open cursor2, add it into activeCursor-container and add it into subscription consumer list
         ManagedCursor cursor2 = ledger.openCursor("c2");
-        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursor2, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursor2, false, null);
         Consumer consumer2 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
             50000, serverCnx, "myrole-2", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         topic.getSubscriptions().put(Codec.decode(cursor2.getName()), sub2);
         sub2.addConsumer(consumer2);
         // Open cursor3, add it into activeCursor-container and do not add it into subscription consumer list
         ManagedCursor cursor3 = ledger.openCursor("c3");
-        PersistentSubscription sub3 = new PersistentSubscription(topic, "sub-3", cursor3, false);
+        PersistentSubscription sub3 = new PersistentSubscription(topic, "sub-3", cursor3, false, null);
         Consumer consumer3 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 3 /* consumer id */, 0, "Cons2"/* consumer name */,
             50000, serverCnx, "myrole-3", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         topic.getSubscriptions().put(Codec.decode(cursor3.getName()), sub3);
@@ -1709,13 +1709,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         // This subscription is connected by consumer.
-        PersistentSubscription nonDeletableSubscription1 = spy(new PersistentSubscription(topic, "nonDeletableSubscription1", cursorMock, false));
+        PersistentSubscription nonDeletableSubscription1 = spy(new PersistentSubscription(topic, "nonDeletableSubscription1", cursorMock, false, null));
         subscriptions.put(nonDeletableSubscription1.getName(), nonDeletableSubscription1);
         // This subscription is not connected by consumer.
-        PersistentSubscription deletableSubscription1 = spy(new PersistentSubscription(topic, "deletableSubscription1", cursorMock, false));
+        PersistentSubscription deletableSubscription1 = spy(new PersistentSubscription(topic, "deletableSubscription1", cursorMock, false, null));
         subscriptions.put(deletableSubscription1.getName(), deletableSubscription1);
         // This subscription is replicated.
-        PersistentSubscription nonDeletableSubscription2 = spy(new PersistentSubscription(topic, "nonDeletableSubscription2", cursorMock, true));
+        PersistentSubscription nonDeletableSubscription2 = spy(new PersistentSubscription(topic, "nonDeletableSubscription2", cursorMock, true, null));
         subscriptions.put(nonDeletableSubscription2.getName(), nonDeletableSubscription2);
 
         Field field = topic.getClass().getDeclaredField("subscriptions");
