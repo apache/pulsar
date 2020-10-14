@@ -107,7 +107,7 @@ public class TenantsBase extends AdminResource {
             NamedEntity.checkName(tenant);
             List<String> tenants = globalZk().getChildren(path(POLICIES), false);
             int maxTenants = pulsar().getConfiguration().getMaxTenants();
-            //No locks for precise control
+            //Not precise control without lock
             if (maxTenants > 0 && tenants != null && tenants.size() >= maxTenants) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
             }
