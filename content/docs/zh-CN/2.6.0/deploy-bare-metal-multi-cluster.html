@@ -82,20 +82,20 @@
 <li><p>如果要在部署的集群使用<a href="/docs/zh-CN/2.6.0/concepts-tiered-storage">分层存储</a>特性，你必须先下载<code>apache-pulsar-offloaders</code>安装包，然后将<code>apache-pulsar-offloaders</code>安装到每台 broker 中 Pulsar 安装路径的</code>offloaders &lt;/1&gt;目录下。 了解该特性的详细配置，请参考<a href="/docs/zh-CN/2.6.0/cookbooks-tiered-storage">分层存储指南</a>。</p></li>
 </ol>
 </blockquote>
-<p>A Pulsar <em>instance</em> consists of multiple Pulsar clusters working in unison. 你可以跨数据中心或者跨地域部署集群，可以使用<a href="/docs/zh-CN/2.6.0/administration-geo">跨域复制</a>功能在集群间复制数据。 部署多集群的Pulsar 实例需要包含一下基本步骤：</p>
+<p>A Pulsar <em>instance</em> consists of multiple Pulsar clusters working in unison. 你可以跨数据中心或者跨地域部署集群，可以使用<a href="/docs/zh-CN/2.6.0/administration-geo">跨域复制</a>功能在集群间复制数据。 部署群的Pulsar 实例需要包含多集以下基本步骤：</p>
 <ul>
-<li>部署两个独立的<a href="#deploy-zookeeper">Zookeeper</a>集群；实例中每个集群都要有一个<a href="#deploy-local-zookeeper">本地</a>集群；一个负责实例范围任务信息的<a href="#configuration-store">配置存储</a>集群。</li>
+<li>部署两个独立的<a href="#deploy-zookeeper">Zookeeper</a>集群；实例中每个集群都要有一个<a href="#deploy-local-zookeeper">本地</a>集群；一个负责实例范围任务信息存储的<a href="#configuration-store">配置存储</a>集群。</li>
 <li>初始化每个集群的<a href="#cluster-metadata-initialization">集群元数据</a>。</li>
-<li>在每个Pulsar 集群部署一个<a href="#deploy-bookkeeper">Bookeeper 集群</a>的bookies。</li>
+<li>在每个Pulsar 集群部署一个<a href="#deploy-bookkeeper">Bookeeper 集群</a>。</li>
 <li>在每个Pulsar 集群部署<a href="#deploy-brokers">broker</a>。</li>
 </ul>
 <p>如果你想部署单个Pulsar 集群的实例，请看<a href="/docs/zh-CN/2.6.0/standalone#start-the-cluster">集群和broker</a>。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="本地或者-kubernetes-运行pulsar？"></a><a href="#本地或者-kubernetes-运行pulsar？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地或者 Kubernetes 运行Pulsar？</h4>
-<p>本指南向您展示了如何在非Kubernetes环境中部署生产 Pulsar 集群。 如果你想在单台机器部署单机的 Pulsar 集群，可以参考<a href="/docs/zh-CN/2.6.0/standalone">本地集群部署</a>指南。 如果你想在<a href="https://kubernetes.io">Kubernetes</a>运行 Pulsar，可以参考 <a href="/docs/zh-CN/2.6.0/deploy-kubernetes">Kubernetes 部署 Pulsar</a> 指南，指南包含了如何在 <a href="deploy-kubernetes#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> 和 <a href="deploy-kubernetes#pulsar-on-amazon-web-services">Amazon Web Services</a> 的 Kubernetes 环境运行Pulsar。</p>
+<p>本指南向您展示了如何在非Kubernetes中部署生产环境的 Pulsar 集群。 如果你想在单台机器部署单机的 Pulsar 集群，可以参考<a href="/docs/zh-CN/2.6.0/standalone">本地集群部署</a>指南。 如果你想在<a href="https://kubernetes.io">Kubernetes</a>运行 Pulsar，可以参考 <a href="/docs/zh-CN/2.6.0/deploy-kubernetes">Kubernetes 部署 Pulsar</a> 指南，指南包含了如何在 <a href="deploy-kubernetes#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> 和 <a href="deploy-kubernetes#pulsar-on-amazon-web-services">Amazon Web Services</a> 的 Kubernetes 环境运行Pulsar。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="系统配置要求"></a><a href="#系统配置要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系统配置要求</h2>
-<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. 为了使用Pulsar，你必须安装从<a href="http://www.oracle.com/">Oracle 下载中心</a>下载安装 Java 8.</p>
+<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. 为了使用Pulsar，你必须从<a href="http://www.oracle.com/">Oracle 下载中心</a>下载安装 Java 8.</p>
 <h2><a class="anchor" aria-hidden="true" id="安装pulsar"></a><a href="#安装pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装Pulsar</h2>
 <p>开始运行Pulsar之前，请先用下列几种方式下载二进制包:</p>
 <ul>
@@ -124,7 +124,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar的配置文件，包含<a href="/docs/zh-CN/2.6.0/reference-configuration#broker">broker配置</a>,<a href="/docs/zh-CN/2.6.0/reference-configuration#zookeeper">ZooKeeper 配置</a> 等等</td></tr>
 <tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">一个Java JAR包，包含 <a href="/docs/zh-CN/2.6.0/functions-overview">Pulsar Functions</a>的例子</td></tr>
 <tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar 使用的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a>文件</td></tr>
-<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">开源许可文件，<code>.txt</code>格式，适用于Pulsar 代码库的各种组件</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left"><code>.txt</code>格式的开源许可文件，适用于Pulsar 代码库的各种组件</td></tr>
 </tbody>
 </table>
 <p>运行 Pulsar 会立即生成以下目录。</p>
@@ -142,7 +142,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
 <ul>
 <li><a href="#deploy-local-zookeeper">本地集群</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
-<li><a href="#deploy-the-configuration-store">配置集群</a>负责实例级别的操作，提供整个系统的配置管理(跨集群)。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器，它提供了配置存储配额。</li>
+<li><a href="#deploy-the-configuration-store">配置集群</a>负责实例级别的操作，提供整个系统的配置管理(跨集群)。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
 </ul>
 <p>The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.</p>
 <h3><a class="anchor" aria-hidden="true" id="部署本地zookeeper"></a><a href="#部署本地zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署本地Zookeeper</h3>
@@ -153,7 +153,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
 </code></pre>
-<p>在每台机器，你必须在每个节点的<code>myid</code>文件里面配置集群唯一的ID。默认情况下，这个文件在每台机器的<code>data/zookeeper</code>目录里面(你可以通过修改<a href="/docs/zh-CN/2.6.0/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a>配置项修改这个路径)。</p>
+<p>你必须在每个节点的<code>myid</code>文件里面，为集群配置唯一的ID。默认情况下，这个文件在每台机器的<code>data/zookeeper</code>目录里面(你可以通过修改<a href="/docs/zh-CN/2.6.0/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a>配置项修改这个路径)。</p>
 <blockquote>
 <p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
 </blockquote>
@@ -167,7 +167,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="部署配置存储集群"></a><a href="#部署配置存储集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署配置存储集群</h3>
 <p>The ZooKeeper cluster that is configured and started up in the section above is a <em>local</em> ZooKeeper cluster that you can use to manage a single Pulsar cluster. 但是，除了本地集群之外，一个完整的 Pulsar 实例还需要 configuration store来处理一些实例级配置和协调任务。</p>
-<p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 然而，如果你是部署<a href="#multi-cluster-pulsar-instance">多集群</a>的实例，你必须单独部署单独的 Zookeeper 集群来存储配置任务信息。</p>
+<p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 然而，如果你是部署<a href="#multi-cluster-pulsar-instance">多集群</a>的实例，你必须单独部署 Zookeeper 集群来存储配置任务信息。</p>
 <h4><a class="anchor" aria-hidden="true" id="单集群-pulsar-实例"></a><a href="#单集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单集群 Pulsar 实例</h4>
 <p>如果你的 Pulsar 实例只包含一个集群，你可以在同一批机器上部署本地 Zookeeper 集群和配置存储 Zookeeper 集群，此时这两个集群的 TCP 端口信息需要不一样。</p>
 <p>要在单个集群实例中部署配置存储的 Zookeeper 集群。步骤跟部署<a href="#local-zookeeper">本地 Zookeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(Zookeeper 默认使用2181端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
@@ -178,7 +178,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </code></pre>
 <p>As before, create the <code>myid</code> files for each server on <code>data/global-zookeeper/myid</code>.</p>
 <h4><a class="anchor" aria-hidden="true" id="multi-cluster-pulsar-instance"></a><a href="#multi-cluster-pulsar-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multi-cluster Pulsar instance</h4>
-<p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和高一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
+<p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
 <p>这里的关键是确保 ZK 成员投票节点必须分布在3个区域，其他区域以观察员身份运行。</p>
 <p>强调一下，因为配置存储服务负载会很低，所以可以和本地 Zookeeper 集群部署在同一批主机上。</p>
 <p>例如，假设一个 Pulsar 实例有如下集群： <code>us-west</code>,<code>us-east</code>,<code>us-central</code>,<code>eu-central</code>,<code>ap-south</code>. 也假定每个群集都有自己的本地ZK服务器，其名称如下：</p>
@@ -239,7 +239,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <h3><a class="anchor" aria-hidden="true" id="配置-bookies"></a><a href="#配置-bookies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 bookies</h3>
 <p>你能够通过配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="/docs/zh-CN/2.6.0/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Pulsar 集群的的本地 Zookeeper 集群的连接信息。</p>
 <h3><a class="anchor" aria-hidden="true" id="启动-bookie。"></a><a href="#启动-bookie。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 bookie。</h3>
-<p>您可以通过两种方式启动 bookie ：在前台或作为后台守护程序。</p>
+<p>您可以通过两种方式启动 bookie ：前台或后台</p>
 <p>To start a bookie in the background, use the <a href="/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
 </code></pre>
@@ -264,7 +264,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <p>一旦部署了 Zookeeper，初始化了集群元数据，部署了 Bookeeper bookies 后，你就能开始部署 broker了。</p>
 <h3><a class="anchor" aria-hidden="true" id="broker-configuration"></a><a href="#broker-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker configuration</h3>
 <p>你能够通过<a href="/docs/zh-CN/2.6.0/reference-configuration#broker"><code>conf/broker.conf</code></a>配置文件配置broker。</p>
-<p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. 必须确保<a href="/docs/zh-CN/2.6.0/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a>设置为本地 zookeeper 集群的地址，确保<a href="/docs/zh-CN/2.6.0/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a>设置为配置存储集群的地址(尽管你只需要指定位于同一集群中的那些 Zookeeper 服务器)。</p>
+<p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. 必须确保<a href="/docs/zh-CN/2.6.0/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a>设置为本地 zookeeper 集群的地址，确保<a href="/docs/zh-CN/2.6.0/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a>设置为配置存储集群的地址(即使配置存储集群和本地的 Zookeeper 集群是同一个，也需要配置该选项)。</p>
 <p>You also need to specify the name of the <a href="/docs/zh-CN/2.6.0/reference-terminology#cluster">cluster</a> to which the broker belongs using the <a href="/docs/zh-CN/2.6.0/reference-configuration#broker-clusterName"><code>clusterName</code></a> parameter. 此外，broker 和 web 服务的端口必须和初始化集群元数据时指定的端口是一样的(特别是当你使用了和默认值不同的端口的时候)。</p>
 <p>下面是一个示例配置：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Local ZooKeeper servers</span>
@@ -288,7 +288,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <span class="hljs-attr">webServicePortTls</span>=<span class="hljs-string">8443</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="broker-hardware"></a><a href="#broker-hardware" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker hardware</h3>
-<p>Pulsar broker 不需要使用特殊的硬件，因为他们不使用本地硬盘。 你最好选择快速的 CPU 和 10Gbps 的 <a href="https://en.wikipedia.org/wiki/Network_interface_controller">网卡</a> ，以便软件能够充分利用。</p>
+<p>Pulsar broker 不需要使用特殊的硬件，因为他们不使用本地硬盘。 你最好选择快速的 CPU 和 10Gbps 的 <a href="https://en.wikipedia.org/wiki/Network_interface_controller">网卡</a> ，以便能够充分利用软件的性能。</p>
 <h3><a class="anchor" aria-hidden="true" id="启动-broker"></a><a href="#启动-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 broker</h3>
 <p>你能够通过使用<a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>或者<a href="/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>CLI 工具在后台启动 broker。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start broker</span>
@@ -305,7 +305,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="service-discovery-setup"></a><a href="#service-discovery-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery setup</h3>
 <p>Pulsar 自带的服务发现策略维护了一个活跃 broker 的列表，该列表保存在Zookeeper中，并支持通过 HTTP 和<a href="/docs/zh-CN/2.6.0/develop-binary-protocol">二进制协议</a>去查询。</p>
-<p>若需要启用 Pulsar 内置的服务发现系统，你必须修改配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a>里面的一些参数。 Set the <a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a> parameter to the ZooKeeper quorum connection string of the cluster and the <a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a> setting to the <a href="/docs/zh-CN/2.6.0/reference-terminology#configuration-store">configuration store</a> quorum connection string.</p>
+<p>若需要启用 Pulsar 内置的服务发现系统，你必须修改配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a>里面的一些参数。 通过配置项<a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a>配置本地 Zookeeper 集群的连接字符串，通过<a href="/docs/zh-CN/2.6.0/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a>配置<a href="/docs/zh-CN/2.6.0/reference-terminology#configuration-store">配置存储</a>集群的连接信息。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Zookeeper quorum connection string</span>
 <span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-comment">

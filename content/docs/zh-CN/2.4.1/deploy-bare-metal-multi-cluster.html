@@ -82,7 +82,7 @@
 <li><p>如果您在Pulsar的部署中想使用<a href="/docs/zh-CN/2.4.1/concepts-tiered-storage">分层存储</a>功能，您需要下载<code>apache-pulsar-offloaders</code>安装包，并确保把安装包解压到所有 broker 的 pulsar 文件目录下的 <code>offloaders</code> 文件目录中 。 有关如何配置此功能的更多详细信息，可以参考<a href="/docs/zh-CN/2.4.1/cookbooks-tiered-storage">分层存储手册</a>。</p></li>
 </ol>
 </blockquote>
-<p>Pulsar <em>实例</em>由多个Pulsar 集群一起提供服务。 Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using <a href="/docs/zh-CN/2.4.1/administration-geo">geo-replication</a>. 部署多集群的Pulsar 实例需要包含一下基本步骤：</p>
+<p>Pulsar <em>实例</em>由多个Pulsar 集群一起提供服务。 Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using <a href="/docs/zh-CN/2.4.1/administration-geo">geo-replication</a>. 部署群的Pulsar 实例需要包含多集以下基本步骤：</p>
 <ul>
 <li>Deploying two separate <a href="#deploying-zookeeper">ZooKeeper</a> quorums: a <a href="#deploying-local-zookeeper">local</a> quorum for each cluster in the instance and a <a href="#configuration-store">configuration store</a> quorum for instance-wide tasks</li>
 <li>初始化每个集群的<a href="#cluster-metadata-initialization">集群元数据</a>。</li>
@@ -124,7 +124,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar的配置文件，包含<a href="/docs/zh-CN/2.4.1/reference-configuration#broker">broker配置</a>,<a href="/docs/zh-CN/2.4.1/reference-configuration#zookeeper">ZooKeeper 配置</a> 等等</td></tr>
 <tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">一个Java JAR包，包含 <a href="/docs/zh-CN/2.4.1/functions-overview">Pulsar Functions</a>的例子</td></tr>
 <tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar用到的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> 包</td></tr>
-<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">开源许可文件，<code>.txt</code>格式，适用于Pulsar 代码库的各种组件</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left"><code>.txt</code>格式的开源许可文件，适用于Pulsar 代码库的各种组件</td></tr>
 </tbody>
 </table>
 <p>这些目录将在你运行Pulsar的时候生成:</p>
