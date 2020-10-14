@@ -22,10 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -33,6 +38,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.Test;
 
 public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
@@ -104,6 +110,45 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         }
 
         client.close();
+    }
+
+    /**
+     * Test for a partitioned topic with N partitions, after schema created, N-1 unused ledgers would be recorded in ZK
+     */
+    @Test
+    public void testUnusedLedgers() throws Exception {
+        final String namespace = "prop/partitioned-topics-schema-test";
+        final String topic = namespace + "/unused-ledgers";
+        final int numPartitions = 10;
+
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        client.newProducer(Schema.STRING).topic(topic).create(); // schema will be created here
+
+        // Check the z-node which would record N-1 unused schema ledgers
+        ZooKeeper zooKeeper = bkEnsemble.getZkClient();
+        List<String> unusedLedgers = zooKeeper.getChildren(BookkeeperSchemaStorage.getUnusedLedgerPath(topic), null);
+        assertEquals(unusedLedgers.size(), numPartitions - 1);
+
+        client.close();
+
+        // Verify these ledgers exist
+        BookKeeper bookKeeper = new BookKeeper(
+                new ClientConfiguration().setMetadataServiceUri("zk+null://" + config.getZookeeperServers() + "/ledgers"));
+
+        final CountDownLatch latch = new CountDownLatch(unusedLedgers.size());
+        unusedLedgers.stream().map(Long::parseLong).forEach(ledgerId -> {
+            bookKeeper.asyncOpenLedger(ledgerId, BookKeeper.DigestType.CRC32, "".getBytes(),
+                    (rc, lh, ctx) -> {
+                        assertEquals(rc, BKException.Code.OK);
+                        latch.countDown();
+                    }, null);
+        });
+        latch.await();
+
+        bookKeeper.close();
     }
 
 }

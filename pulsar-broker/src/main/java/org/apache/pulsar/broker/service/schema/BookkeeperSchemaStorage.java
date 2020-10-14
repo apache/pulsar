@@ -40,10 +40,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.validation.constraints.NotNull;
 
-import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -298,7 +298,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             } else {
                 // No schema was defined yet
                 CompletableFuture<Long> future = new CompletableFuture<>();
-                createNewSchema(schemaId, data, hash)
+                AtomicLong ledgerId = new AtomicLong(-1);
+                createNewSchema(schemaId, data, hash, ledgerId)
                         .thenAccept(future::complete)
                         .exceptionally(ex -> {
                             if (ex.getCause() instanceof NodeExistsException ||
@@ -306,12 +307,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                 // There was a race condition on the schema creation. Since it has now been created,
                                 // retry the whole operation so that we have a chance to recover without bubbling error
                                 // back to producer/consumer
-                                putSchema(schemaId, data, hash)
-                                        .thenAccept(future::complete)
-                                        .exceptionally(ex2 -> {
-                                            future.completeExceptionally(ex2);
-                                            return null;
-                                        });
+                                recordLedger(ledgerId.get(), schemaId).thenApply(ignored -> {
+                                    putSchema(schemaId, data, hash)
+                                            .thenAccept(future::complete)
+                                            .exceptionally(ex2 -> {
+                                                future.completeExceptionally(ex2);
+                                                return null;
+                                            });
+                                    return null;
+                                });
                             } else {
                                 // For other errors, just fail the operation
                                 future.completeExceptionally(ex);
@@ -324,7 +328,27 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         });
     }
 
-    private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
+    @NotNull
+    private CompletableFuture<Void> recordLedger(long ledgerId, String schemaId) {
+        // When creating schema for a partitioned topic, each partition would try to create its schema but only one
+        // would success. Then N-1 ledgers would be created but they're not used anymore, if N is the partition count.
+        // So we record these ledger ids to ZK, then we can delete these ledgers later.
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        final String path = getUnusedLedgerPath(schemaId) + "/" + ledgerId;
+        ZkUtils.asyncCreateFullPathOptimistic(zooKeeper, path, new byte[]{}, Acl,
+                CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
+                    Code code = Code.get(rc);
+                    if (code != Code.OK) {
+                        log.warn("Failed to create {}: {}", path, code);
+                    }
+                    future.complete(null);
+                }, null);
+
+        return future;
+    }
+
+    private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash, AtomicLong ledgerId) {
         SchemaStorageFormat.IndexEntry emptyIndex = SchemaStorageFormat.IndexEntry.newBuilder()
                         .setVersion(0)
                         .setHash(copyFrom(hash))
@@ -335,6 +359,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         return addNewSchemaEntryToStore(schemaId, Collections.singletonList(emptyIndex), data).thenCompose(position -> {
             // The schema was stored in the ledger, now update the z-node with the pointer to it
+            ledgerId.set(position.getLedgerId());
             SchemaStorageFormat.IndexEntry info = SchemaStorageFormat.IndexEntry.newBuilder()
                     .setVersion(0)
                     .setPosition(position)
@@ -391,6 +416,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private static String getSchemaPath(String schemaId) {
         return SchemaPath + "/" + schemaId;
+    }
+
+    @NotNull
+    public static String getUnusedLedgerPath(String schemaId) {
+        return String.join("/", SchemaPath, schemaId, "unusedLedger");
     }
 
     @NotNull
