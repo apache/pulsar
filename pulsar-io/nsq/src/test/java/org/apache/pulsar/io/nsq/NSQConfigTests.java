@@ -32,12 +32,12 @@ import org.testng.annotations.Test;
 
 public class NSQConfigTests {
     
-    private NSQConfig config;
+    private NSQSourceConfig config;
 
     @Test
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sourceConfig.yaml");
-        config = NSQConfig.load(yamlFile.getAbsolutePath());
+        config = NSQSourceConfig.load(yamlFile.getAbsolutePath());
         assertNotNull(config);
     }
 
@@ -48,7 +48,7 @@ public class NSQConfigTests {
         map.put("channel", "xxx");
         map.put("lookupds", "xxx");
         
-        config = NSQConfig.load(map);
+        config = NSQSourceConfig.load(map);
         
         assertNotNull(config);
     }
@@ -59,7 +59,7 @@ public class NSQConfigTests {
         map.put("topic", "xxx");
         map.put("lookupds", "xxx");
         
-        config = NSQConfig.load(map);
+        config = NSQSourceConfig.load(map);
         
         assertNotNull(config);
         assertEquals(config.getChannel(), "pulsar-transport-xxx");
@@ -72,7 +72,7 @@ public class NSQConfigTests {
         map.put("channel", "xxx");
         map.put("lookupds", "xxx");
         
-        config = NSQConfig.load(map);
+        config = NSQSourceConfig.load(map);
         config.validate();
     }
     
@@ -81,7 +81,7 @@ public class NSQConfigTests {
     public final void missingConsumerKeyValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         
-        config = NSQConfig.load(map);
+        config = NSQSourceConfig.load(map);
         config.validate();
     }
     
@@ -89,7 +89,7 @@ public class NSQConfigTests {
     public final void getlookupdsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("lookupds", "one,two, three");
-        config = NSQConfig.load(map);
+        config = NSQSourceConfig.load(map);
         
         List<String> lookupds = config.getLookupds();
         assertNotNull(lookupds);

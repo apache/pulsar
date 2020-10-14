@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class NSQSource extends PushSource<byte[]> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NSQ.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NSQSource.class);
 
     private Subscriber subscriber;
 
