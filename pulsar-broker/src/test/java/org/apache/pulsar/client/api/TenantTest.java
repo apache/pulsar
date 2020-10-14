@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -27,6 +28,14 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TenantTest extends MockedPulsarServiceBaseTest {
 
@@ -63,6 +72,33 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
         }
+    }
+    
+    @Test
+    public void testExceedMaxTenant() throws Exception {
+        conf.setMaxTenants(2);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        ExecutorService executor = new ThreadPoolExecutor(10, 10, 30
+                , TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                new DefaultThreadFactory("testExceedMaxTenant"));
+        CountDownLatch countDownLatch = new CountDownLatch(10);
+        AtomicInteger counter = new AtomicInteger(0);
+        for (int i = 0; i < 10; i++) {
+            executor.execute(() -> {
+                try {
+                    admin.tenants().createTenant("tenant" + UUID.randomUUID(), tenantInfo);
+                    counter.getAndIncrement();
+                } catch (PulsarAdminException ignored) {
+                } finally {
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        countDownLatch.await();
+        Assert.assertTrue(counter.get() > 2);
+        executor.shutdownNow();
     }
 
 }
