@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -60,6 +61,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
@@ -388,24 +390,22 @@ public class Consumer {
         });
     }
 
-    void messageAcked(CommandAck ack) {
+    CompletableFuture<Void> messageAcked(CommandAck ack) {
         this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
-                .collect(Collectors.toMap((e) -> e.getKey(),
-                                          (e) -> e.getValue()));
+                .collect(Collectors.toMap(PulsarApi.KeyLongValue::getKey,
+                        PulsarApi.KeyLongValue::getValue));
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
-                return;
             }
 
             if (Subscription.isIndividualAckMode(subType)) {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
-                return;
             }
             PositionImpl position = PositionImpl.earliest;
             if (ack.getMessageIdCount() == 1) {
@@ -418,7 +418,7 @@ public class Consumer {
             }
             List<Position> positionsAcked = Collections.singletonList(position);
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Cumulative);
+                return transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Cumulative);
             } else {
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
             }
@@ -445,24 +445,24 @@ public class Consumer {
                 }
             }
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Individual);
+                return transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Individual);
             } else {
                 subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
             }
         }
+
+        return CompletableFuture.completedFuture(null);
     }
 
-    private void transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
+    private CompletableFuture<Void> transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
                                         List<Position> positionList, AckType ackType) {
         if (subscription instanceof PersistentSubscription) {
             TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-            try {
-                ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
-            } catch (TransactionConflictException e) {
-                log.error("Transaction acknowledge failed for txn " + txnID, e);
-            }
+            return ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
         } else {
-            log.error("Transaction acknowledge only support the `PersistentSubscription`.");
+            String error = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(error);
+            return FutureUtil.failedFuture(new TransactionConflictException(error));
         }
     }
 
