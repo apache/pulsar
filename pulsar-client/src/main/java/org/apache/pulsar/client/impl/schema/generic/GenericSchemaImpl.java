@@ -28,14 +28,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * A generic schema representation.
- *
+ * A generic schema representation for AvroBasedGenericSchema .
  * warning :
- * GenericSchemaImpl will continue to have for backward compatibility and only support AvroBasedGenericSchema ,but qmay deprecate on future ,
  * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
  */
-@Deprecated
-public abstract class GenericSchemaImpl extends AbstractAvroBasedGenericSchema {
+public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
     protected final List<Field> fields;
     // the flag controls whether to use the provided schema as reader schema
@@ -45,7 +42,7 @@ public abstract class GenericSchemaImpl extends AbstractAvroBasedGenericSchema {
 
     protected GenericSchemaImpl(SchemaInfo schemaInfo,
                                 boolean useProvidedSchemaAsReaderSchema) {
-        super(schemaInfo,useProvidedSchemaAsReaderSchema);
+        super(schemaInfo);
 
         this.fields = schema.getFields()
                 .stream()
@@ -61,14 +58,23 @@ public abstract class GenericSchemaImpl extends AbstractAvroBasedGenericSchema {
 
     /**
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
-     *
+     *  warning : we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
+    @Deprecated
     public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
         return of(schemaInfo, true);
     }
 
+    /**
+     * warning :
+     * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
+     * @param schemaInfo
+     * @param useProvidedSchemaAsReaderSchema
+     * @return
+     */
+    @Deprecated
     public static GenericSchemaImpl of(SchemaInfo schemaInfo,
                                        boolean useProvidedSchemaAsReaderSchema) {
         switch (schemaInfo.getType()) {

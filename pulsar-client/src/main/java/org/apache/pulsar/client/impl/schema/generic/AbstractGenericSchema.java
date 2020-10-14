@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.impl.schema.StructSchema;
+import org.apache.pulsar.client.impl.schema.AbstractStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.List;
@@ -31,7 +31,7 @@ import java.util.List;
  * A minimal abstract generic schema representation for support Un-AvroBasedGenericSchema.
  *
  */
-abstract class AbstractGenericSchema extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
+abstract class AbstractGenericSchema extends AbstractStructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
     protected List<Field> fields;
     // the flag controls whether to use the provided schema as reader schema

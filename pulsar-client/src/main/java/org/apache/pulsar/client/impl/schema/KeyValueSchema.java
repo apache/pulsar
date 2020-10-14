@@ -225,7 +225,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
             @Override
             public CompletableFuture<SchemaInfo> getLatestSchema() {
                 return CompletableFuture.completedFuture(
-                    ((StructSchema<K>) keySchema).schemaInfo);
+                    ((AbstractStructSchema<K>) keySchema).schemaInfo);
             }
 
             @Override
@@ -244,7 +244,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
             @Override
             public CompletableFuture<SchemaInfo> getLatestSchema() {
                 return CompletableFuture.completedFuture(
-                    ((StructSchema<V>) valueSchema).schemaInfo);
+                    ((AbstractStructSchema<V>) valueSchema).schemaInfo);
             }
 
             @Override
