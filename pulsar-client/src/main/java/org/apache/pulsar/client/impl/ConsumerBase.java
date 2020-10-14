@@ -199,57 +199,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected CompletableFuture<Message<T>> peekPendingReceive() {
-        CompletableFuture<Message<T>> receivedFuture = null;
-        while (receivedFuture == null) {
-            receivedFuture = pendingReceives.peek();
-            if (receivedFuture == null) {
-                break;
-            }
-            // skip done futures (cancelling a future could mark it done)
-            if (receivedFuture.isDone()) {
-                CompletableFuture<Message<T>> removed = pendingReceives.poll();
-                if (removed != receivedFuture) {
-                    log.error("Bug! Removed future wasn't the expected one. expected={} removed={}", receivedFuture, removed);
-                }
-                receivedFuture = null;
-            }
-        }
-        return receivedFuture;
-    }
-
-    protected CompletableFuture<Message<T>> pollPendingReceive() {
-        CompletableFuture<Message<T>> receivedFuture;
-        while (true) {
-            receivedFuture = pendingReceives.poll();
-            // skip done futures (cancelling a future could mark it done)
-            if (receivedFuture == null || !receivedFuture.isDone()) {
-                break;
-            }
-        }
-        return receivedFuture;
-    }
-
-    protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        listenerExecutor.execute(() -> {
-            if (!receivedFuture.complete(message)) {
-                log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
-                        receivedFuture.isCancelled(), message);
-            }
-        });
-    }
-
     protected void failPendingReceives(ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives) {
         while (!pendingReceives.isEmpty()) {
             CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
             if (receiveFuture == null) {
                 break;
             }
-            if (!receiveFuture.isDone()) {
-                receiveFuture.completeExceptionally(
-                        new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
-                                "was already closed when cleaning and closing the consumers", topic, subscription)));
-            }
+            receiveFuture.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
         }
     }
 
@@ -259,11 +217,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (opBatchReceive == null || opBatchReceive.future == null) {
                 break;
             }
-            if (!opBatchReceive.future.isDone()) {
-                opBatchReceive.future.completeExceptionally(
-                        new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
-                                "was already closed when cleaning and closing the consumers", topic, subscription)));
-            }
+            opBatchReceive.future.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
         }
     }
 
@@ -475,6 +431,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
         if (txn != null) {
+            if (ackType == AckType.Cumulative) {
+                txn.registerCumulativeAckConsumer(this);
+            }
             txn.registerAckedTopic(getTopic(), subscription);
             return txn.registerAckOp(ackFuture);
         } else {
@@ -490,6 +449,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // it is okay that we register acked topic after sending the acknowledgements. because
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
+            if (ackType == AckType.Cumulative) {
+                txn.registerCumulativeAckConsumer(this);
+            }
             txn.registerAckedTopic(getTopic(), subscription);
             // register the ackFuture as part of the transaction
             txn.registerAckOp(ackFuture);
@@ -585,6 +547,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
+    }
+
+    public void clearIncomingMessages() {
+        incomingMessages.clear();
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
     }
 
     @Override
@@ -721,8 +688,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void notifyPendingBatchReceivedCallBack() {
-        OpBatchReceive<T> opBatchReceive = pollNextBatchReceive();
-        if (opBatchReceive == null) {
+        final OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
+        if (opBatchReceive == null || opBatchReceive.future == null) {
             return;
         }
         try {
@@ -733,44 +700,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    private OpBatchReceive<T> peekNextBatchReceive() {
-        OpBatchReceive<T> opBatchReceive = null;
-        while (opBatchReceive == null) {
-            opBatchReceive = pendingBatchReceives.peek();
-            // no entry available
-            if (opBatchReceive == null) {
-                return null;
-            }
-            // remove entries where future is null or has been completed (cancel / timeout)
-            if (opBatchReceive.future == null || opBatchReceive.future.isDone()) {
-                OpBatchReceive<T> removed = pendingBatchReceives.poll();
-                if (removed != opBatchReceive) {
-                    log.error("Bug: Removed entry wasn't the expected one. expected={}, removed={}", opBatchReceive, removed);
-                }
-                opBatchReceive = null;
-            }
-        }
-        return opBatchReceive;
-    }
-
-
-    private OpBatchReceive<T> pollNextBatchReceive() {
-        OpBatchReceive<T> opBatchReceive = null;
-        while (opBatchReceive == null) {
-            opBatchReceive = pendingBatchReceives.poll();
-            // no entry available
-            if (opBatchReceive == null) {
-                return null;
-            }
-            // skip entries where future is null or has been completed (cancel / timeout)
-            if (opBatchReceive.future == null || opBatchReceive.future.isDone()) {
-                opBatchReceive = null;
-            }
-        }
-        return opBatchReceive;
-    }
-
-    protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+    protected void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
@@ -782,14 +712,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             msgPeeked = incomingMessages.peek();
         }
-        completePendingBatchReceive(opBatchReceive.future, messages);
-    }
-
-    protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
-        if (!future.complete(messages)) {
-            log.warn("Race condition detected. batch receive future was already completed (cancelled={}) and messages were dropped. messages={}",
-                    future.isCancelled(), messages);
-        }
+        opBatchReceive.future.complete(messages);
     }
 
     protected abstract void messageProcessed(Message<?> msg);
@@ -810,7 +733,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (pendingBatchReceives == null) {
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
-            OpBatchReceive<T> firstOpBatchReceive = peekNextBatchReceive();
+            OpBatchReceive<T> firstOpBatchReceive = pendingBatchReceives.peek();
             timeToWaitMs = batchReceivePolicy.getTimeoutMs();
 
             while (firstOpBatchReceive != null) {
@@ -821,11 +744,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the batch receive has been timed out.
                     // complete the OpBatchReceive and continue to check the next OpBatchReceive in pendingBatchReceives.
-                    OpBatchReceive<T> op = pollNextBatchReceive();
-                    if (op != null) {
-                        completeOpBatchReceive(op);
-                    }
-                    firstOpBatchReceive = peekNextBatchReceive();
+                    OpBatchReceive<T> op = pendingBatchReceives.poll();
+                    completeOpBatchReceive(op);
+                    firstOpBatchReceive = pendingBatchReceives.peek();
                 } else {
                     // The diff is greater than zero, set the timeout to the diff value
                     timeToWaitMs = diff;
@@ -842,7 +763,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected boolean hasPendingBatchReceive() {
-        return pendingBatchReceives != null && peekNextBatchReceive() != null;
+        return pendingBatchReceives != null && !pendingBatchReceives.isEmpty();
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
