@@ -427,7 +427,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES, 
         dynamic = true,
-        doc = "The maximum number of namespaces that each tenant can create")
+        doc = "The maximum number of namespaces that each tenant can create."
+            + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
     private int maxNamespacePerTenant = 0;
 
     @FieldContext(
