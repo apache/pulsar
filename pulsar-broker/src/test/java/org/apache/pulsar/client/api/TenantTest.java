@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -28,14 +27,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class TenantTest extends MockedPulsarServiceBaseTest {
 
@@ -66,6 +57,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of tenants");
         }
         //unlimited
+        super.internalCleanup();
         conf.setMaxTenants(0);
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
