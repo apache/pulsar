@@ -536,7 +536,7 @@
 <tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
 <tr><td>dataDir</td><td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</td><td>data/zookeeper</td></tr>
 <tr><td>clientPort</td><td>The port on which the ZooKeeper server will listen for connections.</td><td>2181</td></tr>
-<tr><td>autopurge.snapRetainCount</td><td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).</td><td>3</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中有快照自动清理机制。该参数指定在 autopurge.purgeInterval 配置的时间间隔内，可以保留的快照文件的数量。</td><td>3</td></tr>
 <tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.</td><td>1</td></tr>
 <tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
 </tbody>

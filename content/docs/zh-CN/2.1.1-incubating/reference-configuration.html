@@ -484,9 +484,9 @@
 <tr><td>syncLimit</td><td>Zookeeper follower 服务器允许从其他 Zookeeper 服务器同步的最大耗时。使用 tickTime 参数为时间刻度，以毫秒为单位。</td><td>5</td></tr>
 <tr><td>dataDir</td><td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</td><td>data/zookeeper</td></tr>
 <tr><td>clientPort</td><td>The port on which the ZooKeeper server will listen for connections.</td><td>2181</td></tr>
-<tr><td>autopurge.snapRetainCount</td><td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).</td><td>3</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中有快照自动清理机制。该参数指定在 autopurge.purgeInterval 配置的时间间隔内，可以保留的快照文件的数量。</td><td>3</td></tr>
 <tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.</td><td>1</td></tr>
-<tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
+<tr><td>maxClientCnxns</td><td>客户端连接的最大数量，如果你需要处理更多的 Zookeeper 客户端，就需要增加这个配置项的值。</td><td>60</td></tr>
 </tbody>
 </table>
 <p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a <code>server.N</code> line to the <code>conf/zookeeper.conf</code> file for each node in the ZooKeeper cluster, where <code>N</code> is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:</p>
