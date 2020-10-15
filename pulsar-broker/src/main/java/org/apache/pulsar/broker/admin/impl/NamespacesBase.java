@@ -133,12 +133,14 @@ public abstract class NamespacesBase extends AdminResource {
         validatePolicies(namespaceName, policies);
 
         try {
-            List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
             int maxNamespacePerTenant = pulsar().getConfiguration().getMaxNamespacePerTenant();
             //no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
-            if (maxNamespacePerTenant > 0 && namespaces != null && namespaces.size() > maxNamespacePerTenant) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+            if (maxNamespacePerTenant > 0) {
+                List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+                if (namespaces != null && namespaces.size() > maxNamespacePerTenant) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+                }
             }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
