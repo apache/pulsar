@@ -101,11 +101,11 @@
 <blockquote>
 <p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
 </blockquote>
-<p>On a ZooKeeper server at <code>zk1.us-west.example.com</code>, for example, you can set the <code>myid</code> value like this:</p>
+<p>例如，在 Zookeeper 服务器<code>zk1.us-west.example.com</code>上，你可以通过如下方式设置<code>myid</code>：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> mkdir -p data/zookeeper</span>
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid</span>
 </code></pre>
-<p>On <code>zk2.us-west.example.com</code> the command is <code>echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
+<p>在服务器<code>zk2.us-west.example.com</code>上，设置通过命令<code>echo 2 &gt; data/zookeeper/myid</code>设置myid。</p>
 <p>一旦你在每台机器增加了<code>zookeeper.conf</code>配置文件，并且设置了<code>myid</code>，你能够在所有机器上使用<a href="/docs/zh-CN/2.5.1/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>命令去启动Zookeeper 服务(前台运行或者后台运行)。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
 </code></pre>
