@@ -188,7 +188,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -198,7 +198,7 @@ configs:
 </ul>
 <pre><code class="hljs">`sourceConfig` | 源配置对象<br /></code></pre>
 <p><strong>异常</strong></p>
-<pre><code class="hljs">| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`createSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`createSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Create a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                         String pkgUrl)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -213,7 +213,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException</code></td><td>未知错误</td></tr>
@@ -235,7 +235,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -243,7 +243,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`sinkConfig` | The sink configuration object<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`createSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">`sinkConfig` | The sink configuration object<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`createSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Create a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                    String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -258,7 +258,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException</code></td><td>未知错误</td></tr>
@@ -462,7 +462,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sourceConfig</code></td><td>源配置对象</td></tr>
@@ -471,7 +471,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -491,7 +491,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sourceConfig</code></td><td>源配置对象</td></tr>
@@ -501,7 +501,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -526,7 +526,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sinkConfig</code></td><td>sink 配置对象</td></tr>
@@ -535,7 +535,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -555,7 +555,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sinkConfig</code></td><td>sink 配置对象</td></tr>
@@ -565,7 +565,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -599,7 +599,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -607,14 +607,14 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source,<br />                <span class="hljs-keyword">int</span> instanceId)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -622,7 +622,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-9"></a><a href="#sink-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>停止 sink 连接器。</p>
@@ -643,7 +643,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -651,14 +651,14 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,<br />              String namespace,<br />              String sink,<br />              <span class="hljs-keyword">int</span> instanceId)</span><br />       <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -666,7 +666,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="重新启动连接器"></a><a href="#重新启动连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重新启动连接器</h2>
 <h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
@@ -690,7 +690,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -698,14 +698,14 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String source,<br />                   <span class="hljs-keyword">int</span> instanceId)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -713,7 +713,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-10"></a><a href="#sink-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>重新启动 sink 连接器。</p>
@@ -734,7 +734,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -742,14 +742,14 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `sink` | Sink name<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `sink` | Sink name<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-).<br /></code></pre>
 <ul>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,<br />                 String namespace,<br />                 String sink,<br />                 <span class="hljs-keyword">int</span> instanceId)</span><br />          <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -757,7 +757,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Sink instanceID<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Sink instanceID<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="删除连接器"></a><a href="#删除连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除连接器</h2>
 <h3><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
@@ -775,7 +775,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -785,7 +785,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -809,7 +809,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -819,7 +819,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>

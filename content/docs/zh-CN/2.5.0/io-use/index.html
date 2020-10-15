@@ -188,7 +188,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -198,7 +198,7 @@ configs:
 </ul>
 <pre><code class="hljs">`sourceConfig` | 源配置对象<br /></code></pre>
 <p><strong>异常</strong></p>
-<pre><code class="hljs">| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />欲了解更多信息，请参阅 [`CreateSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-)。<br /></code></pre>
+<pre><code class="hljs">| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />欲了解更多信息，请参阅 [`CreateSource`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-)。<br /></code></pre>
 <ul>
 <li><p>Create a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                         String pkgUrl)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -213,7 +213,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException</code></td><td>未知错误</td></tr>
@@ -235,7 +235,7 @@ configs:
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -243,7 +243,7 @@ configs:
 </table>
 </li>
 </ul>
-<pre><code class="hljs">`sinkConfig` | The sink configuration object<br /><br />**异常**<br /><br />| Name                   | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />欲了解更多信息，请参阅 [`createSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-)。<br /></code></pre>
+<pre><code class="hljs">`sinkConfig` | The sink configuration object<br /><br />**异常**<br /><br />| 配置项                    | Description |<br />| ---------------------- | ----------- |<br />| `PulsarAdminException` | 未知错误        |<br /><br />欲了解更多信息，请参阅 [`createSink`](https://pulsar.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-)。<br /></code></pre>
 <ul>
 <li><p>Create a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                    String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -258,7 +258,7 @@ configs:
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException</code></td><td>未知错误</td></tr>
@@ -559,13 +559,13 @@ void updateSource(SourceConfig sourceConfig,
 
 **参数名**
 
-| Name           | Description |
+| 配置项            | Description |
 | -------------- | ----------- |
 | `sourceConfig` | 源配置对象       |
 
 **异常**
 
-| Name                                          | Description |
+| 配置项                                           | Description |
 | --------------------------------------------- | ----------- |
 | `PulsarAdminException.NotAuthorizedException` | 没有管理员权限     |
 | `PulsarAdminException.NotFoundException`      | 集群不存在       |
@@ -588,7 +588,7 @@ void updateSource(SourceConfig sourceConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sourceConfig</code></td><td>源配置对象</td></tr>
@@ -598,7 +598,7 @@ void updateSource(SourceConfig sourceConfig,
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -622,13 +622,13 @@ void updateSink(SinkConfig sinkConfig,
 
 **参数名**
 
-| Name         | Description |
+| 配置项          | Description |
 | ------------ | ----------- |
 | `sinkConfig` | sink 配置对象   |
 
 **异常**
 
-| Name                                          | Description |
+| 配置项                                           | Description |
 | --------------------------------------------- | ----------- |
 | `PulsarAdminException.NotAuthorizedException` | 没有管理员权限     |
 | `PulsarAdminException.NotFoundException`      | 集群不存在       |
@@ -651,7 +651,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>sinkConfig</code></td><td>sink 配置对象</td></tr>
@@ -661,7 +661,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -693,7 +693,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -705,7 +705,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -722,7 +722,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -734,7 +734,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -758,7 +758,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -770,7 +770,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -787,7 +787,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -799,7 +799,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -826,7 +826,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -838,7 +838,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -855,7 +855,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -867,7 +867,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -891,7 +891,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -903,7 +903,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -920,7 +920,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -932,7 +932,7 @@ void updateSink(SinkConfig sinkConfig,
 
 **异常**
 
-| Name                   | Description |
+| 配置项                    | Description |
 | ---------------------- | ----------- |
 | `PulsarAdminException` | 未知错误        |
 
@@ -955,7 +955,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -965,7 +965,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
@@ -989,7 +989,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>参数名</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td></tr>
@@ -999,7 +999,7 @@ void updateSink(SinkConfig sinkConfig,
 <p><strong>异常</strong></p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>没有管理员权限</td></tr>
