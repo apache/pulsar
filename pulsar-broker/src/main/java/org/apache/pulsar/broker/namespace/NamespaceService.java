@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -404,7 +405,17 @@ public class NamespaceService {
             return;
         }
         String candidateBroker = null;
-        boolean authoritativeRedirect = pulsar.getLeaderElectionService().isLeader();
+
+        LeaderElectionService les = pulsar.getLeaderElectionService();
+        if (les == null) {
+            // The leader election service was not initialized yet. This can happen because the broker service is
+            // initialized first and it might start receiving lookup requests before the leader election service is
+            // fully initialized.
+            lookupFuture.complete(Optional.empty());
+            return;
+        }
+
+        boolean authoritativeRedirect = les.isLeader();
 
         try {
             // check if this is Heartbeat or SLAMonitor namespace
