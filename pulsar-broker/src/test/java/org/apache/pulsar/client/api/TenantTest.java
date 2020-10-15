@@ -74,31 +74,4 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
         }
     }
     
-    @Test
-    public void testExceedMaxTenant() throws Exception {
-        conf.setMaxTenants(2);
-        super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        ExecutorService executor = new ThreadPoolExecutor(10, 10, 30
-                , TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-                new DefaultThreadFactory("testExceedMaxTenant"));
-        CountDownLatch countDownLatch = new CountDownLatch(10);
-        AtomicInteger counter = new AtomicInteger(0);
-        for (int i = 0; i < 10; i++) {
-            executor.execute(() -> {
-                try {
-                    admin.tenants().createTenant("tenant" + UUID.randomUUID(), tenantInfo);
-                    counter.getAndIncrement();
-                } catch (PulsarAdminException ignored) {
-                } finally {
-                    countDownLatch.countDown();
-                }
-            });
-        }
-        countDownLatch.await();
-        Assert.assertTrue(counter.get() > 2);
-        executor.shutdownNow();
-    }
-
 }
