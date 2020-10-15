@@ -111,8 +111,8 @@ public class PulsarClusterMetadataSetup {
         private int numTransactionCoordinators = 16;
 
         @Parameter(names = {
-            "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
-        private String bkMetadataServiceUri;
+            "--existing-bk-metadata-service-uri" }, description = "The metadata service uri of existing BookKeeper cluster you want to use")
+        private String existingBkMetadataServiceUri;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -176,7 +176,7 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        if (arguments.bkMetadataServiceUri == null) {
+        if (arguments.existingBkMetadataServiceUri == null) {
             bkConf.setZkServers(arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
@@ -187,7 +187,7 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            String uriStr = arguments.bkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.bkMetadataServiceUri;
+            String uriStr = arguments.existingBkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.existingBkMetadataServiceUri;
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);

@@ -253,6 +253,17 @@ Flag | Description
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 > ```
 
+> If you want to use an existing BookKeeper cluster, you can add `--existing-bk-metadata-service-uri` flag at the mean time like below:
+>
+> ```properties
+> --existing-bk-metadata-service-uri "zk+null://bk1:2181;bk2:2181/ledgers" \
+> --web-service-url http://host1:8080,host2:8080,host3:8080 \
+> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+> ```
+> The metadata service uri of existing BookKeeper cluster can be fetched via `bin/bookkeeper shell whatisinstanceid` command. Note that the value need to be enclosed in double quotes since the multi metadata service uri is semicolon separated.
+
 ## Deploy a BookKeeper cluster
 
 [BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a **3-bookie BookKeeper cluster**.
