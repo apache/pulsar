@@ -175,7 +175,7 @@ Options
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
 |`-cs` , `--configuration-store`|The configuration store quorum connection string||
-|`--existing-bk-metadata-service-uri`|The metadata service uri of existing BookKeeper cluster you want to use||
+|`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster you want to us||
 |`-h` , `--help`|Cluster name|false|
 |`--initial-num-stream-storage-containers`|Num storage containers of BookKeeper stream storage|16|
 |`--initial-num-transaction-coordinators`|Num transaction coordinators will assigned in cluster|16|

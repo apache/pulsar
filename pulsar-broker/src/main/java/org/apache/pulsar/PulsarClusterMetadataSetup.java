@@ -111,7 +111,7 @@ public class PulsarClusterMetadataSetup {
         private int numTransactionCoordinators = 16;
 
         @Parameter(names = {
-            "--existing-bk-metadata-service-uri" }, description = "The metadata service uri of existing BookKeeper cluster you want to use")
+            "--existing-bk-metadata-service-uri" }, description = "The metadata service URI of the existing BookKeeper cluster you want to use")
         private String existingBkMetadataServiceUri;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
