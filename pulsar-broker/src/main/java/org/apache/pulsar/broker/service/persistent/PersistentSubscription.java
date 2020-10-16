@@ -67,7 +67,6 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -416,7 +415,7 @@ public class PersistentSubscription implements Subscription {
      *  cumulative ack or try to single ack message already acked by any ongoing transaction.
      * @throws IllegalArgumentException if try to cumulative ack but passed in multiple positions.
      */
-    public synchronized void acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType) throws TransactionConflictException {
+    public synchronized CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType) {
         checkArgument(txnId != null, "TransactionID can not be null.");
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
@@ -425,14 +424,14 @@ public class PersistentSubscription implements Subscription {
                                   " try to cumulative ack message while transaction:" + this.pendingCumulativeAckTxnId +
                                   " already cumulative acked messages.";
                 log.error(errorMsg);
-                throw new TransactionConflictException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             if (positions.size() != 1) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                   " invalid cumulative ack received with multiple message ids.";
                 log.error(errorMsg);
-                throw new IllegalArgumentException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             Position position = positions.get(0);
@@ -443,7 +442,7 @@ public class PersistentSubscription implements Subscription {
                         " try to cumulative ack position: " + position + " within range of cursor's " +
                         "markDeletePosition: " + cursor.getMarkDeletedPosition();
                 log.error(errorMsg);
-                throw new TransactionConflictException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             if (log.isDebugEnabled()) {
@@ -481,7 +480,7 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                       " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    throw new TransactionConflictException(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
 
                 // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
@@ -489,13 +488,14 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                             " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
-                    throw new TransactionConflictException(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
 
                 pendingAckMessageForCurrentTxn.add(position);
                 this.pendingAckMessages.add(position);
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {

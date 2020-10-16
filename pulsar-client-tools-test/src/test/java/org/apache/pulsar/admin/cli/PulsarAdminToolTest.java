@@ -503,6 +503,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-publish-rate myprop/clust/ns1"));
         verify(mockNamespaces).getPublishRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-publish-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removePublishRate("myprop/clust/ns1");
+
         namespaces.run(split("set-subscribe-rate myprop/clust/ns1 -sr 2 -st 60"));
         verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", new SubscribeRate(2, 60));
 
@@ -544,6 +547,9 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
+
+        namespaces.run(split("remove-message-ttl myprop/clust/ns1"));
+        verify(mockNamespaces).removeNamespaceMessageTTL("myprop/clust/ns1");
     }
 
     @Test
@@ -681,7 +687,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
@@ -783,6 +789,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds1 -s sub1 -t 1m"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds1"), eq("sub1"),
                 longThat(new TimestampMatcher()));
+
+        cmdTopics.run(split("last-message-id persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
     }
 
     @Test
@@ -812,7 +821,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");

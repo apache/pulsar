@@ -29,7 +29,7 @@ public interface PulsarSpoutConsumer {
      * Receives a single message.
      * 
      * @param waitTime
-     * @param milliseconds
+     * @param unit
      * @return
      * @throws PulsarClientException
      */

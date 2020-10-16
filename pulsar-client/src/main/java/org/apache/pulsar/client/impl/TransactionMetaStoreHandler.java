@@ -26,7 +26,6 @@ import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ClientCnx.RequestTime;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -54,6 +53,16 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
+
+    private static class RequestTime {
+        final long creationTimeMs;
+        final long requestId;
+
+        public RequestTime(long creationTime, long requestId) {
+            this.creationTimeMs = creationTime;
+            this.requestId = requestId;
+        }
+    }
 
     private final boolean blockIfReachMaxPendingOps;
     private final Semaphore semaphore;

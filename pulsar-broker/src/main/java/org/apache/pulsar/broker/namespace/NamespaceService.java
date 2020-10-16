@@ -325,9 +325,7 @@ public class NamespaceService {
      * Main internal method to lookup and setup ownership of service unit to a broker
      *
      * @param bundle
-     * @param authoritative
-     * @param readOnly
-     * @param advertisedListenerName
+     * @param options
      * @return
      * @throws PulsarServerException
      */

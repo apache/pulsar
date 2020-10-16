@@ -501,6 +501,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private int maxPublishRatePerTopicInMessages = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long maxPublishRatePerTopicInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -751,11 +765,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+    )
+    private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
         doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
         + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
         + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
+
 
     /**** --- Messaging Protocols --- ****/
 
