@@ -121,11 +121,12 @@ public interface SerDe<T> {
     byte[] serialize(T input);
 }
 ```
+SerDe works in the following way in Java Functions.
 - If the input and output topics have schema, Pulsar Functions use schema for SerDe.
 - If the input and output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
-  - If schema type is specified, Pulsar Functions use the specified schema type.
+  - If the schema type is specified, Pulsar Functions use the specified schema type.
   - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
-  - If either schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in `json` format. 
+  - If either the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `json` format. 
 
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
