@@ -15,6 +15,6 @@ The configuration of the NSQ source connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `lookupds` |String| true | " " (empty string) | A comma-separated list nsqlookupds to connect to. |
+| `lookupds` |String| true | " " (empty string) | A comma-separated list of nsqlookupds to connect to. |
 | `topic` | String|true | " " (empty string) | The NSQ topic to transport. |
 | `channel` | String |false | pulsar-transport-{$topic} | The channel to consume from on the provided NSQ topic. |
