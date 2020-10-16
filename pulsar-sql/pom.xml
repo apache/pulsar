@@ -117,8 +117,8 @@
                         <id>check-style</id>
                         <phase>verify</phase>
                         <configuration>
-                            <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-                            <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+                            <configLocation>../buildtools/src/test/resources/pulsar/checkstyle.xml</configLocation>
+                            <suppressionsLocation>../buildtools/src/test/resources/pulsar/suppressions.xml</suppressionsLocation>
                             <encoding>UTF-8</encoding>
                         </configuration>
                         <goals>
