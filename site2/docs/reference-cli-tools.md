@@ -175,14 +175,14 @@ Options
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
 |`-cs` , `--configuration-store`|The configuration store quorum connection string||
-|`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster you want to us||
+|`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
 |`-h` , `--help`|Cluster name|false|
-|`--initial-num-stream-storage-containers`|Num storage containers of BookKeeper stream storage|16|
-|`--initial-num-transaction-coordinators`|Num transaction coordinators will assigned in cluster|16|
+|`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
+|`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
 |`-tw` , `--web-service-url-tls`|The web service URL for the new cluster with TLS encryption||
 |`-zk` , `--zookeeper`|The local ZooKeeper quorum connection string||
-|`--zookeeper-session-timeout-ms`|Local zookeeper session timeout ms|30000|
+|`--zookeeper-session-timeout-ms`|The local ZooKeeper session timeout. The time unit is in millisecond(ms)|30000|
 
 
 ### `proxy`
