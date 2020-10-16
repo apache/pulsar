@@ -1296,9 +1296,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testMaxNamespacePerTenant() throws Exception {
+    public void testMaxNamespacesPerTenant() throws Exception {
         super.internalCleanup();
-        conf.setMaxNamespacePerTenant(2);
+        conf.setMaxNamespacesPerTenant(2);
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
@@ -1314,7 +1314,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         //unlimited
         super.internalCleanup();
-        conf.setMaxNamespacePerTenant(0);
+        conf.setMaxNamespacesPerTenant(0);
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
