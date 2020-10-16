@@ -41,7 +41,7 @@ import javax.ws.rs.core.MediaType;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/topics", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
-public class Topics extends TopicBase {
+public class Topics extends TopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}")
@@ -64,7 +64,7 @@ public class Topics extends TopicBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{topic}/partitions/(partition)")
+    @Path("/{tenant}/{namespace}/{topic}/partitions/{partition}")
     @ApiOperation(value = "Produce message to a topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
@@ -76,7 +76,7 @@ public class Topics extends TopicBase {
                                         @ApiParam(value = "Specify the namespace", required = true)
                                         @PathParam("namespace") String namespace,
                                         @ApiParam(value = "Specify topic name", required = true)
-                                        @PathParam("partition") @Encoded String encodedTopic,
+                                        @PathParam("topic") @Encoded String encodedTopic,
                                         @ApiParam(value = "Specify topic partition", required = true)
                                         @PathParam("partition") int partition,
                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
