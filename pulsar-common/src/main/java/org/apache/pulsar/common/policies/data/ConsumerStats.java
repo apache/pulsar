@@ -59,6 +59,9 @@ public class ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
+    /** The read position of the cursor when the consumer joining */
+    public String readPositionWhenJoining;
+
     /** Address of this consumer. */
     private int addressOffset = -1;
     private int addressLength;
@@ -93,6 +96,7 @@ public class ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
+        this.readPositionWhenJoining = stats.readPositionWhenJoining;
         return this;
     }
 
@@ -138,5 +142,9 @@ public class ConsumerStats {
         this.clientVersionOffset = this.stringBuffer.length();
         this.clientVersionLength = clientVersion.length();
         this.stringBuffer.append(clientVersion);
+    }
+
+    public String getReadPositionWhenJoining() {
+        return readPositionWhenJoining;
     }
 }
