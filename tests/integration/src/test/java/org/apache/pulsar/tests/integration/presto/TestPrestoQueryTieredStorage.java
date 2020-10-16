@@ -110,13 +110,11 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
         pulsarCluster.stopPrestoWorker();
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
     @Test
     public void testQueryTieredStorage1() throws Exception {
         testSimpleSQLQuery(false);
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
     @Test
     public void testQueryTieredStorage2() throws Exception {
         testSimpleSQLQuery(true);

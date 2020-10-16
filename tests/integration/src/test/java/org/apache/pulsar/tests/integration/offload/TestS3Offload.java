@@ -46,16 +46,6 @@ public class TestS3Offload extends TestBaseOffload {
         log.info("s3 container start finish.");
     }
 
-    @BeforeClass
-    public void setupS3() {
-//        s3Container = new S3Container(
-//                pulsarCluster.getClusterName(),
-//                S3Container.NAME)
-//                .withNetwork(pulsarCluster.getNetwork())
-//                .withNetworkAliases(S3Container.NAME);
-//        s3Container.start();
-    }
-
     @AfterClass
     public void teardownS3() {
         if (null != s3Container) {
