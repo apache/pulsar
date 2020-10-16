@@ -554,7 +554,7 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 5.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu().doubleValue(), 5.0);
         // Disk/Ram should be default
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
@@ -582,7 +582,7 @@ public class CmdFunctionsTest {
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(5656565656L));
         // cpu/disk should be default
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu().doubleValue(), 1.0);
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
@@ -609,7 +609,7 @@ public class CmdFunctionsTest {
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu().doubleValue(), 1.0);
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
@@ -633,7 +633,7 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, updater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, updater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, updater.getOutput());
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 5.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu().doubleValue(), 5.0);
         // Disk/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
@@ -661,7 +661,7 @@ public class CmdFunctionsTest {
         assertEquals(OUTPUT_TOPIC_NAME, updater.getOutput());
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(5656565656L));
         // cpu/disk should be default
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu().doubleValue(), 1.0);
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
     }
@@ -688,7 +688,7 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu().doubleValue(), 1.0);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
     }
 
@@ -715,7 +715,7 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu().doubleValue(), 1.0);
         UpdateOptions updateOptions = new UpdateOptions();
         updateOptions.setUpdateAuthData(true);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(updateOptions));

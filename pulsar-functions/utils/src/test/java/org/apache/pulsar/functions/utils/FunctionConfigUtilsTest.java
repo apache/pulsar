@@ -549,7 +549,7 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getName(), name);
         assertEquals(functionConfig.getClassName(), classname);
         assertEquals(functionConfig.getLogTopic(), logTopic);
-        assertEquals(functionConfig.getResources().getCpu(), resources.getCpu());
+        assertEquals(functionConfig.getResources().getCpu().doubleValue(), resources.getCpu());
         assertEquals(functionConfig.getResources().getDisk().longValue(), resources.getDisk());
         assertEquals(functionConfig.getResources().getRam().longValue(), resources.getRam());
         assertEquals(functionConfig.getOutput(), sinkSpec.getTopic());
