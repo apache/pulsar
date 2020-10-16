@@ -239,6 +239,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
+        doc = "The maximum number of tenants that each pulsar cluster can create." 
+                + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
+    )
+    private int maxTenants = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
