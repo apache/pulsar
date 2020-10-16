@@ -127,6 +127,7 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
+    private PositionImpl readPositionWhenJoining;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -525,6 +526,9 @@ public class Consumer {
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
+        if (readPositionWhenJoining != null) {
+            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
+        }
         return stats;
     }
 
@@ -709,6 +713,10 @@ public class Consumer {
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
+    }
+
+    public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
+        this.readPositionWhenJoining = readPositionWhenJoining;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

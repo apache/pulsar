@@ -65,6 +65,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -94,6 +95,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -112,12 +114,14 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -2531,5 +2535,38 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setTtlDurationDefaultInSeconds(3600);
         int seconds = admin.namespaces().getPolicies("prop-xyz/ns1").message_ttl_in_seconds;
         assertEquals(seconds, 3600);
+    }
+
+    @Test
+    public void testGetReadPositionWhenJoining() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testGetReadPositionWhenJoining-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 10;
+        MessageIdImpl messageId = null;
+        for (int i = 0; i < messages; i++) {
+            messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
+        }
+
+        for (int i = 0; i < 2; i++) {
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .subscriptionName(subName)
+                    .subscribe();
+        }
+
+        TopicStats stats = admin.topics().getStats(topic);
+        Assert.assertEquals(stats.subscriptions.size(), 1);
+        SubscriptionStats subStats = stats.subscriptions.get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.consumers.size(), 2);
+        ConsumerStats consumerStats = subStats.consumers.get(0);
+        Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
+                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
     }
 }
