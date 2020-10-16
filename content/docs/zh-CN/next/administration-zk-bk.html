@@ -229,20 +229,20 @@
 <p>这个命令会在本地的 bookie 创建一个临时的 BookKeeper ledger，往里面写一些条目，然后读取它，最后删除这个 ledger。</p>
 <h3><a class="anchor" aria-hidden="true" id="下线-bookie"></a><a href="#下线-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下线 bookie</h3>
 <p>如果用户想要下线 bookie吗，下面的这个流程很有用，可以用验证整个流程是否安全的完成。</p>
-<h4><a class="anchor" aria-hidden="true" id="before-we-decommission"></a><a href="#before-we-decommission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Before we decommission</h4>
+<h4><a class="anchor" aria-hidden="true" id="下线之前"></a><a href="#下线之前" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下线之前</h4>
 <ol>
-<li><p>Ensure state of your cluster can support the decommissioning of the target bookie. Check if <code>EnsembleSize &gt;= Write Quorum &gt;= Ack Quorum</code> stays true with one less bookie</p></li>
-<li><p>Ensure target bookie shows up in the listbookies command.</p></li>
-<li><p>Ensure that there is no other process ongoing (upgrade etc).</p></li>
+<li><p>确保集群当前的状态能够支持下线目标 bookie。检查减少一个 bookie的情况下，验证<code>EnsembleSize &gt;= Write Quorum &gt;= Ack Quorum</code>这个条件是否还成立。</p></li>
+<li><p>确保目标 bookie 在 listbookies 命令执行的结果列表中。</p></li>
+<li><p>确保当前没有其他的处理进程正在执行(比如升级)。</p></li>
 </ol>
-<h4><a class="anchor" aria-hidden="true" id="process-of-decommissioning"></a><a href="#process-of-decommissioning" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Process of Decommissioning</h4>
+<h4><a class="anchor" aria-hidden="true" id="下线过程"></a><a href="#下线过程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下线过程</h4>
 <ol>
-<li>Log on to the bookie node, check if there are underreplicated ledgers.</li>
+<li>登录到 bookie 节点，检查是否存在未同步的 ledger。</li>
 </ol>
-<p>If there are, the decommission command will force them to be replicated. <code>$ bin/bookkeeper shell listunderreplicated</code></p>
+<p>如果有，下线命令将强制它们去继续执行复制。可以通过如下命令<code>$ bin/bookkeeper shell listunderreplicated</code> 来查询未同步副本。</p>
 <ol>
-<li><p>Stop the bookie by killing the bookie process. Make sure there are no liveness / readiness probes setup for the bookies to spin them back up if you are deployed in a kubernetes environment.</p></li>
-<li><p>Run the decommission command. If you have logged onto the node you wish to decommission, you don't need to provide <code>-bookieid</code> If you are running the decommission command for target bookie node from another bookie node you should mention the target bookie id in the arguments for <code>-bookieid</code> <code>$ bin/bookkeeper shell decommissionbookie</code> or <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></p></li>
+<li><p>可以通过 kill 进程来停止bookie。如果 bookie 是部署在 kubernetes 环境中，需要确保没有对 bookie 配置 liveness/readiness 探测。</p></li>
+<li><p>执行命令后。 If you have logged onto the node you wish to decommission, you don't need to provide <code>-bookieid</code> If you are running the decommission command for target bookie node from another bookie node you should mention the target bookie id in the arguments for <code>-bookieid</code> <code>$ bin/bookkeeper shell decommissionbookie</code> or <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></p></li>
 <li><p>Validate that there are no ledgers on decommissioned bookie <code>$ bin/bookkeeper shell listledgers -bookieid &lt;target bookieid&gt;</code></p></li>
 </ol>
 <p>Last step to verify is you could run this command to check if the bookie you decommissioned doesn’t show up in list bookies:</p>
