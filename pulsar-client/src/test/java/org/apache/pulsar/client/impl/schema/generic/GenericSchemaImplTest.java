@@ -45,7 +45,6 @@ import org.testng.annotations.Test;
  * Unit testing generic schemas.
  */
 @Slf4j
-@Deprecated
 public class GenericSchemaImplTest {
 
     @Test

@@ -62,7 +62,6 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
-    @Deprecated
     public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
         return of(schemaInfo, true);
     }
@@ -74,7 +73,6 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * @param useProvidedSchemaAsReaderSchema
      * @return
      */
-    @Deprecated
     public static GenericSchemaImpl of(SchemaInfo schemaInfo,
                                        boolean useProvidedSchemaAsReaderSchema) {
         switch (schemaInfo.getType()) {
