@@ -43,11 +43,6 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
     @Override
     protected void beforeStop() {
         super.beforeStop();
-    }
-
-    @Override
-    protected void afterStart() {
-        super.afterStart();
         if (null != containerId) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
