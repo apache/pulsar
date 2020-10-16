@@ -120,6 +120,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -132,6 +133,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -1923,10 +1925,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-        getManagedLedger().getConfig().setLedgerOffloader(
-                brokerService.pulsar().getManagedLedgerOffloader(
-                        TopicName.get(topic).getNamespaceObject(), data.offload_policies));
-
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -2437,8 +2435,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         if (policies.getPublishRate() != null) {
-            topicPolicyPublishRate = policies.getPublishRate();
-            updateTopicPublishDispatcher();
+            updatePublishDispatcher(policies.getPublishRate());
+        } else {
+            updateMaxPublishRate(namespacePolicies.orElse(null));
         }
 
         if (policies.isInactiveTopicPoliciesSet()) {
@@ -2460,14 +2459,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private Optional<Policies> getNamespacePolicies(){
-        try {
-            return Optional.ofNullable(brokerService.pulsar().getAdminClient().namespaces()
-                    .getPolicies(TopicName.get(topic).getNamespace()));
-        } catch (Exception e) {
-            log.error("get namespace policies fail", e);
-        }
-        return Optional.empty();
+    private Optional<Policies> getNamespacePolicies() {
+        return DispatchRateLimiter.getPolicies(brokerService, topic);
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
@@ -2489,33 +2482,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private PersistentTopic getPersistentTopic() {
         return this;
-    }
-
-    @Override
-    protected void updateTopicPublishDispatcher() {
-        if (topicPolicyPublishRate != null && (topicPolicyPublishRate.publishThrottlingRateInByte > 0
-            || topicPolicyPublishRate.publishThrottlingRateInMsg > 0)) {
-            log.info("Enabling topic policy publish rate limiting {} on topic {}", topicPolicyPublishRate, this.topic);
-            if (!preciseTopicPublishRateLimitingEnable) {
-                this.brokerService.setupBrokerPublishRateLimiterMonitor();
-            }
-
-            if (this.topicPublishRateLimiter == null
-                || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                // create new rateLimiter if rate-limiter is disabled
-                if (preciseTopicPublishRateLimitingEnable) {
-                    this.topicPublishRateLimiter = new PrecisPublishLimiter(topicPolicyPublishRate, ()-> this.enableCnxAutoRead());
-                } else {
-                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(topicPolicyPublishRate);
-                }
-            } else {
-                this.topicPublishRateLimiter.update(topicPolicyPublishRate);
-            }
-        } else {
-            log.info("Disabling publish throttling for {}", this.topic);
-            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerReadForPublishRateLimiting();
-        }
     }
 
     private void registerTopicPolicyListener() {

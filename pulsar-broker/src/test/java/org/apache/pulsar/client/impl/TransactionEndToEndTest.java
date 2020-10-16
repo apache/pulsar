@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.transaction;
+package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -57,7 +57,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
-public class EndToEndTest extends TransactionTestBase {
+public class TransactionEndToEndTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
 
@@ -224,6 +224,7 @@ public class EndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
+                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup
@@ -247,9 +248,9 @@ public class EndToEndTest extends TransactionTestBase {
                 Message<byte[]> message = consumer.receive();
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}", message.getMessageId());
-                consumer.acknowledgeAsync(message.getMessageId(), txn);
+                consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000);
+            Thread.sleep(1000);
 
             consumer.redeliverUnacknowledgedMessages();
 
@@ -265,7 +266,7 @@ public class EndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                consumer.acknowledgeAsync(message.getMessageId(), commitTxn);
+                consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
                 log.info("receive msgId: {}", message.getMessageId());
             }
 

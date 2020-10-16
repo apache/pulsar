@@ -27,6 +27,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -146,6 +147,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     cmd.getAck().getMessageId(i).recycle();
                 }
                 cmd.getAck().recycle();
+                break;
+
+            case ACK_RESPONSE:
+                checkArgument(cmd.hasAckResponse());
+                handleAckResponse(cmd.getAckResponse());
+                cmd.getAckResponse().recycle();
                 break;
 
             case CLOSE_CONSUMER:
@@ -552,6 +559,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleAck(CommandAck ack) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleAckResponse(CommandAckResponse ackResponse) {
         throw new UnsupportedOperationException();
     }
 
