@@ -59,7 +59,7 @@ public class ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** The read position of the cursor when the consumer joining */
+    /** The read position of the cursor when the consumer joining. */
     public String readPositionWhenJoining;
 
     /** Address of this consumer. */
