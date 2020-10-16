@@ -107,12 +107,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             throw e;
         }
 
+        PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
+        consumer.setReadPositionWhenJoining(readPositionWhenJoining);
         // If this was the 1st consumer, or if all the messages are already acked, then we
         // don't need to do anything special
-        if (allowOutOfOrderDelivery == false
+        if (!allowOutOfOrderDelivery
                 && consumerList.size() > 1
                 && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
-            recentlyJoinedConsumers.put(consumer, (PositionImpl) cursor.getReadPosition());
+            recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
         }
     }
 
@@ -154,8 +156,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
         groupedEntries.clear();
 
-        for (int i = 0; i < entriesCount; i++) {
-            Entry entry = entries.get(i);
+        for (Entry entry : entries) {
             Consumer c = selector.select(peekStickyKey(entry.getDataBuffer()));
             groupedEntries.computeIfAbsent(c, k -> new ArrayList<>()).add(entry);
         }
