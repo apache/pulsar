@@ -1922,15 +1922,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (!isConnected()) {
             return FutureUtil.failedFuture(new PulsarClientException(
-                String.format("The client is not connected to the broker when seeking the subscription %s of the " +
-                    "topic %s to the message %s", subscription, topicName.toString(), messageId.toString())));
+                    String.format("The client is not connected to the broker when seeking the subscription %s of the " +
+                            "topic %s to the message %s", subscription, topicName.toString(), messageId.toString())));
         }
 
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
 
         long requestId = client.newRequestId();
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        ByteBuf seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId());
+
+        ByteBuf seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex());
         ClientCnx cnx = cnx();
 
         log.info("[{}][{}] Seek subscription to message id {}", topic, subscription, messageId);
