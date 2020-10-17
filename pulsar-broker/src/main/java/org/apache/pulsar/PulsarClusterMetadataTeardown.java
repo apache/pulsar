@@ -24,6 +24,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
@@ -149,7 +150,9 @@ public class PulsarClusterMetadataTeardown {
     private static void deleteLedger(BookKeeper bookKeeper, long ledgerId) {
         try {
             bookKeeper.deleteLedger(ledgerId);
-            log.debug("Delete ledger id: {}", ledgerId);
+            if (log.isDebugEnabled()) {
+                log.debug("Delete ledger id: {}", ledgerId);
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (BKException e) {
@@ -180,7 +183,7 @@ public class PulsarClusterMetadataTeardown {
                                 return -1L;
                             }
                             // some cursor ledger id could also be set to -1 to mark deleted
-                        }).forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
+                        }).filter(ledgerId -> ledgerId >= 0).forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
                     } catch (InvalidProtocolBufferException e) {
                         log.warn("Invalid data format from {}: {}", topicRoot, e);
                     }
