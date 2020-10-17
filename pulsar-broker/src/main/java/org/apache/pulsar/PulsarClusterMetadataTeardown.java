@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -133,6 +134,9 @@ public class PulsarClusterMetadataTeardown {
         try {
             return zooKeeper.getChildren(path, null);
         } catch (InterruptedException | KeeperException e) {
+            if (e instanceof KeeperException.NoNodeException) {
+                return new ArrayList<>();
+            }
             log.error("Failed to get children of {}: {}", path, e);
             throw new RuntimeException(e);
         }
