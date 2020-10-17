@@ -1621,6 +1621,33 @@
         "Message": {
             "type": "object",
             "properties": {
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1632,9 +1659,8 @@
                 "topicName": {
                     "type": "string"
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
+                "producerName": {
+                    "type": "string"
                 },
                 "replicated": {
                     "type": "boolean"
@@ -1642,32 +1668,6 @@
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",
