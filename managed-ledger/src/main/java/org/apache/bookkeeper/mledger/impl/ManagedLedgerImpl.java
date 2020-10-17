@@ -1616,8 +1616,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledger.getId(), lastEntryInLedger, firstEntry);
             }
 
-            opReadEntry.updateReadPosition(opReadEntry.readPosition);
-
             if (currentLedger == null || ledger.getId() != currentLedger.getId()) {
                 // Cursor was placed past the end of one ledger, move it to the
                 // beginning of the next ledger
@@ -1627,6 +1625,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     opReadEntry.updateReadPosition(new PositionImpl(ledger.getId() + 1, 0));
                 }
+            } else {
+                opReadEntry.updateReadPosition(opReadEntry.readPosition);
             }
 
             opReadEntry.checkReadCompletion();
