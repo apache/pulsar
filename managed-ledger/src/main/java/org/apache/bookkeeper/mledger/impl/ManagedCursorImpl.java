@@ -992,7 +992,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
                         batchDeletedIndexes.values().forEach(BitSetRecyclable::recycle);
                         batchDeletedIndexes.clear();
-                        batchDeletedIndexes.put(newPosition, BitSetRecyclable.create().resetWords(newPosition.ackSet));
+                        long[] resetWords = newPosition.ackSet;
+                        if (resetWords == null) {
+                            resetWords = new long[0];
+                        }
+                        batchDeletedIndexes.put(newPosition, BitSetRecyclable.create().resetWords(resetWords));
                     }
 
                     PositionImpl oldReadPosition = readPosition;
