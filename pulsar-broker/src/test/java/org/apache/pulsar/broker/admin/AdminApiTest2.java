@@ -1294,4 +1294,33 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.clusters().updateCluster(clusterName, cluster);
         Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
     }
+
+    @Test
+    public void testMaxNamespacesPerTenant() throws Exception {
+        super.internalCleanup();
+        conf.setMaxNamespacesPerTenant(2);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("testTenant/ns2", Sets.newHashSet("test"));
+        try {
+            admin.namespaces().createNamespace("testTenant/ns3", Sets.newHashSet("test"));
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of namespace in tenant :testTenant");
+        }
+
+        //unlimited
+        super.internalCleanup();
+        conf.setMaxNamespacesPerTenant(0);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        for (int i = 0; i < 10; i++) {
+            admin.namespaces().createNamespace("testTenant/ns-" + i, Sets.newHashSet("test"));
+        }
+
+    }
 }
