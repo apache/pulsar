@@ -7988,7 +7988,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -14657,10 +14657,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -15048,15 +15048,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -15066,16 +15057,6 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -15083,6 +15064,25 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         }
       }
     },
@@ -15254,16 +15254,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "address" : {
           "type" : "string"
         }
       }
@@ -16131,16 +16131,16 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "address" : {
           "type" : "string"
         }
       }
@@ -16239,11 +16239,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
