@@ -181,7 +181,7 @@ Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
-#### Negative acknowledging the message
+#### Negatively acknowledging messages
 ```json
 {
   "type": "negativeAcknowledge",
