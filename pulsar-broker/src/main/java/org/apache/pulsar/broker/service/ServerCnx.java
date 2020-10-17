@@ -36,10 +36,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -1349,8 +1346,8 @@ public class ServerCnx extends PulsarHandler {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
-
-            Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
+            Position position = new PositionImpl(msgIdData.getLedgerId(),
+                    msgIdData.getEntryId(), msgIdData.getAckSetList().stream().mapToLong(x -> x).toArray());
 
 
             subscription.resetCursor(position).thenRun(() -> {
