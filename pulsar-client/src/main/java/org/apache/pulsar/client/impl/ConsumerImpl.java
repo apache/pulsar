@@ -1930,14 +1930,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         long requestId = client.newRequestId();
         ByteBuf seek = null;
-        if (messageId instanceof MessageImpl) {
-            MessageIdImpl msgId = (MessageIdImpl) messageId;
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), 0);
-        } else if (messageId instanceof BatchMessageIdImpl) {
+        if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl msgId = (BatchMessageIdImpl) messageId;
             seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getBatchIndex());
         } else {
-            throw new RuntimeException("Unexpected class " + messageId.getClass() + ", should be one of MessageImpl or BatchMessageIdImpl");
+            MessageIdImpl msgId = (MessageIdImpl) messageId;
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), 0);
         }
 
         ClientCnx cnx = cnx();
