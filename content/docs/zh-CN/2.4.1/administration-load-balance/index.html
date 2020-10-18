@@ -104,53 +104,52 @@
 <p>正常情况下， 应设置 bundle 数量大于 broker数量。因为主题是根据哈希自动分布到 bundle 里面的。 例如，命令空间内有1000个主题，可以使用比如 64 个 bundle ，让流量均匀的分布在 16 个broker上。</p>
 <h3><a class="anchor" aria-hidden="true" id="卸载主题和-bundle"></a><a href="#卸载主题和-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载主题和 bundle</h3>
 <p>In Pulsar there is an admin operation of &quot;unloading&quot; a topic. Unloading means to close the topics, release ownership and reassign the topics to a new broker, based on current load.</p>
-<p>When unload happens, the client will experience a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.</p>
-<p>Unloading is the mechanism used by the load-manager to perform the load shedding, but it can also be triggered manually, for example to correct the assignments and redistribute traffic even before having any broker overloaded.</p>
-<p>Unloading a topic has no effect on the assignment, but it will just close and reopen the particular topic:</p>
+<p>执行卸载操作的时候，客户端会出现一个短暂的延时增加，通常是几十毫秒左右，此时主题将被重新分配。</p>
+<p>卸载是负载管理器用来执行负载调度的一种机制，你也可以手动触发卸载操作。例如，你可以在任何 broker 出现超负载之前就纠正之前的分配并重新分配流量。</p>
+<p>卸载主题对任务没有影响，因为它仅仅只关闭并重新打开特定主题：</p>
 <pre><code class="hljs css language-shell">pulsar-admin topics unload persistent://tenant/namespace/topic
 </code></pre>
-<p>To unload all topics for a namespace and trigger reassignments:</p>
+<p>如下命令是，卸载命名空间的所有主题，并触发重新分配：</p>
 <pre><code class="hljs css language-shell">pulsar-admin namespaces unload tenant/namespace
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="namespace-bundles-splitting"></a><a href="#namespace-bundles-splitting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace bundles splitting</h3>
-<p>Since the load for the topics in a bundle might change over time, or could just be hard to predict upfront, bundles can be split in 2 by brokers. The new smaller bundles can then be reassigned to different brokers.</p>
-<p>The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># enable/disable namespace bundle auto split</span>
+<h3><a class="anchor" aria-hidden="true" id="拆分命名空间中的-bundle"></a><a href="#拆分命名空间中的-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>拆分命名空间中的 bundle</h3>
+<p>由于 bundle 中主题的负载会随着时间的变化而变化，或者在前期很难预测流量的变化。所以，broker 支持将一个 bundle 拆分为两个。 此时新建的 bundle 会被重新分配到其他的 broker。</p>
+<p>拆分操作是基于一些可配置的阈值来判断执行的。 任何已存在的 bundle 如果超过下列任何阈值，则该 bundle 将会被拆分。 默认情况下，新拆出来的 bundle 总是立刻分配到其他的broker，以平衡流量分布。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 启用/禁用 自动拆分命名空间中的bundle</span>
 <span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-comment">
-# enable/disable automatic unloading of split bundles</span>
+# 启用/禁用 自动卸载切分的bundle</span>
 <span class="hljs-attr">loadBalancerAutoUnloadSplitBundlesEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-comment">
-# maximum topics in a bundle, otherwise bundle split will be triggered</span>
+# bundle 中最大的主题数, 一旦超过这个值，将触发拆分操作。</span>
 <span class="hljs-attr">loadBalancerNamespaceBundleMaxTopics</span>=<span class="hljs-string">1000</span>
 <span class="hljs-comment">
-# maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered</span>
+# bundle 最大的session数量(生产 + 消费), 一旦超过这个值，将触发拆分操作。</span>
 <span class="hljs-attr">loadBalancerNamespaceBundleMaxSessions</span>=<span class="hljs-string">1000</span>
 <span class="hljs-comment">
-# maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered</span>
+# bundle 最大的msgRate(进+出)的值, 一旦超过这个值，将触发拆分操作。</span>
 <span class="hljs-attr">loadBalancerNamespaceBundleMaxMsgRate</span>=<span class="hljs-string">30000</span>
 <span class="hljs-comment">
-# maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered</span>
+# bundle 最大的带宽(进+出)的值, 一旦超过这个值，将触发拆分操作</span>
 <span class="hljs-attr">loadBalancerNamespaceBundleMaxBandwidthMbytes</span>=<span class="hljs-string">100</span>
 <span class="hljs-comment">
-# maximum number of bundles in a namespace (for auto-split)</span>
+# 命名空间中最大的 bundle 数量 (用于自动拆分bundle时)</span>
 <span class="hljs-attr">loadBalancerNamespaceMaximumBundles</span>=<span class="hljs-string">128</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="automatic-load-shedding"></a><a href="#automatic-load-shedding" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Automatic load shedding</h3>
-<p>In Pulsar's load manager there is support for automatic load shedding. This means that whenever the system recognized a particular broker is overloaded, it will force some traffic to be reassigned to less loaded brokers.</p>
-<p>When a broker is identifies as overloaded, it will force to &quot;unload&quot; a subset of the bundles, the ones with higher traffic, that make up for the overload percentage.</p>
-<p>For example, the default threshold is 85% and if a broker is over quota at 95% CPU usage, then it will unload the percent difference plus a 5% margin: <code>(95% - 85%) + 5% = 15%</code>.</p>
-<p>Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker will unload bundles for at least 15% of traffic.</p>
-<p>The automatic load shedding is enabled by default and can be disabled with this setting:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Enable/disable automatic bundle unloading for load-shedding</span>
+<h3><a class="anchor" aria-hidden="true" id="自动负载切分"></a><a href="#自动负载切分" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自动负载切分</h3>
+<p>Pulsar 的负载管理器支持自动的负载切分。 这意味着，当系统检测到某个 broker 过载时，系统会强制将一些流量自动分配到一些低负载的broker。</p>
+<p>这意味着，当系统检测到某个 broker 过载时，系统会强制将一些流量自动分配到一些低负载的broker。</p>
+<p>例如，默认阈值是85%，如果 broker cpu率 使用超过了95%。那么broker 卸载的百分比差会加上5%： 即<code>(95% - 85%) + 5% = 15%</code>。</p>
+<p>卸载的 bundle 是基于流量(作为cpu，网络，内存的代理指标)来选择的，在上面的例子中，broker 卸载的 bundle 至少要占有整个broker 15%的流量。</p>
+<p>默认情况下，自动负载切分是启用的。 你能够通过如下配置项禁用自动负载切分：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 启用/禁用自动负载拆分</span>
 <span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-string">true</span>
 </code></pre>
-<p>There are additional settings that apply to shedding:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Load shedding interval. Broker periodically checks whether some traffic should be offload from</span>
-<span class="hljs-comment"># some over-loaded broker to other under-loaded brokers</span>
+<p>关于负载切分的其他配置：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 负载切分时间间隔。 Broker 定期检查，是否有一些流量需要从一些负载比较高的 broker，转移到负载较低的 broker 上。</span>
 <span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-string">1</span>
 <span class="hljs-comment">
-# Prevent the same topics to be shed and moved to other brokers more that once within this timeframe</span>
+# 防止同一个主题，在同一个时间窗口，被多次迁移的时间间隔。</span>
 <span class="hljs-attr">loadBalancerSheddingGracePeriodMinutes</span>=<span class="hljs-string">30</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="broker-过载阈值"></a><a href="#broker-过载阈值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker 过载阈值</h4>
@@ -159,21 +158,18 @@
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># 使用阈值确定 broker 是否过载</span>
 <span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-string">85</span>
 </code></pre>
-<p>The usage stats are gathered by Pulsar from the system metrics.</p>
-<p>In case of network utilization, in some cases the network interface speed reported by Linux is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS report 10Gbps speed.</p>
-<p>Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact it's already using all the bandwidth and the traffic is being slowed down.</p>
+<p>Pulsar 会从系统中采集这些指标的使用情况。</p>
+<p>有一种特殊的情况需要注意。以网络指标为例，在某些情况下，Linux 上报的网络接口速率是不正确的，那就必须手动指定该值。 AWS EC2 实例就是这种情况，它的网卡是 1Gbps的，但是系统上报的是 10Gbps。</p>
+<p>因为最大的速度是不正确的， Pulsar 负载管理器会认为 broker 还没到达到网卡的最大服务能力，实际上 broker 已经使用完了网卡的所有资源，此时网络传输就会变慢。</p>
 <p>以下设置可修正最大网卡速度：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># 覆盖自动获取的网卡最大速度</span>
-<span class="hljs-comment"># This option is useful in some environments (eg: EC2 VMs) where the max speed</span>
-<span class="hljs-comment"># reported by Linux is not reflecting the real bandwidth available to the broker.</span>
-<span class="hljs-comment"># Since the network usage is employed by the load manager to decide when a broker</span>
-<span class="hljs-comment"># is overloaded, it is important to make sure the info is correct or override it</span>
-<span class="hljs-comment"># with the right value here. The configured value can be a double (eg: 0.8) and that</span>
-<span class="hljs-comment"># can be used to trigger load-shedding even before hitting on NIC limits.</span>
+<span class="hljs-comment"># 此选项在某些环境中是有用的(例如：EC2 VMs) ，因为Linux报告的网卡最大速度不是 broker 真实的值。</span>
+<span class="hljs-comment"># 因为负载管理器是根据网络使用情况来判断 broker 是否负载，为了确保信息是正确的，你可以通过这个参数来指定正确的值。 这个配置值可以是一个 double 类型的值(比如: 0.8)。</span>
+<span class="hljs-comment"># 能够通过这个配置项在网卡带宽使用完之前，触发负载切分操作。</span>
 <span class="hljs-attr">loadBalancerOverrideBrokerNicSpeedGbps</span>=<span class="hljs-string"></span>
 </code></pre>
 <p>当值为空时，Pulsar 将使用 OS 提供的值。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.1/administration-stats"><span class="arrow-prev">← </span><span>Pulsar 统计数据</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.1/administration-proxy"><span>Pulsar proxy</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-broker集群负载均衡">Pulsar broker集群负载均衡</a></li><li><a href="#pulsar-负载管理体系架构">Pulsar 负载管理体系架构</a><ul class="toc-headings"><li><a href="#向-broker-动态分配主题">向 broker 动态分配主题</a></li><li><a href="#分配粒度">分配粒度</a></li><li><a href="#创建命名空间和-bundle">创建命名空间和 bundle</a></li><li><a href="#卸载主题和-bundle">卸载主题和 bundle</a></li><li><a href="#namespace-bundles-splitting">Namespace bundles splitting</a></li><li><a href="#automatic-load-shedding">Automatic load shedding</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.1/administration-stats"><span class="arrow-prev">← </span><span>Pulsar 统计数据</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.1/administration-proxy"><span>Pulsar proxy</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-broker集群负载均衡">Pulsar broker集群负载均衡</a></li><li><a href="#pulsar-负载管理体系架构">Pulsar 负载管理体系架构</a><ul class="toc-headings"><li><a href="#向-broker-动态分配主题">向 broker 动态分配主题</a></li><li><a href="#分配粒度">分配粒度</a></li><li><a href="#创建命名空间和-bundle">创建命名空间和 bundle</a></li><li><a href="#卸载主题和-bundle">卸载主题和 bundle</a></li><li><a href="#拆分命名空间中的-bundle">拆分命名空间中的 bundle</a></li><li><a href="#自动负载切分">自动负载切分</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

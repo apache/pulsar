@@ -9743,7 +9743,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -17571,10 +17571,10 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -17993,19 +17993,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18016,18 +18003,31 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
                 "underLoaded": {
                     "type": "boolean"
                 },
                 "overLoaded": {
                     "type": "boolean"
                 },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "loadReportType": {
                     "type": "string"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -18208,13 +18208,13 @@
                     "type": "number",
                     "format": "double"
                 },
+                "clientVersion": {
+                    "type": "string"
+                },
                 "producerName": {
                     "type": "string"
                 },
                 "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
                     "type": "string"
                 },
                 "address": {
@@ -18518,10 +18518,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "gcsDriver": {
+                "fileSystemDriver": {
                     "type": "boolean"
                 },
-                "fileSystemDriver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
                 "s3Driver": {
@@ -19117,13 +19117,13 @@
                         "type": "string"
                     }
                 },
+                "clientVersion": {
+                    "type": "string"
+                },
                 "producerName": {
                     "type": "string"
                 },
                 "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
                     "type": "string"
                 },
                 "address": {
@@ -19225,11 +19225,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },
