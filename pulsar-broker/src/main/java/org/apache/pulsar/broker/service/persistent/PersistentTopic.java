@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import javax.ws.rs.core.Response;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -134,6 +135,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -686,6 +688,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
 
+        if (checkMaxSubscriptionsPerTopicExceed()) {
+            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Exceed the maximum number of subscriptions of the topic: " + topic));
+            return subscriptionFuture;
+        }
+
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
@@ -723,6 +731,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
+        CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+        if (checkMaxSubscriptionsPerTopicExceed()) {
+            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Exceed the maximum number of subscriptions of the topic: " + topic));
+            return subscriptionFuture;
+        }
+
         synchronized (ledger) {
             // Create a new non-durable cursor only for the first consumer that connects
             PersistentSubscription subscription = subscriptions.get(subscriptionName);
@@ -758,7 +773,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (startMessageRollbackDurationSec > 0) {
                 long timestamp = System.currentTimeMillis()
                         - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
-                CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
                 final Subscription finalSubscription = subscription;
                 subscription.resetCursor(timestamp).handle((s, ex) -> {
                     if (ex != null) {
@@ -2500,5 +2514,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {
         return messageDeduplication;
+    }
+
+    private boolean checkMaxSubscriptionsPerTopicExceed() {
+        final int maxSubscriptionsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
+        if (maxSubscriptionsPerTopic > 0) {
+            if (subscriptions != null && subscriptions.size() > maxSubscriptionsPerTopic) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
