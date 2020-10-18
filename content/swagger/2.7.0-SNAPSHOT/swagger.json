@@ -15057,6 +15057,13 @@
         "loadReportType" : {
           "type" : "string"
         },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -15068,21 +15075,14 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -16239,11 +16239,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
