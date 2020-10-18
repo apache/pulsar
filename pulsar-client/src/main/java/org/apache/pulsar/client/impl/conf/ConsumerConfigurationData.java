@@ -136,7 +136,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     public String getSingleTopic() {
-        checkArgument(topicNames.size() == 1);
+        checkArgument(topicNames.size() == 1, "topicNames needs to be = 1");
         return topicNames.iterator().next();
     }
 
