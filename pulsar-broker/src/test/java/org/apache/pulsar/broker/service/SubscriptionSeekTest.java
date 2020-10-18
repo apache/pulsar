@@ -25,20 +25,21 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -115,6 +116,98 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         consumer.seek(afterLatest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
     }
+
+    @Test
+    public void testSeekForBatch() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
+        String subscriptionName = "my-subscription-batch";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                .topic(topicName).create();
+
+
+        List<MessageId> messageIds = new ArrayList<>();
+        List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
+
+        List<String> messages = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            messages.add(message);
+            CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(message);
+            futureMessageIds.add(messageIdCompletableFuture);
+        }
+
+        futureMessageIds.forEach(future -> {
+            MessageId messageId = null;
+            try {
+                messageId = future.get();
+                System.out.println("messageId = " + messageId);
+                messageIds.add(messageId);
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
+        producer.flush();
+        producer.close();
+
+
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+
+        assertEquals(topicRef.getSubscriptions().size(), 1);
+
+
+        PersistentSubscription sub = topicRef.getSubscription(subscriptionName);
+//        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+
+//        consumer.seek(MessageId.latest);
+//        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+//
+//        // Wait for consumer to reconnect
+//        Thread.sleep(500);
+//        consumer.seek(MessageId.earliest);
+//        Message<String> earliest = consumer.receive();
+//        MessageId earliestId = earliest.getMessageId();
+//        consumer.acknowledge(earliestId);
+//        assertEquals(earliest.getValue(),messages.get(0));
+//
+
+        Thread.sleep(500);
+        MessageId expectedFifthId = messageIds.get(5);
+        consumer.seek(expectedFifthId);
+        Message<String> fifthMsg = consumer.receive();
+        MessageId fifthId = fifthMsg.getMessageId();
+        consumer.acknowledge(fifthId);
+        System.out.println("expected fifth message id " + expectedFifthId);
+        System.out.println("fifthIdd = " + fifthId);
+        assertEquals(fifthMsg.getValue(), messages.get(5));
+//
+//        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(5);
+//        MessageIdImpl beforeEarliest = new MessageIdImpl(
+//                messageId.getLedgerId() - 1, messageId.getEntryId(), messageId.getPartitionIndex());
+//        MessageIdImpl afterLatest = new MessageIdImpl(
+//                messageId.getLedgerId() + 1, messageId.getEntryId(), messageId.getPartitionIndex());
+//
+//        log.info("MessageId {}: beforeEarliest: {}, afterLatest: {}", messageId, beforeEarliest, afterLatest);
+//
+//        Thread.sleep(500);
+//        consumer.seek(beforeEarliest);
+//        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
+//
+//        Thread.sleep(500);
+//        consumer.seek(afterLatest);
+//        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
+        consumer.close();
+    }
+
 
     @Test
     public void testConcurrentResetCursor() throws Exception {
