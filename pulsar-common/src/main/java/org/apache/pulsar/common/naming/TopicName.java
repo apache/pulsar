@@ -86,9 +86,7 @@ public class TopicName implements ServiceUnitId {
     public static TopicName get(String topic) {
         try {
             return cache.get(topic);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
     }
