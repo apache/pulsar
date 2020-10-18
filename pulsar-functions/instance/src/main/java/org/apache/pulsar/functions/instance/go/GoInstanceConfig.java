@@ -41,6 +41,7 @@ public class GoInstanceConfig {
     private String logTopic = "";
     private int processingGuarantees;
     private String secretsMap = "";
+    private String userConfig = "";
     private int runtime;
     private boolean autoAck;
     private int parallelism;

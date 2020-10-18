@@ -51,7 +51,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloaderBase {
+public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloaderBase {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
     private TieredStorageConfiguration mockedConfig;

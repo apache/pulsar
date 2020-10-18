@@ -101,7 +101,7 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -445,6 +445,7 @@ class Client:
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                         properties=None,
+                        batching_type=BatchingType.Default,
                         ):
         """
         Create a new producer on a given topic.
@@ -498,6 +499,20 @@ class Client:
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
+        * `batching_type`:
+          Sets the batching type for the producer.
+          There are two batching type: DefaultBatching and KeyBasedBatching.
+            - Default batching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+
+            - KeyBasedBatching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -513,6 +528,7 @@ class Client:
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(BatchingType, batching_type, 'batching_type')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -525,6 +541,7 @@ class Client:
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
+        conf.batching_type(batching_type)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:

@@ -100,4 +100,9 @@ void export_enums() {
             .value("Latest", InitialPositionLatest)
             .value("Earliest", InitialPositionEarliest)
             ;
+
+    enum_<ProducerConfiguration::BatchingType>("BatchingType", "Supported batching types")
+            .value("Default", ProducerConfiguration::DefaultBatching)
+            .value("KeyBased", ProducerConfiguration::KeyBasedBatching)
+            ;
 }

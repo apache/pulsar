@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -256,7 +257,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = blobStores.get(bsKey);
+        BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
 
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
@@ -281,7 +282,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                    Map<String, String> offloadDriverMetadata) {
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket(offloadDriverMetadata);
-        BlobStore readBlobstore = blobStores.get(bsKey);
+        BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
@@ -303,13 +304,18 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public OffloadPolicies getOffloadPolicies() {
         // TODO Auto-generated method stub
-        return null;
+        Properties properties = new Properties();
+        properties.putAll(config.getConfigProperties());
+        return OffloadPolicies.create(properties);
     }
     
 
     @Override
     public void close() {
-        // TODO Auto-generated method stub
-        
+        for (BlobStore readBlobStore : blobStores.values()) {
+            if (readBlobStore != null) {
+                readBlobStore.getContext().close();
+            }
+        }
     }
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.suites;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.ITest;
@@ -50,16 +49,7 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
             .clusterName(clusterName)
             .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
-            getEnv().forEach(brokerContainer::withEnv);
-        }
-
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup", spec.clusterName());
+        setupCluster(spec);
     }
 
     @AfterSuite
@@ -74,4 +64,12 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
     }
 
     protected abstract Map<String, String> getEnv();
+
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            getEnv().forEach(brokerContainer::withEnv);
+        }
+    }
 }

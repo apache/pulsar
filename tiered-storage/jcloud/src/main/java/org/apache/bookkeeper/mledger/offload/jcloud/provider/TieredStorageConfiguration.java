@@ -18,6 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.AWS_S3;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE;
+
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
@@ -29,11 +32,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
+import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
+import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
+import org.jclouds.osgi.ApiRegistry;
+import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.providers.ProviderMetadata;
+import org.jclouds.s3.S3ApiMetadata;
+import org.jclouds.s3.reference.S3Constants;
 
 /**
  * Class responsible for holding all of the tiered storage configuration data
@@ -44,6 +55,7 @@ import org.jclouds.providers.ProviderMetadata;
  * properties such as region, bucket, user credentials, etc.
  * </p>
  */
+@Slf4j
 public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
@@ -71,7 +83,9 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return new TieredStorageConfiguration(props);
     }
 
+    @Getter
     private final Map<String, String> configProperties;
+    @Getter
     private Credentials credentials;
     private JCloudBlobStoreProvider provider;
 
@@ -124,7 +138,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     }
 
     public String getBlobStoreProviderKey() {
-        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
     }
 
     public String getDriver() {
@@ -180,7 +194,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     public JCloudBlobStoreProvider getProvider() {
         if (provider == null) {
-            provider = JCloudBlobStoreProvider.valueOf(getBlobStoreProviderKey().toUpperCase());
+            provider = JCloudBlobStoreProvider.getProvider(getBlobStoreProviderKey());
         }
         return provider;
     }
@@ -250,6 +264,19 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(getMaxBlockSizeInBytes()));
         overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
+
+        if (getDriver().equalsIgnoreCase(AWS_S3.getDriver())) {
+            ApiRegistry.registerApi(new S3ApiMetadata());
+            ProviderRegistry.registerProvider(new AWSS3ProviderMetadata());
+        } else if (getDriver().equalsIgnoreCase(GOOGLE_CLOUD_STORAGE.getDriver())) {
+            ProviderRegistry.registerProvider(new GoogleCloudStorageProviderMetadata());
+        }
+
+        if (StringUtils.isNotEmpty(getServiceEndpoint())) {
+            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
+        }
+
+        log.info("getOverrides: {}", overrides.toString());
         return overrides;
     }
 

@@ -35,6 +35,8 @@ import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfig
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.ConfigValidation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
 
+import org.apache.commons.lang3.StringUtils;
+import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
@@ -100,7 +102,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public void buildCredentials(TieredStorageConfiguration config) {
-            if (config.getProviderCredentials() == null) {
+            if (config.getCredentials() == null) {
                 try {
                     String gcsKeyContent = Files.toString(
                             new File(config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile")),
@@ -152,6 +154,18 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     };
 
+    public static JCloudBlobStoreProvider getProvider(String driver) {
+        if (StringUtils.isEmpty(driver)) {
+            return null;
+        }
+        for (JCloudBlobStoreProvider provider : JCloudBlobStoreProvider.values()) {
+            if (provider.driver.equalsIgnoreCase(driver)) {
+                return provider;
+            }
+        }
+        return null;
+    }
+
     public static final boolean driverSupported(String driverName) {
         for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
             if (provider.getDriver().equalsIgnoreCase(driverName)) {
@@ -197,17 +211,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        contextBuilder.overrides(config.getOverrides());
 
-            if (config.getProviderCredentials() != null) {
-                return ContextBuilder.newBuilder(config.getProviderMetadata())
+        if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
+            contextBuilder.endpoint(config.getServiceEndpoint());
+        }
+
+        if (config.getProviderCredentials() != null) {
+                return contextBuilder
                         .credentials(config.getProviderCredentials().identity,
                                      config.getProviderCredentials().credential)
-                        .overrides(config.getOverrides())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             } else {
-                return ContextBuilder.newBuilder(config.getProviderMetadata())
-                        .overrides(config.getOverrides())
+                return contextBuilder
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             }
@@ -215,7 +233,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
-        if (config.getProviderCredentials() == null) {
+        if (config.getCredentials() == null) {
             AWSCredentials awsCredentials = null;
             try {
                 DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();

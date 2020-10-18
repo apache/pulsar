@@ -49,7 +49,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void awsS3KeysTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
         assertEquals(keys.get(0), BC_S3_BUCKET);
@@ -78,7 +78,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void awsS3PropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.bucket", "test bucket");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
@@ -99,7 +99,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void awsS3BackwardCompatiblePropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put(BC_S3_BUCKET, "test bucket");
         map.put(BC_S3_ENDPOINT, "http://some-url:9093");
         map.put(BC_S3_MAX_BLOCK_SIZE, "12");
@@ -120,7 +120,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void gcsKeysTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
         assertEquals(keys.get(0), BC_GCS_BUCKET);
@@ -145,7 +145,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void gcsPropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         map.put("managedLedgerOffload.region", "us-east-1");
         map.put("managedLedgerOffload.bucket", "test bucket");
         map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
@@ -165,7 +165,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void gcsBackwardCompatiblePropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         map.put(BC_GCS_BUCKET, "test bucket");
         map.put(BC_GCS_MAX_BLOCK_SIZE, "12");
         map.put(BC_GCS_READ_BUFFER_SIZE, "500");
@@ -184,7 +184,7 @@ public class TieredStorageConfigurationTests {
     @Test
     public final void s3BackwardCompatiblePropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put(BC_S3_BUCKET, "test bucket");
         map.put(BC_S3_ENDPOINT, "http://some-url:9093");
         map.put(BC_S3_MAX_BLOCK_SIZE, "12");
