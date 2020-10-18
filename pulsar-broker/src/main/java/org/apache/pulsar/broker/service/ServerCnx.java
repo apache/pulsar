@@ -1349,10 +1349,9 @@ public class ServerCnx extends PulsarHandler {
             MessageIdData msgIdData = seek.getMessageId();
             BitSetRecyclable ackSet = BitSetRecyclable.create();
             if (msgIdData.hasBatchIndex()) {
-                for (int i = 0; i < msgIdData.getBatchIndex(); i++) {
-                    ackSet.set(i);
-                }
+                ackSet.set(0, msgIdData.getBatchIndex());
             }
+
             Position position = new PositionImpl(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet.toLongArray());
             ackSet.recycle();
