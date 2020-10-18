@@ -88,22 +88,21 @@
 <p>为 broker 分配主题/分区不在主题/分区级别完成，而是在 Bundle 级别（更高级别）完成。 目的是为了摊销需要跟踪的信息数量。 主题基于 CPU、内存、流量负载和其他索引项动态地分配给特定 broker。</p>
 <p>每个 broker 都拥有主题子集的所有权以用于命名空间，而不是单独的主题/分区分配。 该子集称为“<em>bundle</em>”，实际上是一种分片机制。</p>
 <p>命名空间是“管理”单元：许多配置调节器或操作在命名空间级别完成。</p>
-<p>For assignment, a namespaces is sharded into a list of &quot;bundles&quot;, with each bundle comprising a portion of overall hash range of the namespace.</p>
-<p>Topics are assigned to a particular bundle by taking the hash of the topic name and seeing in which bundle the hash falls into.</p>
-<p>Each bundle is independent of the others and thus is independently assigned to different brokers.</p>
-<h3><a class="anchor" aria-hidden="true" id="creating-namespaces-and-bundles"></a><a href="#creating-namespaces-and-bundles" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating namespaces and bundles</h3>
+<p>具体分配策略是，命名空间切分为一个 ”bundles“ 列表，每个 bundle 覆盖命名空间的一段哈希值范围。</p>
+<p>主题根据其名字算出的哈希值，会被分配到一个特定的 bundle。</p>
+<p>每个 bundle 都是独立的，因此会被独立的分配到不同的 broker。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建命名空间和-bundle"></a><a href="#创建命名空间和-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建命名空间和 bundle</h3>
 <p>When creating a new namespace, it will set to use the default number of bundles. This is set in <code>conf/broker.conf</code>:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># When a namespace is created without specifying the number of bundle, this</span>
-<span class="hljs-comment"># value will be used as the default</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 当命名空间创建时没有指定 bundle 数量时，将使用这个默认的值。</span>
 <span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-string">4</span>
 </code></pre>
-<p>One can either change the system default, or override it when creating a new namespace:</p>
+<p>你可以修改系统默认设置，或者在创建命名空间的时候指定它：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
 </code></pre>
 <p>With this command, we're creating a namespace with 16 initial bundles. Therefore the topics for this namespaces can immediately be spread across up to 16 brokers.</p>
-<p>In general, if the expected traffic and number of topics is known in advance, it's a good idea to start with a reasonable number of bundles instead of waiting for the system to auto-correct the distribution.</p>
-<p>On a same note, it is normally beneficial to start with more bundles than number of brokers, primarily because of the hashing nature of the distribution of topics into bundles. For example, for a namespace with 1000 topics, using something like 64 bundles will achieve a good distribution of traffic across 16 brokers.</p>
-<h3><a class="anchor" aria-hidden="true" id="unloading-topics-and-bundles"></a><a href="#unloading-topics-and-bundles" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unloading topics and bundles</h3>
+<p>一般情况下，如果流量和主题数量的发展是可以预期的，我们建议一开始就设置合理的 bundle 数量，不要等待系统去自动调整。</p>
+<p>正常情况下， 应设置 bundle 数量大于 broker数量。因为主题是根据哈希自动分布到 bundle 里面的。 例如，命令空间内有1000个主题，可以使用比如 64 个 bundle ，让流量均匀的分布在 16 个broker上。</p>
+<h3><a class="anchor" aria-hidden="true" id="卸载主题和-bundle"></a><a href="#卸载主题和-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载主题和 bundle</h3>
 <p>In Pulsar there is an admin operation of &quot;unloading&quot; a topic. Unloading means to close the topics, release ownership and reassign the topics to a new broker, based on current load.</p>
 <p>When unload happens, the client will experience a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.</p>
 <p>Unloading is the mechanism used by the load-manager to perform the load shedding, but it can also be triggered manually, for example to correct the assignments and redistribute traffic even before having any broker overloaded.</p>
@@ -164,7 +163,7 @@
 <p>In case of network utilization, in some cases the network interface speed reported by Linux is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS report 10Gbps speed.</p>
 <p>Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact it's already using all the bandwidth and the traffic is being slowed down.</p>
 <p>以下设置可修正最大网卡速度：</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Override the auto-detection of the network interfaces max speed.</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 覆盖自动获取的网卡最大速度</span>
 <span class="hljs-comment"># This option is useful in some environments (eg: EC2 VMs) where the max speed</span>
 <span class="hljs-comment"># reported by Linux is not reflecting the real bandwidth available to the broker.</span>
 <span class="hljs-comment"># Since the network usage is employed by the load manager to decide when a broker</span>
@@ -174,7 +173,7 @@
 <span class="hljs-attr">loadBalancerOverrideBrokerNicSpeedGbps</span>=<span class="hljs-string"></span>
 </code></pre>
 <p>当值为空时，Pulsar 将使用 OS 提供的值。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.0/administration-stats"><span class="arrow-prev">← </span><span>Pulsar 统计数据</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.0/administration-proxy"><span>Pulsar proxy</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-broker集群负载均衡">Pulsar broker集群负载均衡</a></li><li><a href="#pulsar-负载管理体系架构">Pulsar 负载管理体系架构</a><ul class="toc-headings"><li><a href="#向-broker-动态分配主题">向 broker 动态分配主题</a></li><li><a href="#分配粒度">分配粒度</a></li><li><a href="#creating-namespaces-and-bundles">Creating namespaces and bundles</a></li><li><a href="#unloading-topics-and-bundles">Unloading topics and bundles</a></li><li><a href="#namespace-bundles-splitting">Namespace bundles splitting</a></li><li><a href="#automatic-load-shedding">Automatic load shedding</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.0/administration-stats"><span class="arrow-prev">← </span><span>Pulsar 统计数据</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.0/administration-proxy"><span>Pulsar proxy</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-broker集群负载均衡">Pulsar broker集群负载均衡</a></li><li><a href="#pulsar-负载管理体系架构">Pulsar 负载管理体系架构</a><ul class="toc-headings"><li><a href="#向-broker-动态分配主题">向 broker 动态分配主题</a></li><li><a href="#分配粒度">分配粒度</a></li><li><a href="#创建命名空间和-bundle">创建命名空间和 bundle</a></li><li><a href="#卸载主题和-bundle">卸载主题和 bundle</a></li><li><a href="#namespace-bundles-splitting">Namespace bundles splitting</a></li><li><a href="#automatic-load-shedding">Automatic load shedding</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
