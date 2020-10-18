@@ -2354,7 +2354,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
-            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                future = tb.commitTxn(txnID);
+            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                future = tb.abortTxn(txnID);
+            } else {
+                future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+            }
+
+            future.whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     completableFuture.completeExceptionally(throwable);
                     return;

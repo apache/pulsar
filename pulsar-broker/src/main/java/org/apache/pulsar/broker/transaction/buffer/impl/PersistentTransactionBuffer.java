@@ -64,8 +64,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
     private Topic originTopic;
-    private ConcurrentLinkedQueue<TxnID> pendingCommitTxn;
-    private volatile boolean pendingCommitHandling;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -97,7 +95,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         this.retentionCursor = ledger.newNonDurableCursor(
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
-        this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -150,21 +147,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                 new Exception("Unsupported operation endTxn in PersistentTransactionBuffer."));
     }
 
-    @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-            future = committingTxn(txnID);
-        } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-            future = abortTxn(txnID);
-        } else {
-            future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
-        }
-        return future;
-    }
-
-    private CompletableFuture<Void> committingTxn(TxnID txnID) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    private CompletableFuture<PositionImpl> committingTxn(TxnID txnID) {
+        CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
         txnCursor.getTxnMeta(txnID, false).whenComplete(((meta, txnMetaThrowable) -> {
 
             if (txnMetaThrowable != null) {
@@ -187,48 +171,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                     sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
             publishMessage(txnID, committingMarker, sequenceId)
                     .thenCompose(position -> meta.committingTxn()
-                    .thenAccept(committingTxn -> {
-                        pendingCommitTxn.add(txnID);
-                        if (!pendingCommitHandling) {
-                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
-                        }
-                        completableFuture.complete(null);
-                    }));
+                    .thenApply(ignored -> completableFuture.complete(null)));
         }));
         return completableFuture;
     }
 
-    private void handlePendingCommit() {
-        pendingCommitHandling = true;
-        TxnID txnID = pendingCommitTxn.peek();
-        txnCursor.getTxnMeta(txnID, false).thenAccept(meta -> {
-            if (meta.status().equals(TxnStatus.COMMITTING)) {
-                commitPartitionTopic(txnID).thenCompose(position ->
-                    commitTxn(txnID,
-                        ((PositionImpl) position).getLedgerId(),
-                        ((PositionImpl) position).getEntryId())
-                        .whenComplete((ignored, throwable) -> {
-                            if (throwable != null) {
-                                handlePendingCommit();
-                            } else {
-                                pendingCommitTxn.remove(txnID);
-                                if (pendingCommitTxn.peek() != null) {
-                                    handlePendingCommit();
-                                } else {
-                                    pendingCommitHandling = false;
-                                }
-                            }
-                        }));
-            } else {
-                pendingCommitTxn.remove(txnID);
-            }
-        });
-    }
-
     // append committed marker to partitioned topic
-    @Override
-    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        CompletableFuture<Position> positionFuture = new CompletableFuture<>();
+    private CompletableFuture<PositionImpl> appendMarkerToPartition(TxnID txnID) {
+        CompletableFuture<PositionImpl> positionFuture = new CompletableFuture<>();
         // TODO How to generate sequenceId for commit marker in partitioned topic
         long ptSequenceId = -1;
         MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
@@ -242,13 +192,19 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return positionFuture;
     }
 
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
+    private CompletableFuture<Void> commitTB(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
         return txnCursor.getTxnMeta(txnID, false)
-                        .thenApply(meta -> createCommitMarker(meta, committedAtLedgerId, committedAtEntryId))
-                        .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
-                        .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
-                                                                     position));
+                .thenApply(meta -> createCommitMarker(meta, committedAtLedgerId, committedAtEntryId))
+                .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
+                .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
+                        position));
+    }
+
+    @Override
+    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+        return committingTxn(txnID)
+                .thenCompose(igonred -> appendMarkerToPartition(txnID))
+                .thenCompose(committedPos -> commitTB(txnID, committedPos.getLedgerId(), committedPos.getEntryId()));
     }
 
     private Marker createCommitMarker(TransactionMeta meta, long committedAtLedgerId, long committedAtEntryId) {
