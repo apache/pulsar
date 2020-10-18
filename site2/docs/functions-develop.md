@@ -447,6 +447,14 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
+
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+  c.record = record
+}
+
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+  return c.record
+}
 ```
 
 The following example uses several methods available via the `Context` object.
