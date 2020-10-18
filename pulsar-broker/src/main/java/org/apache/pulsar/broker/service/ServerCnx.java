@@ -121,6 +121,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -1346,7 +1347,7 @@ public class ServerCnx extends PulsarHandler {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
-            BitSet ackSet = new BitSet();
+            BitSetRecyclable ackSet = BitSetRecyclable.create();
             if (msgIdData.hasBatchIndex()) {
                 for (int i = 0; i < msgIdData.getBatchIndex(); i++) {
                     ackSet.set(i);
@@ -1354,6 +1355,7 @@ public class ServerCnx extends PulsarHandler {
             }
             Position position = new PositionImpl(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet.toLongArray());
+            ackSet.recycle();
 
 
             subscription.resetCursor(position).thenRun(() -> {
