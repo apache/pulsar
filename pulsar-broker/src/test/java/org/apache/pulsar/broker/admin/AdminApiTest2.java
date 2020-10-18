@@ -1333,7 +1333,12 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxSubscriptionsPerTopic(2);
         super.internalSetup();
 
-        final String topic = "persistent://prop-xyz/ns1/max-subscriptions-per-topic";
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        final String topic = "persistent://testTenant/ns1/max-subscriptions-per-topic";
 
         admin.topics().createPartitionedTopic(topic, 3);
         Producer producer = pulsarClient.newProducer().topic(topic).create();
@@ -1344,14 +1349,19 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.topics().createSubscription(topic, "test-sub2", MessageId.earliest);
         try {
             admin.topics().createSubscription(topic, "test-sub3", MessageId.earliest);
+            Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of subscriptions of the topic: " + topic);
+            log.info("create subscription failed. Exception: ", e);
         }
 
         super.internalCleanup();
         conf.setMaxSubscriptionsPerTopic(0);
         super.internalSetup();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
         admin.topics().createPartitionedTopic(topic, 3);
         producer = pulsarClient.newProducer().topic(topic).create();
         producer.close();
@@ -1363,6 +1373,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxSubscriptionsPerTopic(2);
         super.internalSetup();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
         admin.topics().createPartitionedTopic(topic, 3);
         producer = pulsarClient.newProducer().topic(topic).create();
         producer.close();
