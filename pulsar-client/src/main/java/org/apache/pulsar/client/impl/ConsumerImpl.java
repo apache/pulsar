@@ -1929,9 +1929,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
 
         long requestId = client.newRequestId();
-        MessageIdImpl msgId = (MessageIdImpl) messageId;
+        ByteBuf seek = null;
+        if (messageId instanceof MessageImpl) {
+            MessageIdImpl msgId = (MessageIdImpl) messageId;
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), 0);
+        } else if (messageId instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl msgId = (BatchMessageIdImpl) messageId;
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getBatchIndex());
+        } else {
+            throw new RuntimeException("Unexpected class " + messageId.getClass() + ", should be one of MessageImpl or BatchMessageIdImpl");
+        }
 
-        ByteBuf seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex());
         ClientCnx cnx = cnx();
 
         log.info("[{}][{}] Seek subscription to message id {}", topic, subscription, messageId);

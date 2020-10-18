@@ -770,7 +770,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId, int partitionIndex) {
+    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId, int batchIndex) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
@@ -778,7 +778,7 @@ public class Commands {
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-        messageIdBuilder.setBatchIndex(partitionIndex);
+        messageIdBuilder.setBatchIndex(batchIndex);
         MessageIdData messageId = messageIdBuilder.build();
         seekBuilder.setMessageId(messageId);
 
