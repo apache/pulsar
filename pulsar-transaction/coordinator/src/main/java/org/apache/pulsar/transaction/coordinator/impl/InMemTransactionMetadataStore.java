@@ -64,8 +64,8 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
         TxnID txnID = new TxnID(
-                tcID.getId(),
-                localID.getAndIncrement()
+            tcID.getId(),
+            localID.getAndIncrement()
         );
         TxnMetaImpl txn = TxnMetaImpl.create(txnID);
         transactions.put(txnID, txn);

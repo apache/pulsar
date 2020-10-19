@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -151,20 +151,15 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (TxnAction.COMMIT_VALUE == txnAction) {
-            committingTxn(txnID).whenComplete((ignored, throwable) -> {
-                if (throwable != null) {
-                    completableFuture.completeExceptionally(throwable);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
-        } else if (TxnAction.ABORT_VALUE == txnAction) {
-            // TODO handle abort operation
-            completableFuture.complete(null);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+            future = committingTxn(txnID);
+        } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+            future = abortTxn(txnID);
+        } else {
+            future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
         }
-        return completableFuture;
+        return future;
     }
 
     private CompletableFuture<Void> committingTxn(TxnID txnID) {

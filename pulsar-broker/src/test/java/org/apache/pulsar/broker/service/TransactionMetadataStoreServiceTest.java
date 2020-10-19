@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import static org.testng.Assert.assertEquals;
 
 public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
@@ -91,7 +92,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         partitions.add("ptn-2");
         transactionMetadataStoreService.addProducedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
-        Assert.assertEquals(txn.status(), TxnStatus.OPEN);
+        assertEquals(txn.status(), TxnStatus.OPEN);
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
@@ -102,14 +103,13 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
         TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
-
         List<TransactionSubscription> partitions = new ArrayList<>();
         partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
         partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
         partitions.add(TransactionSubscription.builder().topic("ptn-3").subscription("sub-1").build());
         transactionMetadataStoreService.addAckedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
-        Assert.assertEquals(txn.status(), TxnStatus.OPEN);
+        assertEquals(txn.status(), TxnStatus.OPEN);
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
