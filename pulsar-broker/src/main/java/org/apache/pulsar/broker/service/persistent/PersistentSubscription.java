@@ -147,7 +147,7 @@ public class PersistentSubscription implements Subscription {
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
     }
