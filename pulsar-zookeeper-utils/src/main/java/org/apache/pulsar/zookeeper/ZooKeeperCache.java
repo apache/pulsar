@@ -108,17 +108,17 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.dataCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
+                .expireAfterWrite(cacheExpirySeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.childrenCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
+                .expireAfterWrite(cacheExpirySeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.existsCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
+                .expireAfterWrite(cacheExpirySeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-data", dataCache);
