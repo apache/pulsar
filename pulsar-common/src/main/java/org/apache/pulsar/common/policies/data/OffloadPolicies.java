@@ -249,4 +249,62 @@ public class OffloadPolicies implements Serializable {
                 .toString();
     }
 
+    public static final String METADATA_FIELD_BUCKET = "bucket";
+    public static final String METADATA_FIELD_REGION = "region";
+    public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
+    public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
+    public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+    public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
+
+    public static Properties toProperties(OffloadPolicies offloadPolicies) {
+        Properties properties = new Properties();
+
+        setProperty(properties, "managedLedgerOffloadDriver", offloadPolicies.getManagedLedgerOffloadDriver());
+        setProperty(properties, "managedLedgerOffloadMaxThreads",
+                offloadPolicies.getManagedLedgerOffloadMaxThreads());
+        setProperty(properties, "managedLedgerOffloadPrefetchRounds",
+                offloadPolicies.getManagedLedgerOffloadPrefetchRounds());
+        setProperty(properties, "managedLedgerOffloadThresholdInBytes",
+                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
+                offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+
+        if (offloadPolicies.isS3Driver()) {
+            setProperty(properties, "s3ManagedLedgerOffloadRegion",
+                    offloadPolicies.getS3ManagedLedgerOffloadRegion());
+            setProperty(properties, "s3ManagedLedgerOffloadBucket",
+                    offloadPolicies.getS3ManagedLedgerOffloadBucket());
+            setProperty(properties, "s3ManagedLedgerOffloadServiceEndpoint",
+                    offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint());
+            setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
+                    offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+            setProperty(properties, "s3ManagedLedgerOffloadRole",
+                    offloadPolicies.getS3ManagedLedgerOffloadRole());
+            setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",
+                    offloadPolicies.getS3ManagedLedgerOffloadRoleSessionName());
+        } else if (offloadPolicies.isGcsDriver()) {
+            setProperty(properties, "gcsManagedLedgerOffloadRegion",
+                    offloadPolicies.getGcsManagedLedgerOffloadRegion());
+            setProperty(properties, "gcsManagedLedgerOffloadBucket",
+                    offloadPolicies.getGcsManagedLedgerOffloadBucket());
+            setProperty(properties, "gcsManagedLedgerOffloadMaxBlockSizeInBytes",
+                    offloadPolicies.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
+            setProperty(properties, "gcsManagedLedgerOffloadReadBufferSizeInBytes",
+                    offloadPolicies.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
+            setProperty(properties, "gcsManagedLedgerOffloadServiceAccountKeyFile",
+                    offloadPolicies.getGcsManagedLedgerOffloadServiceAccountKeyFile());
+
+        } else if (offloadPolicies.isFileSystemDriver()) {
+            setProperty(properties, "fileSystemProfilePath", offloadPolicies.getFileSystemProfilePath());
+            setProperty(properties, "fileSystemURI", offloadPolicies.getFileSystemURI());
+        }
+        return properties;
+    }
+
+    private static void setProperty(Properties properties, String key, Object value) {
+        if (value != null) {
+            properties.setProperty(key, "" + value);
+        }
+    }
+
 }
