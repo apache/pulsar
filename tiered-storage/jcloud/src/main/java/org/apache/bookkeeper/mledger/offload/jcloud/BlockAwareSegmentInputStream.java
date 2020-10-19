@@ -48,7 +48,7 @@ public abstract class BlockAwareSegmentInputStream extends InputStream {
     public abstract int getBlockSize();
 
     /**
-     * Get entry count that read out from this InputStream
+     * Get entry count that read out from this InputStream.
      *
      * @return the block entry count
      */
@@ -62,7 +62,7 @@ public abstract class BlockAwareSegmentInputStream extends InputStream {
     public abstract long getEndEntryId();
 
     /**
-     * Get sum of entries data size read from the this InputStream
+     * Get sum of entries data size read from the this InputStream.
      *
      * @return the block entry bytes count
      */

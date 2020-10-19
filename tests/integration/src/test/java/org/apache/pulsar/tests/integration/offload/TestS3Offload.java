@@ -32,14 +32,18 @@ public class TestS3Offload extends TestBaseOffload {
 
     private S3Container s3Container;
 
-    @BeforeClass
-    public void setupS3() {
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+
+        log.info("s3 container init");
         s3Container = new S3Container(
                 pulsarCluster.getClusterName(),
                 S3Container.NAME)
                 .withNetwork(pulsarCluster.getNetwork())
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
+        log.info("s3 container start finish.");
     }
 
     @AfterClass
@@ -71,7 +75,7 @@ public class TestS3Offload extends TestBaseOffload {
         Map<String, String> result = new HashMap<>();
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-        result.put("managedLedgerOffloadDriver", "s3");
+        result.put("managedLedgerOffloadDriver", "aws-s3");
         result.put("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
         result.put("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
 
