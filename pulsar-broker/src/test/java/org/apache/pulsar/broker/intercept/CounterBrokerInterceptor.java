@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.intercept;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -36,20 +37,30 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int count = 0;
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) {
+    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
         log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
         count ++;
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        count ++;
-        log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
-        chain.doFilter(request, response);
+    public void onConnectionClosed(ServerCnx cnx) {
+        // np-op
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        count ++;
+        log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        count ++;
+        log.info("[{}] On [{}] Webservice response", count, ((HttpServletRequest)request).getRequestURL().toString());
+    }
+
+    @Override
+    public void initialize(PulsarService pulsarService) throws Exception {
 
     }
 

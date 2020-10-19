@@ -37,6 +37,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -253,6 +254,26 @@ public class BrokersBase extends AdminResource {
     public InternalConfigurationData getInternalConfigurationData() {
         validateSuperUserAccess();
         return pulsar().getInternalConfigurationData();
+    }
+
+    @GET
+    @Path("/backlog-quota-check")
+    @ApiOperation(value = "An REST endpoint to trigger backlogQuotaCheck")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccess();
+        pulsar().getBrokerService().executor().execute(()->{
+            try {
+                pulsar().getBrokerService().monitorBacklogQuota();
+                asyncResponse.resume(Response.noContent().build());
+            } catch (Exception e) {
+                LOG.error("trigger backlogQuotaCheck fail", e);
+                asyncResponse.resume(new RestException(e));
+            }
+        });
     }
 
     @GET

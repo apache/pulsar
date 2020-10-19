@@ -239,6 +239,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
+        doc = "The maximum number of tenants that each pulsar cluster can create." 
+                + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
+    )
+    private int maxTenants = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
@@ -423,6 +430,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
+    
+    @FieldContext(
+        category = CATEGORY_POLICIES, 
+        dynamic = true,
+        doc = "The maximum number of namespaces that each tenant can create."
+            + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
+    private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -501,6 +515,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private int maxPublishRatePerTopicInMessages = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long maxPublishRatePerTopicInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -751,11 +779,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+    )
+    private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
         doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
         + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
         + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
+
 
     /**** --- Messaging Protocols --- ****/
 
@@ -984,6 +1019,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " a certain time Using a value of 0, is disabling the speculative reads")
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
     @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Number of channels per bookie"
+    )
+    private int bookkeeperNumberOfChannelsPerBookie = 16;
+    @FieldContext(
+        dynamic = true,
         category = CATEGORY_STORAGE_BK,
         doc = "Use older Bookkeeper wire protocol with bookie"
     )

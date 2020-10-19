@@ -50,7 +50,7 @@ public class OwnedBundle {
     /**
      * constructor
      *
-     * @param nsname
+     * @param suName
      */
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
@@ -60,8 +60,7 @@ public class OwnedBundle {
     /**
      * Constructor to allow set initial active flag
      *
-     * @param nsname
-     * @param nssvc
+     * @param suName
      * @param active
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {

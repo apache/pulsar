@@ -222,7 +222,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force);
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force, false);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -305,9 +305,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetInternalStats(authoritative);
+        return internalGetInternalStats(authoritative, metadata);
     }
 
     @GET
@@ -699,5 +700,38 @@ public class PersistentTopics extends PersistentTopicsBase {
                                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         return internalOffloadStatus(authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/lastMessageId")
+    @ApiOperation(value = "Return the last commit message id of topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void getLastMessageId(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the cluster", required = true)
+            @PathParam("cluster") String cluster,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, cluster, namespace, encodedTopic);
+            internalGetLastMessageId(asyncResponse, authoritative);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 }

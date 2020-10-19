@@ -151,7 +151,8 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
      * creates ClientHandler channel to connect and communicate with server
      *
      * @param serviceUrl
-     * @param latch
+     * @param promise
+     * @param tls
      * @return
      * @throws URISyntaxException
      */

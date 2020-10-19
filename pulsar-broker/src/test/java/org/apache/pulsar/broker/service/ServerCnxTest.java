@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -77,6 +78,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
@@ -1654,6 +1656,50 @@ public class ServerCnxTest {
 
         Object response = getResponse();
         assertTrue(response instanceof CommandSuccess);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testTopicIsNotReady() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // 1st subscribe command to load the topic
+        ByteBuf clientCommand1 = Commands.newSubscribe(successTopicName, successSubName, 1 /* consumer id */,
+                1 /* request id */, SubType.Shared, 0 /* priority level */, "c1" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand1);
+
+        Object response1 = getResponse();
+        assertEquals(response1.getClass(), CommandSuccess.class);
+        assertEquals(((CommandSuccess) response1).getRequestId(), 1);
+
+        // Force the checkTopicNsOwnership method to throw ServiceUnitNotReadyException
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        future.completeExceptionally(new ServiceUnitNotReadyException("Service unit is not ready"));
+        doReturn(future).when(brokerService).checkTopicNsOwnershipAsync(anyString());
+
+        // 2nd subscribe command when the service unit is not ready
+        ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, successSubName, 2 /* consumer id */,
+                2 /* request id */, SubType.Shared, 0 /* priority level */, "c2" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand2);
+
+        Object response2 = getResponse();
+        assertEquals(response2.getClass(), CommandError.class);
+        assertEquals(((CommandError) response2).getError(), ServerError.ServiceNotReady);
+        assertEquals(((CommandError) response2).getRequestId(), 2);
+
+        // Producer command when the service unit is not ready
+        ByteBuf clientCommand3 = Commands.newProducer(successTopicName, 1 /* producer id */, 3 /* request id */,
+                "p1" /* producer name */, Collections.emptyMap());
+        channel.writeInbound(clientCommand3);
+
+        Object response3 = getResponse();
+        assertEquals(response3.getClass(), CommandError.class);
+        assertEquals(((CommandError) response3).getError(), ServerError.ServiceNotReady);
+        assertEquals(((CommandError) response3).getRequestId(), 3);
 
         channel.finish();
     }

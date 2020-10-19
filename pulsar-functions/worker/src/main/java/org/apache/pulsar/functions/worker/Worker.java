@@ -62,7 +62,7 @@ public class Worker {
 
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
-        this.workerService = new WorkerService(workerConfig);
+        this.workerService = new WorkerService(workerConfig, true);
         this.errorNotifier = ErrorNotifier.getDefaultImpl();
     }
 

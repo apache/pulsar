@@ -180,7 +180,7 @@ public interface Topic {
 
     TopicStats getStats(boolean getPreciseBacklog);
 
-    PersistentTopicInternalStats getInternalStats();
+    CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
 

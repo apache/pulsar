@@ -57,8 +57,6 @@ public class BundleSplitterTask implements BundleSplitStrategy {
      * @param loadData
      *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
      *            leader broker).
-     * @param localData
-     *            Local data for the broker we are splitting on.
      * @param pulsar
      *            Service to use.
      * @return All bundles who have exceeded configured thresholds in number of topics, number of sessions, total

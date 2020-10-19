@@ -983,7 +983,7 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }

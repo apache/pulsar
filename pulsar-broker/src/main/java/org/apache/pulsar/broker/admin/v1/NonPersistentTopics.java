@@ -112,11 +112,17 @@ public class NonPersistentTopics extends PersistentTopics {
     public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getInternalStats();
+        try {
+            boolean includeMetadata = metadata && hasSuperUserAccess();
+            return topic.getInternalStats(includeMetadata).get();
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+        }
     }
 
     @PUT

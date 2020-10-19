@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -26,14 +29,17 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-public class EventListenerFilter implements Filter {
+@Slf4j
+public class PreInterceptFilter implements Filter {
 
-    private final BrokerInterceptor eventListener;
+    private final BrokerInterceptor interceptor;
 
-    public EventListenerFilter(BrokerInterceptor eventListener) {
-        this.eventListener = eventListener;
+    public PreInterceptFilter(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 
     @Override
@@ -43,7 +49,23 @@ public class EventListenerFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        eventListener.onWebServiceRequest(servletRequest, servletResponse, filterChain);
+        if (log.isDebugEnabled()) {
+            log.debug("PreInterceptFilter: path {}, type {}",
+                servletRequest.getServletContext().getContextPath(),
+                servletRequest.getContentType());
+        }
+        if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())) {
+            // skip multipart request at this moment
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
+        try {
+            RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest);
+            interceptor.onWebserviceRequest(requestWrapper);
+            filterChain.doFilter(requestWrapper, servletResponse);
+        } catch (InterceptException e) {
+            ((HttpServletResponse) servletResponse).sendError(e.getErrorCode(), e.getMessage());
+        }
     }
 
     @Override

@@ -35,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -140,7 +139,8 @@ public class Producer {
         return false;
     }
 
-    public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
+    public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
+            boolean isChunked) {
         beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
         publishMessageToTopic(headersAndPayload, sequenceId, batchSize, isChunked);
     }
@@ -149,8 +149,8 @@ public class Producer {
            ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
         if (lowestSequenceId > highestSequenceId) {
             cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, highestSequenceId, ServerError.MetadataError,
-                        "Invalid lowest or highest sequence id"));
+                cnx.getCommandSender().sendSendError(producerId, highestSequenceId, ServerError.MetadataError,
+                        "Invalid lowest or highest sequence id");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return;
@@ -162,8 +162,8 @@ public class Producer {
     public void beforePublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
             cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.PersistenceError,
-                        "Producer is closed"));
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.PersistenceError,
+                        "Producer is closed");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
 
@@ -172,8 +172,7 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(
-                        Commands.newSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker"));
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return;
@@ -190,8 +189,8 @@ public class Producer {
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
                 cnx.ctx().channel().eventLoop().execute(() -> {
-                    cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
-                            "Messages must be encrypted"));
+                    cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.MetadataError,
+                            "Messages must be encrypted");
                     cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
                 });
                 return;
@@ -361,8 +360,8 @@ public class Producer {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
-                        producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, callBackSequenceId,
-                                serverError, exception.getMessage()));
+                        producer.cnx.getCommandSender().sendSendError(producer.producerId, callBackSequenceId,
+                                serverError, exception.getMessage());
                     }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
                     producer.publishOperationCompleted();
@@ -393,9 +392,8 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            producer.cnx.ctx().writeAndFlush(
-                    Commands.newSendReceipt(producer.producerId, sequenceId, highestSequenceId, ledgerId, entryId),
-                    producer.cnx.ctx().voidPromise());
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
+                    ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
                 producer.chuckedMessageRate.recordEvent();

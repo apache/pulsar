@@ -201,6 +201,8 @@ enum ServerError {
     TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
     InvalidTxnStatus = 21; // Invalid txn status error
     NotAllowedError = 22; // Not allowed error
+
+    TransactionConflict = 23; // Ack with transaction conflict
 }
 
 enum AuthMethod {
@@ -508,6 +510,7 @@ message CommandAck {
 
     optional uint64 txnid_least_bits = 6 [default = 0];
     optional uint64 txnid_most_bits = 7 [default = 0];
+    optional uint64 request_id = 8;
 }
 
 message CommandAckResponse {
@@ -516,6 +519,7 @@ message CommandAckResponse {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional ServerError error = 4;
     optional string message = 5;
+    optional uint64 request_id = 6;
 }
 
 // changes on active consumer

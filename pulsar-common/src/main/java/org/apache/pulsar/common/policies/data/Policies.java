@@ -58,7 +58,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
     @SuppressWarnings("checkstyle:MemberName")
-    public int message_ttl_in_seconds = 0;
+    public Integer message_ttl_in_seconds = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int subscription_expiration_time_minutes = 0;
     @SuppressWarnings("checkstyle:MemberName")

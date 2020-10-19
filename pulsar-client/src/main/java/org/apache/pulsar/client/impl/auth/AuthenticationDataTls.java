@@ -41,7 +41,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     private FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
     private InputStream certStream, keyStream;
-    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -58,6 +58,12 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
 
     public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
             Supplier<ByteArrayInputStream> keyStreamProvider) throws KeyManagementException {
+        this(certStreamProvider, keyStreamProvider, null);
+    }
+
+    public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider)
+            throws KeyManagementException {
         if (certStreamProvider == null || certStreamProvider.get() == null) {
             throw new IllegalArgumentException("certStream provider or stream must not be null");
         }
@@ -66,12 +72,12 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         }
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
+        this.trustStoreStreamProvider = trustStoreStreamProvider;
         this.certStream = certStreamProvider.get();
         this.keyStream = keyStreamProvider.get();
         this.tlsCertificates = SecurityUtility.loadCertificatesFromPemStream(certStream);
         this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemStream(keyStream);
     }
-
     /*
      * TLS
      */
@@ -119,6 +125,11 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             }
         }
         return this.tlsPrivateKey;
+    }
+
+    @Override
+    public InputStream getTlsTrustStoreStream() {
+        return trustStoreStreamProvider != null ? trustStoreStreamProvider.get() : null;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);

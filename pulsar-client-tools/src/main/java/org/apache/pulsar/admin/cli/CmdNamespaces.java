@@ -165,15 +165,19 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Deletes a namespace. The namespace needs to be empty")
+    @Parameters(commandDescription = "Deletes a namespace.")
     private class Delete extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Delete namespace forcefully by force deleting all topics under it")
+        private boolean force = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().deleteNamespace(namespace);
+            admin.namespaces().deleteNamespace(namespace, force);
         }
     }
 
@@ -299,6 +303,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setNamespaceMessageTTL(namespace, messageTTL);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove Message TTL for a namespace")
+    private class RemoveMessageTTL extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeNamespaceMessageTTL(namespace);
         }
     }
 
@@ -775,6 +791,18 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             admin.namespaces().setPublishRate(namespace,
                 new PublishRate(msgPublishRate, bytePublishRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove publish-rate for all topics of the namespace")
+    private class RemovePublishRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removePublishRate(namespace);
         }
     }
 
@@ -1706,6 +1734,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
 
         jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
         jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
@@ -1745,6 +1774,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
+        jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());

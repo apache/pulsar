@@ -588,7 +588,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         AsyncResponse response = mock(AsyncResponse.class);
-        namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false);
+        namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false, false);
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());

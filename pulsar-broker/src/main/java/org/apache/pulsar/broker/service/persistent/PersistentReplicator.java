@@ -328,6 +328,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readFailureBackoff.reduceToHalf();
 
         boolean atLeastOneMessageSentForReplication = false;
+        boolean isEnableReplicatedSubscriptions = brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
         try {
             // This flag is set to true when we skip atleast one local message,
@@ -348,7 +349,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     continue;
                 }
 
-                checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
+                if (isEnableReplicatedSubscriptions) {
+                    checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
+                }
 
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
