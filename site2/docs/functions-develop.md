@@ -104,7 +104,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
-Pulsar has a built-in schema registry and is bundled with popular schema types, such as avro, json and protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
+Pulsar has a built-in schema registry and is bundled with popular schema types, such as Avro, JSON and Protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
@@ -121,12 +121,12 @@ public interface SerDe<T> {
     byte[] serialize(T input);
 }
 ```
-SerDe works in the following way in Java Functions.
+SerDe works in the following ways in Java Functions.
 - If the input and output topics have schema, Pulsar Functions use schema for SerDe.
 - If the input and output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
   - If the schema type is specified, Pulsar Functions use the specified schema type.
   - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
-  - If either the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `json` format. 
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
 
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
