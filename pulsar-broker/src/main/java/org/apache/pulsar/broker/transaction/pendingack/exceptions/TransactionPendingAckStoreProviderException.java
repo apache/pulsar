@@ -16,26 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+package org.apache.pulsar.broker.transaction.pendingack.exceptions;
 
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarApi.PendingAckMetadataEntry;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferException;
 
 /**
- * Call back for pending ack reply.
+ * Transaction pending ack store provider exception.
  */
-public interface PendingAckReplyCallBack {
+public class TransactionPendingAckStoreProviderException extends TransactionBufferException {
 
-    /**
-     * Pending ack replay complete callback for pending ack store.
-     */
-    void replayComplete();
+    public TransactionPendingAckStoreProviderException(String message) {
+        super(message);
+    }
 
-    /**
-     * Handle metadata entry.
-     *
-     * @param position the pending ack operation position
-     * @param pendingAckMetadataEntry the metadata entry of pending ack
-     */
-    void handleMetadataEntry(Position position, PendingAckMetadataEntry pendingAckMetadataEntry);
 }

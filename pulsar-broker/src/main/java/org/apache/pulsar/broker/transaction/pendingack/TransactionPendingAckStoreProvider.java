@@ -18,46 +18,47 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.pulsar.broker.service.Topic;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-public interface PendingAckStoreProvider {
+/**
+ * Provider of transaction pending ack store.
+ */
+public interface TransactionPendingAckStoreProvider {
 
     /**
      * Construct a provider from the provided class.
      *
-     * @param providerClassName the provider class name.
+     * @param providerClassName the provider class name
      * @return an instance of transaction buffer provider.
      */
-    static PendingAckStoreProvider newProvider(String providerClassName) throws IOException {
+    static TransactionPendingAckStoreProvider newProvider(String providerClassName) throws IOException {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
             Object obj = providerClass.newInstance();
-            checkArgument(obj instanceof PendingAckStoreProvider,
+            checkArgument(obj instanceof TransactionPendingAckStoreProvider,
                     "The factory has to be an instance of "
-                            + PendingAckStoreProvider.class.getName());
+                            + TransactionPendingAckStoreProvider.class.getName());
 
-            return (PendingAckStoreProvider) obj;
+            return (TransactionPendingAckStoreProvider) obj;
         } catch (Exception e) {
             throw new IOException(e);
         }
     }
 
     /**
-     * Open the pending ack handle.
+     * Open the pending ack store.
      *
-     * @param managedLedgerFactory {@link ManagedLedgerFactory}
-     * @param topicName {@link String}
+     * @param topic {@link Topic}
      * @param subName {@link String}
      * @return a future represents the result of the operation.
-     *         an instance of {@link PendingAckHandle} is returned
+     *         an instance of {@link PendingAckStore} is returned
      *         if the operation succeeds.
      */
-    CompletableFuture<PendingAckStore> newPendingAckPersistentStore(ManagedLedgerFactory managedLedgerFactory,
-                                                                    String topicName, String subName);
+    CompletableFuture<PendingAckStore> newPendingAckStore(Topic topic, String subName);
 }

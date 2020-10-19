@@ -19,73 +19,60 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.PendingAckMetadataEntry;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.SpscArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.PendingAckMetadataEntry;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.io.core.KeyValue;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.SpscArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * The implement of the pending ack store by manageLedger.
+ */
 public class MLPendingAckStore implements PendingAckStore {
 
 
-    private ManagedLedger managedLedger;
+    private final ManagedLedger managedLedger;
 
     private final ManagedCursor cursor;
 
-    private static final String PENDING_ACK_PERSISTENT_SUFFIX = "/transaction-pendingack";
+    private static final String PENDING_ACK_STORE_SUFFIX = "/transaction-pendingack";
 
-    private static final String PENDING_ACK_CURSOR_NAME = "pendingack";
+    private static final String PENDING_ACK_STORE_CURSOR_NAME = "pendingack";
 
     private final PositionImpl lastConfirmedEntry;
-
-    private final String ledgerName;
-
-    private final String topicName;
-
-    private final String subName;
 
     protected ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<Position>> pendingIndividualAckPersistentMap;
     protected KeyValue<TxnID, Position> pendingCumulativeAckPosition;
 
-    public MLPendingAckStore(ManagedLedgerFactory managedLedgerFactory,
-                             String topicName, String subName) throws Exception {
-        this.topicName = topicName;
-        this.subName = subName;
-        this.ledgerName = topicName + "-" + subName + PENDING_ACK_PERSISTENT_SUFFIX;
-        try {
-            this.managedLedger = managedLedgerFactory.open(ledgerName);
-            this.cursor = managedLedger.openCursor(PENDING_ACK_CURSOR_NAME, CommandSubscribe.InitialPosition.Earliest);
-            this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
-        } catch (Exception e) {
-            log.error("Pending ack persistent store init error!", e);
-            throw new Exception(e.getCause());
-        }
+    public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor) {
+        this.managedLedger = managedLedger;
+        this.cursor = cursor;
+        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
 
     @Override
@@ -147,7 +134,8 @@ public class MLPendingAckStore implements PendingAckStore {
                 @Override
                 public void addComplete(Position position, Object ctx) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Pending ack message append success at {}", ledgerName, ctx, position);
+                        log.debug("[{}][{}] MLPendingAckStore message append success at {}",
+                                managedLedger.getName(), ctx, position);
                     }
 
                     if (ackType == AckType.Individual) {
@@ -156,7 +144,11 @@ public class MLPendingAckStore implements PendingAckStore {
                                         .computeIfAbsent(txnID, v -> new ConcurrentOpenHashSet<>());
                         positions.add(position);
                     } else {
-                        pendingCumulativeAckPosition = new KeyValue<>(txnID, position);
+                        deleteTxn(txnID, ackType).thenAccept(v ->
+                                pendingCumulativeAckPosition = new KeyValue<>(txnID, position)).exceptionally(e -> {
+                                    completableFuture.complete(null);
+                                    return null;
+                                });
                     }
                     builder.recycle();
                     pendingAckMetadataEntry.recycle();
@@ -166,7 +158,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
                 @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}][{}]Pending ack message append fail exception : {}", ledgerName, ctx, exception);
+                    log.error("[{}][{}] MLPendingAckStore message append fail exception : {}",
+                            managedLedger.getName(), ctx, exception);
                     builder.recycle();
                     pendingAckMetadataEntry.recycle();
                     buf.release();
@@ -174,7 +167,8 @@ public class MLPendingAckStore implements PendingAckStore {
                 }
             } , null);
         } catch (IOException e) {
-            log.error("[{}] Pending ack message append fail exception : {}", ledgerName, e);
+            log.error("[{}] MLPendingAckStore message append fail exception : {}",
+                    managedLedger.getName(), e);
             buf.release();
             completableFuture.completeExceptionally(e);
         } finally {
@@ -193,22 +187,21 @@ public class MLPendingAckStore implements PendingAckStore {
                     @Override
                     public void deleteComplete(Object position) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Pending ack delete message at {}", ledgerName, position);
+                            log.debug("[{}] MLPendingAckStore delete message at {}", managedLedger.getName(), position);
                         }
+                        pendingCumulativeAckPosition = null;
                         completableFuture.complete(null);
                     }
 
                     @Override
                     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] Pending ack failed to delete message at {}", ledgerName, ctx, exception);
+                        log.error("[{}][{}] MLPendingAckStore failed to delete message at {}",
+                                managedLedger.getName(), ctx, exception);
                         completableFuture.completeExceptionally(exception);
                     }
                 }, null);
             } else {
-                log.error("Pending cumulative ack store delete txn " +
-                        "is not current txn! topicName : [{}], txnID : [{}]", topicName, txnID);
-                completableFuture.completeExceptionally(new TransactionConflictException("Pending cumulative ack " +
-                        "store delete txn " + "is not current txn! topicName : " + topicName + ", txnID : " + txnID));
+                completableFuture.complete(null);
             }
         } else {
             if (pendingIndividualAckPersistentMap.containsKey(txnID)) {
@@ -217,21 +210,22 @@ public class MLPendingAckStore implements PendingAckStore {
                             @Override
                             public void deleteComplete(Object position) {
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Pending ack delete message at {}", ledgerName, position);
+                                    log.debug("[{}] MLPendingAckStore delete message at {}",
+                                            managedLedger.getName(), position);
                                 }
+                                pendingIndividualAckPersistentMap.remove(txnID);
                                 completableFuture.complete(null);
                             }
 
                             @Override
                             public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("[{}][{}] Pending ack failed to delete message at {}", ledgerName, ctx, exception);
+                                log.error("[{}][{}] MLPendingAckStore failed to delete message at {}",
+                                        managedLedger.getName(), ctx, exception);
                                 completableFuture.completeExceptionally(exception);
                             }
                         }, null);
             } else {
-                log.error("Pending ack store delete txnId : [{}] don't have position to delete!", txnID);
-                completableFuture.completeExceptionally(new TransactionConflictException("Pending ack store delete " +
-                        "txnId : " + txnID + " for TopicName : " + topicName + " don't have position to delete!"));
+                completableFuture.complete(null);
             }
         }
         return completableFuture;
@@ -251,6 +245,10 @@ public class MLPendingAckStore implements PendingAckStore {
         }
 
         public void start() {
+            if (((PositionImpl) cursor.getMarkDeletedPosition()).compareTo(lastConfirmedEntry) == 0) {
+                this.pendingAckReplyCallBack.replayComplete();
+                return;
+            }
             while (currentLoadEntryId < lastConfirmedEntry.getEntryId()) {
                 fillEntryQueueCallback.fillQueue();
                 Entry entry = entryQueue.poll();
@@ -267,18 +265,19 @@ public class MLPendingAckStore implements PendingAckStore {
                         pendingAckReplyCallBack.handleMetadataEntry(entry.getPosition(), pendingAckMetadataEntry);
                     } catch (Exception e) {
                         if (pendingAckMetadataEntry != null) {
-                            log.error("TxnId : [{}:{}], Position : [{}:{}] Pending ack reply error!",
+                            log.error("TxnId : [{}:{}], Position : [{}:{}] MLPendingAckStore reply error!",
                                     pendingAckMetadataEntry.getTxnidMostBits(),
                                     pendingAckMetadataEntry.getTxnidLeastBits(),
                                     pendingAckMetadataEntry.getLedgerId(),
                                     pendingAckMetadataEntry.getEntryId(), e);
                         } else {
-                            log.error("Pending ack reply error!", e);
+                            log.error("MLPendingAckStore reply error!", e);
                         }
-                        throw new RuntimeException("Pending ack reply convert entry error : ", e);
                     }
                     entry.release();
-                    pendingAckMetadataEntry.recycle();
+                    if (pendingAckMetadataEntry != null) {
+                        pendingAckMetadataEntry.recycle();
+                    }
                     pendingAckMetadataEntryBuilder.recycle();
                     stream.recycle();
                 } else {
@@ -289,7 +288,6 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             }
-            log.info("MLPendingAckStore init success! TopicName : {}, SubName: {}", topicName, subName);
             pendingAckReplyCallBack.replayComplete();
         }
     }
@@ -329,10 +327,18 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            log.error("Pending ack stat reply fail!", exception);
+            log.error("MLPendingAckStore stat reply fail!", exception);
             outstandingReadsRequests.decrementAndGet();
         }
 
+    }
+
+    public static String getTransactionPendingAckStoreSuffix(String originTopicName) {
+        return TopicName.get(originTopicName) + PENDING_ACK_STORE_SUFFIX;
+    }
+
+    public static String getTransactionPendingAckStoreCursorName() {
+        return PENDING_ACK_STORE_CURSOR_NAME;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);

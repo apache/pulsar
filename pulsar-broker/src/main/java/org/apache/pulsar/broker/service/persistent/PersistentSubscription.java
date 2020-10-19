@@ -39,9 +39,11 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -51,6 +53,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -156,6 +159,11 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         cursor.updateLastActive();
+        if (pendingAckHandle != null && !pendingAckHandle.checkIfReady()) {
+            log.error("PendingAckHandleImpl haven't init success TopicName : {}, SubName: {}", topicName, subName);
+            throw new BrokerServiceException.ServiceUnitNotReadyException("PendingAckHandleImpl haven't init " +
+                    "success! " + "TopicName : " + topicName + ", SubName: " + subName);
+        }
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             throw new SubscriptionFencedException("Subscription is fenced");
@@ -652,6 +660,10 @@ public class PersistentSubscription implements Subscription {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
+
+            if (pendingAckHandle != null) {
+                pendingAckHandle.closeAsync();
+            }
             IS_FENCED_UPDATER.set(this, TRUE);
             log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
         }
@@ -965,6 +977,9 @@ public class PersistentSubscription implements Subscription {
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
                         getDispatcher()).getActiveConsumer();
+            } else {
+                //TODO this can think about how to redeliver for multi consumer
+                redeliverConsumer = getDispatcher().getConsumers().get(0);
             }
             completableFuture = pendingAckHandle.abortTxn(txnID, redeliverConsumer);
         } else {

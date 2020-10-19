@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +98,8 @@ import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -323,13 +323,24 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-            boolean replicated) throws Exception {
+            boolean replicated) {
         checkNotNull(compactedTopic);
+        PendingAckHandle pendingAckHandle = null;
+        if (brokerService.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            TransactionPendingAckStoreProvider pendingAckStoreProvider =
+                    brokerService.getPulsar().getTransactionPendingAckStoreProvider();
+            if (pendingAckStoreProvider != null) {
+                if (pendingAckStoreProvider instanceof MLPendingAckStoreProvider) {
+                    pendingAckHandle =
+                            new PendingAckHandleImpl(topic, subscriptionName,
+                                    pendingAckStoreProvider.newPendingAckStore(this, subscriptionName));
+                }
+            }
+        }
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
-            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
+            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor, pendingAckHandle);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor,
-                    replicated, new PendingAckHandleImpl(topic, subscriptionName));
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated, pendingAckHandle);
         }
     }
 

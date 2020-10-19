@@ -25,6 +25,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * To store transaction pending ack.
+ */
 public interface PendingAckStore {
     /**
      * Replay pending ack to recover the pending ack subscription pending ack stat.

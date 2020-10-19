@@ -1269,12 +1269,20 @@ public class ServerCnx extends PulsarHandler {
                             ctx.writeAndFlush(Commands.newAckResponse(
                                     ack.getRequestId(), null, null, ack.getConsumerId()));
                         }
+                        for (int i = 0; i < ack.getMessageIdCount(); i++) {
+                            ack.getMessageId(i).recycle();
+                        }
+                        ack.recycle();
                     }).exceptionally(e -> {
                         if (ack.hasRequestId()) {
                             ctx.writeAndFlush(Commands.newAckResponse(ack.getRequestId(),
                                     BrokerServiceException.getClientErrorCode(e),
                                     e.getMessage(), ack.getConsumerId()));
                         }
+                        for (int i = 0; i < ack.getMessageIdCount(); i++) {
+                            ack.getMessageId(i).recycle();
+                        }
+                        ack.recycle();
                         return null;
                     });
         }

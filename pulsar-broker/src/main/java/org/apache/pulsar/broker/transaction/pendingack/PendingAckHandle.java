@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * To handle the transaction pending ack.
+ */
 public interface PendingAckHandle {
 
     /**
@@ -84,4 +87,8 @@ public interface PendingAckHandle {
     String getTopicName();
 
     String getSubName();
+
+    boolean checkIfReady();
+
+    CompletableFuture<Void> closeAsync();
 }

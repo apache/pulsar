@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -33,37 +31,47 @@ import org.apache.pulsar.io.core.KeyValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletableFuture;
-
+/**
+ * MLPendingAckStore reply call back.
+ */
 public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
     private final MLPendingAckStore mlPendingAckStore;
 
-    private final PendingAckHandle pendingAckHandle;
+    private final PendingAckHandleImpl pendingAckHandle;;
 
-    private final CompletableFuture<Void> replayFuture;
-
-    public MLPendingAckReplyCallBack(MLPendingAckStore mlPendingAckStore, PendingAckHandle pendingAckHandle,
-                                     CompletableFuture<Void> replayFuture) {
+    public MLPendingAckReplyCallBack(MLPendingAckStore mlPendingAckStore, PendingAckHandleImpl pendingAckHandle) {
         this.mlPendingAckStore = mlPendingAckStore;
         this.pendingAckHandle = pendingAckHandle;
-        this.replayFuture = replayFuture;
     }
 
     @Override
     public void replayComplete() {
         log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                 pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
-        replayFuture.complete(null);
+        if (pendingAckHandle.changeToReadyState()) {
+            log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
+                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+        } else {
+            log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
+                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+        }
     }
 
     @Override
     public void handleMetadataEntry(Position position, PendingAckMetadataEntry pendingAckMetadataEntry) {
         TxnID txnID = new TxnID(pendingAckMetadataEntry.getTxnidMostBits(),
                 pendingAckMetadataEntry.getTxnidLeastBits());
-        PositionImpl opPosition = PositionImpl.get(pendingAckMetadataEntry.getLedgerId(),
-                pendingAckMetadataEntry.getEntryId(),
-                SafeCollectionUtils.longListToArray(pendingAckMetadataEntry.getAckSetList()));
+        PositionImpl opPosition;
+        if (pendingAckMetadataEntry.getAckSetCount() == 0) {
+            opPosition = PositionImpl.get(pendingAckMetadataEntry.getLedgerId(),
+                    pendingAckMetadataEntry.getEntryId());
+        } else {
+            opPosition = PositionImpl.get(pendingAckMetadataEntry.getLedgerId(),
+                    pendingAckMetadataEntry.getEntryId(),
+                    SafeCollectionUtils.longListToArray(pendingAckMetadataEntry.getAckSetList()));
+        }
+
         if (pendingAckMetadataEntry.getAckType() == AckType.Cumulative) {
             this.mlPendingAckStore.pendingCumulativeAckPosition = new KeyValue<>(txnID, position);
         } else {

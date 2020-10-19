@@ -254,8 +254,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
 
-            consumer.redeliverUnacknowledgedMessages();
-
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);

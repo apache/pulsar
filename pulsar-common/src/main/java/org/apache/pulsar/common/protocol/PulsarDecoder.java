@@ -143,10 +143,6 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case ACK:
                 checkArgument(cmd.hasAck());
                 handleAck(cmd.getAck());
-                for (int i = 0; i < cmd.getAck().getMessageIdCount(); i++) {
-                    cmd.getAck().getMessageId(i).recycle();
-                }
-                cmd.getAck().recycle();
                 break;
 
             case ACK_RESPONSE:

@@ -151,7 +151,7 @@ public class PersistentSubscriptionTest {
         consumerMock = mock(Consumer.class);
 
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock,
-                false, new PendingAckHandleImpl(topic.getName(), subName));
+                false, null);
     }
 
     @AfterMethod

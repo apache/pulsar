@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.Compactor;
@@ -39,8 +40,8 @@ public class CompactorSubscription extends PersistentSubscription {
     private CompactedTopic compactedTopic;
 
     public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
-                                 String subscriptionName, ManagedCursor cursor) {
-        super(topic, subscriptionName, cursor, false, null);
+                                 String subscriptionName, ManagedCursor cursor, PendingAckHandle pendingAckHandle) {
+        super(topic, subscriptionName, cursor, false, pendingAckHandle);
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
 

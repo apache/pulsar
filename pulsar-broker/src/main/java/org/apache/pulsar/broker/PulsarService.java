@@ -96,8 +96,8 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -210,6 +210,7 @@ public class PulsarService implements AutoCloseable {
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
+    private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private TransactionBufferClient transactionBufferClient;
 
     private BrokerInterceptor brokerInterceptor;
@@ -570,6 +571,8 @@ public class PulsarService implements AutoCloseable {
 
                 transactionBufferProvider = TransactionBufferProvider
                         .newProvider(config.getTransactionBufferProviderClassName());
+                transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
+                        .newProvider(config.getTransactionPendingAckStoreProviderClassName());
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -1103,6 +1106,10 @@ public class PulsarService implements AutoCloseable {
     }
 
     public TransactionBufferProvider getTransactionBufferProvider() {
+        return transactionBufferProvider;
+    }
+
+    public TransactionBufferProvider getTransactionPendingAckProvider() {
         return transactionBufferProvider;
     }
 
