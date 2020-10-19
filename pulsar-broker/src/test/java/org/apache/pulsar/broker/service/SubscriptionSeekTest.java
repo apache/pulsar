@@ -55,6 +55,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     @AfterClass
@@ -143,7 +144,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             MessageId messageId = null;
             try {
                 messageId = future.get();
-                System.out.println("messageId = " + messageId);
                 messageIds.add(messageId);
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
@@ -154,7 +154,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
 
         org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionType(SubscriptionType.Shared)
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe();
@@ -166,46 +165,32 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
 
         PersistentSubscription sub = topicRef.getSubscription(subscriptionName);
-//        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
 
-//        consumer.seek(MessageId.latest);
-//        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
-//
-//        // Wait for consumer to reconnect
-//        Thread.sleep(500);
-//        consumer.seek(MessageId.earliest);
-//        Message<String> earliest = consumer.receive();
-//        MessageId earliestId = earliest.getMessageId();
-//        consumer.acknowledge(earliestId);
-//        assertEquals(earliest.getValue(),messages.get(0));
-//
-
+        MessageId resetId = messageIds.get(4);
+        consumer.seek(resetId);
+        // Wait for consumer to reconnect
         Thread.sleep(500);
-        MessageId expectedFifthId = messageIds.get(5);
-        consumer.seek(expectedFifthId);
-        Message<String> fifthMsg = consumer.receive();
-        MessageId fifthId = fifthMsg.getMessageId();
-        consumer.acknowledge(fifthId);
-        System.out.println("expected fifth message id " + expectedFifthId);
-        System.out.println("fifthIdd = " + fifthId);
-        assertEquals(fifthMsg.getValue(), messages.get(5));
-//
-//        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(5);
-//        MessageIdImpl beforeEarliest = new MessageIdImpl(
-//                messageId.getLedgerId() - 1, messageId.getEntryId(), messageId.getPartitionIndex());
-//        MessageIdImpl afterLatest = new MessageIdImpl(
-//                messageId.getLedgerId() + 1, messageId.getEntryId(), messageId.getPartitionIndex());
-//
-//        log.info("MessageId {}: beforeEarliest: {}, afterLatest: {}", messageId, beforeEarliest, afterLatest);
-//
-//        Thread.sleep(500);
-//        consumer.seek(beforeEarliest);
-//        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
-//
-//        Thread.sleep(500);
-//        consumer.seek(afterLatest);
-//        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
-        consumer.close();
+
+        Message<String> nextMessage = consumer.receive();
+        MessageId nextId = nextMessage.getMessageId();
+        consumer.acknowledge(nextId);
+        String expectedMessage = messages.get(5);
+        System.out.println("expectedMessage = " + expectedMessage);
+        System.out.println("nextMessage = " + nextMessage.getValue());
+        assertEquals(nextMessage.getValue(), expectedMessage);
+
+        resetId = messageIds.get(7);
+        consumer.seek(resetId);
+        // Wait for consumer to reconnect
+        Thread.sleep(500);
+
+        nextMessage = consumer.receive();
+        nextId = nextMessage.getMessageId();
+        consumer.acknowledge(nextId);
+        expectedMessage = messages.get(8);
+        System.out.println("expectedMessage2 = " + expectedMessage);
+        System.out.println("nextMessage2 = " + nextMessage.getValue());
+        assertEquals(nextMessage.getValue(), expectedMessage);
     }
 
 
