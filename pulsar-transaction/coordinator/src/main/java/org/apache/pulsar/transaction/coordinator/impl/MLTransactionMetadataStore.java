@@ -239,7 +239,8 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TransactionSubscription> txnSubscriptions) {
+    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID,
+                                                               List<TransactionSubscription> txnSubscriptions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException.TransactionMetadataStoreStateException(tcID,
@@ -354,10 +355,12 @@ public class MLTransactionMetadataStore
         return subscriptions;
     }
 
-    public static List<TransactionSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
+    public static List<TransactionSubscription> subscriptionToTxnSubscription(
+            List<PulsarApi.Subscription> subscriptions) {
         List<TransactionSubscription> transactionSubscriptions = new ArrayList<>(subscriptions.size());
         for (PulsarApi.Subscription subscription : subscriptions) {
-            TransactionSubscription.TransactionSubscriptionBuilder transactionSubscriptionBuilder  = TransactionSubscription.builder();
+            TransactionSubscription.TransactionSubscriptionBuilder transactionSubscriptionBuilder  =
+                    TransactionSubscription.builder();
             transactionSubscriptionBuilder.subscription(subscription.getSubscription());
             transactionSubscriptionBuilder.topic(subscription.getTopic());
             transactionSubscriptions

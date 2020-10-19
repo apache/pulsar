@@ -175,6 +175,10 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
 
         public void start() {
+            if (((PositionImpl) cursor.getMarkDeletedPosition()).compareTo(lastConfirmedEntry) == 0) {
+                this.transactionLogReplayCallback.replayComplete();
+                return;
+            }
             while (currentLoadEntryId < lastConfirmedEntry.getEntryId()) {
                 fillEntryQueueCallback.fillQueue();
                 Entry entry = entryQueue.poll();
