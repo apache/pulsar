@@ -33,6 +33,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,7 +59,11 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleState;
+import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
@@ -149,9 +154,20 @@ public class PersistentSubscriptionTest {
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 
         consumerMock = mock(Consumer.class);
-
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(null);
+        CompletableFuture<PendingAckStore> storeFuture = new CompletableFuture<>();
+        MLPendingAckStore pendingAckStore = mock(MLPendingAckStore.class);
+        storeFuture.complete(pendingAckStore);
+        doNothing().when(pendingAckStore).replayAsync(any());
+        doReturn(completableFuture).when(pendingAckStore).append(any(), any(), any());
+        doReturn(completableFuture).when(pendingAckStore).deleteTxn(any(), any());
+        PendingAckHandleImpl pendingAckHandle = new PendingAckHandleImpl(topic.getName(), subName, storeFuture);
+        Method changeToReadyState = PendingAckHandleState.class.getDeclaredMethod("changeToReadyState");
+        changeToReadyState.setAccessible(true);
+        changeToReadyState.invoke(pendingAckHandle);
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock,
-                false, null);
+                false, pendingAckHandle);
     }
 
     @AfterMethod
@@ -257,8 +273,8 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack " +
+                    "position: 2:50 is not currentPosition: 1:100");
         }
 
         positions.clear();

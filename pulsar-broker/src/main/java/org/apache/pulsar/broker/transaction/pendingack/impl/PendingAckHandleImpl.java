@@ -155,7 +155,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 });
             } else {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
-                        " try to cumulative batch ack position: " + position + " is not  " +
+                        " try to cumulative batch ack position: " + position + " is not " +
                         "currentPosition: " + this.pendingCumulativeAckMessage;
                 log.error(errorMsg);
                 completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
