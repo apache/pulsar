@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Represent response of rest publish message attempt
+ * Represent response of rest publish message attempt.
  */
 @Data
 @AllArgsConstructor

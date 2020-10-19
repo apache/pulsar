@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Hold necessary parameters for rest publish message attempt
+ * Hold necessary parameters for rest publish message attempt.
  */
 @Data
 @AllArgsConstructor
@@ -50,7 +50,7 @@ public class ProduceMessageRequest {
     private String producerName;
 
     /**
-     * Holds information for single message to be published
+     * Holds information for single message to be published.
      */
     @Data
     @AllArgsConstructor
