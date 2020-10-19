@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
+/**
+ * Represent response of rest publish message attempt
+ */
 @Data
 @AllArgsConstructor
 @Setter
@@ -33,14 +36,26 @@ import java.util.List;
 @NoArgsConstructor
 public class ProduceMessageResponse {
 
-    List<ProduceMessageResult> results;
+    List<ProduceMessageResult> messagePublishResults;
 
+    long schemaVersion;
+
+    /**
+     * Represent result of publishing a message through rest API.
+     */
     @Setter
     @Getter
     public static class ProduceMessageResult {
+        // partition message published to
         int partition;
+
+        // message id in format of ledgerId:entryId
         String messageId;
+
+        // error code, 0 means no error, 1 means retriable error, 2 means non=retriable error
         int errorCode;
+
+        // error message is publish failed
         String error;
     }
 }

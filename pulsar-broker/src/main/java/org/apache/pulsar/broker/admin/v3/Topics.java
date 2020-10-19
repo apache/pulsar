@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.rest;
+package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import org.apache.pulsar.broker.admin.impl.TopicsBase;
 import org.apache.pulsar.common.policies.data.ProduceMessageRequest;
 
 import javax.ws.rs.Consumes;
@@ -37,10 +38,10 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 
-@Path("/topics")
+@Path("/persistent/topics")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/topics", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
+@Api(value = "/", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
 public class Topics extends TopicsBase {
 
     @POST

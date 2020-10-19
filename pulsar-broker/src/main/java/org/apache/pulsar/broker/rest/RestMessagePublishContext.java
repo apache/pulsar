@@ -26,6 +26,9 @@ import org.apache.pulsar.broker.service.Topic;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+/**
+ *
+ */
 @Slf4j
 public class RestMessagePublishContext implements Topic.PublishContext {
 
@@ -38,10 +41,11 @@ public class RestMessagePublishContext implements Topic.PublishContext {
      */
     @Override
     public void completed(Exception exception, long ledgerId, long entryId) {
+        log.info("message publish completed");
         if (exception != null) {
+            positionFuture.completeExceptionally(exception);
             log.error("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. triggered send callback.",
                     ledgerId, entryId);
-            positionFuture.completeExceptionally(exception);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. triggered send callback.",
@@ -49,6 +53,7 @@ public class RestMessagePublishContext implements Topic.PublishContext {
             }
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.MICROSECONDS);
             positionFuture.complete(PositionImpl.get(ledgerId, entryId));
+            log.error("Message publish complete");
         }
         recycle();
     }
