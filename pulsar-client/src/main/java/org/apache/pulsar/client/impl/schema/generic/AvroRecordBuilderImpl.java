@@ -28,10 +28,10 @@ import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
  */
 class AvroRecordBuilderImpl implements GenericRecordBuilder {
 
-    private final GenericAvroSchema genericSchema;
+    private final GenericSchemaImpl genericSchema;
     private final org.apache.avro.generic.GenericRecordBuilder avroRecordBuilder;
 
-    AvroRecordBuilderImpl(GenericAvroSchema genericSchema) {
+    AvroRecordBuilderImpl(GenericSchemaImpl genericSchema) {
         this.genericSchema = genericSchema;
         this.avroRecordBuilder =
             new org.apache.avro.generic.GenericRecordBuilder(genericSchema.getAvroSchema());
