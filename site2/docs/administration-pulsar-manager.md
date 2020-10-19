@@ -145,3 +145,46 @@ docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_P
 ## Log in
 
 Visit http://localhost:9527 to log in.
+
+## Use Pulsar Manager with MySQL
+
+This section describes how to use MySQL database to store Pulsar Manager data. In this example, the Pulsar Manager runs locally. If you do not run Pulsar manager locally, please replace localhost with your backend service address.
+
+1. Start the MySQL server. If you have not installed the MySQL server, you can [download](https://hub.docker.com/_/mysql) a MySQL docker image and use it to install the MySQL server.
+
+2. Initialize the MySQL database and the table structure. For details, see [here]( https://github.com/apache/pulsar-manager/blob/master/src/main/resources/META-INF/sql/mysql-schema.sql). Then, copy the table structure data to the MySQL database.
+
+3. Start the Pulsar Manager.
+
+   - Start the Pulsar Manager by using the following CLI commands.
+       ```
+       docker pull streamnative/pulsar-manager:v0.2.1
+       docker run -it \
+           -p 9527:9527 \
+           -p 7750:7750 \
+           -e REDIRECT_HOST=127.0.0.1 \
+           -e REDIRECT_PORT=3306 \
+           -e DRIVER_CLASS_NAME=com.mysql.jdbc.Driver \
+           -e URL='jdbc:mysql://mysql-host:3306/pulsar_manager?characterEncoding=utf8&useSSL=false' \
+           -e USERNAME=mysql-db-username \
+           -e PASSWORD=mysql-db-password \
+           -e LOG_LEVEL=INFO \
+           streamnative/pulsar-manager:v0.2.1
+       ```
+
+   - Start the Pulsar Manager through the configuration file. You need to update the IP address, username, and password of the MySQL server based on your environment configuration. For details about the configuration file, see [here](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties).
+
+4. Initialize the Pulsar Manager with the username and password of the super user.
+
+    ```
+    CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+    curl \
+        -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
+        -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
+        -H "Content-Type: application/json" \
+        -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+        -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+    {"message":"Add super user success, please login"}
+    ```
+
+5. Log in to the Pulsar Manager. Then, the Pulsar Manager data can be stored in the MySQL database.
