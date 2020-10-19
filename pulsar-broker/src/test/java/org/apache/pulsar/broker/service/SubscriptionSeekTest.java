@@ -163,9 +163,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
-
-        PersistentSubscription sub = topicRef.getSubscription(subscriptionName);
-
         MessageId resetId = messageIds.get(4);
         consumer.seek(resetId);
         // Wait for consumer to reconnect
@@ -174,6 +171,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Message<String> nextMessage = consumer.receive();
         MessageId nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
+        // For non-durable we are going to restart from the next entry
         String expectedMessage = messages.get(5);
         System.out.println("expectedMessage = " + expectedMessage);
         System.out.println("nextMessage = " + nextMessage.getValue());
@@ -187,6 +185,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         nextMessage = consumer.receive();
         nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
+        // For non-durable we are going to restart from the next entry
         expectedMessage = messages.get(8);
         System.out.println("expectedMessage2 = " + expectedMessage);
         System.out.println("nextMessage2 = " + nextMessage.getValue());
