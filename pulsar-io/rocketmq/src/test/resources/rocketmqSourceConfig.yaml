@@ -17,7 +17,7 @@
 # under the License.
 #
 
-"namesrvAddr": "localhost:6667"
+"namesrvAddr": "localhost:9876"
 "consumerGroup": "test-pulsar-io-consumer-group"
 "topic": "test"
 "tag": "*"

@@ -70,6 +70,8 @@ import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
 import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
 import org.apache.pulsar.tests.integration.io.RabbitMQSinkTester;
 import org.apache.pulsar.tests.integration.io.RabbitMQSourceTester;
+import org.apache.pulsar.tests.integration.io.RocketMQSinkTester;
+import org.apache.pulsar.tests.integration.io.RocketMQSourceTester;
 import org.apache.pulsar.tests.integration.io.SinkTester;
 import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
@@ -149,6 +151,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     public void testRabbitMQSink() throws Exception {
         final String containerName = "rabbitmq-" + randomName(8);
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
+    }
+
+    @Test(groups = "sink")
+    public void testRocketMQSink() throws Exception {
+        final String containerName = "rocketmq-" + randomName(8);
+        testSink(new RocketMQSinkTester(containerName), true, new RocketMQSourceTester(containerName));
     }
 
     @Test(groups = "source")

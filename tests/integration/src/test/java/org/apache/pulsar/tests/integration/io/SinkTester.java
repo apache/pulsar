@@ -39,7 +39,8 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         JDBC_POSTGRES("jdbc-postgres"),
         HDFS("hdfs"),
         ELASTIC_SEARCH("elastic_search"),
-        RABBITMQ("rabbitmq");
+        RABBITMQ("rabbitmq"),
+        ROCKETMQ("rocketmq");
 
         private final String value;
 
