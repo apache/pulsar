@@ -1141,12 +1141,31 @@ public class TopicsImpl extends BaseResource implements Topics {
             throw getApiException(e);
         }
     }
+    @Override
+    public void resetCursorExclusive(String topic, String subName, MessageId messageId) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            String encodedSubName = Codec.encode(subName);
+            WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetCursorExclusive");
+            request(path).post(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                            ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 
     @Override
     public CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         final WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetcursor");
+        return asyncPostRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
+    }
+    @Override
+    public CompletableFuture<Void> resetCursorExclusiveAsync(String topic, String subName, MessageId messageId) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        final WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetCursorExclusive");
         return asyncPostRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 
