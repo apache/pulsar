@@ -786,7 +786,7 @@ public class Commands {
             // Initialize ack set
             BitSet ackSet = new BitSet();
             ackSet.set(0, batchSize);
-            ackSet.clear(0, batchIndex);
+            ackSet.clear(0, Math.max(batchIndex, 0));
             for (long l : ackSet.toLongArray()) {
                 messageIdBuilder.addAckSet(l);
             }
