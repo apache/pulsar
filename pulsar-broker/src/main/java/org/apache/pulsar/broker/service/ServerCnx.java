@@ -1350,14 +1350,11 @@ public class ServerCnx extends PulsarHandler {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
-            BitSetRecyclable ackSet = BitSetRecyclable.create();
-            if (msgIdData.hasBatchIndex()) {
-                ackSet.set(0, Math.max(msgIdData.getBatchIndex(), 0));
-            }
 
+            long[] ackSet = msgIdData.getAckSetList().stream().mapToLong(x -> x).toArray();
+            if (ackSet == null) ackSet = new long[0];
             Position position = new PositionImpl(msgIdData.getLedgerId(),
-                    msgIdData.getEntryId(), ackSet.toLongArray());
-            ackSet.recycle();
+                    msgIdData.getEntryId(), ackSet);
 
 
             subscription.resetCursor(position).thenRun(() -> {
