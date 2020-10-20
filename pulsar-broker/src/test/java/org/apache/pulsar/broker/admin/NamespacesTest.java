@@ -1244,7 +1244,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
                 -1);
 
         // set an override for the namespace
@@ -1258,7 +1258,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
                 100);
 
         // set another negative value to disable
@@ -1271,7 +1271,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
                 -2);
 
         // set back to -1 and fall back to default
@@ -1284,7 +1284,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
                 -1);
 
         // cleanup

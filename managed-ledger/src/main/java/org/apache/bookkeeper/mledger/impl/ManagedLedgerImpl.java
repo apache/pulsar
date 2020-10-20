@@ -1930,7 +1930,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
         if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null) {
-            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes() >= 0) {
                 executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
             }
         }
@@ -1953,7 +1953,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                     && config.getLedgerOffloader().getOffloadPolicies() != null) {
-                long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes();
+                long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
 
                 long sizeSummed = 0;
                 long alreadyOffloadedSize = 0;
@@ -2013,10 +2013,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies()
-                    .getManagedLedgerOffloadDeletionLagInMillis() != null) {
+                    .getManagedLedgerOffloadDeletionLagMs() != null) {
             return offload.getComplete() && !offload.getBookkeeperDeleted()
                     && elapsedMs > config.getLedgerOffloader()
-                    .getOffloadPolicies().getManagedLedgerOffloadDeletionLagInMillis();
+                    .getOffloadPolicies().getManagedLedgerOffloadDeletionLagMs();
         } else {
             return false;
         }
