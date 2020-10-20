@@ -279,7 +279,7 @@ SortedMap&lt;String, String&gt;|<code>properties</code>|A name or value property
 <p>Use <code>batchReceive</code> to receive multiple messages for each call.</p>
 <p>The following is an example.</p>
 <pre><code class="hljs css language-java">Messages messages = consumer.batchReceive();
-<span class="hljs-keyword">for</span> (message in messages) {
+<span class="hljs-keyword">for</span> (Object message : messages) {
   <span class="hljs-comment">// do something</span>
 }
 consumer.acknowledge(messages)
@@ -347,7 +347,7 @@ Consumer multiTopicConsumer = consumerBuilder
 
 <span class="hljs-comment">// Alternatively:</span>
 Consumer multiTopicConsumer = consumerBuilder
-        .topics(
+        .topic(
             <span class="hljs-string">"topic-1"</span>,
             <span class="hljs-string">"topic-2"</span>,
             <span class="hljs-string">"topic-3"</span>
@@ -361,8 +361,8 @@ consumerBuilder
         .subscribeAsync()
         .thenAccept(<span class="hljs-keyword">this</span>::receiveMessageFromConsumer);
 
-<span class="hljs-function"><span class="hljs-keyword">private</span> <span class="hljs-keyword">void</span> <span class="hljs-title">receiveMessageFromConsumer</span><span class="hljs-params">(Consumer consumer)</span> </span>{
-    consumer.receiveAsync().thenAccept(message -&gt; {
+<span class="hljs-function"><span class="hljs-keyword">private</span> <span class="hljs-keyword">void</span> <span class="hljs-title">receiveMessageFromConsumer</span><span class="hljs-params">(Object consumer)</span> </span>{
+    ((Consumer)consumer).receiveAsync().thenAccept(message -&gt; {
                 <span class="hljs-comment">// Do something with the received message</span>
                 receiveMessageFromConsumer(consumer);
             });
@@ -521,8 +521,7 @@ Consumer consumer2 = client.newConsumer()
 , and <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ReaderConfiguration">ReaderConfiguration</a>
 .</p>
 <p>The following is an example.</p>
-<pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
-<span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// Some message ID byte array</span>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// Some message ID byte array</span>
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.newReader()
         .topic(topic)

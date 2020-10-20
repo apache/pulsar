@@ -460,7 +460,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ```java
   Messages messages = consumer.batchReceive();
-  for (message in messages) {
+  for (Object message : messages) {
     // do something
   }
   consumer.acknowledge(messages)
@@ -552,9 +552,9 @@ You can configure parameters if you do not want to use the default configuration
           .topics(topics)
           .subscribe();
   
-  // 或者：
+  // Alternatively:
   Consumer multiTopicConsumer = consumerBuilder
-          .topics(
+          .topic(
               &quot;topic-1&quot;,
               &quot;topic-2&quot;,
               &quot;topic-3&quot;
@@ -571,8 +571,8 @@ You can configure parameters if you do not want to use the default configuration
           .subscribeAsync()
           .thenAccept(this::receiveMessageFromConsumer);
   
-  private void receiveMessageFromConsumer(Consumer consumer) {
-      consumer.receiveAsync().thenAccept(message -&gt; {
+  private void receiveMessageFromConsumer(Object consumer) {
+      ((Consumer)consumer).receiveAsync().thenAccept(message -&gt; {
                   // Do something with the received message
                   receiveMessageFromConsumer(consumer);
               });
