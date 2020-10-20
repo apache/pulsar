@@ -42,6 +42,7 @@ static void handle_producer_send(pulsar::Result result, pulsar::MessageId messag
         pulsar_message_id_t *c_message_id = new pulsar_message_id_t;
         c_message_id->messageId = messageId;
         callback(pulsar_result_Ok, c_message_id, ctx);
+        delete c_message_id;
     } else {
         callback((pulsar_result)result, NULL, ctx);
     }
