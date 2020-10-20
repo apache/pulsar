@@ -761,17 +761,18 @@ public class Commands {
     public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
         CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
             .setConsumerId(consumerId)
-            .setIsActive(isActive);
+                .setIsActive(isActive);
 
         CommandActiveConsumerChange change = changeBuilder.build();
         ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
+                BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
         changeBuilder.recycle();
         change.recycle();
         return res;
     }
 
-    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId, Integer batchSize, Integer batchIndex) {
+    public static ByteBuf newSeek(long consumerId, long requestId,
+                                  long ledgerId, long entryId, Integer batchSize, Integer batchIndex) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
