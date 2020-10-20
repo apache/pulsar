@@ -82,7 +82,7 @@
 <p>在这个图中，每当 <strong>P1</strong>、<strong>P2</strong> 和 <strong>P3</strong> 的生产者分别向<strong>Cluster-A</strong>、<strong>Cluster-B</strong>和<strong>Cluster-C</strong> 中的<strong>T1</strong> topic发送消息时，这些消息很快在不同的集群中复制。 一旦消息完成复制，消费者<strong>C1</strong>和<strong>C2</strong>能够从他们各自的集群消费到这个消息。</p>
 <p>如果没有跨域复制，<strong>C1</strong>和<strong>C2</strong>消费者将不允许去消费<strong>P3</strong>生产的消息。</p>
 <h2><a class="anchor" aria-hidden="true" id="跨地域复制和-pulsar-属性"></a><a href="#跨地域复制和-pulsar-属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>跨地域复制和 Pulsar 属性</h2>
-<p>You must enable geo-replication on a per-tenant basis in Pulsar. You can enable geo-replication between clusters only when a tenant is created that allows access to both clusters.</p>
+<p>你必须启用 Pulsar 中每个租户的跨域复制功能。只有当创建的租户允许访问两个集群时，你才能在集群间启用跨域复制。</p>
 <p>Although geo-replication must be enabled between two clusters, actually geo-replication is managed at the namespace level. You must complete the following tasks to enable geo-replication for a namespace:</p>
 <ul>
 <li><a href="#enable-geo-replication-namespaces">激活geo-replication名称空间</a></li>
