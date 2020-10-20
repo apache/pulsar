@@ -80,10 +80,12 @@ message ClusterMessageId {
 message MessageIdData {
 	required uint64 ledger_id = 1;
 	required uint64 entry_id  = 2;
+    optional int32 partition = 3 [default = -1];
 }
 
 
 /// --- Transaction marker ---
 message TxnCommitMarker {
     required MessageIdData message_id = 1;
+    repeated MessageIdData messageIdList = 2;
 }

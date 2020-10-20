@@ -38,6 +38,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -423,7 +424,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testCommitNonExistentTxn() throws ExecutionException, InterruptedException {
         try {
-            buffer.commitTxn(txnID).get();
+            buffer.commitTxn(txnID, Collections.EMPTY_LIST).get();
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionNotFoundException);
         }
@@ -467,8 +468,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         endTxnAndWaitTillFinish(buffer, txnID, PulsarApi.TxnAction.COMMIT, 22L, 33L);
         try {
-            buffer.commitTxn(txnID).get();
-            buffer.commitTxn(txnID).get();
+            buffer.commitTxn(txnID, Collections.EMPTY_LIST).get();
+            buffer.commitTxn(txnID, Collections.EMPTY_LIST).get();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionStatusException);
         }
@@ -767,7 +768,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         this.committedLedgerId = committedLedgerId;
         this.committedEntryId = committedEntryId;
         if (txnAction.equals(PulsarApi.TxnAction.COMMIT)) {
-            tb.commitTxn(txnId).get();
+            tb.commitTxn(txnId, Collections.EMPTY_LIST).get();
         } else if (txnAction.equals(PulsarApi.TxnAction.ABORT)) {
             tb.abortTxn(txnId).get();
         }

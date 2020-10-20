@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
+import org.apache.pulsar.client.api.MessageId;
+
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -150,14 +152,14 @@ public interface TransactionCoordinatorClient extends Closeable {
      * Commit txn.
      * @param txnID txn id to commit.
      */
-    void commit(TxnID txnID) throws TransactionCoordinatorClientException;
+    void commit(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
 
     /**
      * Commit txn asynchronously.
      * @param txnID txn id to commit.
      * @return a future represents the result of commit txn.
      */
-    CompletableFuture<Void> commitAsync(TxnID txnID);
+    CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> messageIdList);
 
     /**
      * Abort txn.

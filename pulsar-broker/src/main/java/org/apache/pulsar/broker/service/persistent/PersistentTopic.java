@@ -105,6 +105,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -2357,13 +2358,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
 
             CompletableFuture<Void> future = new CompletableFuture<>();
             if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                future = tb.commitTxn(txnID);
+                future = tb.commitTxn(txnID, sendMessageList);
             } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
                 future = tb.abortTxn(txnID);
             } else {

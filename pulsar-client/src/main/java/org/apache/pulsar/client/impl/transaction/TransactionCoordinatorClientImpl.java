@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
@@ -203,22 +204,22 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public void commit(TxnID txnID) throws TransactionCoordinatorClientException {
+    public void commit(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException {
         try {
-            commitAsync(txnID).get();
+            commitAsync(txnID, messageIdList).get();
         } catch (Exception e) {
             throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+    public CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> messageIdList) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
         }
-        return handler.commitAsync(txnID);
+        return handler.commitAsync(txnID, messageIdList);
     }
 
     @Override

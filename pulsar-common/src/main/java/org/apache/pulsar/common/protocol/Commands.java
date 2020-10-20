@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -1641,10 +1643,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
-        CommandEndTxn commandEndTxn = CommandEndTxn.newBuilder().setRequestId(requestId)
-                                                   .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
-                                                   .setTxnAction(txnAction).build();
+    public static ByteBuf newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction,
+                                    List<MessageIdData> messageIdList) {
+        CommandEndTxn commandEndTxn = CommandEndTxn.newBuilder()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
+                .setTxnAction(txnAction)
+                .addAllMessageIdList(messageIdList)
+                .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN).setEndTxn(commandEndTxn));
         commandEndTxn.recycle();
         return res;
@@ -1677,13 +1683,14 @@ public class Commands {
     }
 
     public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-                                               TxnAction txnAction) {
+                                               TxnAction txnAction, List<MessageIdData> messageIdDataList) {
         CommandEndTxnOnPartition.Builder txnEndOnPartition = CommandEndTxnOnPartition.newBuilder()
-                                                                                     .setRequestId(requestId)
-                                                                                     .setTxnidLeastBits(txnIdLeastBits)
-                                                                                     .setTxnidMostBits(txnIdMostBits)
-                                                                                     .setTopic(topic)
-                                                                                     .setTxnAction(txnAction);
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .setTopic(topic)
+                .setTxnAction(txnAction)
+                .addAllMessageIdList(messageIdDataList);
         ByteBuf res = serializeWithSize(
             BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION).setEndTxnOnPartition(txnEndOnPartition));
         txnEndOnPartition.recycle();

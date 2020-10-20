@@ -47,6 +47,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -142,7 +143,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<PulsarApi.MessageIdData> messageIdDataList) {
         return FutureUtil.failedFuture(
                 new Exception("Unsupported operation endTxn in PersistentTransactionBuffer."));
     }
@@ -183,7 +184,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         long ptSequenceId = -1;
         MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
         ByteBuf commitMarker = Markers.newTxnCommitMarker(
-                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
+                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData, Collections.EMPTY_LIST);
 
         originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
             positionFuture.complete(new PositionImpl(ledgerId, entryId));
@@ -201,7 +202,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, List<PulsarApi.MessageIdData> messageIdDataList) {
         return committingTxn(txnID)
                 .thenCompose(igonred -> appendMarkerToPartition(txnID))
                 .thenCompose(committedPos -> commitTB(txnID, committedPos.getLedgerId(), committedPos.getEntryId()));
@@ -217,7 +218,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                                                    .setEntryId(committedAtEntryId)
                                                    .build();
         ByteBuf commitMarker = Markers.newTxnCommitMarker(sequenceId, meta.id().getMostSigBits(),
-                                                          meta.id().getLeastSigBits(), messageIdData);
+                                                          meta.id().getLeastSigBits(), messageIdData, Collections.EMPTY_LIST);
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
         return marker;
     }

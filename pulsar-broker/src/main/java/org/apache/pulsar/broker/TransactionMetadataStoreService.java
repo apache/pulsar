@@ -21,8 +21,10 @@ package org.apache.pulsar.broker;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -40,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -176,7 +179,7 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
@@ -195,7 +198,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endToTB(txnID, txnAction));
+                .thenCompose(ignored -> endToTB(txnID, txnAction, messageIdDataList));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -206,7 +209,7 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
+    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction, List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -229,12 +232,18 @@ public class TransactionMetadataStoreService {
                 completableFutureList.add(actionFuture);
             });
 
+            List<MessageId> messageIdList = new ArrayList<>();
+            for (PulsarApi.MessageIdData messageIdData : messageIdDataList) {
+                messageIdList.add(new MessageIdImpl(
+                        messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
+            }
+
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdList);
                 } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdList);
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }

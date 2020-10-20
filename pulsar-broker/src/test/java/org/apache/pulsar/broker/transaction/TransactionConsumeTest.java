@@ -23,6 +23,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -136,7 +138,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             }
         }
 
-        transactionBuffer.commitTxn(txnID).get();
+        transactionBuffer.commitTxn(txnID, Collections.EMPTY_LIST).get();
         log.info("Commit txn.");
 
         Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();

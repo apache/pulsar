@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -123,8 +125,16 @@ public class MarkersTest {
         long mostBits = 1234L;
         long leastBits = 2345L;
 
+        List<MessageIdData> messageIdDataList = new ArrayList<>();
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(12).setPartition(1).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(13).setPartition(1).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(22).setPartition(2).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(23).setPartition(2).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(32).setPartition(3).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(33).setPartition(3).build());
+
         ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits,
-                                                 MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build());
+                MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build(), messageIdDataList);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
@@ -136,6 +146,14 @@ public class MarkersTest {
         PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
         assertEquals(marker.getMessageId().getLedgerId(), 10);
         assertEquals(marker.getMessageId().getEntryId(), 11);
+        assertEquals(marker.getMessageIdListList().size(), messageIdDataList.size());
+        for (int i = 0; i < marker.getMessageIdListList().size(); i++) {
+            MessageIdData originalIdData = messageIdDataList.get(i);
+            MessageIdData messageIdData = marker.getMessageIdListList().get(i);
+            assertEquals(originalIdData.getLedgerId(), messageIdData.getLedgerId());
+            assertEquals(originalIdData.getEntryId(), messageIdData.getEntryId());
+            assertEquals(originalIdData.getPartition(), messageIdData.getPartition());
+        }
     }
 
     @Test

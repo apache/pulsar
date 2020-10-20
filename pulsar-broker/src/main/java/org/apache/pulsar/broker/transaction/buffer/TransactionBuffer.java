@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 
 /**
  * A class represent a transaction buffer. The transaction buffer
@@ -96,7 +97,7 @@ public interface TransactionBuffer {
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID);
+    CompletableFuture<Void> commitTxn(TxnID txnID, List<MessageIdData> sendMessageIdList);
 
     /**
      * Abort the transaction and all the entries of this transaction will

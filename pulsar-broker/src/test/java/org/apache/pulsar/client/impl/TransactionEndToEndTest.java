@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -94,6 +95,25 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @AfterMethod
     protected void cleanup() {
         super.internalCleanup();
+    }
+
+    @Test
+    public void produceTest() throws Exception {
+        @Cleanup
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(TOPIC_OUTPUT)
+                .enableBatching(false)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Transaction txn = getTxn();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(txn).value("Hello".getBytes()).sendAsync();
+        }
+
+        txn.commit().get();
     }
 
     @Test

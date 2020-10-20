@@ -26,6 +26,8 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
@@ -108,7 +110,7 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.OPEN, txnMeta.status());
 
         // commit the transaction
-        buffer.commitTxn(txnId);
+        buffer.commitTxn(txnId, Collections.EMPTY_LIST);
         txnMeta = buffer.getTransactionMeta(txnId).get();
         assertEquals(txnId, txnMeta.id());
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
@@ -126,7 +128,7 @@ public class TransactionBufferTest {
     @Test
     public void testCommitNonExistentTxn() throws Exception {
         try {
-            buffer.commitTxn(txnId).get();
+            buffer.commitTxn(txnId, Collections.EMPTY_LIST).get();
             fail("Should fail to commit a transaction if it doesn't exist");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionNotFoundException);
@@ -141,7 +143,7 @@ public class TransactionBufferTest {
         assertEquals(txnId, txnMeta.id());
         assertEquals(TxnStatus.OPEN, txnMeta.status());
         // commit the transaction
-        buffer.commitTxn(txnId);
+        buffer.commitTxn(txnId, Collections.EMPTY_LIST);
         txnMeta = buffer.getTransactionMeta(txnId).get();
         assertEquals(txnId, txnMeta.id());
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
@@ -165,7 +167,7 @@ public class TransactionBufferTest {
         assertEquals(txnId, txnMeta.id());
         assertEquals(TxnStatus.OPEN, txnMeta.status());
         // commit the transaction
-        buffer.commitTxn(txnId);
+        buffer.commitTxn(txnId, Collections.EMPTY_LIST);
         txnMeta = buffer.getTransactionMeta(txnId).get();
         assertEquals(txnId, txnMeta.id());
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
@@ -206,14 +208,14 @@ public class TransactionBufferTest {
         // create two committed txns
         TxnID txnId2 = new TxnID(1234L, 4567L);
         appendEntries(txnId2, numEntries, 0L);
-        buffer.commitTxn(txnId2);
+        buffer.commitTxn(txnId2, Collections.EMPTY_LIST);
         TransactionMeta txnMeta2 = buffer.getTransactionMeta(txnId2).get();
         assertEquals(txnId2, txnMeta2.id());
         assertEquals(TxnStatus.COMMITTED, txnMeta2.status());
 
         TxnID txnId3 = new TxnID(1234L, 5678L);
         appendEntries(txnId3, numEntries, 0L);
-        buffer.commitTxn(txnId3);
+        buffer.commitTxn(txnId3, Collections.EMPTY_LIST);
         TransactionMeta txnMeta3 = buffer.getTransactionMeta(txnId3).get();
         assertEquals(txnId3, txnMeta3.id());
         assertEquals(TxnStatus.COMMITTED, txnMeta3.status());
