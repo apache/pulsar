@@ -39,10 +39,9 @@ pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t
 static void handle_producer_send(pulsar::Result result, pulsar::MessageId messageId,
                                  pulsar_send_callback callback, void *ctx) {
     if (result == pulsar::ResultOk) {
-        pulsar_message_id_t *c_message_id = new pulsar_message_id_t;
-        c_message_id->messageId = messageId;
-        callback(pulsar_result_Ok, c_message_id, ctx);
-        delete c_message_id;
+        pulsar_message_id_t c_message_id;
+        c_message_id.messageId = messageId;
+        callback(pulsar_result_Ok, &c_message_id, ctx);
     } else {
         callback((pulsar_result)result, NULL, ctx);
     }
