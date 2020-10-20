@@ -1625,9 +1625,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1636,8 +1633,18 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "replicated": {
+                    "type": "boolean"
+                },
                 "topicName": {
                     "type": "string"
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
@@ -1656,12 +1663,11 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1676,12 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "replicated": {
-                    "type": "boolean"
                 },
                 "value": {
                     "type": "object"
