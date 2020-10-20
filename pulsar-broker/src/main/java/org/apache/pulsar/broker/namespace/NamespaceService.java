@@ -888,12 +888,12 @@ public class NamespaceService {
 
         if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
-            this.pulsar.getLocalZkCacheService().createPolicies(path, false)
+            policies = this.pulsar.getLocalZkCacheService().createPolicies(path, false)
                     .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         long version = nsBundles.getVersion();
-        LocalPolicies local = new LocalPolicies();
+        LocalPolicies local = policies.orElse(new LocalPolicies());
         local.bundles = getBundlesData(nsBundles);
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
 
