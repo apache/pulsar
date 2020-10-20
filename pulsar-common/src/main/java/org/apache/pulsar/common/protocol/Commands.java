@@ -779,10 +779,7 @@ public class Commands {
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-
-        for (long l : ackSet) {
-            messageIdBuilder.addAckSet(l);
-        }
+        messageIdBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
 
         MessageIdData messageId = messageIdBuilder.build();
         seekBuilder.setMessageId(messageId);

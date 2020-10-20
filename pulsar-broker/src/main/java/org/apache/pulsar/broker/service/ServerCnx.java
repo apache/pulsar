@@ -124,6 +124,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
@@ -1351,8 +1352,7 @@ public class ServerCnx extends PulsarHandler {
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
 
-            long[] ackSet = msgIdData.getAckSetList().stream().mapToLong(x -> x).toArray();
-            if (ackSet == null) ackSet = new long[0];
+            long[] ackSet = SafeCollectionUtils.longListToArray(msgIdData.getAckSetList());
 
             Position position = new PositionImpl(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet);
