@@ -87,33 +87,16 @@ public interface TransactionBuffer {
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
     /**
-     * Handle TC endTxnOnPartition command
-     *
-     * @return
-     */
-    CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction);
-
-    /**
-     * Append committed marker to the related origin topic partition.
-     *
-     * @param txnID transaction id
-     * @return a future represents the position of the committed marker in the origin topic partition.
-     */
-    CompletableFuture<Position> commitPartitionTopic(TxnID txnID);
-
-    /**
      * Commit the transaction and seal the buffer for this transaction.
      *
      * <p>If a transaction is sealed, no more entries can be {@link #appendBufferToTxn(TxnID, long, ByteBuf)}.
      *
      * @param txnID the transaction id
-     * @param committedAtLedgerId the data ledger id where the commit marker of the transaction was appended to.
-     * @param committedAtEntryId the data ledger id where the commit marker of the transaction was appended to.
      * @return a future represents the result of commit operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId);
+    CompletableFuture<Void> commitTxn(TxnID txnID);
 
     /**
      * Abort the transaction and all the entries of this transaction will
