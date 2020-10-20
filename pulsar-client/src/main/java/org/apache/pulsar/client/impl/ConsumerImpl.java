@@ -1932,10 +1932,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf seek = null;
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl msgId = (BatchMessageIdImpl) messageId;
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getBatchSize(), msgId.getBatchIndex());
+            // Initialize ack set
+            BitSetRecyclable ackSet = BitSetRecyclable.create();
+            ackSet.set(0, msgId.getBatchSize());
+            ackSet.clear(0, Math.max(msgId.getBatchIndex(), 0));
+            long[] ackSetArr = ackSet.toLongArray();
+            ackSet.recycle();
+
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
         } else {
             MessageIdImpl msgId = (MessageIdImpl) messageId;
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), null, null);
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);
         }
 
         ClientCnx cnx = cnx();

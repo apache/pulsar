@@ -771,7 +771,7 @@ public class Commands {
     }
 
     public static ByteBuf newSeek(long consumerId, long requestId,
-                                  long ledgerId, long entryId, Integer batchSize, Integer batchIndex) {
+                                  long ledgerId, long entryId, long[] ackSet) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
@@ -779,18 +779,9 @@ public class Commands {
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-        if (batchSize != null && batchIndex != null) {
-            messageIdBuilder.setBatchIndex(batchIndex);
 
-            // Initialize ack set
-            BitSetRecyclable ackSet = BitSetRecyclable.create();
-            ackSet.set(0, batchSize);
-            ackSet.clear(0, Math.max(batchIndex, 0));
-
-            for (long l : ackSet.toLongArray()) {
-                messageIdBuilder.addAckSet(l);
-            }
-            ackSet.recycle();
+        for (long l : ackSet) {
+            messageIdBuilder.addAckSet(l);
         }
 
         MessageIdData messageId = messageIdBuilder.build();
