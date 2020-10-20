@@ -109,7 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
     <vertx.version>3.5.3</vertx.version>
-    <rocksdb.version>5.13.3</rocksdb.version>
+    <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
