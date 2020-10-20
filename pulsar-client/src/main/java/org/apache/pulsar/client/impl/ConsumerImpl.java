@@ -1932,10 +1932,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf seek = null;
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl msgId = (BatchMessageIdImpl) messageId;
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getBatchIndex());
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), msgId.getBatchSize(), msgId.getBatchIndex());
         } else {
             MessageIdImpl msgId = (MessageIdImpl) messageId;
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), 0);
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), null, null);
         }
 
         ClientCnx cnx = cnx();

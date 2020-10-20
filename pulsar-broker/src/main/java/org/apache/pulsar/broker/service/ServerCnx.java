@@ -1353,6 +1353,7 @@ public class ServerCnx extends PulsarHandler {
 
             long[] ackSet = msgIdData.getAckSetList().stream().mapToLong(x -> x).toArray();
             if (ackSet == null) ackSet = new long[0];
+
             Position position = new PositionImpl(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet);
 

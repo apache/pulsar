@@ -30,10 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import lombok.experimental.UtilityClass;
@@ -770,7 +767,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId, int batchIndex) {
+    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId, Integer batchSize, Integer batchIndex) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
@@ -778,7 +775,18 @@ public class Commands {
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-        messageIdBuilder.setBatchIndex(batchIndex);
+        if (batchSize != null && batchIndex != null) {
+            messageIdBuilder.setBatchIndex(batchIndex);
+
+            // Initialize ack set
+            BitSet ackSet = new BitSet();
+            ackSet.set(0, batchSize);
+            ackSet.clear(0, batchIndex);
+            for (long l : ackSet.toLongArray()) {
+                messageIdBuilder.addAckSet(l);
+            }
+        }
+
         MessageIdData messageId = messageIdBuilder.build();
         seekBuilder.setMessageId(messageId);
 
