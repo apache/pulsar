@@ -30,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
