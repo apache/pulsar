@@ -561,7 +561,7 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk15on-1.60.jar
-    - bcprov-ext-jdk15on-1.60.jar
-    - bcprov-jdk15on-1.60.jar
+    - bcpkix-jdk15on-1.66.jar
+    - bcprov-ext-jdk15on-1.66.jar
+    - bcprov-jdk15on-1.66.jar
     - bouncy-castle-bc-2.7.0-SNAPSHOT-pkg.jar
