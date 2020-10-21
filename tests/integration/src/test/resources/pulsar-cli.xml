@@ -27,6 +27,7 @@
             <class name="org.apache.pulsar.tests.integration.compaction.TestCompaction" />
             <class name="org.apache.pulsar.tests.integration.cli.AdminMultiHostTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.FunctionsCLITest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.ClusterMetadataTearDownTest"/>
         </classes>
     </test>
 </suite>

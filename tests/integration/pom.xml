@@ -52,6 +52,13 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
