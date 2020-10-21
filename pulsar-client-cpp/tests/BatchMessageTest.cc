@@ -1050,7 +1050,6 @@ TEST(BatchMessageTest, testSendCallback) {
     client.close();
 }
 
-
 TEST(BatchMessageTest, testProducerQueueWithBatches) {
     std::string testName = std::to_string(epochTime) + "testProducerQueueWithBatches";
 
@@ -1076,9 +1075,7 @@ TEST(BatchMessageTest, testProducerQueueWithBatches) {
     int rejectedMessges = 0;
     for (int i = 0; i < 20; i++) {
         std::string messageContent = prefix + std::to_string(i);
-        Message msg = MessageBuilder()
-            .setContent("hello")
-            .build();
+        Message msg = MessageBuilder().setContent("hello").build();
 
         producer.sendAsync(msg, [&rejectedMessges](Result result, const MessageId& id) {
             if (result == ResultProducerQueueIsFull) {

@@ -45,9 +45,7 @@ struct OpSendMsg {
           sequenceId_(sequenceId),
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)) {}
 
-    uint32_t num_messages_in_batch() const {
-        return msg_.impl_->metadata.num_messages_in_batch();
-    }
+    uint32_t num_messages_in_batch() const { return msg_.impl_->metadata.num_messages_in_batch(); }
 };
 
 }  // namespace pulsar
