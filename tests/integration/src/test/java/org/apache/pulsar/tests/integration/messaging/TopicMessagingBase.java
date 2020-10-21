@@ -443,8 +443,8 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void resetCursorCompatibility(String serviceUrl, boolean isPersistent) throws Exception {
-        final String topicName = getNonPartitionedTopic("test-reset-cursor-compatibility", isPersistent);
+    protected void resetCursorCompatibility(String serviceUrl) throws Exception {
+        final String topicName = getNonPartitionedTopic("test-reset-cursor-compatibility", true);
         final String subName = "my-sub";
         @Cleanup
         final PulsarClient pulsarClient = PulsarClient.builder()

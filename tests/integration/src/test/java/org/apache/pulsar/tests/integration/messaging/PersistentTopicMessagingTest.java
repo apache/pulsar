@@ -66,6 +66,6 @@ public class PersistentTopicMessagingTest extends TopicMessagingBase {
 
     @Test(dataProvider = "ServiceUrls")
     public void testResetCursorCompatibility(String serviceUrl) throws Exception {
-        resetCursorCompatibility(serviceUrl, true);
+        resetCursorCompatibility(serviceUrl);
     }
 }
