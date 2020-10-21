@@ -451,7 +451,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .serviceUrl(serviceUrl)
                 .build();
         @Cleanup
-        final PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(serviceUrl).build();
+        final PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
