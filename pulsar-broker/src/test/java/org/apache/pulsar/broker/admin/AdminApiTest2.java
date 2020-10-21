@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import lombok.extern.slf4j.Slf4j;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import org.apache.pulsar.client.api.MessageId;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -91,6 +93,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -1322,5 +1325,90 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.namespaces().createNamespace("testTenant/ns-" + i, Sets.newHashSet("test"));
         }
 
+    }
+
+    @Test
+    public void testMaxSubscriptionsPerTopic() throws Exception {
+        super.internalCleanup();
+        conf.setMaxSubscriptionsPerTopic(2);
+        super.internalSetup();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        final String topic = "persistent://testTenant/ns1/max-subscriptions-per-topic";
+
+        admin.topics().createPartitionedTopic(topic, 3);
+        Producer producer = pulsarClient.newProducer().topic(topic).create();
+        producer.close();
+
+        // create subscription
+        admin.topics().createSubscription(topic, "test-sub1", MessageId.earliest);
+        admin.topics().createSubscription(topic, "test-sub2", MessageId.earliest);
+        try {
+            admin.topics().createSubscription(topic, "test-sub3", MessageId.earliest);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            log.info("create subscription failed. Exception: ", e);
+        }
+
+        super.internalCleanup();
+        conf.setMaxSubscriptionsPerTopic(0);
+        super.internalSetup();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        admin.topics().createPartitionedTopic(topic, 3);
+        producer = pulsarClient.newProducer().topic(topic).create();
+        producer.close();
+
+        for (int i = 0; i < 10; ++i) {
+            admin.topics().createSubscription(topic, "test-sub" + i, MessageId.earliest);
+        }
+
+        super.internalCleanup();
+        conf.setMaxSubscriptionsPerTopic(2);
+        super.internalSetup();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        admin.topics().createPartitionedTopic(topic, 3);
+        producer = pulsarClient.newProducer().topic(topic).create();
+        producer.close();
+
+        Consumer consumer1 = null;
+        Consumer consumer2 = null;
+        Consumer consumer3 = null;
+
+        try {
+            consumer1 = pulsarClient.newConsumer().subscriptionName("test-sub1").topic(topic).subscribe();
+            Assert.assertNotNull(consumer1);
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+
+        try {
+            consumer2 = pulsarClient.newConsumer().subscriptionName("test-sub2").topic(topic).subscribe();
+            Assert.assertNotNull(consumer2);
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("test-sub3").topic(topic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("subscription reached max subscriptions per topic");
+        }
+
+        consumer1.close();
+        consumer2.close();
+        admin.topics().deletePartitionedTopic(topic);
     }
 }
