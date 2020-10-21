@@ -410,6 +410,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
+        if (consumer == null) {
+            return;
+        }
         ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
         // Only check if message is in pending_ack status when there's ongoing transaction.
         if (null != positionMap && ((pendingAckMessages != null && pendingAckMessages.size() != 0)
@@ -431,6 +434,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        if (consumer == null) {
+            return;
+        }
         // If there's ongoing transaction.
         if ((pendingAckMessages != null && pendingAckMessages.size() != 0) || pendingCumulativeAckMessage != null) {
             // Check if message is in pending_ack status.

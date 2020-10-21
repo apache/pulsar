@@ -985,12 +985,13 @@ public class PersistentSubscription implements Subscription {
             completableFuture = pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
         } else if (PulsarApi.TxnAction.ABORT.getNumber() == txnAction) {
             Consumer redeliverConsumer = null;
-            if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
-                redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
-                        getDispatcher()).getActiveConsumer();
-            } else {
-                //TODO this can think about how to redeliver for multi consumer
-                redeliverConsumer = getDispatcher().getConsumers().get(0);
+            if (getDispatcher() != null) {
+                if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                    redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
+                            getDispatcher()).getActiveConsumer();
+                } else {
+                    redeliverConsumer = ((PersistentDispatcherMultipleConsumers) getDispatcher()).getNextConsumer();
+                }
             }
             completableFuture = pendingAckHandle.abortTxn(txnID, redeliverConsumer);
         } else {
