@@ -1954,8 +1954,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             callback.deleteFailed(new ManagedLedgerException(e), ctx);
         }
-        PositionImpl nextPosition = ledger.getNextPosition(newMarkDeletePosition);
-        deleteTransactionMarker(nextPosition);
+        if (newMarkDeletePosition != null && !newMarkDeletePosition.equals(markDeletePosition)) {
+            PositionImpl nextPosition = ledger.getNextPosition(newMarkDeletePosition);
+            deleteTransactionMarker(nextPosition);
+        }
     }
 
     private void deleteTransactionMarker(PositionImpl position) {
