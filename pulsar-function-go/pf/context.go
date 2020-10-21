@@ -120,8 +120,10 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
 
-func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
-	return c.outputMessage(topic)
+// NewOutputMessage send message to the topic
+// @param topicName: The name of the topic for output message
+func (c *FunctionContext) NewOutputMessage(topicName string) pulsar.Producer {
+	return c.outputMessage(topicName)
 }
 
 // SetCurrentRecord sets the current message into the function context
