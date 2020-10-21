@@ -1150,7 +1150,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public void resetCursor(String topic, String subName, MessageId messageId
             , boolean isExcluded) throws PulsarAdminException {
         try {
-            resetCursorAsync(topic, subName, messageId, true).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            resetCursorAsync(topic, subName, messageId, isExcluded).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
