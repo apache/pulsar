@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -1216,15 +1217,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
-            MessageIdImpl messageId) {
+                    ResetCursorData resetCursorData) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative
+                    , new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
+                    , resetCursorData.isExcluded());
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-
+    
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
