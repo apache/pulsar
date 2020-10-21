@@ -22,13 +22,15 @@ package pf
 import (
 	"context"
 	"encoding/json"
+	"github.com/apache/pulsar-client-go/pulsar"
 	"time"
 )
 
 type FunctionContext struct {
-	instanceConf *instanceConf
-	userConfigs  map[string]interface{}
-	logAppender  *LogAppender
+	instanceConf  *instanceConf
+	userConfigs   map[string]interface{}
+	logAppender   *LogAppender
+	outputMessage func(topic string) pulsar.Producer
 }
 
 func NewFuncContext() *FunctionContext {
@@ -114,6 +116,10 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
+}
+
+func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
+	return c.outputMessage(topic)
 }
 
 // An unexported type to be used as the key for types in this package.
