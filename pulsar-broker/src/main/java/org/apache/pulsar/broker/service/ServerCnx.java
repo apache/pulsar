@@ -1352,7 +1352,10 @@ public class ServerCnx extends PulsarHandler {
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
 
-            long[] ackSet = SafeCollectionUtils.longListToArray(msgIdData.getAckSetList());
+            long[] ackSet = null;
+            if (msgIdData.getAckSetCount() > 0) {
+                ackSet = SafeCollectionUtils.longListToArray(msgIdData.getAckSetList());
+            }
 
             Position position = new PositionImpl(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet);
