@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -164,36 +165,18 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
-        MessageId resetId = messageIds.get(4);
-        consumer.seek(resetId);
+        consumer.seek(MessageId.earliest);
+        Message<String> receiveBeforEarliest = consumer.receive();
+        assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
+        consumer.seek(MessageId.latest);
+        Message<String> receiveAfterLatest = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(receiveAfterLatest);
 
-        Message<String> nextMessage = consumer.receive();
-        MessageId nextId = nextMessage.getMessageId();
-        consumer.acknowledge(nextId);
-        String expectedMessage = messages.get(4);
-        log.info("\nexpected next message: {}, next message {}", expectedMessage, nextMessage.getValue());
-        assertEquals(nextMessage.getValue(), expectedMessage);
-
-        resetId = messageIds.get(3);
-        consumer.seek(resetId);
-
-        nextMessage = consumer.receive();
-        nextId = nextMessage.getMessageId();
-        consumer.acknowledge(nextId);
-        expectedMessage = messages.get(3);
-        log.info("expected next message2: {}, next message2 {}", expectedMessage, nextMessage.getValue());
-
-        assertEquals(nextMessage.getValue(), expectedMessage);
-
-        resetId = messageIds.get(2);
-        consumer.seek(resetId);
-
-        nextMessage = consumer.receive();
-        nextId = nextMessage.getMessageId();
-        consumer.acknowledge(nextId);
-        expectedMessage = messages.get(2);
-        log.info("expected next message3: {}, next message3 {}", expectedMessage, nextMessage.getValue());
-        assertEquals(nextMessage.getValue(), expectedMessage);
+        for (MessageId messageId : messageIds) {
+            consumer.seek(messageId);
+            MessageId receiveId = consumer.receive().getMessageId();
+            assertEquals(receiveId, messageId);
+        }
     }
 
 
