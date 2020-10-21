@@ -2108,7 +2108,6 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }
                         bitSet.recycle();
-
                     } else {
                         seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
                         seekPosition = isExcluded ? seekPosition.getNext() : seekPosition;
