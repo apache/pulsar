@@ -2718,7 +2718,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (policies.offload_policies == null) {
             return policies.offload_threshold;
         } else {
-            return policies.offload_policies.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
+            return policies.offload_policies.getManagedLedgerOffloadThresholdInBytes();
         }
     }
 
@@ -2736,10 +2736,10 @@ public abstract class NamespacesBase extends AdminResource {
                 OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
                 policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
                 if (policies.offload_deletion_lag_ms != null) {
-                    policies.offload_policies.setManagedLedgerOffloadDeletionLagMs(policies.offload_deletion_lag_ms);
+                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
                 }
             }
-            policies.offload_policies.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(newThreshold);
+            policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2770,7 +2770,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (policies.offload_policies == null) {
             return policies.offload_deletion_lag_ms;
         } else {
-            return policies.offload_policies.getManagedLedgerOffloadDeletionLagMs();
+            return policies.offload_policies.getManagedLedgerOffloadDeletionLagInMillis();
         }
     }
 
@@ -2784,15 +2784,6 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-
-            if (policies.offload_policies == null) {
-                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
-                if (policies.offload_threshold != -1) {
-                    policies.offload_policies.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(policies.offload_threshold);
-                }
-            }
-            policies.offload_policies.setManagedLedgerOffloadDeletionLagMs(newDeletionLagMs);
             policies.offload_deletion_lag_ms = newDeletionLagMs;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2931,18 +2922,18 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (offloadPolicies.getManagedLedgerOffloadDeletionLagMs() == null && OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS == null
-                    || offloadPolicies.getManagedLedgerOffloadDeletionLagMs() != null
-                    && offloadPolicies.getManagedLedgerOffloadDeletionLagMs().equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
-                offloadPolicies.setManagedLedgerOffloadDeletionLagMs(policies.offload_deletion_lag_ms);
+            if (offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null && OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS == null
+                    || offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() != null
+                    && offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
             } else {
-                policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagMs();
+                policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
             }
-            if (offloadPolicies.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes() ==
+            if (offloadPolicies.getManagedLedgerOffloadThresholdInBytes() ==
                     OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) {
-                offloadPolicies.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(policies.offload_threshold);
+                offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
             } else {
-                policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
+                policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
             }
 
             policies.offload_policies = offloadPolicies;

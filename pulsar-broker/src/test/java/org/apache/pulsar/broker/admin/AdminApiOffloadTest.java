@@ -243,7 +243,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         offloadPolicies.setOffloadersDirectory(".");
         offloadPolicies.setManagedLedgerOffloadDriver("mock");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
-        offloadPolicies.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(1024);
+        offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024);
 
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
