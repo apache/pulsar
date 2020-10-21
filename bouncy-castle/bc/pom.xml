@@ -55,10 +55,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-maven-plugin</artifactId>
-      </plugin>
 
       <!-- build a `jar in jar` to avoid break bc signature-->
       <plugin>

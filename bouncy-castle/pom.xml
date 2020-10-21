@@ -40,6 +40,5 @@
 
     <!--2 module for fips version test-->
     <module>bcfips-include-test</module>
-    <module>bcfips-nar-test</module>
   </modules>
 </project>
