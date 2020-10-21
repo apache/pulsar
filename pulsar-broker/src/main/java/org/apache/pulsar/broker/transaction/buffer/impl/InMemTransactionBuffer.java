@@ -280,24 +280,14 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartition in InMemTransactionBuffer."));
-    }
-
-    @Override
-    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID,
-                                             long committedAtLedgerId,
-                                             long committedAtEntryId) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             synchronized (txnBuffer) {
+                // the committed position should be generated
+                long committedAtLedgerId = -1L;
+                long committedAtEntryId = -1L;
                 txnBuffer.commitAt(committedAtLedgerId, committedAtEntryId);
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }

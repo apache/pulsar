@@ -136,7 +136,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             }
         }
 
-        transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.COMMIT.getNumber()).get();
+        transactionBuffer.commitTxn(txnID).get();
         log.info("Commit txn.");
 
         Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();

@@ -49,7 +49,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -133,6 +132,15 @@ public abstract class NamespacesBase extends AdminResource {
         validatePolicies(namespaceName, policies);
 
         try {
+            int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+            //no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
+            if (maxNamespacesPerTenant > 0) {
+                List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+                if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+                }
+            }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             zkCreateOptimistic(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies));
