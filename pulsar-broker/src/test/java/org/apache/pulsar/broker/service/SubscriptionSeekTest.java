@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -144,16 +145,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             futureMessageIds.add(messageIdCompletableFuture);
         }
 
-        futureMessageIds.forEach(future -> {
-            MessageId messageId = null;
-            try {
-                messageId = future.get();
-                messageIds.add(messageId);
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        });
-        producer.flush();
+        for (CompletableFuture<MessageId> futureMessageId : futureMessageIds) {
+            MessageId messageId = futureMessageId.get();
+            messageIds.add(messageId);
+        }
+
         producer.close();
 
 
