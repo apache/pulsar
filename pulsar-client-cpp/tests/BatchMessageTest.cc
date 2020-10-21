@@ -1049,3 +1049,43 @@ TEST(BatchMessageTest, testSendCallback) {
     producer.close();
     client.close();
 }
+
+
+TEST(BatchMessageTest, testProducerQueueWithBatches) {
+    std::string testName = std::to_string(epochTime) + "testProducerQueueWithBatches";
+
+    ClientConfiguration clientConf;
+    clientConf.setStatsIntervalInSeconds(0);
+
+    Client client(lookupUrl, clientConf);
+    std::string topicName = "persistent://public/default/" + testName;
+
+    // Enable batching on producer side
+    ProducerConfiguration conf;
+    conf.setBlockIfQueueFull(false);
+    conf.setMaxPendingMessages(10);
+    conf.setBatchingMaxMessages(10000);
+    conf.setBatchingMaxPublishDelayMs(1000);
+    conf.setBatchingEnabled(true);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, conf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    std::string prefix = "msg-batch-test-produce-timeout-";
+    int rejectedMessges = 0;
+    for (int i = 0; i < 20; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder()
+            .setContent("hello")
+            .build();
+
+        producer.sendAsync(msg, [&rejectedMessges](Result result, const MessageId& id) {
+            if (result == ResultProducerQueueIsFull) {
+                ++rejectedMessges;
+            }
+        });
+    }
+
+    ASSERT_EQ(rejectedMessges, 10);
+}
