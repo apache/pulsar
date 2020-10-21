@@ -166,8 +166,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         MessageId resetId = messageIds.get(4);
         consumer.seek(resetId);
-        // Wait for consumer to reconnect
-        Thread.sleep(500);
 
         Message<String> nextMessage = consumer.receive();
         MessageId nextId = nextMessage.getMessageId();
@@ -178,8 +176,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         resetId = messageIds.get(3);
         consumer.seek(resetId);
-        // Wait for consumer to reconnect
-        Thread.sleep(500);
 
         nextMessage = consumer.receive();
         nextId = nextMessage.getMessageId();
@@ -191,8 +187,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         resetId = messageIds.get(2);
         consumer.seek(resetId);
-        // Wait for consumer to reconnect
-        Thread.sleep(500);
 
         nextMessage = consumer.receive();
         nextId = nextMessage.getMessageId();
