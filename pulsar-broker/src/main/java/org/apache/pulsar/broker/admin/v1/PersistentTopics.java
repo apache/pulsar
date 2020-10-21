@@ -511,7 +511,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId, false);
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

@@ -1233,6 +1233,18 @@ public interface Topics {
 
     /**
      * Reset cursor position on a topic subscription.
+     * <p/>
+     * and start consume messages from the next position of the reset position.
+     * @param topic
+     * @param subName
+     * @param messageId
+     * @param isExcluded
+     * @throws PulsarAdminException
+     */
+    void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;
+
+    /**
+     * Reset cursor position on a topic subscription.
      *
      * @param topic
      *            topic name
@@ -1242,6 +1254,18 @@ public interface Topics {
      *            reset subscription to position closest to time in ms since epoch
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, long timestamp);
+
+    /**
+     * Reset cursor position on a topic subscription.
+     * <p/>
+     * and start consume messages from the next position of the reset position.
+     * @param topic
+     * @param subName
+     * @param messageId
+     * @param isExcluded
+     * @return
+     */
+    CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded);
 
     /**
      * Reset cursor position on a topic subscription.
