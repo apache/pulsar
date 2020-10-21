@@ -31,6 +31,10 @@ func TestContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	fc := NewFuncContext()
+	fc.record = &MockMessage{
+		properties: map[string]string{"FOO": "BAR"},
+		messageID:  &MockMessageID{},
+	}
 	ctx = NewContext(ctx, fc)
 
 	if resfc, ok := FromContext(ctx); ok {
@@ -54,5 +58,14 @@ func TestContext(t *testing.T) {
 			t,
 			map[string]interface{}{"word-of-the-day": "hapax legomenon"},
 			resfc.GetUserConfMap())
+		assert.IsType(t, &MockMessage{}, fc.GetCurrentRecord())
 	}
+}
+
+func TestFunctionContext_setCurrentRecord(t *testing.T) {
+	fc := NewFuncContext()
+
+	fc.SetCurrentRecord(&MockMessage{})
+
+	assert.IsType(t, &MockMessage{}, fc.record)
 }

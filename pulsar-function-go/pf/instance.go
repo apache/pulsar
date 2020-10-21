@@ -292,6 +292,9 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	gi.context.SetCurrentRecord(input)
+
 	ctx = NewContext(ctx, gi.context)
 	msgInput := input.Payload()
 	return gi.function.process(ctx, msgInput)
