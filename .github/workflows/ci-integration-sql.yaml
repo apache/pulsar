@@ -25,6 +25,7 @@ on:
   push:
     branches:
       - branch-*
+      - '*'
 
 jobs:
 

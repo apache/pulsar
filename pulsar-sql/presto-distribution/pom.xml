@@ -34,7 +34,7 @@
     <version>2.7.0-SNAPSHOT</version>
 
     <properties>
-        <presto.version>332</presto.version>
+        <presto.version>318</presto.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
         <objectsize.version>0.0.12</objectsize.version>

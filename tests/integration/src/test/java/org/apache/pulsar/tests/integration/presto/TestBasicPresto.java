@@ -125,11 +125,11 @@ public class TestBasicPresto extends PulsarTestSuite {
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", containerExecResult.getStdout());
         String[] split = containerExecResult.getStdout().split("\n");
-        assertThat(split.length).isGreaterThan(NUM_OF_STOCKS - 2);
+        assertThat(split.length).isGreaterThan(NUM_OF_STOCKS);
 
         String[] split2 = containerExecResult.getStdout().split("\n|,");
 
-        for (int i = 0; i < NUM_OF_STOCKS - 2; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             assertThat(split2).contains("\"" + i + "\"");
             assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
             assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
