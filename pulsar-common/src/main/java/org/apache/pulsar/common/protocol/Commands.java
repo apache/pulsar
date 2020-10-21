@@ -2104,11 +2104,18 @@ public class Commands {
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
 
-            return metadata;
+            return peekMessageMetadata(metadataAndPayload);
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
             return null;
         }
+    }
+
+    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload) {
+        int readerIdx = metadataAndPayload.readerIndex();
+        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        metadataAndPayload.readerIndex(readerIdx);
+        return metadata;
     }
 
     public static int getCurrentProtocolVersion() {

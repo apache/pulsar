@@ -2942,6 +2942,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return nextPosition;
     }
 
+    public PositionImpl getNextPosition(final PositionImpl position) {
+        PositionImpl nextPosition = position.getNext();
+        while (!isValidPosition(nextPosition)) {
+            Long nextLedgerId = ledgers.ceilingKey(nextPosition.getLedgerId() + 1);
+            if (nextLedgerId == null) {
+                return null;
+            }
+            nextPosition = PositionImpl.get(nextLedgerId, 0);
+        }
+        return nextPosition;
+    }
+
     public PositionImpl getFirstPosition() {
         Long ledgerId = ledgers.firstKey();
         if (ledgerId == null) {
