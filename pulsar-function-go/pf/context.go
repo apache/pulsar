@@ -22,8 +22,9 @@ package pf
 import (
 	"context"
 	"encoding/json"
-	"github.com/apache/pulsar-client-go/pulsar"
 	"time"
+
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 type FunctionContext struct {
@@ -31,6 +32,7 @@ type FunctionContext struct {
 	userConfigs   map[string]interface{}
 	logAppender   *LogAppender
 	outputMessage func(topic string) pulsar.Producer
+	record        pulsar.Message
 }
 
 func NewFuncContext() *FunctionContext {
@@ -120,6 +122,18 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 
 func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
 	return c.outputMessage(topic)
+}
+
+// SetCurrentRecord sets the current message into the function context
+// called for each message before executing a handler function
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+	c.record = record
+}
+
+// GetCurrentRecord gets the current message from the function context
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+	return c.record
+
 }
 
 // An unexported type to be used as the key for types in this package.
