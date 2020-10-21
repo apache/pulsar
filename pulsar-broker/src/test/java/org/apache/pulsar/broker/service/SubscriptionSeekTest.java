@@ -176,7 +176,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Message<String> nextMessage = consumer.receive();
         MessageId nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
-        // For non-durable we are going to restart from the next entry
         String expectedMessage = messages.get(4);
         log.info("\nexpected next message: {}, next message {}", expectedMessage, nextMessage.getValue());
         assertEquals(nextMessage.getValue(), expectedMessage);
@@ -189,7 +188,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         nextMessage = consumer.receive();
         nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
-        // For non-durable we are going to restart from the next entry
         expectedMessage = messages.get(3);
         log.info("expected next message2: {}, next message2 {}", expectedMessage, nextMessage.getValue());
 
@@ -203,7 +201,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         nextMessage = consumer.receive();
         nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
-        // For non-durable we are going to restart from the next entry
         expectedMessage = messages.get(2);
         log.info("expected next message3: {}, next message3 {}", expectedMessage, nextMessage.getValue());
         assertEquals(nextMessage.getValue(), expectedMessage);
