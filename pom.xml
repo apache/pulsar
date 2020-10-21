@@ -203,6 +203,7 @@ flexible messaging model and an intuitive client API.</description>
     <license-maven-plugin.version>3.0</license-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
+    <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
     <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
     <maven-clean-plugin.version>2.4.1</maven-clean-plugin.version>
     <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
@@ -1393,6 +1394,11 @@ flexible messaging model and an intuitive client API.</description>
               </goals>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>${maven-assembly-plugin.version}</version>            
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
