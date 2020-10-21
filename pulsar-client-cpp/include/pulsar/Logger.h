@@ -48,5 +48,4 @@ class PULSAR_PUBLIC LoggerFactory {
     virtual Logger* getLogger(const std::string& fileName) = 0;
 };
 
-typedef std::shared_ptr<LoggerFactory> LoggerFactoryPtr;
 }  // namespace pulsar

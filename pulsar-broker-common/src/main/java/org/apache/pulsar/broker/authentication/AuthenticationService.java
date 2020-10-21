@@ -84,12 +84,17 @@ public class AuthenticationService implements Closeable {
 
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         // Try to validate with any configured provider
+        AuthenticationException authenticationException = null;
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
         for (AuthenticationProvider provider : providers.values()) {
             try {
                 return provider.authenticate(authData);
             } catch (AuthenticationException e) {
-                // Ignore the exception because we don't know which authentication method is expected here.
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
+                }
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = e;
             }
         }
 
@@ -99,7 +104,11 @@ public class AuthenticationService implements Closeable {
                 return anonymousUserRole;
             }
             // If at least a provider was configured, then the authentication needs to be provider
-            throw new AuthenticationException("Authentication required");
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException("Authentication required");
+            }
         } else {
             // No authentication required
             return "<none>";

@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -34,6 +35,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.Test;
 
@@ -43,7 +45,10 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
     void getMLList() throws Exception {
         MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/managed-ledgers");
+            });
 
         try {
             store.getManagedLedgers();
@@ -129,22 +134,22 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
     void failInCreatingMLnode() throws Exception {
         MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CompletableFuture<Void> promise = new CompletableFuture<>();
 
-        zkc.failAfter(1, Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return op == MockZooKeeper.Op.CREATE;
+            });
 
         store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
-                // Ok
-                latch.countDown();
+                promise.complete(null);
             }
 
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
-                fail("Operation should have failed");
+                promise.completeExceptionally(new Exception("Operation should have failed"));
             }
         });
-
-        latch.await();
+        promise.get();
     }
 
     @Test(timeOut = 20000)
@@ -153,34 +158,36 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
         zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CompletableFuture<Void> promise = new CompletableFuture<>();
 
         ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(1).build();
         store.asyncUpdateCursorInfo("my_test", "c1", info, null, new MetaStoreCallback<Void>() {
             public void operationFailed(MetaStoreException e) {
-                fail("should have succeeded");
+                promise.completeExceptionally(e);
             }
 
             public void operationComplete(Void result, Stat version) {
                 // Update again using the version
-                zkc.failNow(Code.CONNECTIONLOSS);
+                zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                        return op == MockZooKeeper.Op.SET
+                            && path.contains("my_test") && path.contains("c1");
+                    });
 
                 ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(2).build();
                 store.asyncUpdateCursorInfo("my_test", "c1", info, version, new MetaStoreCallback<Void>() {
                     public void operationFailed(MetaStoreException e) {
                         // ok
-                        latch.countDown();
+                        promise.complete(null);
                     }
 
                     @Override
                     public void operationComplete(Void result, Stat version) {
-                        fail("should have failed");
+                        promise.completeExceptionally(new Exception("should have failed"));
                     }
                 });
             }
         });
-
-        latch.await();
+        promise.get();
     }
 
     @Test(timeOut = 20000)
@@ -189,31 +196,34 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
         zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CompletableFuture<Void> promise = new CompletableFuture<>();
 
         store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
-                fail("should have succeeded");
+                promise.completeExceptionally(e);
             }
 
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat version) {
                 // Update again using the version
-                zkc.failNow(Code.BADVERSION);
+                zkc.failConditional(Code.BADVERSION, (op, path) -> {
+                        return op == MockZooKeeper.Op.SET
+                            && path.contains("my_test");
+                    });
 
                 store.asyncUpdateLedgerIds("my_test", mlInfo, version, new MetaStoreCallback<Void>() {
                     public void operationFailed(MetaStoreException e) {
                         // ok
-                        latch.countDown();
+                        promise.complete(null);
                     }
 
                     @Override
                     public void operationComplete(Void result, Stat version) {
-                        fail("should have failed");
+                        promise.completeExceptionally(new Exception("should have failed"));
                     }
                 });
             }
         });
 
-        latch.await();
+        promise.get();
     }
 }

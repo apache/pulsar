@@ -19,24 +19,82 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class SchemaDefinitionBuilderTest {
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testVerificationWithoutParams() {
+        SchemaDefinition.builder().build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testVerificationWithPojoAndJsonDef() {
+        SchemaDefinition.builder().withJsonDef("{}").withPojo(Object.class).build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testVerificationWithReaderOnly() {
+        SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
+        SchemaDefinition.builder().withSchemaReader(reader).build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testVerificationWithWriterOnly() {
+        SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
+        SchemaDefinition.builder().withSchemaWriter(writer).build();
+    }
+
     @Test
-    public void testVerification() {
-        try {
-            SchemaDefinition.builder().build();
-            Assert.fail("should failed");
-        } catch (IllegalArgumentException ignore) {
-        }
-        try {
-            SchemaDefinition.builder().withJsonDef("{}").withPojo(Object.class).build();
-            Assert.fail("should failed");
-        } catch (IllegalArgumentException ignore) {
-        }
+    public void testVerificationWithJsonDef() {
         SchemaDefinition.builder().withJsonDef("{}").build();
+    }
+
+    @Test
+    public void testVerificationWithPojo() {
         SchemaDefinition.builder().withPojo(Object.class).build();
+    }
+
+    @Test
+    public void testVerificationWithPojoAndReaderAndWriter() {
+        SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
+        SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
+        SchemaDefinition<Object> definition = SchemaDefinition.builder()
+                .withPojo(Object.class)
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+        Assert.assertNotNull(definition);
+    }
+
+    @Test
+    public void testVerificationWithJsonDefAndReaderAndWriter() {
+        SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
+        SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
+        SchemaDefinition<Object> definition = SchemaDefinition.builder()
+                .withJsonDef("{}")
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+        Assert.assertNotNull(definition);
+    }
+
+    @Test
+    public void testReaderWriterRegistration() {
+        SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
+        SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
+        SchemaDefinition<Object> definition = SchemaDefinition.builder()
+                .withPojo(Object.class)
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+        Assert.assertTrue(definition.getSchemaReaderOpt().isPresent());
+        Assert.assertTrue(definition.getSchemaWriterOpt().isPresent());
+        Assert.assertSame(reader, definition.getSchemaReaderOpt().get());
+        Assert.assertSame(writer, definition.getSchemaWriterOpt().get());
     }
 }

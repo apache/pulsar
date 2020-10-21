@@ -76,7 +76,7 @@ public class BatchMessageIdImplTest {
     public void deserializationTest() {
         // initialize BitSet with null
         BatchMessageAcker ackerDisabled = new BatchMessageAcker(null, 0);
-        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0, ackerDisabled);
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0, 0, ackerDisabled);
 
         ObjectWriter writer = ObjectMapperFactory.create().writerWithDefaultPrettyPrinter();
 

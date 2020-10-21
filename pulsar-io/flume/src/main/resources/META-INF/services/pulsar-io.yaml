@@ -20,3 +20,4 @@ name: flume
 description: flume source and sink connector
 sourceClass: org.apache.pulsar.io.flume.source.StringSource
 sinkClass: org.apache.pulsar.io.flume.sink.StringSink
+sinkConfigClass: org.apache.pulsar.io.flume.FlumeConfig

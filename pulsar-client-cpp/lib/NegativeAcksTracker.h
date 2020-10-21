@@ -41,6 +41,8 @@ class NegativeAcksTracker {
 
     void close();
 
+    void setEnabledForTesting(bool enabled);
+
    private:
     void scheduleTimer();
     void handleTimer(const boost::system::error_code &ec);
@@ -55,6 +57,7 @@ class NegativeAcksTracker {
 
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
+    bool enabledForTesting_;  // to be able to test deterministically
 };
 
 }  // namespace pulsar

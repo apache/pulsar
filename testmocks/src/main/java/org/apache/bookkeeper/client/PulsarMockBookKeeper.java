@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
+import org.apache.bookkeeper.client.api.DeleteBuilder;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
@@ -215,6 +216,32 @@ public class PulsarMockBookKeeper extends BookKeeper {
                                                                                   lh.getLedgerMetadata(), lh.entries));
                             }
                         });
+            }
+        };
+    }
+
+    @Override
+    public DeleteBuilder newDeleteLedgerOp() {
+        return new DeleteBuilder() {
+            private long ledgerId;
+
+            @Override
+            public CompletableFuture<Void> execute() {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                asyncDeleteLedger(ledgerId, (res, ctx) -> {
+                    if (res == BKException.Code.OK) {
+                        future.complete(null);
+                    } else {
+                        future.completeExceptionally(BKException.create(res));
+                    }
+                }, null);
+                return future;
+            }
+
+            @Override
+            public DeleteBuilder withLedgerId(long ledgerId) {
+                this.ledgerId = ledgerId;
+                return this;
             }
         };
     }

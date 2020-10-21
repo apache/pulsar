@@ -175,7 +175,7 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return javaInstanceRunnable.getStats().getStatsAsString();
+        return javaInstanceRunnable.getStatsAsString();
     }
 
     @Override

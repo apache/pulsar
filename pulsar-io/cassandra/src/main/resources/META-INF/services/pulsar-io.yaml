@@ -20,3 +20,4 @@
 name: cassandra
 description: Writes data into Cassandra
 sinkClass: org.apache.pulsar.io.cassandra.CassandraStringSink
+sinkConfigClass: org.apache.pulsar.io.cassandra.CassandraSinkConfig

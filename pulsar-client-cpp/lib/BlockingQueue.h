@@ -262,6 +262,8 @@ class BlockingQueue {
 
     iterator end() { return queue_.end(); }
 
+    int reservedSpots() const { return reservedSpots_; }
+
    private:
     void releaseReservedSpot() {
         Lock lock(mutex_);

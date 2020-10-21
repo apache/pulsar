@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -98,8 +97,7 @@ public class ClientDeduplicationFailureTest {
         config.setAllowAutoTopicCreationType("non-partitioned");
 
 
-        pulsar = new PulsarService(config, Optional.empty());
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config);
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddress();

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.ColumnMetadata;
-import com.facebook.presto.spi.type.Type;
+import io.prestosql.spi.connector.ColumnMetadata;
+import io.prestosql.spi.type.Type;
 import java.util.Arrays;
 import java.util.Objects;
 

@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 
-abstract class AbstractSchema<T> implements Schema<T> {
+public abstract class AbstractSchema<T> implements Schema<T> {
 
     /**
      * Check if the message read able length length is a valid object for this schema.
@@ -47,7 +47,7 @@ abstract class AbstractSchema<T> implements Schema<T> {
      *            the byte buffer to decode
      * @return the deserialized object
      */
-    abstract T decode(ByteBuf byteBuf);
+    public abstract T decode(ByteBuf byteBuf);
     /**
      * Decode a byteBuf into an object using a given version.
      *
@@ -57,7 +57,7 @@ abstract class AbstractSchema<T> implements Schema<T> {
      *            the schema version to decode the object. null indicates using latest version.
      * @return the deserialized object
      */
-    T decode(ByteBuf byteBuf, byte[] schemaVersion) {
+    public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(byteBuf);
     }

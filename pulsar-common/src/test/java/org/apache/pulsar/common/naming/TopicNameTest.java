@@ -26,12 +26,11 @@ import static org.testng.Assert.fail;
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
-@Test
 public class TopicNameTest {
 
     @SuppressWarnings("deprecation")
     @Test
-    void topic() {
+    public void topic() {
         try {
             TopicName.get("://tenant.namespace:topic").getNamespace();
             fail("Should have thrown exception");

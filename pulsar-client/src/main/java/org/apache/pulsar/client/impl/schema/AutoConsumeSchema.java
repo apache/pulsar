@@ -182,6 +182,14 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return TimeSchema.of();
             case TIMESTAMP:
                 return TimestampSchema.of();
+            case INSTANT:
+                return InstantSchema.of();
+            case LOCAL_DATE:
+                return LocalDateSchema.of();
+            case LOCAL_TIME:
+                return LocalTimeSchema.of();
+            case LOCAL_DATE_TIME:
+                return LocalDateTimeSchema.of();
             case JSON:
             case AVRO:
                 return GenericSchemaImpl.of(schemaInfo);

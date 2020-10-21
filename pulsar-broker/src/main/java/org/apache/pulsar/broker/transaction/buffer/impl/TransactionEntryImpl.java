@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * A simple implementation of {@link TransactionEntry}.
@@ -31,18 +33,22 @@ public class TransactionEntryImpl implements TransactionEntry {
     private final long sequenceId;
     private final long committedAtLedgerId;
     private final long committedAtEntryId;
-    private final ByteBuf entryBuf;
+    private final Entry entry;
+    private final int numMessageInTxn;
+    private int startBatchIndex;
 
     public TransactionEntryImpl(TxnID txnId,
                          long sequenceId,
-                         ByteBuf entryBuf,
+                         Entry entry,
                          long committedAtLedgerId,
-                         long committedAtEntryId) {
+                         long committedAtEntryId,
+                         int numMessageInTxn) {
         this.txnId = txnId;
         this.sequenceId = sequenceId;
-        this.entryBuf = entryBuf;
+        this.entry = entry;
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
+        this.numMessageInTxn = numMessageInTxn;
     }
 
     @Override
@@ -56,6 +62,11 @@ public class TransactionEntryImpl implements TransactionEntry {
     }
 
     @Override
+    public int numMessageInTxn() {
+        return numMessageInTxn;
+    }
+
+    @Override
     public long committedAtLedgerId() {
         return committedAtLedgerId;
     }
@@ -66,14 +77,63 @@ public class TransactionEntryImpl implements TransactionEntry {
     }
 
     @Override
-    public ByteBuf getEntryBuffer() {
-        return entryBuf;
+    public Entry getEntry() {
+        return entry;
+    }
+
+    public void setStartBatchIndex(int startBatchIndex) {
+        this.startBatchIndex = startBatchIndex;
+    }
+
+    public int getStartBatchIndex() {
+        return startBatchIndex;
     }
 
     @Override
     public void close() {
-        if (null != entryBuf) {
-            entryBuf.release();
+        if (null != entry) {
+            entry.getDataBuffer().release();
+            entry.release();
         }
+    }
+
+    @Override
+    public byte[] getData() {
+        return entry.getData();
+    }
+
+    @Override
+    public byte[] getDataAndRelease() {
+        return entry.getDataAndRelease();
+    }
+
+    @Override
+    public int getLength() {
+        return entry.getLength();
+    }
+
+    @Override
+    public ByteBuf getDataBuffer() {
+        return entry.getDataBuffer();
+    }
+
+    @Override
+    public Position getPosition() {
+        return entry.getPosition();
+    }
+
+    @Override
+    public long getLedgerId() {
+        return committedAtLedgerId;
+    }
+
+    @Override
+    public long getEntryId() {
+        return committedAtEntryId;
+    }
+
+    @Override
+    public boolean release() {
+        return this.entry.release();
     }
 }

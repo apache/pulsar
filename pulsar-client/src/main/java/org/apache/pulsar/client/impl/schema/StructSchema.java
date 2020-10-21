@@ -103,7 +103,8 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         try {
-            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
+            return schemaVersion == null ? decode(bytes) :
+                    readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
         } catch (ExecutionException | AvroTypeException e) {
             if (e instanceof AvroTypeException) {
                 throw new SchemaSerializationException(e);
@@ -122,7 +123,8 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
     @Override
     public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
         try {
-            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(new ByteBufInputStream(byteBuf));
+            return schemaVersion == null ? decode(byteBuf) :
+                    readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(new ByteBufInputStream(byteBuf));
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
@@ -180,7 +182,7 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
         return parser.parse(schemaJson);
     }
 
-    protected static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
+    public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
         return SchemaInfo.builder()
                 .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
                 .properties(schemaDefinition.getProperties())

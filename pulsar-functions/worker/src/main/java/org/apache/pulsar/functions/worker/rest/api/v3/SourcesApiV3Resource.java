@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -256,13 +254,41 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources")
     public List<ConnectorDefinition> getSourceList() {
-        List<ConnectorDefinition> connectorDefinitions = source.getListOfConnectors();
-        List<ConnectorDefinition> retval = new ArrayList<>();
-        for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
-                retval.add(connectorDefinition);
-            }
-        }
-        return retval;
+        return source.getSourceList();
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches information about config fields associated with the specified builtin source",
+            response = ConfigFieldDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "builtin source does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/builtinsources/{name}/configdefinition")
+    public List<ConfigFieldDefinition> getSourceConfigDefinition(
+            @ApiParam(value = "The name of the builtin source")
+            final @PathParam("name") String name) throws IOException {
+        return source.getSourceConfigDefinition(name);
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in connectors, including Sources and Sinks",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSources")
+    public void reloadSources() {
+        source.reloadConnectors(clientAppId());
     }
 }

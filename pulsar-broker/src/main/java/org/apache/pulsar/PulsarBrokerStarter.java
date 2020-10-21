@@ -189,14 +189,13 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setTlsHostnameVerificationEnable(false);
-
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-                workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+                workerConfig.setTlsEnableHostnameVerification(false);
+                workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
                 // client in worker will use this config to authenticate with broker
-                workerConfig.setClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
-                workerConfig.setClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+                workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+                workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
 
                 // inherit super users
                 workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
@@ -207,7 +206,13 @@ public class PulsarBrokerStarter {
             }
 
             // init pulsar service
-            pulsarService = new PulsarService(brokerConfig, Optional.ofNullable(functionsWorkerService));
+            pulsarService = new PulsarService(brokerConfig,
+                                              Optional.ofNullable(functionsWorkerService),
+                                              (exitCode) -> {
+                                                  log.info("Halting broker process with code {}",
+                                                           exitCode);
+                                                  Runtime.getRuntime().halt(exitCode);
+                                              });
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
@@ -341,8 +346,8 @@ public class PulsarBrokerStarter {
 
         try {
             starter.start();
-        } catch (Exception e) {
-            log.error("Failed to start pulsar service.", e);
+        } catch (Throwable t) {
+            log.error("Failed to start pulsar service.", t);
             Runtime.getRuntime().halt(1);
         } finally {
             starter.join();

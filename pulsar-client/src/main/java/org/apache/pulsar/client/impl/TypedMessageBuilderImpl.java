@@ -91,13 +91,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        long sequenceId = beforeSend();
-        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(getMessage());
+        Message<T> message = getMessage();
+        final long sequenceId = message.getSequenceId();
+        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(message, txn);
         if (txn != null) {
-            // it is okay that we register produced topic after sending the messages. because
-            // the transactional messages will not be visible for consumers until the transaction
-            // is committed.
-            txn.registerProducedTopic(producer.getTopic());
             // register the sendFuture as part of the transaction
             return txn.registerSendOp(sequenceId, sendFuture);
         } else {
@@ -111,6 +108,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
+            if (key == null) {
+                msgMetadataBuilder.setNullPartitionKey(true);
+                return this;
+            }
         }
         msgMetadataBuilder.setPartitionKey(key);
         msgMetadataBuilder.setPartitionKeyB64Encoded(false);
@@ -123,6 +124,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
+            if (key == null) {
+                msgMetadataBuilder.setNullPartitionKey(true);
+                return this;
+            }
         }
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);
@@ -137,18 +142,29 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
-
-        checkArgument(value != null, "Need Non-Null content value");
+        if (value == null) {
+            msgMetadataBuilder.setNullValue(true);
+            return this;
+        }
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
-                msgMetadataBuilder.setPartitionKey(
-                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
-                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                if (kv.getKey() != null) {
+                    msgMetadataBuilder.setPartitionKey(
+                            Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                    msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                } else {
+                    this.msgMetadataBuilder.setNullPartitionKey(true);
+                }
+
                 // set value as the payload
-                this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                if (kv.getValue() != null) {
+                    this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                } else {
+                    this.msgMetadataBuilder.setNullValue(true);
+                }
                 return this;
             }
         }
@@ -220,27 +236,36 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
         config.forEach((key, value) -> {
-            if (key.equals(CONF_KEY)) {
-                this.key(checkType(value, String.class));
-            } else if (key.equals(CONF_PROPERTIES)) {
-                this.properties(checkType(value, Map.class));
-            } else if (key.equals(CONF_EVENT_TIME)) {
-                this.eventTime(checkType(value, Long.class));
-            } else if (key.equals(CONF_SEQUENCE_ID)) {
-                this.sequenceId(checkType(value, Long.class));
-            } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
-                this.replicationClusters(checkType(value, List.class));
-            } else if (key.equals(CONF_DISABLE_REPLICATION)) {
-                boolean disableReplication = checkType(value, Boolean.class);
-                if (disableReplication) {
-                    this.disableReplication();
-                }
-            } else if (key.equals(CONF_DELIVERY_AFTER_SECONDS)) {
-                this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
-            } else if (key.equals(CONF_DELIVERY_AT)) {
-                this.deliverAt(checkType(value, Long.class));
-            } else {
-                throw new RuntimeException("Invalid message config key '" + key + "'");
+            switch (key) {
+                case CONF_KEY:
+                    this.key(checkType(value, String.class));
+                    break;
+                case CONF_PROPERTIES:
+                    this.properties(checkType(value, Map.class));
+                    break;
+                case CONF_EVENT_TIME:
+                    this.eventTime(checkType(value, Long.class));
+                    break;
+                case CONF_SEQUENCE_ID:
+                    this.sequenceId(checkType(value, Long.class));
+                    break;
+                case CONF_REPLICATION_CLUSTERS:
+                    this.replicationClusters(checkType(value, List.class));
+                    break;
+                case CONF_DISABLE_REPLICATION:
+                    boolean disableReplication = checkType(value, Boolean.class);
+                    if (disableReplication) {
+                        this.disableReplication();
+                    }
+                    break;
+                case CONF_DELIVERY_AFTER_SECONDS:
+                    this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
+                    break;
+                case CONF_DELIVERY_AT:
+                    this.deliverAt(checkType(value, Long.class));
+                    break;
+                default:
+                    throw new RuntimeException("Invalid message config key '" + key + "'");
             }
         });
         return this;

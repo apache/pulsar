@@ -27,7 +27,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -37,7 +37,7 @@ public class CachedPulsarClientTest {
 
     private static final String SERVICE_URL = "pulsar://localhost:6650";
 
-    @BeforeTest
+    @BeforeMethod
     public void clearCache() {
         CachedPulsarClient.clear();
     }

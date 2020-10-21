@@ -31,7 +31,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class LocalBookkeeperEnsembleTest {
 
     @BeforeMethod
@@ -43,7 +42,7 @@ public class LocalBookkeeperEnsembleTest {
     }
 
     @Test
-    void testAdvertisedAddress() throws Exception {
+    public void testAdvertisedAddress() throws Exception {
         final int numBk = 1;
 
         LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(
@@ -59,7 +58,7 @@ public class LocalBookkeeperEnsembleTest {
     }
 
     @Test
-    void testStartStop() throws Exception {
+    public void testStartStop() throws Exception {
 
         final int numBk = 1;
 

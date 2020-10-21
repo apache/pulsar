@@ -130,7 +130,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 # If using secret key
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:
-# tokenSecretKey=data:base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
+# tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
 
 # If using public/private
 # tokenPublicKey=file:///path/to/public.key

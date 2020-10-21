@@ -29,9 +29,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -43,8 +46,17 @@ public class PulsarClientTool {
     @Parameter(names = { "--url" }, description = "Broker URL to which to connect.")
     String serviceURL = null;
 
+    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    String proxyServiceURL = null;
+
+    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    ProxyProtocol proxyProtocol = null;
+
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
+
+    @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+    String listenerName = null;
 
     @Parameter(
         names = { "--auth-params" },
@@ -67,6 +79,7 @@ public class PulsarClientTool {
     String tlsTrustStorePassword = null;
 
     JCommander commandParser;
+    IUsageFormatter usageFormatter;
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
 
@@ -95,6 +108,8 @@ public class PulsarClientTool {
         consumeCommand = new CmdConsume();
 
         this.commandParser = new JCommander();
+        this.usageFormatter = new DefaultUsageFormatter(this.commandParser);
+
         commandParser.setProgramName("pulsar-client");
         commandParser.addObject(this);
         commandParser.addCommand("produce", produceCommand);
@@ -108,8 +123,12 @@ public class PulsarClientTool {
             authentication = AuthenticationFactory.create(authPluginClassName, authParams);
             clientBuilder.authentication(authentication);
         }
+        if (isNotBlank(this.listenerName)) {
+            clientBuilder.listenerName(this.listenerName);
+        }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
+        clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(serviceURL);
 
         clientBuilder.useKeyStoreTls(useKeyStoreTls)
@@ -117,6 +136,13 @@ public class PulsarClientTool {
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword);
 
+        if (StringUtils.isNotBlank(proxyServiceURL)) {
+            if (proxyProtocol == null) {
+                System.out.println("proxy-protocol must be provided with proxy-url");
+                System.exit(-1);
+            }
+            clientBuilder.proxyServiceUrl(proxyServiceURL, proxyProtocol);
+        }
         this.produceCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
     }
@@ -157,7 +183,7 @@ public class PulsarClientTool {
             System.out.println(e.getMessage());
             String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }

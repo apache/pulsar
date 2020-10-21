@@ -19,3 +19,4 @@
 name: redis
 description: Writes data into Redis
 sinkClass: org.apache.pulsar.io.redis.sink.RedisSink
+sinkConfigClass: org.apache.pulsar.io.redis.sink.RedisSinkConfig

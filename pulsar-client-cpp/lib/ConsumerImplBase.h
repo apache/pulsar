@@ -55,6 +55,11 @@ class ConsumerImplBase {
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
     virtual void seekAsync(uint64_t timestamp, ResultCallback callback) = 0;
     virtual void negativeAcknowledge(const MessageId& msgId) = 0;
+
+   private:
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled) = 0;
+
+    friend class PulsarFriend;
 };
 }  // namespace pulsar
 #endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER

@@ -134,6 +134,9 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void handleOneTopicUnsubscribedAsync(Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                          int numberPartitions, TopicNamePtr topicNamePtr,
                                          std::string& topicPartitionName, ResultCallback callback);
+
+   private:
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
 };
 
 }  // namespace pulsar

@@ -58,7 +58,8 @@ if (WIN32)
 endif()
 
 add_library(pulsarShared SHARED ${PULSAR_SOURCES})
-set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME_SHARED} VERSION ${LIBRARY_VERSION})
+set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
+set_property(TARGET pulsarShared PROPERTY VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
 
 
@@ -75,11 +76,13 @@ if (NOT ${RECORD_OPENSSL_CRYPTO_LIBRARY} MATCHES ".+\\.a$")
 endif ()
 
 add_library(pulsarSharedNossl SHARED ${PULSAR_SOURCES})
-set_target_properties(pulsarSharedNossl PROPERTIES OUTPUT_NAME ${LIB_NAME_SHARED}nossl VERSION ${LIBRARY_VERSION})
+set_property(TARGET pulsarSharedNossl PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED}nossl)
+set_property(TARGET pulsarSharedNossl PROPERTY VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarSharedNossl ${COMMON_LIBS_NOSSL} ${CMAKE_DL_LIBS})
 
 add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
-set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
+set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
+set_property(TARGET pulsarStatic PROPERTY VERSION ${LIBRARY_VERSION})
 target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
 
 if (MSVC)
@@ -92,7 +95,7 @@ endif()
 # required dependencies except ssl
 if (LINK_STATIC)
     if (MSVC)
-        
+
         # This function is to remove either "debug" or "optimized" library names
         # out of the COMMON_LIBS list and return the sanitized list of libraries
         function(remove_libtype LIBLIST LIBTYPE OUTLIST)
@@ -112,7 +115,10 @@ if (LINK_STATIC)
         target_include_directories(pulsarStaticWithDeps PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
         remove_libtype("${COMMON_LIBS}" "optimized" DEBUG_STATIC_LIBS)
         remove_libtype("${COMMON_LIBS}" "debug" STATIC_LIBS)
-        set_target_properties(pulsarStaticWithDeps PROPERTIES STATIC_LIBRARY_FLAGS_DEBUG ${DEBUG_STATIC_LIBS} STATIC_LIBRARY_FLAGS_RELEASE ${STATIC_LIBS} OUTPUT_NAME ${LIB_NAME}WithDeps VERSION ${LIBRARY_VERSION})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY STATIC_LIBRARY_FLAGS_DEBUG ${DEBUG_STATIC_LIBS})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY STATIC_LIBRARY_FLAGS_RELEASE ${STATIC_LIBS})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY OUTPUT_NAME ${LIB_NAME}WithDeps)
+        set_property(TARGET pulsarStaticWithDeps PROPERTY VERSION ${LIBRARY_VERSION})
         install(TARGETS pulsarStaticWithDeps DESTINATION lib)
     else()
         # Build a list of the requird .a libs (except ssl) to merge

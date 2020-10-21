@@ -28,7 +28,7 @@
 #include <lib/TopicName.h>
 #include "ProducerImplBase.h"
 #include "ConsumerImplBase.h"
-
+#include <atomic>
 #include <vector>
 
 namespace pulsar {
@@ -147,6 +147,8 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
 
     typedef std::vector<ConsumerImplBaseWeakPtr> ConsumersList;
     ConsumersList consumers_;
+
+    std::atomic<Result> closingError;
 
     friend class Client;
 };

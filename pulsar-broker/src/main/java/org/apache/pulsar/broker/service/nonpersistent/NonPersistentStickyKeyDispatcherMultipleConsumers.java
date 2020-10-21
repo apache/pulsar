@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import io.netty.util.concurrent.FastThreadLocal;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -25,15 +32,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
@@ -48,7 +47,13 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         super.addConsumer(consumer);
-        selector.addConsumer(consumer);
+        try {
+            selector.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            consumerSet.removeAll(consumer);
+            consumerList.remove(consumer);
+            throw e;
+        }
     }
 
     @Override
@@ -62,37 +67,42 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         return SubType.Key_Shared;
     }
 
+    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries = new FastThreadLocal<Map<Consumer, List<Entry>>>() {
+        @Override
+        protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+            return new HashMap<>();
+        }
+    };
+
     @Override
     public void sendMessages(List<Entry> entries) {
-        if (entries.size() > 0) {
-            final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
-            for (Entry entry : entries) {
-                int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer())) % selector.getRangeSize();
-                groupedEntries.putIfAbsent(key, new ArrayList<>());
-                groupedEntries.get(key).add(entry);
-            }
-            final Iterator<Map.Entry<Integer, List<Entry>>> iterator = groupedEntries.entrySet().iterator();
-            while (iterator.hasNext()) {
-                final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
-                //TODO: None key policy
-                Consumer consumer = selector.selectByIndex(entriesWithSameKey.getKey());
-                if (consumer != null) {
-                    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                    EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesWithSameKey.getValue().size());
-                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo);
-                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
-                    TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
-                } else {
-                    entries.forEach(entry -> {
-                        int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
-                        if (totalMsgs > 0) {
-                            msgDrop.recordEvent(totalMsgs);
-                        }
-                        entry.release();
-                    });
-                }
-            }
+        if (!entries.isEmpty()) {
+            return;
+        }
+
+        if (consumerSet.isEmpty()) {
+            entries.forEach(Entry::release);
+            return;
+        }
+
+        final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
+        groupedEntries.clear();
+
+        for (Entry entry : entries) {
+            Consumer consumer = selector.select(peekStickyKey(entry.getDataBuffer()));
+            groupedEntries.computeIfAbsent(consumer, k -> new ArrayList<>()).add(entry);
+        }
+
+        for (Map.Entry<Consumer, List<Entry>> entriesByConsumer : groupedEntries.entrySet()) {
+            Consumer consumer = entriesByConsumer.getKey();
+            List<Entry> entriesForConsumer = entriesByConsumer.getValue();
+
+            SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+            EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
+            filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, null);
+            consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         }
     }
 }

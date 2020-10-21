@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.functions.auth;
 
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1ServiceAccount;
-import io.kubernetes.client.models.V1StatefulSet;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import java.util.Optional;
 

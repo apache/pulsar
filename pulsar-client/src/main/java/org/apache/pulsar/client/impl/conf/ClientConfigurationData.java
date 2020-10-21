@@ -26,10 +26,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -46,9 +48,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private transient Authentication authentication = new AuthenticationDisabled();
+    private Authentication authentication = AuthenticationDisabled.INSTANCE;
     private String authPluginClassName;
+
+    @JsonIgnore
     private String authParams;
+    @JsonIgnore
+    private Map<String, String> authParamMap;
 
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -65,12 +71,15 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean tlsHostnameVerificationEnable = false;
     private int concurrentLookupRequest = 5000;
     private int maxLookupRequest = 50000;
+    private int maxLookupRedirects = 20;
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+    //
+    private String listenerName;
 
     // set TLS using KeyStore way.
     private boolean useKeyStoreTls = false;
@@ -81,6 +90,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String tlsTrustStorePassword = null;
     private Set<String> tlsCiphers = Sets.newTreeSet();
     private Set<String> tlsProtocols = Sets.newTreeSet();
+
+    /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
+    private String proxyServiceUrl;
+    private ProxyProtocol proxyProtocol;
+
+    // transaction
+    private boolean enableTransaction = false;
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();

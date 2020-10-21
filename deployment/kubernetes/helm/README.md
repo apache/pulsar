@@ -19,4 +19,6 @@
 
 -->
 
+The Helm Chart is moved to [pulsar-helm-chart](https://github.com/apache/pulsar-helm-chart).
+
 Read [Deploying Pulsar on Kubernetes](http://pulsar.apache.org/docs/en/deploy-kubernetes/) for more details.

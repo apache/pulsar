@@ -85,7 +85,6 @@ public class SLAMonitoringTest {
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
-            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
 
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
@@ -139,7 +138,7 @@ public class SLAMonitoringTest {
                 assertTrue(pulsarServices[0].getNamespaceService().registerSLANamespace());
             } catch (PulsarServerException e) {
                 e.printStackTrace();
-                log.error("Exception occured", e);
+                log.error("Exception occurred", e);
                 fail("SLA Namespace should have been owned by the broker, Exception.", e);
             }
         }
@@ -215,7 +214,6 @@ public class SLAMonitoringTest {
         // Check if the namespace is properly unloaded and reowned by the broker
         try {
             pulsarServices[crashIndex] = new PulsarService(configurations[crashIndex]);
-            pulsarServices[crashIndex].setShutdownService(new NoOpShutdownService());
             pulsarServices[crashIndex].start();
 
             // Port for the broker will have changed since it's dynamically allocated

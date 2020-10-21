@@ -343,7 +343,7 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @param addr
      *            Socket Address
-     * @param latch
+     * @param l
      *            Latch to wait on
      * @throws InterruptedException
      * @throws IOException
@@ -417,8 +417,6 @@ public abstract class BookKeeperClusterTestCase {
      * Helper method to startup a new bookie server with the indicated port number. Also, starts the auto recovery
      * process, if the isAutoRecoveryEnabled is set true.
      *
-     * @param port
-     *            Port to start the new bookie server on
      * @throws IOException
      */
     public int startNewBookie() throws Exception {

@@ -72,6 +72,10 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
 	}
 
+	if message.DeliverAfter != 0 {
+		C.pulsar_message_set_deliver_after(cMsg, C.uint64_t(durationToUnixTimestampMillis(message.DeliverAfter)))
+	}
+
 	if message.SequenceID != 0 {
 		C.pulsar_message_set_sequence_id(cMsg, C.int64_t(message.SequenceID))
 	}
@@ -222,4 +226,8 @@ func timeToUnixTimestampMillis(t time.Time) C.ulonglong {
 	nanos := t.UnixNano()
 	millis := nanos / int64(time.Millisecond)
 	return C.ulonglong(millis)
+}
+
+func durationToUnixTimestampMillis(t time.Duration) C.ulonglong {
+	return C.ulonglong(t.Milliseconds())
 }

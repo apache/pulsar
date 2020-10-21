@@ -20,3 +20,4 @@
 name: elastic_search
 description: Writes data into Elastic Search
 sinkClass: org.apache.pulsar.io.elasticsearch.ElasticSearchSink
+sinkConfigClass: org.apache.pulsar.io.elasticsearch.ElasticSearchConfig

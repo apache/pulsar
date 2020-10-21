@@ -133,6 +133,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Hostname or IP address the service binds on"
+    )
+    private String bindAddress = "0.0.0.0";
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Hostname or IP address the service advertises to the outside world."
+            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
+    )
+    private String advertisedAddress;
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
     private Optional<Integer> servicePort = Optional.ofNullable(6650);
@@ -459,6 +471,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
+
     @PropertiesContext(
         properties = {
             @PropertyContext(
@@ -468,7 +492,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     doc = "Asymmetric public/private key pair.\n\n"
                         + "Configure the public key to be used to validate auth tokens"
                         + " The key can be specified like:\n\n"
-                        + "tokenPublicKey=data:base64,xxxxxxxxx\n"
+                        + "tokenPublicKey=data:;base64,xxxxxxxxx\n"
                         + "tokenPublicKey=file:///my/public.key")
             ),
             @PropertyContext(
@@ -478,7 +502,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     doc = "Symmetric key.\n\n"
                         + "Configure the secret key to be used to validate auth tokens"
                         + "The key can be specified like:\n\n"
-                        + "tokenSecretKey=data:base64,xxxxxxxxx\n"
+                        + "tokenSecretKey=data:;base64,xxxxxxxxx\n"
                         + "tokenSecretKey=file:///my/secret.key")
             )
         }

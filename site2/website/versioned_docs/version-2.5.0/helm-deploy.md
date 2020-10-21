@@ -317,21 +317,21 @@ The Pulsar Chart uses [cert-manager](https://github.com/jetstack/cert-manager) t
 
 You can follow the [official instructions](https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm) to install cert-manager.
 
-Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to namespace `cert-manager`.
+Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to namespace `cert-manager`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/cert-manager/install-cert-manager.sh
 ```
 
 ## Prepare the Helm Release
 
-Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/prepare_helm_release.sh) to prepare the helm release.
+Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh) to prepare the helm release.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/pulsar/prepare_helm_release.sh -n <k8s-namespace> -k <helm-release-name>
 ```
 
@@ -355,9 +355,9 @@ Once you have done the following three things, you can proceed to install a Helm
 In this example, we've named our Helm release `pulsar`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
-helm upgrade --install pulsar pulsar \
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
+helm upgrade --install pulsar charts/pulsar \
     --timeout 600 \
     --set [your configuration options]
 ```

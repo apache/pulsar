@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class AuthenticationDisabled implements Authentication, EncodedAuthenticationParameterSupport {
 
     protected final AuthenticationDataProvider nullData = new AuthenticationDataNull();
+    public static final AuthenticationDisabled INSTANCE = new AuthenticationDisabled();
     /**
      *
      */

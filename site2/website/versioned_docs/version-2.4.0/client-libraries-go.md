@@ -90,6 +90,21 @@ func main() {
 }
 ```
 
+### Client operations
+
+Pulsar Go client has the following methods available:
+
+Method | Description | Return type
+:------|:------------|:-----------
+`CreateProducer(ProducerOptions)` | Create the producer instance. (This method will be blocked until the producer is created successfully.) | `(Producer, error)`
+`CreateProducerWithSchema(ProducerOptions, Schema)` | Create a producer instance with schema. | `(Producer, error)`
+`Subscribe(ConsumerOptions)` | Create a `Consumer` by subscribing to a topic. | `(Consumer, error)`
+`SubscribeWithSchema(ConsumerOptions, Schema)` | Create a `Consumer` with schema by subscribing to a topic. | `(Consumer, error)`
+`CreateReader(ReaderOptions)` | Create a Reader instance. | `(Reader, error)`
+`CreateReaderWithSchema(ReaderOptions, Schema)` | Create a Reader instance with schema. | `(Reader, error)`
+`TopicPartitions(topic string)` | Fetch the list of partitions for a given topic. | `([]string, error)`
+`Close()` | Close the Pulsar Go client and release associated resources. | `error`
+
 The following configurable parameters are available for Pulsar clients:
 
 Parameter | Description | Default
@@ -268,6 +283,7 @@ Method | Description | Return type
 `NackID(MessageID)` | Acknowledge the failure to process a single message. | `error`
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
 `RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](concepts-messaging.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](concepts-messaging.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
+`Schema()` | Set the message schema definition | `Schema`
 
 #### Receive example
 
@@ -321,6 +337,55 @@ func main() {
 }
 ```
 
+#### Schema example
+
+This example shows how to create a producer and consumer with schema.
+
+```go
+var exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+    		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+jsonSchema := NewJsonSchema(exampleSchemaDef, nil)
+
+// create producer
+producer, err := client.CreateProducerWithSchema(ProducerOptions{
+	Topic: "jsonTopic",
+}, jsonSchema)
+err = producer.Send(context.Background(), ProducerMessage{
+	Value: &testJson{
+		ID:   100,
+		Name: "pulsar",
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer producer.Close()
+
+//create consumer
+var s testJson
+
+consumerJS := NewJsonSchema(exampleSchemaDef, nil)
+consumer, err := client.SubscribeWithSchema(ConsumerOptions{
+	Topic:            "jsonTopic",
+	SubscriptionName: "sub-2",
+}, consumerJS)
+if err != nil {
+	log.Fatal(err)
+}
+msg, err := consumer.Receive(context.Background())
+if err != nil {
+	log.Fatal(err)
+}
+err = msg.GetValue(&s)
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Println(s.ID) // output: 100
+fmt.Println(s.Name) // output: pulsar
+
+defer consumer.Close()
+```
+
 ### Consumer configuration
 
 Parameter | Description | Default
@@ -330,10 +395,13 @@ Parameter | Description | Default
 `Name` | The name of the consumer |
 `AckTimeout` | | 0
 `NackRedeliveryDelay` | The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See `Consumer.Nack()`) | 1 minute
-`SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
+`SubscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared` and `Failover` | `Exclusive`
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000
 `MaxTotalReceiverQueueSizeAcrossPartitions` |Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value | 50000
+`Name` | Set the consumer name. | `string`
+`ReadCompacted` | If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic.| `bool`
+`Schema` | Message schema definition| 
 
 ## Readers
 

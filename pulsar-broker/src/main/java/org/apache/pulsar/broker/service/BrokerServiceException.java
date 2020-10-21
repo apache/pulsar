@@ -22,6 +22,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
 /**
@@ -171,6 +172,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
+        public TopicPoliciesCacheNotInitException() {
+            super("Topic policies cache have not init.");
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
@@ -206,6 +213,10 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionCoordinatorNotFound;
         } else if (t instanceof CoordinatorException.InvalidTxnStatusException) {
             return ServerError.InvalidTxnStatus;
+        } else if (t instanceof NotAllowedException) {
+            return ServerError.NotAllowedError;
+        } else if (t instanceof TransactionConflictException) {
+            return ServerError.TransactionConflict;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

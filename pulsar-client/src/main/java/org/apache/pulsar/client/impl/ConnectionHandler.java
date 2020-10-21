@@ -110,6 +110,7 @@ public class ConnectionHandler {
 
     @VisibleForTesting
     public void connectionClosed(ClientCnx cnx) {
+        state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
                 log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());

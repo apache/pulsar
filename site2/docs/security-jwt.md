@@ -14,7 +14,7 @@ is permitted to do some actions (eg: publish to a topic or consume from a topic)
 
 A user typically gets a token string from the administrator (or some automated service).
 
-The compact representation of a signed JWT is a string that looks like as the follwing:
+The compact representation of a signed JWT is a string that looks like as the following:
 
 ```
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
@@ -120,6 +120,13 @@ config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIi
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ```
 
+<!--C#-->
+```c#
+var client = PulsarClient.Builder()
+                         .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+                         .Build();
+```
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Enable token authentication 
@@ -210,10 +217,14 @@ authenticationEnabled=true
 authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
+# If this flag is set then the broker authenticates the original Auth data
+# else it just accepts the originalPrincipal and authorizes it (if required).
+authenticateOriginalAuthData=true
+
 # If using secret key
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:
-# tokenSecretKey=data:base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
+# tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
 
 # If using public/private
 # tokenPublicKey=file:///path/to/public.key
@@ -237,4 +248,8 @@ brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.Authenticati
 brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
 # Or, alternatively, read token from file
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
+
+# Whether client authorization credentials are forwared to the broker for re-authorization.
+# Authentication must be enabled via authenticationEnabled=true for this to take effect.
+forwardAuthorizationCredentials=true
 ```

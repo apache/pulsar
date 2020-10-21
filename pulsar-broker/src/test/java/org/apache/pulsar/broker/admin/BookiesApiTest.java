@@ -33,7 +33,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod

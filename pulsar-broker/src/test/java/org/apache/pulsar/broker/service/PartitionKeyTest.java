@@ -29,17 +29,16 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 public class PartitionKeyTest extends BrokerTestBase {
     @BeforeMethod
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.baseSetup();
     }
 
     @AfterMethod
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 

@@ -25,9 +25,20 @@ import io.netty.buffer.ByteBuf;
  */
 public interface SchemaHandler {
 
-    Object deserialize(ByteBuf payload);
+    default Object deserialize(ByteBuf payload) {
+        return null;
+    }
 
-    Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload);
+    // if schemaHandler don't support multi version, we will use method deserialize(ByteBuf payload)
+    default Object deserialize(ByteBuf byteBuf, byte[] schemaVersion) {
+        return deserialize(byteBuf);
+    }
+
+    // if SchemaHandler don't support key value multi version
+    // we will use method deserialize(ByteBuf byteBuf, byte[] schemaVersion)
+    default Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
+        return deserialize(dataPayload, schemaVersion);
+    }
 
     Object extractField(int index, Object currentRecord);
 

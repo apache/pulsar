@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kinesis;
 import java.io.IOException;
 import java.util.Map;
 
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;

@@ -328,6 +328,11 @@ public class PulsarCluster {
     }
 
     public void startPrestoWorker() {
+        startPrestoWorker(null, null);
+    }
+
+    public void startPrestoWorker(String offloadDriver, String offloadProperties) {
+        log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
                     .withNetwork(network)
@@ -337,8 +342,18 @@ public class PulsarCluster {
                     .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            if (offloadDriver != null && offloadProperties != null) {
+                log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
+                        offloadDriver, offloadProperties);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
+                // used in s3 tests
+                prestoWorkerContainer.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
+                prestoWorkerContainer.withEnv("AWS_SECRET_KEY", "secretkey");
+            }
         }
-        log.info("Starting Presto Worker");
+        log.info("[startPrestoWorker] Starting Presto Worker");
         prestoWorkerContainer.start();
     }
 
@@ -402,7 +417,8 @@ public class PulsarCluster {
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
-                .withEnv("PF_threadContainerFactory_threadGroupName", "pf-container-group")
+                .withEnv("PF_functionRuntimeFactoryClassName", "org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory")
+                .withEnv("PF_functionRuntimeFactoryConfigs_threadGroupName", "pf-container-group")
                 // script
                 .withEnv("clusterName", clusterName)
                 .withEnv("zookeeperServers", ZKContainer.NAME)

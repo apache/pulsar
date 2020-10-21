@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "PartitionedConsumerImpl.h"
+#include "MultiResultCallback.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -291,7 +292,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
         partitionedConsumerCreatedPromise_.setFailed(result);
         // unsubscribed all of the successfully subscribed partitioned consumers
         closeAsync(nullCallbackForCleanup);
-        LOG_DEBUG("Unable to create Consumer for partition - " << partitionIndex << " Error - " << result);
+        LOG_ERROR("Unable to create Consumer for partition - " << partitionIndex << " Error - " << result);
         return;
     }
 
@@ -350,17 +351,17 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
     setState(Closed);
-    int consumerIndex = 0;
     unsigned int consumerAlreadyClosed = 0;
     // close successfully subscribed consumers
     // Here we don't need `consumersMutex` to protect `consumers_`, because `consumers_` can only be increased
     // when `state_` is Ready
-    for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
-        ConsumerImplPtr consumer = *i;
+    for (auto& consumer : consumers_) {
         if (!consumer->isClosed()) {
-            consumer->closeAsync(std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerClose,
-                                           shared_from_this(), std::placeholders::_1, consumerIndex,
-                                           callback));
+            auto self = shared_from_this();
+            const auto partition = consumer->getPartitionIndex();
+            consumer->closeAsync([this, self, partition, callback](Result result) {
+                handleSinglePartitionConsumerClose(result, partition, callback);
+            });
         } else {
             if (++consumerAlreadyClosed == consumers_.size()) {
                 // everything is closed already. so we are good.
@@ -546,7 +547,21 @@ void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 }
 
 void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
-    callback(ResultOperationNotSupported);
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        stateLock.unlock();
+        callback(ResultAlreadyClosed);
+        return;
+    }
+
+    // consumers_ could only be modified when state_ is Ready, so we needn't lock consumersMutex_ here
+    ConsumerList consumerList = consumers_;
+    stateLock.unlock();
+
+    MultiResultCallback multiResultCallback(callback, consumers_.size());
+    for (ConsumerList::const_iterator i = consumerList.begin(); i != consumerList.end(); i++) {
+        (*i)->seekAsync(timestamp, multiResultCallback);
+    }
 }
 
 void PartitionedConsumerImpl::runPartitionUpdateTask() {
@@ -590,6 +605,13 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
     }
 
     runPartitionUpdateTask();
+}
+
+void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    Lock lock(mutex_);
+    for (auto&& c : consumers_) {
+        c->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
 }
 
 }  // namespace pulsar

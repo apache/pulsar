@@ -99,7 +99,7 @@ class PulsarCLoggerFactory : public pulsar::LoggerFactory {
 
 void pulsar_client_configuration_set_logger(pulsar_client_configuration_t *conf, pulsar_logger logger,
                                             void *ctx) {
-    conf->conf.setLogger(pulsar::LoggerFactoryPtr(new PulsarCLoggerFactory(logger, ctx)));
+    conf->conf.setLogger(new PulsarCLoggerFactory(logger, ctx));
 }
 
 void pulsar_client_configuration_set_use_tls(pulsar_client_configuration_t *conf, int useTls) {

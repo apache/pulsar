@@ -143,6 +143,14 @@ public class RawMessageImpl implements RawMessage {
     }
 
     @Override
+    public byte[] getSchemaVersion() {
+        if (msgMetadata != null && msgMetadata.get().hasSchemaVersion()) {
+            return msgMetadata.get().getSchemaVersion().toByteArray();
+        } else {
+            return null;
+        }
+    }
+
     public Optional<ByteBuf> getKeyBytes() {
         if (getKey().isPresent()) {
             if (hasBase64EncodedKey()) {

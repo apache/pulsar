@@ -44,7 +44,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
@@ -160,7 +159,6 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
-        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
 
@@ -293,7 +291,6 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
-        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
@@ -413,7 +410,6 @@ public class BrokerBookieIsolationTest {
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
-        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();

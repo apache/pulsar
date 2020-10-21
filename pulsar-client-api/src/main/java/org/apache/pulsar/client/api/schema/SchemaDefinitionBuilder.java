@@ -97,6 +97,24 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withSupportSchemaVersioning(boolean supportSchemaVersioning);
 
     /**
+     * Set schema reader for deserialization of object data.
+     *
+     * @param reader reader for object data
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader);
+
+    /**
+     * Set schema writer for serialization of objects.
+     *
+     * @param writer writer for objects
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaWriter(SchemaWriter<T> writer);
+
+    /**
      * Build the schema definition.
      *
      * @return the schema definition.

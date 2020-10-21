@@ -43,14 +43,13 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
     ManagedLedgerImpl ml1;
     ManagedLedgerImpl ml2;
 
     @BeforeMethod
-    void setup(Method method) throws Exception {
+    public void setup(Method method) throws Exception {
         super.setUp(method);
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
 
@@ -66,7 +65,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void simple() throws Exception {
+    public void simple() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
@@ -128,7 +127,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void doubleInsert() throws Exception {
+    public void doubleInsert() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
@@ -151,7 +150,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void cacheDisabled() throws Exception {
+    public void cacheDisabled() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
         config.setCacheEvictionWatermark(0.8);
@@ -188,7 +187,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void verifyNoCacheIfNoConsumer() throws Exception {
+    public void verifyNoCacheIfNoConsumer() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
@@ -216,7 +215,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void verifyHitsMisses() throws Exception {
+    public void verifyHitsMisses() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
@@ -285,7 +284,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void verifyTimeBasedEviction() throws Exception {
+    public void verifyTimeBasedEviction() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(1000);
         config.setCacheEvictionFrequency(100);

@@ -22,19 +22,18 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import javax.naming.AuthenticationException;
 
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
@@ -49,15 +48,15 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
@@ -430,7 +429,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+        public CompletableFuture<Boolean> isSuperUser(String role,
+                                                      ServiceConfiguration serviceConfiguration) {
             Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
             return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
         }
@@ -465,6 +465,16 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
+        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
                 String role, String authenticationData) {
             return CompletableFuture.completedFuture(null);
@@ -486,6 +496,47 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
                 String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowTenantOperationAsync(
+            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowTenantOperation(
+            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
+            return true;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowNamespaceOperationAsync(
+            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowNamespaceOperation(
+            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowTopicOperationAsync(
+            TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowTopicOperation(
+            TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
+            return true;
         }
     }
 
@@ -515,21 +566,24 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     public static class TestAuthorizationProviderWithSubscriptionPrefix extends TestAuthorizationProvider {
-
         @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                AuthenticationDataSource authenticationData, String subscription) {
+        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic,
+                                                                   String role,
+                                                                   TopicOperation operation,
+                                                                   AuthenticationDataSource authData) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            if (isNotBlank(subscription)) {
-                if (!subscription.startsWith(role)) {
-                    future.completeExceptionally(new PulsarServerException(
-                            "The subscription name needs to be prefixed by the authentication role"));
+            if (authData.hasSubscription()) {
+                String subscription = authData.getSubscription();
+                if (isNotBlank(subscription)) {
+                    if (!subscription.startsWith(role)) {
+                        future.completeExceptionally(new PulsarServerException(
+                                "The subscription name needs to be prefixed by the authentication role"));
+                    }
                 }
             }
             future.complete(clientRole.equals(role));
             return future;
         }
-
     }
 
     public static class TestAuthorizationProviderWithGrantPermission extends TestAuthorizationProvider {

@@ -28,29 +28,28 @@ import org.testng.annotations.Test;
 /**
  */
 
-@Test
 public class BatchMessageIdImplSerializationTest {
     @Test
-    void testSerialization1() throws Exception {
+    public void testSerialization1() throws Exception {
         BatchMessageIdImpl id = new BatchMessageIdImpl(1, 2, 3, 4);
         byte[] serializedId = id.toByteArray();
         assertEquals(BatchMessageIdImpl.fromByteArray(serializedId), id);
     }
 
     @Test
-    void testSerialization2() throws Exception {
+    public void testSerialization2() throws Exception {
         BatchMessageIdImpl id = new BatchMessageIdImpl(1, 2, -1, 3);
         byte[] serializedId = id.toByteArray();
         assertEquals(BatchMessageIdImpl.fromByteArray(serializedId), id);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
-    void testSerializationNull() throws Exception {
+    public void testSerializationNull() throws Exception {
         BatchMessageIdImpl.fromByteArray(null);
     }
 
     @Test(expectedExceptions = IOException.class)
-    void testSerializationEmpty() throws Exception {
+    public void testSerializationEmpty() throws Exception {
         BatchMessageIdImpl.fromByteArray(new byte[0]);
     }
 }

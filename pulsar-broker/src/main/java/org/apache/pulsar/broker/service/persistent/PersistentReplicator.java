@@ -77,6 +77,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private int readBatchSize;
+    private final int readMaxSizeBytes;
 
     private final int producerQueueThreshold;
 
@@ -112,13 +113,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         this.ledger = cursor.getManagedLedger();
         this.cursor = cursor;
         this.topic = topic;
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor, null);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -138,6 +140,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -193,7 +196,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         if (cursor != null) {
             log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
             if (expiryMonitor == null) {
-                this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+                this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor, null);
             }
             return CompletableFuture.completedFuture(null);
         }
@@ -203,7 +206,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 log.info("[{}][{} -> {}] Open cursor succeed for replicator", topicName, localCluster, remoteCluster);
                 PersistentReplicator.this.cursor = cursor;
-                PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+                PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor, null);
                 res.complete(null);
             }
 
@@ -276,13 +279,16 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 messagesToRead = 1;
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
@@ -322,6 +328,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readFailureBackoff.reduceToHalf();
 
         boolean atLeastOneMessageSentForReplication = false;
+        boolean isEnableReplicatedSubscriptions = brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
         try {
             // This flag is set to true when we skip atleast one local message,
@@ -342,7 +349,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     continue;
                 }
 
-                checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
+                if (isEnableReplicatedSubscriptions) {
+                    checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
+                }
 
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region

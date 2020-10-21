@@ -18,40 +18,49 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.facebook.presto.spi.PrestoException;
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+
+import io.prestosql.spi.PrestoException;
 import java.util.List;
+
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 class PulsarSchemaHandlers {
 
-    static SchemaHandler newPulsarSchemaHandler(SchemaInfo schemaInfo,
-                                                List<PulsarColumnHandle> columnHandles) {
+    static SchemaHandler newPulsarSchemaHandler(TopicName topicName,
+                                                PulsarConnectorConfig pulsarConnectorConfig,
+                                                SchemaInfo schemaInfo,
+                                                List<PulsarColumnHandle> columnHandles) throws RuntimeException{
         if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveSchemaHandler(schemaInfo);
         } else if (schemaInfo.getType().isStruct()) {
-            switch (schemaInfo.getType()) {
-                case JSON:
-                    return new JSONSchemaHandler(columnHandles);
-                case AVRO:
-                    return new AvroSchemaHandler(PulsarConnectorUtils
-                            .parseSchema(new String(schemaInfo.getSchema(), UTF_8)
-                    ), columnHandles);
-                default:
-                    throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaInfo.getType());
+            try {
+                switch (schemaInfo.getType()) {
+                    case JSON:
+                        return new JSONSchemaHandler(columnHandles);
+                    case AVRO:
+                        return new AvroSchemaHandler(topicName, pulsarConnectorConfig, schemaInfo, columnHandles);
+                    default:
+                        throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaInfo.getType());
+                }
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(
+                        new Throwable("PulsarAdmin gets version schema fail, topicName : "
+                                + topicName.toString(), e));
             }
-
         } else if (schemaInfo.getType().equals(SchemaType.KEY_VALUE)) {
-            return new KeyValueSchemaHandler(schemaInfo, columnHandles);
+            return new KeyValueSchemaHandler(topicName, pulsarConnectorConfig, schemaInfo, columnHandles);
         } else {
             throw new PrestoException(
                     NOT_SUPPORTED,
                     "Schema `" + schemaInfo.getType() + "` is not supported by presto yet : " + schemaInfo);
         }
+
     }
 
     static SchemaInfo defaultSchema() {

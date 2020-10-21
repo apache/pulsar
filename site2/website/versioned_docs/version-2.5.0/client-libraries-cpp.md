@@ -176,3 +176,35 @@ Client client("pulsar+ssl://my-broker.com:6651", config);
 ```
 
 For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
+
+## Schema
+
+This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
+
+### Create producer with Avro schema
+
+The following example shows how to create a producer with an Avro schema.
+
+```cpp
+static const std::string exampleSchema =
+    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+Producer producer;
+ProducerConfiguration producerConf;
+producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+client.createProducer("topic-avro", producerConf, producer);
+```
+
+### Create consumer with Avro schema
+
+The following example shows how to create a consumer with an Avro schema.
+
+```cpp
+static const std::string exampleSchema =
+    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+ConsumerConfiguration consumerConf;
+Consumer consumer;
+consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+```

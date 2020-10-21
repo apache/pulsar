@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <atomic>
 
 #include "ExecutorService.h"
 #include "Future.h"
@@ -148,7 +149,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     int getServerProtocolVersion() const;
 
-    int getMaxMessageSize() const;
+    static int32_t getMaxMessageSize();
 
     Commands::ChecksumType getChecksumType() const;
 
@@ -181,6 +182,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     void handleHandshake(const boost::system::error_code& err);
 
     void handleSentPulsarConnect(const boost::system::error_code& err, const SharedBuffer& buffer);
+    void handleSentAuthResponse(const boost::system::error_code& err, const SharedBuffer& buffer);
 
     void readNextCommand();
 
@@ -250,7 +252,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
     int serverProtocolVersion_;
-    int maxMessageSize_;
+    static std::atomic<int32_t> maxMessageSize_;
 
     ExecutorServicePtr executor_;
 

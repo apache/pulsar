@@ -19,12 +19,14 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.handler.ssl.SslContext;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
 import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 /**
@@ -52,9 +54,13 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
     public synchronized SslContext update()
             throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
         if (authData != null && authData.hasDataForTls()) {
-            this.sslNettyContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                    this.tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
-                    authData.getTlsPrivateKey());
+            this.sslNettyContext = authData.getTlsTrustStoreStream() == null
+                    ? SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
+                            tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey())
+                    : SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
+                            authData.getTlsTrustStoreStream(), (X509Certificate[]) authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey());
         } else {
             this.sslNettyContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
                     this.tlsTrustCertsFilePath.getFileName());

@@ -45,6 +45,11 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/java/org/apache/pulsar/io/debezium/mongodb/DebeziumMongoDbSource.java)
 
+### DynamoDB
+
+* [Configuration](io-dynamodb-source.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/dynamodb/src/main/java/org/apache/pulsar/io/dynamodb/DynamoDBSource.java)
 
 ### File
 
@@ -148,15 +153,39 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-influxdb-sink.md#configuration)
   
-* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/influxdb/src/main/java/org/apache/pulsar/io/influxdb/InfluxDBAbstractSink.java)
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/influxdb/src/main/java/org/apache/pulsar/io/influxdb/InfluxDBGenericRecordSink.java)
 
-### JDBC
+### JDBC ClickHouse
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#usage)
+* [Example](io-jdbc-sink.md#example-for-clickhouse)
   
-* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/src/main/java/org/apache/pulsar/io/jdbc/JdbcAbstractSink.java)
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/clickhouse/src/main/java/org/apache/pulsar/io/jdbc/ClickHouseJdbcAutoSchemaSink.java)
+
+### JDBC MariaDB
+
+* [Configuration](io-jdbc-sink.md#configuration)
+  
+* [Example](io-jdbc-sink.md#example-for-mariadb)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/mariadb/src/main/java/org/apache/pulsar/io/jdbc/MariadbJdbcAutoSchemaSink.java)
+
+### JDBC PostgreSQL
+
+* [Configuration](io-jdbc-sink.md#configuration)
+  
+* [Example](io-jdbc-sink.md#example-for-postgresql)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/postgres/src/main/java/org/apache/pulsar/io/jdbc/PostgresJdbcAutoSchemaSink.java)
+  
+### JDBC SQLite
+
+* [Configuration](io-jdbc-sink.md#configuration)
+  
+* [Example](io-jdbc-sink.md#example-for-sqlite)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/sqlite/src/main/java/org/apache/pulsar/io/jdbc/SqliteJdbcAutoSchemaSink.java)
   
 ### Kafka
 

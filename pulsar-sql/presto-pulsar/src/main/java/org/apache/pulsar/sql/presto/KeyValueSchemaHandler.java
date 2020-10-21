@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Objects;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -43,21 +45,32 @@ public class KeyValueSchemaHandler implements SchemaHandler {
 
     private KeyValueEncodingType keyValueEncodingType;
 
-    public KeyValueSchemaHandler(SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) {
+    public KeyValueSchemaHandler(TopicName topicName,
+                                 PulsarConnectorConfig pulsarConnectorConfig,
+                                 SchemaInfo schemaInfo,
+                                 List<PulsarColumnHandle> columnHandles) {
         this.columnHandles = columnHandles;
         KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
-        keySchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(kvSchemaInfo.getKey(), columnHandles);
-        valueSchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(kvSchemaInfo.getValue(), columnHandles);
+        keySchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(topicName, pulsarConnectorConfig,
+                kvSchemaInfo.getKey(), columnHandles);
+        valueSchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(topicName, pulsarConnectorConfig,
+                kvSchemaInfo.getValue(), columnHandles);
         keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
     }
 
-    @Override
-    public Object deserialize(ByteBuf payload) {
-        return null;
+    @VisibleForTesting
+    KeyValueSchemaHandler(SchemaHandler keySchemaHandler,
+                          SchemaHandler valueSchemaHandler,
+                          List<PulsarColumnHandle> columnHandles) {
+        this.keySchemaHandler = keySchemaHandler;
+        this.valueSchemaHandler = valueSchemaHandler;
+        this.columnHandles = columnHandles;
     }
 
     @Override
-    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
+    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
+        Object keyObj;
+        Object valueObj;
         ByteBuf keyByteBuf;
         ByteBuf valueByteBuf;
         if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {
@@ -71,8 +84,9 @@ public class KeyValueSchemaHandler implements SchemaHandler {
             keyByteBuf = keyPayload;
             valueByteBuf = dataPayload;
         }
-        Object keyObj = keySchemaHandler.deserialize(keyByteBuf);
-        Object valueObj = valueSchemaHandler.deserialize(valueByteBuf);
+
+        keyObj = keySchemaHandler.deserialize(keyByteBuf, schemaVersion);
+        valueObj = valueSchemaHandler.deserialize(valueByteBuf, schemaVersion);
         return new KeyValue<>(keyObj, valueObj);
     }
 

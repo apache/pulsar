@@ -31,7 +31,6 @@ import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -42,9 +41,11 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
@@ -186,14 +187,21 @@ public class FunctionCommon {
         throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
-
     public static Class<?> getSourceType(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        return getSourceType(classLoader.loadClass(className));
+    }
 
-        Class userClass = classLoader.loadClass(className);
+    public static Class<?>getSourceType(Class sourceClass) {
 
-        Class<?> typeArg = TypeResolver.resolveRawArgument(Source.class, userClass);
-
-        return typeArg;
+        if (Source.class.isAssignableFrom(sourceClass)) {
+            return TypeResolver.resolveRawArgument(Source.class, sourceClass);
+        } else if (BatchSource.class.isAssignableFrom(sourceClass)) {
+            return TypeResolver.resolveRawArgument(BatchSource.class, sourceClass);
+        } else {
+            throw new IllegalArgumentException(
+              String.format("Source class %s does not implement the correct interface",
+                sourceClass.getName()));
+        }
     }
 
     public static Class<?> getSinkType(String className, ClassLoader classLoader) throws ClassNotFoundException {
@@ -203,16 +211,6 @@ public class FunctionCommon {
         Class<?> typeArg = TypeResolver.resolveRawArgument(Sink.class, userClass);
 
         return typeArg;
-    }
-
-    public static ClassLoader extractClassLoader(Path archivePath, File packageFile) throws Exception {
-        if (archivePath != null) {
-            return loadJar(archivePath.toFile());
-        }
-        if (packageFile != null) {
-            return loadJar(packageFile);
-        }
-        return null;
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
@@ -226,22 +224,10 @@ public class FunctionCommon {
         log.info("Downloading function package from {} to {} completed!", destPkgUrl, targetFile.getAbsoluteFile());
     }
 
-    /**
-     * Load a jar.
-     *
-     * @param jar file of jar
-     * @return classloader
-     * @throws MalformedURLException
-     */
-    public static ClassLoader loadJar(File jar) throws MalformedURLException {
-        java.net.URL url = jar.toURI().toURL();
-        return new URLClassLoader(new URL[]{url});
-    }
-
     public static ClassLoader extractClassLoader(String destPkgUrl) throws IOException, URISyntaxException {
         File file = extractFileFromPkgURL(destPkgUrl);
         try {
-            return loadJar(file);
+            return ClassLoaderUtils.loadJar(file);
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(
                     "Corrupt User PackageFile " + file + " with error " + e.getMessage());
@@ -268,34 +254,6 @@ public class FunctionCommon {
         } else {
             throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
         }
-    }
-
-    public static void implementsClass(String className, Class<?> klass, ClassLoader classLoader) {
-        Class<?> objectClass;
-        try {
-            objectClass = loadClass(className, classLoader);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IllegalArgumentException("Cannot find/load class " + className);
-        }
-
-        if (!klass.isAssignableFrom(objectClass)) {
-            throw new IllegalArgumentException(
-                    String.format("%s does not implement %s", className, klass.getName()));
-        }
-    }
-
-    public static Class<?> loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
-        Class<?> objectClass;
-        try {
-            objectClass = Class.forName(className);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            if (classLoader != null) {
-                objectClass = classLoader.loadClass(className);
-            } else {
-                throw e;
-            }
-        }
-        return objectClass;
     }
 
     public static NarClassLoader extractNarClassLoader(Path archivePath, File packageFile,
@@ -389,6 +347,26 @@ public class FunctionCommon {
 
     public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
         return String.format("%s/%s/%s", tenant, namespace, functionName);
+    }
+
+    public static String extractTenantFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 0);
+    }
+
+    public static String extractNamespaceFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 1);
+    }
+
+    public static String extractNameFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 2);
+    }
+
+    private static String extractFromFullyQualifiedName(String fqfn, int index) {
+        String[] parts = fqfn.split("/");
+        if (parts.length >= 3) {
+            return parts[index];
+        }
+        throw new RuntimeException("Invalid Fully Qualified Function Name " + fqfn);
     }
 
     public static Class<?> getTypeArg(String className, Class<?> funClass, ClassLoader classLoader)

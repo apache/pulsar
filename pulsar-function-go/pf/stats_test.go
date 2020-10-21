@@ -20,48 +20,16 @@
 package pf
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
-	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+
+	prometheus_client "github.com/prometheus/client_model/go"
 )
 
-/*func test(){
-	var metrics_label_names = []string{"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"}
-	var exception_label_names = []string{"error", "ts"}
-	var exception_metrics_label_names = append(metrics_label_names, exception_label_names...)
-	var stat_process_latency_ms = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS,
-			Help: "Process latency in milliseconds."}, metrics_label_names)
-	var reg *prometheus.Registry
-	reg = prometheus.NewRegistry()
-	reg.MustRegister(stat_process_latency_ms)
-	metrics_labels := []string{"test-tenant","test-tenant/test-namespace", "test-name", "1234", "test-cluster",
-		"test-tenant/test-namespace/test-name"}
-	// 1234 is instanceId
-	// ['test-tenant', 'test-tenant/test-namespace', 'test-name',1234,
-    //    'test-cluster', 'test-tenant/test-namespace/test-name']
-	//var _stat_process_latency_ms = stat_process_latency_ms.WithLabelValues(metrics_labels...)
-	//process_latency_ms_count := stat._stat_process_latency_ms._count.get()
-	//process_latency_ms_sum := stat._stat_process_latency_ms._sum.get()
-}
-func  (stat *StatWithLabelValues) getTotalReceived() float32 {
-	gathering, _ := reg.Gather()
-	out := &bytes.Buffer{}
-	for _, mf := range gathering {
-		if _, err := expfmt.MetricFamilyToText(out, mf); err != nil {
-			panic(err)
-		}
-	}
-	fmt.Print(out.String())
-	fmt.Println("----------")
-}
-*/
 func TestExampleSummaryVec(t *testing.T) {
 
 	temps := prometheus.NewSummaryVec(
@@ -89,93 +57,89 @@ func TestExampleSummaryVec(t *testing.T) {
 
 	metricFamilies, err := reg.Gather()
 	if err != nil || len(metricFamilies) != 1 {
-		panic("unexpected behavior of custom test registry")
+		t.Fatal("unexpected behavior of custom test registry")
 	}
-	match := func(vect *io_prometheus_client.MetricFamily) bool {
+	match := func(vect *prometheus_client.MetricFamily) bool {
 		return *vect.Name == "pond_temperature_celsius"
 	}
-	fiteredMetricFamilies := filter(metricFamilies, match)
+	filteredMetricFamilies := filter(metricFamilies, match)
 
-	if len(fiteredMetricFamilies) > 1 {
-		panic("Too many metric families")
+	if len(filteredMetricFamilies) > 1 {
+		t.Fatal("Too many metric families")
 	}
 	// Then, we need to filter the metrics in the family to one that matches our label.
-
-	fmt.Println(proto.MarshalTextString(metricFamilies[0]))
-
-	// Output:
-	// name: "pond_temperature_celsius"
-	// help: "The temperature of the frog pond."
-	// type: SUMMARY
-	// metric: <
-	//   label: <
-	//     name: "species"
-	//     value: "leiopelma-hochstetteri"
-	//   >
-	//   summary: <
-	//     sample_count: 0
-	//     sample_sum: 0
-	//     quantile: <
-	//       quantile: 0.5
-	//       value: nan
-	//     >
-	//     quantile: <
-	//       quantile: 0.9
-	//       value: nan
-	//     >
-	//     quantile: <
-	//       quantile: 0.99
-	//       value: nan
-	//     >
-	//   >
-	// >
-	// metric: <
-	//   label: <
-	//     name: "species"
-	//     value: "lithobates-catesbeianus"
-	//   >
-	//   summary: <
-	//     sample_count: 1000
-	//     sample_sum: 31956.100000000017
-	//     quantile: <
-	//       quantile: 0.5
-	//       value: 32.4
-	//     >
-	//     quantile: <
-	//       quantile: 0.9
-	//       value: 41.4
-	//     >
-	//     quantile: <
-	//       quantile: 0.99
-	//       value: 41.9
-	//     >
-	//   >
-	// >
-	// metric: <
-	//   label: <
-	//     name: "species"
-	//     value: "litoria-caerulea"
-	//   >
-	//   summary: <
-	//     sample_count: 1000
-	//     sample_sum: 29969.50000000001
-	//     quantile: <
-	//       quantile: 0.5
-	//       value: 31.1
-	//     >
-	//     quantile: <
-	//       quantile: 0.9
-	//       value: 41.3
-	//     >
-	//     quantile: <
-	//       quantile: 0.99
-	//       value: 41.9
-	//     >
-	//   >
-	// >
+	expectedValue := "name: \"pond_temperature_celsius\"\n" +
+		"help: \"The temperature of the frog pond.\"\n" +
+		"type: SUMMARY\n" +
+		"metric: <\n" +
+		"  label: <\n" +
+		"    name: \"species\"\n" +
+		"    value: \"leiopelma-hochstetteri\"\n" +
+		"  >\n" +
+		"  summary: <\n" +
+		"    sample_count: 0\n" +
+		"    sample_sum: 0\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.5\n" +
+		"      value: nan\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.9\n" +
+		"      value: nan\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.99\n" +
+		"      value: nan\n" +
+		"    >\n" +
+		"  >\n" +
+		">\n" +
+		"metric: <\n" +
+		"  label: <\n" +
+		"    name: \"species\"\n" +
+		"    value: \"lithobates-catesbeianus\"\n" +
+		"  >\n" +
+		"  summary: <\n" +
+		"    sample_count: 1000\n" +
+		"    sample_sum: 31956.100000000017\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.5\n" +
+		"      value: 32.4\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.9\n" +
+		"      value: 41.4\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.99\n" +
+		"      value: 41.9\n" +
+		"    >\n" +
+		"  >\n" +
+		">\n" +
+		"metric: <\n" +
+		"  label: <\n" +
+		"    name: \"species\"\n" +
+		"    value: \"litoria-caerulea\"\n" +
+		"  >\n" +
+		"  summary: <\n" +
+		"    sample_count: 1000\n" +
+		"    sample_sum: 29969.50000000001\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.5\n" +
+		"      value: 31.1\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.9\n" +
+		"      value: 41.3\n" +
+		"    >\n" +
+		"    quantile: <\n" +
+		"      quantile: 0.99\n" +
+		"      value: 41.9\n" +
+		"    >\n" +
+		"  >\n" +
+		">\n"
+	assert.Equal(t, expectedValue, proto.MarshalTextString(metricFamilies[0]))
 }
 func TestExampleSummaryVec_Pulsar(t *testing.T) {
-
 	_statProcessLatencyMs1 := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: "pulsar_function_process_latency_ms",
@@ -200,18 +164,18 @@ func TestExampleSummaryVec_Pulsar(t *testing.T) {
 
 	metricFamilies, err := reg.Gather()
 	if err != nil || len(metricFamilies) != 1 {
-		panic("unexpected behavior of custom test registry")
+		t.Fatal("unexpected behavior of custom test registry")
 	}
-	matchFamilyFunc := func(vect *io_prometheus_client.MetricFamily) bool {
+	matchFamilyFunc := func(vect *prometheus_client.MetricFamily) bool {
 		return *vect.Name == "pulsar_function_process_latency_ms"
 	}
 	fiteredMetricFamilies := filter(metricFamilies, matchFamilyFunc)
 	if len(fiteredMetricFamilies) > 1 {
-		panic("Too many metric families")
+		t.Fatal("Too many metric families")
 	}
 	// Then, we need to filter the metrics in the family to one that matches our label.
 	// *lbl.Name == "fqfn" && *lbl.Value == fqfn
-	matchMetricFunc := func(lbl *io_prometheus_client.LabelPair) bool {
+	matchMetricFunc := func(lbl *prometheus_client.LabelPair) bool {
 		return *lbl.Name == "fqfn" && *lbl.Value == "test-tenant/test-namespace/test-name"
 	}
 	matchingMetric := getFirstMatch(fiteredMetricFamilies[0].Metric, matchMetricFunc)

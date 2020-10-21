@@ -35,22 +35,21 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.testng.annotations.Test;
 
-@Test
 public class LookupDataTest {
 
     @Test
-    void withConstructor() {
-		LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-				"http://localhost:8081");
+    public void withConstructor() {
+        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
+                                         "http://localhost:8081");
         assertEquals(data.getBrokerUrl(), "pulsar://localhost:8888");
         assertEquals(data.getHttpUrl(), "http://localhost:8080");
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    void serializeToJsonTest() throws Exception {
-		LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-				"http://localhost:8081");
+    public void serializeToJsonTest() throws Exception {
+        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
+                                         "http://localhost:8081");
         ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         String json = mapper.writeValueAsString(data);
 
@@ -63,9 +62,9 @@ public class LookupDataTest {
         assertEquals(jsonMap.get("httpUrl"), "http://localhost:8080");
         assertEquals(jsonMap.get("httpUrlTls"), "http://localhost:8081");
     }
-    
+
     @Test
-    void testUrlEncoder() {
+    public void testUrlEncoder() {
         final String str = "specialCharacters_+&*%{}() \\/$@#^%";
         final String urlEncoded = Codec.encode(str);
         final String uriEncoded = urlEncoded.replaceAll("//+", "%20");

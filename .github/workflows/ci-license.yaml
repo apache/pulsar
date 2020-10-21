@@ -22,6 +22,9 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - branch-*
 
 jobs:
 
@@ -37,19 +40,38 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 deployment .asf.yaml .ci ct.yaml
+
+      - name: Cache local Maven repository
+        if: steps.docs.outputs.changed_only == 'no'
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: Set up JDK 1.8
+        if: steps.docs.outputs.changed_only == 'no'
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
       # license check fails with 3.6.2 so we have to downgrade
       - name: Set up Maven
+        if: steps.docs.outputs.changed_only == 'no'
         uses: apache/pulsar-test-infra/setup-maven@master
         with:
           maven-version: 3.6.1
 
       - name: build and check license
-        run: mvn -B -ntp -DskipTests license:check install
-          
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -q -B -ntp -DskipTests license:check install
+
       - name: license check
+        if: steps.docs.outputs.changed_only == 'no'
         run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz

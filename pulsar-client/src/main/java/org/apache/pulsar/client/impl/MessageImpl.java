@@ -140,10 +140,18 @@ public class MessageImpl<T> implements Message<T> {
         } else {
             properties = Collections.emptyMap();
         }
-
         if (singleMessageMetadata.hasPartitionKey()) {
             msgMetadataBuilder.setPartitionKeyB64Encoded(singleMessageMetadata.getPartitionKeyB64Encoded());
             msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
+        } else if (msgMetadataBuilder.hasPartitionKey()) {
+            msgMetadataBuilder.clearPartitionKey();
+            msgMetadataBuilder.clearPartitionKeyB64Encoded();
+        }
+
+        if (singleMessageMetadata.hasOrderingKey()) {
+            msgMetadataBuilder.setOrderingKey(singleMessageMetadata.getOrderingKey());
+        } else if (msgMetadataBuilder.hasOrderingKey()) {
+            msgMetadataBuilder.clearOrderingKey();
         }
 
         if (singleMessageMetadata.hasEventTime()) {
@@ -154,16 +162,24 @@ public class MessageImpl<T> implements Message<T> {
             msgMetadataBuilder.setSequenceId(singleMessageMetadata.getSequenceId());
         }
 
+        if (singleMessageMetadata.hasNullValue()) {
+            msgMetadataBuilder.setNullValue(singleMessageMetadata.hasNullValue());
+        }
+
+        if (singleMessageMetadata.hasNullPartitionKey()) {
+            msgMetadataBuilder.setNullPartitionKey(singleMessageMetadata.hasNullPartitionKey());
+        }
+
         this.schema = schema;
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
-            byte[] payload, Schema<T> schema) {
-        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema);
+            byte[] payload, Schema<T> schema, MessageMetadata.Builder msgMetadataBuilder) {
+        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadataBuilder);
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
-                       ByteBuf payload, Schema<T> schema) {
+                       ByteBuf payload, Schema<T> schema, MessageMetadata.Builder msgMetadataBuilder) {
         String[] data = msgId.split(":");
         long ledgerId = Long.parseLong(data[0]);
         long entryId = Long.parseLong(data[1]);
@@ -178,6 +194,7 @@ public class MessageImpl<T> implements Message<T> {
         this.properties = Collections.unmodifiableMap(properties);
         this.schema = schema;
         this.redeliveryCount = 0;
+        this.msgMetadataBuilder = msgMetadataBuilder;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
@@ -234,6 +251,10 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public byte[] getData() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasNullValue()) {
+            return null;
+        }
         if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
             return payload.array();
         } else {
@@ -259,6 +280,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public T getValue() {
+        checkNotNull(msgMetadataBuilder);
         if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
@@ -266,6 +288,9 @@ public class MessageImpl<T> implements Message<T> {
                 return getKeyValue();
             }
         } else {
+            if (msgMetadataBuilder.hasNullValue()) {
+                return null;
+            }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
             if (schema.supportSchemaVersioning()) {
@@ -285,7 +310,9 @@ public class MessageImpl<T> implements Message<T> {
         KeyValueSchema kvSchema = (KeyValueSchema) schema;
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            return (T) kvSchema.decode(
+                    msgMetadataBuilder.hasNullPartitionKey() ? null : getKeyBytes(),
+                    msgMetadataBuilder.hasNullValue() ? null : getData(), schemaVersion);
         } else {
             return schema.decode(getData(), schemaVersion);
         }
@@ -294,7 +321,9 @@ public class MessageImpl<T> implements Message<T> {
     private T getKeyValue() {
         KeyValueSchema kvSchema = (KeyValueSchema) schema;
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), null);
+            return (T) kvSchema.decode(
+                    msgMetadataBuilder.hasNullPartitionKey() ? null : getKeyBytes(),
+                    msgMetadataBuilder.hasNullValue() ? null : getData(), null);
         } else {
             return schema.decode(getData());
         }

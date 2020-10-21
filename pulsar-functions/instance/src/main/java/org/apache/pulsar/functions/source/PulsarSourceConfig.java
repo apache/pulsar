@@ -47,6 +47,7 @@ public class PulsarSourceConfig {
 
     private String typeClassName;
     private Long timeoutMs;
+    private Long negativeAckRedeliveryDelayMs;
 
     public static PulsarSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();

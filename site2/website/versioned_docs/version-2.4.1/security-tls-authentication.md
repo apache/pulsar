@@ -15,13 +15,13 @@ Client certificates are generated using the certificate authority. Server certif
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client is authenticated as.
 
-First, you need to enter the follwing command to generate the key :
+First, you need to enter the following command to generate the key :
 
 ```bash
 $ openssl genrsa -out admin.key.pem 2048
 ```
 
-Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so you need to convert it by entering the follwing command:
+Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so you need to convert it by entering the following command:
 
 ```bash
 $ openssl pkcs8 -topk8 -inform PEM -outform PEM \

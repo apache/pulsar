@@ -25,16 +25,26 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
+  push:
+    branches:
+      - branch-*
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
 
-  cpp-tests:
-    name:
-    runs-on: ubuntu-latest
+  go-functions-tests:
+    name: Run Go Tests
+    strategy:
+      matrix:
+        go-version: [1.11.x, 1.12.x, 1.13.x, 1.14.x]
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
     timeout-minutes: 120
 
     steps:
-      - name: checkout
+      - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -44,16 +54,16 @@ jobs:
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
+          args: site2 deployment .asf.yaml .ci ct.yaml
 
-      - name: Set up Go 1.12
-        uses: actions/setup-go@v1
+      - name: Set up Go
+        uses: actions/setup-go@v2
         if: steps.docs.outputs.changed_only == 'no'
         with:
-          go-version: 1.12
+          go-version: ${{ matrix.go-version }}
         id: go
 
-      - name: run tests
+      - name: Run tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go

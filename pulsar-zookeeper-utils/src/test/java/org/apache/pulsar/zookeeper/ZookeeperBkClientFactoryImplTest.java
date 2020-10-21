@@ -34,7 +34,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class ZookeeperBkClientFactoryImplTest {
 
     private ZookeeperServerTest localZkS;
@@ -56,7 +55,7 @@ public class ZookeeperBkClientFactoryImplTest {
     }
 
     @Test
-    void testZKCreationRW() throws Exception {
+    public void testZKCreationRW() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(), SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
@@ -67,7 +66,7 @@ public class ZookeeperBkClientFactoryImplTest {
     }
 
     @Test
-    void testZKCreationRO() throws Exception {
+    public void testZKCreationRO() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(),
                 SessionType.AllowReadOnly, (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
@@ -77,7 +76,7 @@ public class ZookeeperBkClientFactoryImplTest {
     }
 
     @Test
-    void testZKCreationFailure() throws Exception {
+    public void testZKCreationFailure() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("invalid", SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);

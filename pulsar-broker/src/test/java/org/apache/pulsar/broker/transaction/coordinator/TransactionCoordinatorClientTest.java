@@ -18,15 +18,51 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+
 import com.google.common.collect.Lists;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+
+
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
+
+    @BeforeClass
+    public void init() throws Exception {
+        super.setup();
+
+        for (PulsarService pulsarService : pulsarServices) {
+            TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+
+            TransactionMetadataStoreService metadataStoreService = pulsarService.getTransactionMetadataStoreService();
+            Class<TransactionMetadataStoreService> clazz = TransactionMetadataStoreService.class;
+            Field field = clazz.getDeclaredField("tbClient");
+            field.setAccessible(true);
+            field.set(metadataStoreService, tbClient);
+        }
+    }
 
     @Test
     public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {

@@ -26,7 +26,7 @@ public class TypeCheckUtil {
     public static <T> T checkType(Object o, Class<T> clazz) {
         if (!clazz.isInstance(o)) {
             throw new RuntimeException(
-                    String.format("Invalid object type '%s' when exepcting '%s'", o.getClass().getName(), clazz.getName()));
+                    String.format("Invalid object type '%s' when expecting '%s'", o.getClass().getName(), clazz.getName()));
         }
         return (T) o;
     }

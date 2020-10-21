@@ -103,22 +103,10 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Consumer select(byte[] stickyKey) {
-        return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
-    }
-
-    public Consumer select(int hash) {
+        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public Consumer selectByIndex(int index) {
-        if (rangeMap.size() > 0) {
-            return rangeMap.ceilingEntry(index).getValue();
         } else {
             return null;
         }
@@ -157,11 +145,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     private boolean is2Power(int num) {
         if(num < 2) return false;
         return (num & num - 1) == 0;
-    }
-
-    @Override
-    public int getRangeSize() {
-        return rangeSize;
     }
 
     Map<Consumer, Integer> getConsumerRange() {

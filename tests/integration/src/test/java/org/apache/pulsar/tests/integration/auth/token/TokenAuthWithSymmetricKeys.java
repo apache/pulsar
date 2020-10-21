@@ -42,21 +42,21 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
 
         clientAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:base64," + secretKey,
+                        "--secret-key", "data:;base64," + secretKey,
                         "--subject", REGULAR_USER_ROLE)
                 .getStdout().trim();
         log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:base64," + secretKey,
+                        "--secret-key", "data:;base64," + secretKey,
                         "--subject", SUPER_USER_ROLE)
                 .getStdout().trim();
         log.info("Created super-user token: {}", superUserAuthToken);
 
         proxyAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:base64," + secretKey,
+                        "--secret-key", "data:;base64," + secretKey,
                         "--subject", PROXY_ROLE)
                 .getStdout().trim();
         log.info("Created proxy token: {}", proxyAuthToken);
@@ -64,19 +64,19 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
 
     @Override
     protected void configureBroker(BrokerContainer brokerContainer) throws Exception {
-        brokerContainer.withEnv("tokenSecretKey", "data:base64," + secretKey);
+        brokerContainer.withEnv("tokenSecretKey", "data:;base64," + secretKey);
     }
 
     @Override
     protected void configureProxy(ProxyContainer proxyContainer) throws Exception {
-        proxyContainer.withEnv("tokenSecretKey", "data:base64," + secretKey);
+        proxyContainer.withEnv("tokenSecretKey", "data:;base64," + secretKey);
     }
 
     @Override
     protected String createClientTokenWithExpiry(long expiryTime, TimeUnit unit) throws Exception {
         return cmdContainer
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:base64," + secretKey,
+                        "--secret-key", "data:;base64," + secretKey,
                         "--subject", REGULAR_USER_ROLE,
                         "--expiry-time", unit.toSeconds(expiryTime) + "s")
                 .getStdout().trim();

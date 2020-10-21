@@ -30,7 +30,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 public class TransactionCursorImpl implements TransactionCursor {
 

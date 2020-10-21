@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -240,13 +238,41 @@ public class SinksApiV3Resource extends FunctionApiResource {
     @GET
     @Path("/builtinsinks")
     public List<ConnectorDefinition> getSinkList() {
-        List<ConnectorDefinition> connectorDefinitions = sink.getListOfConnectors();
-        List<ConnectorDefinition> retVal = new ArrayList<>();
-        for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
-                retVal.add(connectorDefinition);
-            }
-        }
-        return retVal;
+        return sink.getSinkList();
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches information about config fields associated with the specified builtin sink",
+            response = ConfigFieldDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "builtin sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/builtinsinks/{name}/configdefinition")
+    public List<ConfigFieldDefinition> getSinkConfigDefinition(
+            @ApiParam(value = "The name of the builtin sink")
+            final @PathParam("name") String name) throws IOException {
+        return sink.getSinkConfigDefinition(name);
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in connectors, including Sources and Sinks",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSinks")
+    public void reloadSinks() {
+        sink.reloadConnectors(clientAppId());
     }
 }

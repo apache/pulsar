@@ -10,25 +10,25 @@ sidebar_label: Pulsar Metrics
   }
 </style>
 
-Pulsar exposes metrics in Prometheus format that can be collected and used for monitoring the health of the cluster.
+Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.
 
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Pulsar Functions](#pulsar-functions)
+* [Proxy](#proxy)
+* [Pulsar SQL Worker](#pulsar-sql-worker)
 
-## Overview
+The following types of metrics are available:
 
-The metrics exposed by Pulsar are in Prometheus format. The types of metrics are:
-
-- [Counter](https://prometheus.io/docs/concepts/metric_types/#counter): a cumulative metric that represents a single monotonically increasing counter whose value can only increase or be reset to zero on restart.
-- [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge): a *gauge* is a metric that represents a single numerical value that can arbitrarily go up and down.
+- [Counter](https://prometheus.io/docs/concepts/metric_types/#counter): a cumulative metric that represents a single monotonically increasing counter. The value increases by default. You can reset the value to zero or restart your cluster.
+- [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge): a metric that represents a single numerical value that can arbitrarily go up and down.
 - [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram): a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.
 - [Summary](https://prometheus.io/docs/concepts/metric_types/#summary): similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.
 
 ## ZooKeeper
 
-The ZooKeeper metrics are exposed under "/metrics" at port 8000. You can use a different port
-by configuring the `stats_server_port` system property. 
+The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `stats_server_port` system property. 
 
 ### Server metrics
 
@@ -49,8 +49,8 @@ by configuring the `stats_server_port` system property.
 
 ## BookKeeper
 
-The BookKeeper metrics are exposed under "/metrics" at port 8000. You can change the port by updating `prometheusStatsHttpPort`
-in `bookkeeper.conf` configuration file.
+The BookKeeper metrics are exposed under "/metrics" at port `8000`. You can change the port by updating `prometheusStatsHttpPort`
+in the `bookkeeper.conf` configuration file.
 
 ### Server metrics
 
@@ -88,13 +88,12 @@ in `bookkeeper.conf` configuration file.
 
 ## Broker
 
-The broker metrics are exposed under "/metrics" at port 8080. You can change the port by updating `webServicePort` to a different port
-in `broker.conf` configuration file.
+The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
+in the `broker.conf` configuration file.
 
-All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The value of `${pulsar_cluster}` is the pulsar cluster
-name you configured in `broker.conf`.
+All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
-Broker has the following kinds of metrics:
+The following metrics are available for broker:
 
 * [Namespace metrics](#namespace-metrics)
     * [Replication metrics](#replication-metrics)
@@ -107,6 +106,7 @@ Broker has the following kinds of metrics:
     * [BundleSplit metrics](#bundlesplit-metrics)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
+* [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
 
 ### Namespace metrics
 
@@ -138,9 +138,9 @@ All the namespace metrics are labelled with the following labels:
 
 #### Replication metrics
 
-If a namespace is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when `replicationMetricsEnabled` is enabled.
+If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics will also be labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -152,7 +152,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 ### Topic metrics
 
-> Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
+> Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
 All the topic metrics are labelled with the following labels:
 
@@ -185,9 +185,9 @@ All the topic metrics are labelled with the following labels:
 
 #### Replication metrics
 
-If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when `replicationMetricsEnabled` is enabled.
+If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics will also be labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -199,7 +199,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 ### ManagedLedgerCache metrics
 All the ManagedLedgerCache metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -220,7 +220,7 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 
 ### ManagedLedger metrics
 All the managedLedger metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
 - quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
 
@@ -246,8 +246,8 @@ All the managedLedger metrics are labelled with the following labels:
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
-- broker: broker=${broker}. ${broker} is the ip address of the broker
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+- broker: broker=${broker}. ${broker} is the IP address of the broker
 - metric: metric="loadBalancing". 
 
 | Name | Type | Description |
@@ -260,7 +260,7 @@ All the loadbalancing metrics are labelled with the following labels:
 
 #### BundleUnloading metrics
 All the bundleUnloading metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading". 
 
 | Name | Type | Description |
@@ -270,7 +270,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit". 
 
 | Name | Type | Description |
@@ -279,11 +279,11 @@ All the bundleUnloading metrics are labelled with the following labels:
 
 ### Subscription metrics
 
-> Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
+> Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
 All the subscription metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 - *topic*: `topic=${pulsar_topic}`. `${pulsar_topic}` is the topic name.
 - *subscription*: `subscription=${subscription}`. `${subscription}` is the topic subscription name.
@@ -300,12 +300,11 @@ All the subscription metrics are labelled with the following labels:
 
 ### Consumer metrics
 
-> Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus`
-> are set to true.
+> Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus` are set to `true`.
 
 All the consumer metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 - *topic*: `topic=${pulsar_topic}`. `${pulsar_topic}` is the topic name.
 - *subscription*: `subscription=${subscription}`. `${subscription}` is the topic subscription name.
@@ -321,12 +320,84 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
 
-## Monitor
+### Managed ledger bookie client metrics
 
-You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed at Pulsar components and set up
-[Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster.
+All the managed ledger bookie client metrics are labelled with the following labels:
 
-The following are some Grafana dashboards examples:
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
-- [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
-- [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br>The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_* | Gauge | The number of tasks the worker executor execute completed. <br>The number of metrics determined by the number of worker task thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf` <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_queue_* | Gauge | The number of tasks queued in the worker executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_total_tasks_* | Gauge | The total number of tasks the worker executor received. <br>The number of metrics determined by worker executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution | Summary | The scheduler task execution latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
+
+## Pulsar Functions
+
+All the Pulsar Functions metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
+| pulsar_function_received_total | Counter | Total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+
+## Proxy
+
+All the proxy metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_proxy_active_connections | Gauge | Number of connections currently active in the proxy. |
+| pulsar_proxy_new_connections | Counter | Counter of connections being opened in the proxy. |
+| pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
+| pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
+| pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
+
+## Pulsar SQL Worker
+
+| Name | Type | Description |
+|---|---|---|
+| split_bytes_read | Counter | Number of bytes read from BookKeeper. |
+| split_num_messages_deserialized | Counter | Number of messages deserialized. |
+| split_num_record_deserialized | Counter | Number of records deserialized. |
+| split_bytes_read_per_query | Summary | Total number of bytes read per query. |
+| split_entry_deserialize_time | Summary | Time spent on derserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent on derserializing entries per query. |
+| split_entry_queue_dequeue_wait_time | Summary | Time spend on waiting to get entry from entry queue because it is empty. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent on waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent on waiting to dequeue from message queue because is is empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent on waiting for message queue enqueue because the message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent on waiting for message queue enqueue because the message queue is full per query. |
+| split_num_entries_per_batch | Summary | Number of entries per batch. |
+| split_num_entries_per_query | Summary | Number of entries per query. |
+| split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
+| split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
+| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_latency_per_batch | Summary | Latency of reads per batch. |
+| split_read_latency_per_query | Summary | Total read latency per query. |
+| split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
+| split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
+| split_total_execution_time | Summary | Total execution time . |

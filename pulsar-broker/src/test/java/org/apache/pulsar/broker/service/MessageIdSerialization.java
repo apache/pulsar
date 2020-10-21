@@ -20,31 +20,28 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 
-import java.io.IOException;
-
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
-@Test
 public class MessageIdSerialization {
 
     @Test
-    void testProtobufSerialization1() throws Exception {
+    public void testProtobufSerialization1() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, 3);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
     }
 
     @Test
-    void testProtobufSerialization2() throws Exception {
+    public void testProtobufSerialization2() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
-    void testProtobufSerializationNull() throws Exception {
+    public void testProtobufSerializationNull() throws Exception {
         MessageId.fromByteArray(null);
     }
 

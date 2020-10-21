@@ -21,14 +21,14 @@ package org.apache.pulsar.sql.presto;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static java.util.Objects.requireNonNull;
 
-import com.facebook.presto.spi.ConnectorHandleResolver;
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorContext;
-import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
+import io.prestosql.spi.connector.Connector;
+import io.prestosql.spi.connector.ConnectorContext;
+import io.prestosql.spi.connector.ConnectorFactory;
+import io.prestosql.spi.connector.ConnectorHandleResolver;
 import java.util.Map;
 
 /**
@@ -67,7 +67,9 @@ public class PulsarConnectorFactory implements ConnectorFactory {
                     .setRequiredConfigurationProperties(config)
                     .initialize();
 
-            return injector.getInstance(PulsarConnector.class);
+            PulsarConnector connector = injector.getInstance(PulsarConnector.class);
+            connector.initConnectorCache();
+            return connector;
         } catch (Exception e) {
             throwIfUnchecked(e);
             throw new RuntimeException(e);

@@ -30,7 +30,6 @@ import io.netty.util.ReferenceCounted;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 
-@Test
 public class RangeCacheTest {
 
     class RefString extends AbstractReferenceCounted implements ReferenceCounted {
@@ -65,7 +64,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void simple() {
+    public void simple() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         cache.put(0, new RefString("0"));
@@ -113,7 +112,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void customWeighter() {
+    public void customWeighter() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
@@ -124,7 +123,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void customTimeExtraction() {
+    public void customTimeExtraction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
 
         cache.put(1, new RefString("1"));
@@ -143,7 +142,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void doubleInsert() {
+    public void doubleInsert() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         RefString s0 = new RefString("zero");
@@ -172,7 +171,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void getRange() {
+    public void getRange() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         cache.put(0, new RefString("0"));
@@ -193,7 +192,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void eviction() {
+    public void eviction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
@@ -235,7 +234,7 @@ public class RangeCacheTest {
     }
 
     @Test
-    void evictions() {
+    public void evictions() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         for (int i = 0; i < 100; i++) {

@@ -48,4 +48,8 @@ public class InstanceConfig {
     public String getInstanceName() {
         return "" + instanceId;
     }
+
+    public FunctionDetails getFunctionDetails() {
+        return functionDetails;
+    }
 }

@@ -18,12 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -34,16 +30,29 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
+
+import java.util.List;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 /**
  * A persistent transaction buffer implementation.
@@ -51,9 +60,10 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
+    private final static String TB_TOPIC_NAME_SUFFIX = "/_txnlog";
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
-
+    private Topic originTopic;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -66,8 +76,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             this.producerName = producerName;
         }
 
-
-
         @Override
         public String getProducerName() {
             return this.producerName;
@@ -79,12 +87,18 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
     }
 
-    public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
+    public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService,
+                                       Topic originTopic)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
         this.txnCursor = new TransactionCursorImpl();
         this.retentionCursor = ledger.newNonDurableCursor(
             PositionImpl.earliest, "txn-buffer-retention");
+        this.originTopic = originTopic;
+    }
+
+    public static String getTransactionBufferTopicName(String originTopicName) {
+        return TopicName.get(originTopicName) + TB_TOPIC_NAME_SUFFIX;
     }
 
     @Override
@@ -93,13 +107,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
-        return publishMessage(txnId, buffer, sequenceId).thenCompose(position -> appendBuffer(txnId, position,
-                                                                                             sequenceId));
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
+        return publishMessage(txnId, buffer, sequenceId)
+                .thenCompose(position -> appendBuffer(txnId, position, sequenceId, batchSize));
     }
 
-    private CompletableFuture<Void> appendBuffer(TxnID txnID, Position position, long sequenceId) {
-        return txnCursor.getTxnMeta(txnID, true).thenCompose(meta -> meta.appendEntry(sequenceId, position));
+    private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId, long batchSize) {
+        return txnCursor.getTxnMeta(txnID, true).thenCompose(meta ->
+                meta.appendEntry(sequenceId, position, (int) batchSize));
     }
 
     @Override
@@ -127,12 +142,69 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation endTxn in PersistentTransactionBuffer."));
+    }
+
+    private CompletableFuture<PositionImpl> committingTxn(TxnID txnID) {
+        CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
+        txnCursor.getTxnMeta(txnID, false).whenComplete(((meta, txnMetaThrowable) -> {
+
+            if (txnMetaThrowable != null) {
+                completableFuture.completeExceptionally(txnMetaThrowable);
+            }
+
+            if (meta.status().equals(TxnStatus.COMMITTING)) {
+                // the transaction status is committing, so return complete success
+                completableFuture.complete(null);
+                return;
+            } else if (!meta.status().equals(TxnStatus.OPEN)) {
+                // in normal, this condition should not happen
+                completableFuture.completeExceptionally(
+                        new TransactionStatusException(txnID, TxnStatus.OPEN, meta.status()));
+            }
+
+            long sequenceId = meta.lastSequenceId() + 1;
+            MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
+            ByteBuf committingMarker = Markers.newTxnCommittingMarker(
+                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
+            publishMessage(txnID, committingMarker, sequenceId)
+                    .thenCompose(position -> meta.committingTxn()
+                    .thenApply(ignored -> completableFuture.complete(null)));
+        }));
+        return completableFuture;
+    }
+
+    // append committed marker to partitioned topic
+    private CompletableFuture<PositionImpl> appendMarkerToPartition(TxnID txnID) {
+        CompletableFuture<PositionImpl> positionFuture = new CompletableFuture<>();
+        // TODO How to generate sequenceId for commit marker in partitioned topic
+        long ptSequenceId = -1;
+        MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
+        ByteBuf commitMarker = Markers.newTxnCommitMarker(
+                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
+
+        originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
+            positionFuture.complete(new PositionImpl(ledgerId, entryId));
+        });
+
+        return positionFuture;
+    }
+
+    private CompletableFuture<Void> commitTB(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
         return txnCursor.getTxnMeta(txnID, false)
-                        .thenApply(meta -> createCommitMarker(meta, committedAtLedgerId, committedAtEntryId))
-                        .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
-                        .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
-                                                                     position));
+                .thenApply(meta -> createCommitMarker(meta, committedAtLedgerId, committedAtEntryId))
+                .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
+                .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
+                        position));
+    }
+
+    @Override
+    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+        return committingTxn(txnID)
+                .thenCompose(igonred -> appendMarkerToPartition(txnID))
+                .thenCompose(committedPos -> commitTB(txnID, committedPos.getLedgerId(), committedPos.getEntryId()));
     }
 
     private Marker createCommitMarker(TransactionMeta meta, long committedAtLedgerId, long committedAtEntryId) {
@@ -172,10 +244,13 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     private CompletableFuture<Position> publishMessage(TxnID txnID, ByteBuf msg, long sequenceId) {
         CompletableFuture<Position> publishFuture = new CompletableFuture<>();
+
         publishMessage(msg, new TxnCtx(txnID.toString(), sequenceId, publishFuture) {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
                 if (e != null) {
+                    log.error("Publish transaction " + txnID.toString()
+                            + " message to topic " + originTopic.getName() + " failed.", e);
                     publishFuture.completeExceptionally(e);
                 } else {
                     publishFuture.complete(PositionImpl.get(ledgerId, entryId));

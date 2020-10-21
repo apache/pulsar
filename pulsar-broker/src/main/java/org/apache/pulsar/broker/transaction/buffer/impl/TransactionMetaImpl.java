@@ -27,8 +27,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 public class TransactionMetaImpl implements TransactionMeta {
@@ -38,6 +38,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     private TxnStatus txnStatus;
     private long committedAtLedgerId = -1L;
     private long committedAtEntryId = -1L;
+    private int numMessageInTxn;
 
     TransactionMetaImpl(TxnID txnID) {
         this.txnID = txnID;
@@ -60,6 +61,14 @@ public class TransactionMetaImpl implements TransactionMeta {
         synchronized (entries) {
             return entries.size();
         }
+    }
+
+    @Override
+    public int numMessageInTxn() throws TransactionStatusException {
+        if (!checkStatus(TxnStatus.COMMITTING, null) && !checkStatus(TxnStatus.COMMITTED, null)) {
+            throw new TransactionStatusException(txnID, TxnStatus.COMMITTED, txnStatus);
+        }
+        return numMessageInTxn;
     }
 
     @VisibleForTesting
@@ -90,7 +99,7 @@ public class TransactionMetaImpl implements TransactionMeta {
 
         SortedMap<Long, Position> readEntries = entries;
         if (startSequenceId != PersistentTransactionBufferReader.DEFAULT_START_SEQUENCE_ID) {
-            readEntries = entries.tailMap(startSequenceId);
+            readEntries = entries.tailMap(startSequenceId + 1);
         }
 
         if (readEntries.isEmpty()) {
@@ -109,8 +118,8 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<Void> appendEntry(long sequenceId, Position position) {
-        CompletableFuture<Void> appendFuture = new CompletableFuture<>();
+    public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
+        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         synchronized (this) {
             if (TxnStatus.OPEN != txnStatus) {
                 appendFuture.completeExceptionally(
@@ -120,15 +129,27 @@ public class TransactionMetaImpl implements TransactionMeta {
         }
         synchronized (this.entries) {
             this.entries.put(sequenceId, position);
+            this.numMessageInTxn += batchSize;
         }
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(position);
+    }
+
+    @Override
+    public CompletableFuture<TransactionMeta> committingTxn() {
+        CompletableFuture<TransactionMeta> committingFuture = new CompletableFuture<>();
+        if (!checkStatus(TxnStatus.OPEN, committingFuture)) {
+            return committingFuture;
+        }
+        this.txnStatus = TxnStatus.COMMITTING;
+        committingFuture.complete(this);
+        return committingFuture;
     }
 
     @Override
     public synchronized CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId,
                                                                      long committedAtEntryId) {
         CompletableFuture<TransactionMeta> commitFuture = new CompletableFuture<>();
-        if (!checkOpened(txnID, commitFuture)) {
+        if (!checkStatus(TxnStatus.COMMITTING, commitFuture)) {
             return commitFuture;
         }
 
@@ -143,7 +164,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     @Override
     public synchronized CompletableFuture<TransactionMeta> abortTxn() {
         CompletableFuture<TransactionMeta> abortFuture = new CompletableFuture<>();
-        if (!checkOpened(txnID, abortFuture)) {
+        if (!checkStatus(TxnStatus.OPEN, abortFuture)) {
             return abortFuture;
         }
 
@@ -153,11 +174,14 @@ public class TransactionMetaImpl implements TransactionMeta {
         return abortFuture;
     }
 
-    private boolean checkOpened(TxnID txnID, CompletableFuture<TransactionMeta> future) {
-        if (TxnStatus.OPEN != txnStatus) {
-            future.completeExceptionally(new UnexpectedTxnStatusException(txnID, TxnStatus.OPEN, txnStatus));
+    private boolean checkStatus(TxnStatus expectedStatus, CompletableFuture<TransactionMeta> future) {
+        if (!txnStatus.equals(expectedStatus)) {
+            if (future != null) {
+                future.completeExceptionally(new TransactionStatusException(txnID, expectedStatus, txnStatus));
+            }
             return false;
         }
         return true;
     }
+
 }

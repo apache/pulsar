@@ -168,7 +168,7 @@ public abstract class AbstractReplicator {
         }).exceptionally(ex -> {
             long waitTimeMs = backOff.next();
             log.warn(
-                    "[{}][{} -> {}] Exception: '{}' occured while trying to close the producer. retrying again in {} s",
+                    "[{}][{} -> {}] Exception: '{}' occurred while trying to close the producer. retrying again in {} s",
                     topicName, localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
             // BackOff before retrying
             brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);

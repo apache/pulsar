@@ -19,10 +19,16 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -32,6 +38,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import java.util.Collections;
+
+import lombok.Cleanup;
 
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
@@ -96,5 +106,55 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
                 TopicName.get(partitionedTopicName).getPartition(15).toString()), Lists.newArrayList("sub-1"));
 
         consumer.close();
+    }
+
+    @Test
+    public void testIncrementPartitionsWithNoSubscriptions() throws Exception {
+        final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-" + System.nanoTime();
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
+
+        @Cleanup
+        Producer<String> consumer = pulsarClient.newProducer(Schema.STRING)
+                .topic(partitionedTopicName)
+                .create();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 10);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+    }
+
+    @Test
+    public void testIncrementPartitionsWithReaders() throws Exception {
+        TopicName partitionedTopicName = TopicName.get("persistent://prop-xyz/use/ns1/test-topic-" + System.nanoTime());
+
+        admin.topics().createPartitionedTopic(partitionedTopicName.toString(), 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 1);
+
+        @Cleanup
+        Producer<String> consumer = pulsarClient.newProducer(Schema.STRING)
+                .topic(partitionedTopicName.toString())
+                .create();
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+            .topic(partitionedTopicName.getPartition(0).toString())
+            .startMessageId(MessageId.earliest)
+            .create();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName.toString(), 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 2);
+
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(0).toString()).size(), 1);
+
+        // Partition-1 should not have subscriptions
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(1).toString()),
+                Collections.emptyList());
     }
 }

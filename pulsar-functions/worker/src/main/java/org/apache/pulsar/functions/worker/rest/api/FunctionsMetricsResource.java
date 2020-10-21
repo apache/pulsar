@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.common.TextFormat;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -31,17 +33,26 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 
 @Path("/")
 public class FunctionsMetricsResource extends FunctionApiResource {
     @Path("metrics")
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getMetrics() {
+    public Response getMetrics() throws IOException {
 
         WorkerService workerService = get();
-
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        // if request, also attach the prometheus metrics
+        if (workerService.getWorkerConfig().isIncludeStandardPrometheusMetrics()) {
+            Writer writer = new BufWriter(buf);
+            TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+        }
+
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
             FunctionsStatsGenerator.generate(workerService,"default", stream);
@@ -58,6 +69,30 @@ public class FunctionsMetricsResource extends FunctionApiResource {
                 .build();
         } finally {
             buf.release();
+        }
+    }
+
+    private static class BufWriter extends Writer {
+        private final ByteBuf buf;
+
+        public BufWriter(ByteBuf buf) {
+            this.buf = buf;
+        }
+
+        @Override
+        public void write(char[] cbuf, int off, int len) throws IOException {
+            buf.writeCharSequence(CharBuffer.wrap(cbuf, off, len), StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            // noop
+
+        }
+
+        @Override
+        public void close() throws IOException {
+            // noop
         }
     }
 }

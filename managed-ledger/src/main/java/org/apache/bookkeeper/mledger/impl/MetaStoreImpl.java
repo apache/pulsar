@@ -253,6 +253,7 @@ public class MetaStoreImpl implements MetaStore {
         if (info.hasTerminatedPosition()) {
             mlInfo.setTerminatedPosition(info.getTerminatedPosition());
         }
+        mlInfo.addAllProperties(info.getPropertiesList());
         return mlInfo.build();
     }
 

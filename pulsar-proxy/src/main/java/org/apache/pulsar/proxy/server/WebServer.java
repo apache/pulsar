@@ -34,6 +34,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -91,6 +92,7 @@ public class WebServer {
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
             connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
         }
@@ -122,6 +124,7 @@ public class WebServer {
                 }
                 connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
                 connectorTls.setPort(config.getWebServicePortTls().get());
+                connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -162,6 +165,11 @@ public class WebServer {
         if (config.isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (config.isHttpRequestsLimitEnabled()) {
+            context.addFilter(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())), MATCH_ALL,
+                    EnumSet.allOf(DispatcherType.class));
         }
 
         handlers.add(context);

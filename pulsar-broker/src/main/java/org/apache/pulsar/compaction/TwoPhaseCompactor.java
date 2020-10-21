@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -310,18 +311,24 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String,byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
-        bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
-                             conf.getManagedLedgerDefaultWriteQuorum(),
-                             conf.getManagedLedgerDefaultAckQuorum(),
-                             Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                             Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
-                             (rc, ledger, ctx) -> {
-                                 if (rc != BKException.Code.OK) {
-                                     bkf.completeExceptionally(BKException.create(rc));
-                                 } else {
-                                     bkf.complete(ledger);
-                                 }
-                             }, null, metadata);
+
+        try {
+            bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
+                    conf.getManagedLedgerDefaultWriteQuorum(),
+                    conf.getManagedLedgerDefaultAckQuorum(),
+                    Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                    Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
+                    (rc, ledger, ctx) -> {
+                        if (rc != BKException.Code.OK) {
+                            bkf.completeExceptionally(BKException.create(rc));
+                        } else {
+                            bkf.complete(ledger);
+                        }
+                    }, null, metadata);
+        } catch (Throwable t) {
+            log.error("Encountered unexpected error when creating compaction ledger", t);
+            return FutureUtil.failedFuture(t);
+        }
         return bkf;
     }
 

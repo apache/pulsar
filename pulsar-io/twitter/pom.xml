@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-twitter</artifactId>
@@ -65,11 +65,12 @@
       <artifactId>commons-lang3</artifactId>
       <version>3.4</version>
     </dependency>
-      <dependency>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-io-common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
+    
+    <dependency>
+       <groupId>${project.groupId}</groupId>
+       <artifactId>pulsar-io-common</artifactId>
+       <version>${project.version}</version>
+    </dependency>
 
   </dependencies>
 
