@@ -1009,7 +1009,7 @@ TEST(BatchMessageTest, testSendCallback) {
     producerConfig.setBatchingEnabled(true);
     producerConfig.setBatchingMaxMessages(numMessagesOfBatch);
     producerConfig.setBatchingMaxPublishDelayMs(1000);  // 1 s, it's long enough for 3 messages batched
-    producerConfig.setMaxPendingMessages(2);            // only 1 spot is actually used
+    producerConfig.setMaxPendingMessages(5);
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfig, producer));
