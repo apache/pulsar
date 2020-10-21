@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class TransactionMetadataStoreService {
 
@@ -241,9 +242,15 @@ public class TransactionMetadataStoreService {
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdList);
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
+                            messageIdList.stream().filter(
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
+                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
                 } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdList);
+                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
+                            messageIdList.stream().filter(
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
+                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }

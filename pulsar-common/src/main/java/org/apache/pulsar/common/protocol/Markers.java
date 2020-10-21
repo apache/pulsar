@@ -269,7 +269,8 @@ public class Markers {
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
                                              long txnLeastBits, MessageIdData messageIdData, List<MessageIdData> messageIdDataList) {
         return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits,
-                Optional.of(messageIdData), Optional.of(messageIdDataList));
+                messageIdData == null ? Optional.empty() : Optional.of(messageIdData),
+                Optional.of(messageIdDataList));
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {

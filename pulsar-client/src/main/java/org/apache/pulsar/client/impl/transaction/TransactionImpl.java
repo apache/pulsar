@@ -152,6 +152,9 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> commit() {
         final TxnID txnID = new TxnID(txnIdMostBits, txnIdLeastBits);
         return allOpComplete().thenCompose(ignored -> {
+            for (CompletableFuture<MessageId> future : sendFutureList) {
+                future.thenAccept(sendMessageIdList::add);
+            }
             CompletableFuture<Void> commitFuture = tcClient.commitAsync(txnID, sendMessageIdList);
             commitFuture.whenComplete((commitResult, commitThrowable) -> {
                 if (commitThrowable != null) {
@@ -177,12 +180,7 @@ public class TransactionImpl implements Transaction {
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
         futureList.addAll(registPartitionFutureList);
-        for (CompletableFuture<MessageId> future : sendFutureList) {
-            future.thenAccept(messageId -> {
-                sendMessageIdList.add(messageId);
-            });
-            futureList.add(future);
-        }
+        futureList.addAll(sendFutureList);
         futureList.addAll(registSubscriptionFutureList);
         futureList.addAll(ackFutureList);
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));

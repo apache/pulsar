@@ -3049,7 +3049,7 @@ public final class PulsarMarkers {
   public interface TxnCommitMarkerOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
-    // required .pulsar.proto.MessageIdData message_id = 1;
+    // optional .pulsar.proto.MessageIdData message_id = 1;
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId();
     
@@ -3094,7 +3094,7 @@ public final class PulsarMarkers {
     }
     
     private int bitField0_;
-    // required .pulsar.proto.MessageIdData message_id = 1;
+    // optional .pulsar.proto.MessageIdData message_id = 1;
     public static final int MESSAGE_ID_FIELD_NUMBER = 1;
     private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_;
     public boolean hasMessageId() {
@@ -3134,13 +3134,11 @@ public final class PulsarMarkers {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasMessageId()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getMessageId().isInitialized()) {
-        memoizedIsInitialized = 0;
-        return false;
+      if (hasMessageId()) {
+        if (!getMessageId().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       for (int i = 0; i < getMessageIdListCount(); i++) {
         if (!getMessageIdList(i).isInitialized()) {
@@ -3364,13 +3362,11 @@ public final class PulsarMarkers {
       }
       
       public final boolean isInitialized() {
-        if (!hasMessageId()) {
-          
-          return false;
-        }
-        if (!getMessageId().isInitialized()) {
-          
-          return false;
+        if (hasMessageId()) {
+          if (!getMessageId().isInitialized()) {
+            
+            return false;
+          }
         }
         for (int i = 0; i < getMessageIdListCount(); i++) {
           if (!getMessageIdList(i).isInitialized()) {
@@ -3425,7 +3421,7 @@ public final class PulsarMarkers {
       
       private int bitField0_;
       
-      // required .pulsar.proto.MessageIdData message_id = 1;
+      // optional .pulsar.proto.MessageIdData message_id = 1;
       private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
       public boolean hasMessageId() {
         return ((bitField0_ & 0x00000001) == 0x00000001);

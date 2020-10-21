@@ -86,6 +86,6 @@ message MessageIdData {
 
 /// --- Transaction marker ---
 message TxnCommitMarker {
-    required MessageIdData message_id = 1;
+    optional MessageIdData message_id = 1;
     repeated MessageIdData messageIdList = 2;
 }

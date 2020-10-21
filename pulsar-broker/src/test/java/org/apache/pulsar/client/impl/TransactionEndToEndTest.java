@@ -28,6 +28,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -99,10 +100,19 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     @Test
     public void produceTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-test";
+
         @Cleanup
-        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
                 .newProducer()
-                .topic(TOPIC_OUTPUT)
+                .topic(topic)
                 .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
@@ -114,6 +124,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         txn.commit().get();
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> message = consumer.receive();
+            log.info("receive msg: {}", new String(message.getData()));
+        }
+
     }
 
     @Test
@@ -135,9 +151,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(TOPIC_OUTPUT)
                 .enableBatching(enableBatch)
                 .sendTimeout(0, TimeUnit.SECONDS);
-        if (enableBatch) {
-            producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
-        }
         @Cleanup
         PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) producerBuilder.create();
 

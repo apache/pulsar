@@ -29,8 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.persistent.TransactionReader;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
+import org.apache.pulsar.broker.service.persistent.TransactionMessageReader;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -70,7 +69,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
                                          SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-                                         ManagedCursor cursor, TransactionReader transactionReader) {
+                                         ManagedCursor cursor, TransactionMessageReader transactionMessageReader) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -88,7 +87,11 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             try {
                 if (Markers.isTxnCommitMarker(msgMetadata)) {
                     entries.set(i, null);
-                    transactionReader.addPendingTxn(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
+                    transactionMessageReader.addPendingTxn(metadataAndPayload);
+                    continue;
+                } else if (!transactionMessageReader.isTxnRead()
+                        && (msgMetadata.hasTxnidMostBits() || msgMetadata.hasTxnidLeastBits())) {
+                    entries.set(i, null);
                     continue;
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
@@ -109,11 +112,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entries.set(i, null);
                     entry.release();
                     continue;
-                }
-
-                if (entry instanceof TransactionEntryImpl) {
-                    ((TransactionEntryImpl) entry).setStartBatchIndex(
-                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -137,6 +135,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
+        if (transactionMessageReader.isTxnRead()) {
+            transactionMessageReader.finishTxnRead();
+        }
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
