@@ -1309,9 +1309,10 @@ public interface Topics {
      * @param topic
      * @param subName
      * @param messageId
+     * @param isExcluded
      * @throws PulsarAdminException
      */
-    void resetCursorExclusive(String topic, String subName, MessageId messageId) throws PulsarAdminException;
+    void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;
 
     /**
      * Reset cursor position on a topic subscription.
@@ -1332,9 +1333,10 @@ public interface Topics {
      * @param topic
      * @param subName
      * @param messageId
+     * @param isExcluded
      * @return
      */
-    CompletableFuture<Void> resetCursorExclusiveAsync(String topic, String subName, MessageId messageId);
+    CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded);
 
     /**
      * Reset cursor position on a topic subscription.

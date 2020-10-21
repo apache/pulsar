@@ -650,7 +650,7 @@ public class CmdTopics extends CmdBase {
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 if (excludeResetPosition) {
-                    topics.resetCursorExclusive(persistentTopic, subName, messageId);
+                    topics.resetCursor(persistentTopic, subName, messageId, true);
                 } else {
                     topics.resetCursor(persistentTopic, subName, messageId);
                 }

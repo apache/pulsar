@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -1216,51 +1217,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
-            MessageIdImpl messageId) {
+                    ResetCursorData resetCursorData) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId, false);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative
+                    , new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
+                    , resetCursorData.isExcluded());
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
     
-    @POST
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetCursorExclusive")
-    @ApiOperation(value = "Reset subscription to message position closest to given position, " +
-            "and start consume messages from the next position of the reset position.", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
-                    "subscriber is not authorized to access this operation"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
-            @ApiResponse(code = 412, message = "Unable to find position for position specified"),
-            @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public void resetCursorOnPositionExclusive(
-            @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(name = "subName", value = "Subscription to reset position on", required = true)
-            @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
-            MessageIdImpl messageId) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId, true);
-        } catch (Exception e) {
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
-    }
-
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")

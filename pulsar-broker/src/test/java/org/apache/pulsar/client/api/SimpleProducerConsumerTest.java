@@ -3495,7 +3495,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
         consumer2.close();
 
-        admin.topics().resetCursorExclusive(topicName, subName, lastMsg.getMessageId());
+        admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId(), true);
         Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
         message = consumer3.receive(1, TimeUnit.SECONDS);
         assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
@@ -3503,12 +3503,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
         consumer3.close();
 
-        admin.topics().resetCursorExclusiveAsync(topicName, subName, lastMsg.getMessageId()).get(3,TimeUnit.SECONDS);
+        admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId(), true).get(3, TimeUnit.SECONDS);
         Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
         message = consumer4.receive(1, TimeUnit.SECONDS);
         assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
         messageId = (MessageIdImpl)message.getMessageId();
         assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
         consumer4.close();
+
+        admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId()).get(3, TimeUnit.SECONDS);
+        Consumer<String> consumer5 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        message = consumer5.receive(1, TimeUnit.SECONDS);
+        assertEquals(message.getMessageId(), lastMsg.getMessageId());
+        consumer5.close();
     }
 }

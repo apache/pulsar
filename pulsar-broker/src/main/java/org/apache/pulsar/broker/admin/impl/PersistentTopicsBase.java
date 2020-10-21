@@ -2006,7 +2006,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
-            MessageIdImpl messageId, boolean isExclusive) {
+            MessageIdImpl messageId, boolean isExcluded) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -2039,7 +2039,7 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentSubscription sub = topic.getSubscription(subName);
                 Preconditions.checkNotNull(sub);
                 PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
-                position = isExclusive ? position.getNext() : position;
+                position = isExcluded ? position.getNext() : position;
                 sub.resetCursor(position).thenRun(() -> {
                     log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
                             topicName, subName, messageId);
