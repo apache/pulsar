@@ -68,7 +68,7 @@ func newGoInstance() *goInstance {
 	now := time.Now()
 
 	goInstance.context.outputMessage = func(topic string) pulsar.Producer {
-		producer, err:= goInstance.getProducer(topic)
+		producer, err := goInstance.getProducer(topic)
 		if err != nil {
 			log.Fatal(err)
 		}
