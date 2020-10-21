@@ -274,15 +274,21 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 --broker-service-url <a href="pulsar://host1:6650">pulsar://host1:6650</a>,host2:6650,host3:6650 <br>
 --broker-service-url-tls <a href="pulsar+ssl://host1:6651">pulsar+ssl://host1:6651</a>,host2:6651,host3:6651</p>
 <pre><code class="hljs">
-<span class="hljs-section">## 部署 Bookeeper 集群</span>
+If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag <span class="hljs-keyword">as</span> <span class="hljs-string">follows:</span>
 
-[<span class="hljs-string">BookKeeper</span>](<span class="hljs-link">https://bookkeeper.apache.org</span>) handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 你可以选择运行一个拥有<span class="hljs-strong">**3个 bookie 的BookKeeper集群**</span>。
-
-你能够通过配置文件[<span class="hljs-string">`conf/bookkeeper.conf`</span>](<span class="hljs-link">reference-configuration.md#bookkeeper</span>)去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保[<span class="hljs-string">` zkServers`</span>](<span class="hljs-link">reference-configuration.md#bookkeeper-zkServers</span>)设置为 Zookeeper 集群的连接信息。 如下所示：
-
-<span class="hljs-code">```properties
-zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-</span></code></pre>
+```properties
+--existing-bk-metadata-service-uri <span class="hljs-string">"zk+null://zk1:2181;zk2:2181/ledgers"</span> \
+--web-service-url <span class="hljs-string">http:</span><span class="hljs-comment">//host1:8080,host2:8080,host3:8080 \</span>
+--web-service-url-tls <span class="hljs-string">https:</span><span class="hljs-comment">//host1:8443,host2:8443,host3:8443 \</span>
+--broker-service-url <span class="hljs-string">pulsar:</span><span class="hljs-comment">//host1:6650,host2:6650,host3:6650 \</span>
+--broker-service-url-tls pulsar+<span class="hljs-string">ssl:</span><span class="hljs-comment">//host1:6651,host2:6651,host3:6651</span>
+</code></pre>
+<p>You can obtain the metadata service URI of the existing BookKeeper cluster by using the <code>bin/bookkeeper shell whatisinstanceid</code> command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.</p>
+<h2><a class="anchor" aria-hidden="true" id="部署-bookeeper-集群"></a><a href="#部署-bookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookeeper 集群</h2>
+<p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 你可以选择运行一个拥有<strong>3个 bookie 的BookKeeper集群</strong>。</p>
+<p>你能够通过配置文件<a href="reference-configuration.md#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="reference-configuration.md#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Zookeeper 集群的连接信息。 如下所示：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
 <p>一旦你适当地修改了<code>zkServers</code> 参数，你可以修改任何你需要的其他配置。 你可以在 <a href="reference-configuration.md#bookkeeper">here</a>了解到完整的可用的 BookKeeper 配置项列表。 然而，建议通过<a href="http://bookkeeper.apache.org/docs/latest/reference/config/"> Bookeeper 官方文档</a>了解更多深层的信息。</p>
 <p>一旦修改完<code>conf/bookkeeper.conf</code>文件的相关配置，你就可以在每台 Bookeeper 机器上启动 bookie。 You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
 <p>To start the bookie in the background, use the <a href="reference-cli-tools.md#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
@@ -414,7 +420,7 @@ Hello Pulsar
 <p>你能够看到如下的输出：</p>
 <pre><code class="hljs css language-shell">hello world!
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster"><span>裸机多集群部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#硬件条件">硬件条件</a></li></ul></li><li><a href="#pulsar-二进制包安装">Pulsar 二进制包安装</a></li><li><a href="#安装内置-connectors可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置 Connectors(可选)</a></a></li><li><a href="#安装分层存储可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储(可选)</a></a></li><li><a href="#部署-zookeeper-集群">部署 Zookeeper 集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-pulsar-broker">部署 Pulsar broker</a><ul class="toc-headings"><li><a href="#配置-broker">配置 Broker</a></li></ul></li><li><a href="#连接集群">连接集群</a></li><li><a href="#运行函数">运行函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster"><span>裸机多集群部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#硬件条件">硬件条件</a></li></ul></li><li><a href="#pulsar-二进制包安装">Pulsar 二进制包安装</a></li><li><a href="#安装内置-connectors可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置 Connectors(可选)</a></a></li><li><a href="#安装分层存储可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储(可选)</a></a></li><li><a href="#部署-zookeeper-集群">部署 Zookeeper 集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-bookeeper-集群">部署 Bookeeper 集群</a></li><li><a href="#部署-pulsar-broker">部署 Pulsar broker</a><ul class="toc-headings"><li><a href="#配置-broker">配置 Broker</a></li></ul></li><li><a href="#连接集群">连接集群</a></li><li><a href="#运行函数">运行函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

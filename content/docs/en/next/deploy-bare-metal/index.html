@@ -288,6 +288,16 @@ need to start zookeeper by using different stats port.</p>
 --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651</span>
 </code></pre>
 </blockquote>
+<blockquote>
+<p>If you want to use an existing BookKeeper cluster, you can add the <code>--existing-bk-metadata-service-uri</code> flag as follows:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">--existing-bk-metadata-service-uri</span> <span class="hljs-string">"zk+null://zk1:2181;zk2:2181/ledgers" \
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651</span>
+</code></pre>
+<p>You can obtain the metadata service URI of the existing BookKeeper cluster by using the <code>bin/bookkeeper shell whatisinstanceid</code> command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="deploy-a-bookkeeper-cluster"></a><a href="#deploy-a-bookkeeper-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy a BookKeeper cluster</h2>
 <p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a <strong>3-bookie BookKeeper cluster</strong>.</p>
 <p>You can configure BookKeeper bookies using the <a href="/docs/en/next/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a> configuration file. The most important step in configuring bookies for our purposes here is ensuring that <a href="/docs/en/next/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a> is set to the connection string for the ZooKeeper cluster. The following is an example:</p>
