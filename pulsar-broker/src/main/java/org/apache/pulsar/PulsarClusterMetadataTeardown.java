@@ -69,6 +69,9 @@ public class PulsarClusterMetadataTeardown {
         private boolean help = false;
     }
 
+    public static String[] localZkNodes = {
+            "bookies", "counters", "loadbalance", "managed-ledgers", "namespace", "schemas", "stream" };
+
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
@@ -98,13 +101,9 @@ public class PulsarClusterMetadataTeardown {
 
         ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
 
-        deleteZkNodeRecursively(localZk, "/bookies");
-        deleteZkNodeRecursively(localZk, "/counters");
-        deleteZkNodeRecursively(localZk, "/loadbalance");
-        deleteZkNodeRecursively(localZk, "/managed-ledgers");
-        deleteZkNodeRecursively(localZk, "/namespace");
-        deleteZkNodeRecursively(localZk, "/schemas");
-        deleteZkNodeRecursively(localZk, "/stream");
+        for (String localZkNode : localZkNodes) {
+            deleteZkNodeRecursively(localZk, "/" + localZkNode);
+        }
 
         if (arguments.configurationStore != null && arguments.cluster != null) {
             // Should it be done by REST API before broker is down?
