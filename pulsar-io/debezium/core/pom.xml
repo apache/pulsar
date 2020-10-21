@@ -70,6 +70,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
