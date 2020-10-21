@@ -151,6 +151,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
+        config.setTransactionCoordinatorEnabled(false);
 
         config.setAllowAutoTopicCreationType("non-partitioned");
 
@@ -290,6 +291,7 @@ public class BrokerBookieIsolationTest {
         int totalLedgers = totalPublish / totalEntriesPerLedger;
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.setTransactionCoordinatorEnabled(false);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 

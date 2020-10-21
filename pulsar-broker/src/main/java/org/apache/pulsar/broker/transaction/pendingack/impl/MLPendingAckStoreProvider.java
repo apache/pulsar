@@ -55,10 +55,11 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         }
 
         PersistentTopic originPersistentTopic = (PersistentTopic) originTopic;
-        String tbTopicName = MLPendingAckStore.getTransactionPendingAckStoreSuffix(originPersistentTopic.getName());
+        String pendingAckTopicName = MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subName);
 
         originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                .asyncOpen(TopicName.get(tbTopicName).getPersistenceNamingEncoding(),
+                .asyncOpen(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding(),
                         new AsyncCallbacks.OpenLedgerCallback() {
                             @Override
                             public void openLedgerComplete(ManagedLedger ledger, Object ctx) {

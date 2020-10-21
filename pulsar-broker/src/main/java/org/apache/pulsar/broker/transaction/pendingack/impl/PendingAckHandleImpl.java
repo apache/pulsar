@@ -83,6 +83,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private final CompletableFuture<PendingAckStore> pendingAckStoreFuture;
 
+    private final CompletableFuture<Void> readyCompletableFuture = new CompletableFuture<>();
+
     public PendingAckHandleImpl(String topicName, String subName,
                                 CompletableFuture<PendingAckStore> pendingAckStoreFuture) {
         super(State.None);
@@ -504,6 +506,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
         return this.pendingAckStoreFuture.thenCompose(PendingAckStore::closeAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> getReadyCompletableFuture() {
+        pendingAckStoreFuture.whenComplete((store, e) -> {
+            if (e != null) {
+                readyCompletableFuture.completeExceptionally(e);
+            }
+        });
+        return readyCompletableFuture;
+    }
+
+    protected void readyFutureComplete() {
+        readyCompletableFuture.complete(null);
     }
 
     private void redeliverUnacknowledgedMessagesCommon(PositionImpl position, List<PositionImpl> pendingPositions,

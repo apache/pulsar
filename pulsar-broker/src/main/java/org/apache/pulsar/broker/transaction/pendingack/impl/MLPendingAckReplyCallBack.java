@@ -50,6 +50,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
         log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                 pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
         if (pendingAckHandle.changeToReadyState()) {
+            pendingAckHandle.readyFutureComplete();
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
         } else {

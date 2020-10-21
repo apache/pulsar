@@ -613,10 +613,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 2. duplicate add consumer
         try {
-            sub.addConsumer(consumer);
+            sub.addConsumer(consumer).get();
             fail("Should fail with ConsumerBusyException");
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.ConsumerBusyException);
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
         // 3. simple remove consumer
@@ -692,9 +692,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Shared, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3);
+            completableFuture.get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -716,9 +717,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Shared, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer5);
+            completableFuture.get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -787,9 +789,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3);
+            completableFuture.get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -811,9 +814,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Failover, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer5);
+            completableFuture.get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -868,14 +872,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             sub.doUnsubscribe(consumer1);
             return null;
         }).get();
-
-        try {
-            Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
-            new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
-        }
+        Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
+        new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
     }
 
     @Test

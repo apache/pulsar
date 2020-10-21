@@ -185,13 +185,12 @@ public abstract class AbstractTopic implements Topic {
 
     public abstract int getNumberOfConsumers();
 
-    protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
-            throws BrokerServiceException {
+    protected CompletableFuture<Void> addConsumerToSubscription(Subscription subscription, Consumer consumer) {
         if (isConsumersExceededOnTopic()) {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Topic reached max consumers limit"));
         }
-        subscription.addConsumer(consumer);
+        return subscription.addConsumer(consumer);
     }
 
     @Override

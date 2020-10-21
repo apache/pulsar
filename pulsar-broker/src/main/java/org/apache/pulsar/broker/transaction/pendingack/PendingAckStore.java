@@ -37,7 +37,7 @@ public interface PendingAckStore {
     void replayAsync(PendingAckReplyCallBack pendingAckReplyCallBack);
 
     /**
-     * Close the transaction log.
+     * Close the transaction pending ack store.
      */
     CompletableFuture<Void> closeAsync();
 

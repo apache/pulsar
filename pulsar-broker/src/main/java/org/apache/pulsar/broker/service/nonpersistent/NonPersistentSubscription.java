@@ -92,11 +92,13 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
-            throw new SubscriptionFencedException("Subscription is fenced");
+            completableFuture.completeExceptionally(new SubscriptionFencedException("Subscription is fenced"));
+            return completableFuture;
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
@@ -156,7 +158,8 @@ public class NonPersistentSubscription implements Subscription {
                 }
                 break;
             default:
-                throw new ServerMetadataException("Unsupported subscription type");
+                completableFuture.completeExceptionally(new ServerMetadataException("Unsupported subscription type"));
+                return completableFuture;
             }
 
             if (previousDispatcher != null) {
@@ -169,11 +172,19 @@ public class NonPersistentSubscription implements Subscription {
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
-                throw new SubscriptionBusyException("Subscription is of different type");
+                completableFuture.completeExceptionally(
+                        new SubscriptionBusyException("Subscription is of different type"));
+                return completableFuture;
             }
         }
 
-        dispatcher.addConsumer(consumer);
+        try {
+            dispatcher.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            completableFuture.completeExceptionally(e);
+            return completableFuture;
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

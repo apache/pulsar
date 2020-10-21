@@ -91,4 +91,6 @@ public interface PendingAckHandle {
     boolean checkIfReady();
 
     CompletableFuture<Void> closeAsync();
+
+    CompletableFuture<Void> getReadyCompletableFuture();
 }

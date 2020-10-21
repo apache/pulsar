@@ -333,8 +333,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
     }
 
-    public static String getTransactionPendingAckStoreSuffix(String originTopicName) {
-        return TopicName.get(originTopicName) + PENDING_ACK_STORE_SUFFIX;
+    public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
+        return TopicName.get(originTopicName) + "/" + subName + PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {

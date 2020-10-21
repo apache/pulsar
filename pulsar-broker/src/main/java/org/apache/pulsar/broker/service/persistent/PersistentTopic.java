@@ -636,28 +636,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
-            try {
-                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-                addConsumerToSubscription(subscription, consumer);
-
-                checkBackloggedCursors();
-
-                if (!cnx.isActive()) {
-                    consumer.close();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                                consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
+            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                    maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+            addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
+                try {
+                    if (!cnx.isActive()) {
+                        consumer.close();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
+                                    consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
+                        }
+                        USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
+                        future.completeExceptionally(
+                                new BrokerServiceException("Connection was closed while the opening the cursor "));
+                    } else {
+                        checkReplicatedSubscriptionControllerState();
+                        log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                        future.complete(consumer);
                     }
+                } catch (BrokerServiceException e) {
+                    if (e instanceof ConsumerBusyException) {
+                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                                consumerName);
+                    } else if (e instanceof SubscriptionBusyException) {
+                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                    }
+
                     USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
-                    future.completeExceptionally(
-                            new BrokerServiceException("Connection was closed while the opening the cursor "));
-                } else {
-                    checkReplicatedSubscriptionControllerState();
-                    log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
-                    future.complete(consumer);
+                    future.completeExceptionally(e);
                 }
-            } catch (BrokerServiceException e) {
+            }).exceptionally(e -> {
                 if (e instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
@@ -667,7 +675,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 future.completeExceptionally(e);
-            }
+                return null;
+            });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);

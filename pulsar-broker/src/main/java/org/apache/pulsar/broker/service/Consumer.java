@@ -137,7 +137,7 @@ public class Consumer {
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    PulsarApi.KeySharedMeta keySharedMeta) {
 
         this.subscription = subscription;
         this.subType = subType;

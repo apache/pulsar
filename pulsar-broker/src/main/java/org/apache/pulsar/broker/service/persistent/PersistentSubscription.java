@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -49,6 +50,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -157,59 +159,62 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        cursor.updateLastActive();
-        if (pendingAckHandle != null && !pendingAckHandle.checkIfReady()) {
-            log.error("PendingAckHandleImpl haven't init success TopicName : {}, SubName: {}", topicName, subName);
-            throw new BrokerServiceException.ServiceUnitNotReadyException("PendingAckHandleImpl haven't init " +
-                    "success! " + "TopicName : " + topicName + ", SubName: " + subName);
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+        if (pendingAckHandle == null) {
+            return handleAddConsumer(consumer);
+        } else {
+            return pendingAckHandle.getReadyCompletableFuture().thenCompose(v -> handleAddConsumer(consumer));
         }
+    }
+
+    private CompletableFuture<Void> handleAddConsumer(Consumer consumer) {
+        cursor.updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
-            throw new SubscriptionFencedException("Subscription is fenced");
+            return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             Dispatcher previousDispatcher = null;
 
             switch (consumer.subType()) {
-            case Exclusive:
-                if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
-                }
-                break;
-            case Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
-                }
-                break;
-            case Failover:
-                int partitionIndex = TopicName.getPartitionIndex(topicName);
-                if (partitionIndex < 0) {
-                    // For non partition topics, use a negative index so dispatcher won't sort consumers before picking
-                    // an active consumer for the topic.
-                    partitionIndex = -1;
-                }
+                case Exclusive:
+                    if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
+                    }
+                    break;
+                case Shared:
+                    if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                    }
+                    break;
+                case Failover:
+                    int partitionIndex = TopicName.getPartitionIndex(topicName);
+                    if (partitionIndex < 0) {
+                        // For non partition topics, use a negative index so dispatcher won't sort
+                        // consumers before pickingan active consumer for the topic.
+                        partitionIndex = -1;
+                    }
 
-                if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
-                            topic, this);
-                }
-                break;
-            case Key_Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
-                    previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
-                            : KeySharedMeta.getDefaultInstance();
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
-                }
-                break;
-            default:
-                throw new ServerMetadataException("Unsupported subscription type");
+                    if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
+                                topic, this);
+                    }
+                    break;
+                case Key_Shared:
+                    if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                        previousDispatcher = dispatcher;
+                        KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
+                                : KeySharedMeta.getDefaultInstance();
+                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                    }
+                    break;
+                default:
+                    return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
             }
 
             if (previousDispatcher != null) {
@@ -222,11 +227,17 @@ public class PersistentSubscription implements Subscription {
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
-                throw new SubscriptionBusyException("Subscription is of different type");
+                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
+
             }
         }
 
-        dispatcher.addConsumer(consumer);
+        try {
+            dispatcher.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
