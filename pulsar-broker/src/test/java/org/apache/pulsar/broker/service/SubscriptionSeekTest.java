@@ -160,6 +160,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
+                .startMessageIdInclusive()
                 .subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -176,8 +177,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         MessageId nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
         // For non-durable we are going to restart from the next entry
-        String expectedMessage = messages.get(5);
-        log.info("expected next message: {}, next message {}", expectedMessage, nextMessage);
+        String expectedMessage = messages.get(4);
+        log.info("\nexpected next message: {}, next message {}", expectedMessage, nextMessage.getValue());
         assertEquals(nextMessage.getValue(), expectedMessage);
 
         resetId = messageIds.get(3);
@@ -189,8 +190,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
         // For non-durable we are going to restart from the next entry
-        expectedMessage = messages.get(4);
-        log.info("expected next message2: {}, next message2 {}", expectedMessage, nextMessage);
+        expectedMessage = messages.get(3);
+        log.info("expected next message2: {}, next message2 {}", expectedMessage, nextMessage.getValue());
 
         assertEquals(nextMessage.getValue(), expectedMessage);
 
@@ -203,8 +204,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         nextId = nextMessage.getMessageId();
         consumer.acknowledge(nextId);
         // For non-durable we are going to restart from the next entry
-        expectedMessage = messages.get(3);
-        log.info("expected next message3: {}, next message3 {}", expectedMessage, nextMessage);
+        expectedMessage = messages.get(2);
+        log.info("expected next message3: {}, next message3 {}", expectedMessage, nextMessage.getValue());
         assertEquals(nextMessage.getValue(), expectedMessage);
     }
 
