@@ -27,9 +27,11 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import java.sql.Connection;
@@ -48,16 +50,10 @@ public class TestBasicPresto extends PulsarTestSuite {
 
     private static final int NUM_OF_STOCKS = 10;
 
-    @BeforeClass
-    public void setupPresto() throws Exception {
-        log.info("[setupPresto]");
-        pulsarCluster.startPrestoWorker();
-    }
-
-    @AfterClass
-    public void teardownPresto() {
-        log.info("tearing down...");
-        pulsarCluster.stopPrestoWorker();
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        PulsarClusterSpec.PulsarClusterSpecBuilder prestoSpec = specBuilder.enablePrestoWorker(true);
+        return super.beforeSetupCluster(clusterName, prestoSpec);
     }
 
     @Test

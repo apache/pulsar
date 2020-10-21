@@ -150,7 +150,8 @@ public class PulsarCluster {
 
         // create brokers
         brokerContainers.putAll(
-                runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
+            runNumContainers("broker", spec.numBrokers(), (name) -> {
+                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, name)
                         .withNetwork(network)
                         .withNetworkAliases(name)
                         .withEnv("zkServers", ZKContainer.NAME)
@@ -160,9 +161,13 @@ public class PulsarCluster {
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
-                        .withEnv("AWS_SECRET_KEY", "secretkey")
-                )
-        );
+                        .withEnv("AWS_SECRET_KEY", "secretkey");
+                    if (spec.enablePrestoWorker) {
+                        brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
+                    }
+                    return brokerContainer;
+                }
+            ));
 
         spec.classPathVolumeMounts.forEach((key, value) -> {
             zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
