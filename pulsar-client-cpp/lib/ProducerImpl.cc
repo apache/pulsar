@@ -462,7 +462,7 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                 // A spot has been reserved for this batch, but the batch failed to be pushed to the queue, so
                 // we need to release the spot manually
                 LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsg: " << result);
-                pendingMessagesQueue_.release(opSendMsg.num_messages_in_batch());
+                pendingMessagesQueue_.release(1);
                 failures.add(std::bind(opSendMsg.sendCallback_, result, MessageId{}));
             }
         } else if (numBatches > 1) {
@@ -476,7 +476,7 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                     // queue, so we need to release the spot manually
                     LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
                                                                                   << "]: " << results[i]);
-                    pendingMessagesQueue_.release(opSendMsgs[i].num_messages_in_batch());
+                    pendingMessagesQueue_.release(1);
                     failures.add(std::bind(opSendMsgs[i].sendCallback_, results[i], MessageId{}));
                 }
             }
