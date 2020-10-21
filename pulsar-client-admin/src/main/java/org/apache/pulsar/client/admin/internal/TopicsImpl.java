@@ -1147,7 +1147,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException {
+    public void resetCursor(String topic, String subName, MessageId messageId
+            , boolean isExcluded) throws PulsarAdminException {
         try {
             resetCursorAsync(topic, subName, messageId, true).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -1168,7 +1169,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded) {
+    public CompletableFuture<Void> resetCursorAsync(String topic, String subName
+            , MessageId messageId, boolean isExcluded) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         final WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetcursor");
