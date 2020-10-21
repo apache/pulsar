@@ -49,7 +49,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -133,6 +132,15 @@ public abstract class NamespacesBase extends AdminResource {
         validatePolicies(namespaceName, policies);
 
         try {
+            int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+            //no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
+            if (maxNamespacesPerTenant > 0) {
+                List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+                if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+                }
+            }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             zkCreateOptimistic(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies));
@@ -1404,6 +1412,41 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to update the publish_max_message_rate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected void internalRemovePublishRate() {
+        validateSuperUserAccess();
+        log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName);
+        Entry<Policies, Stat> policiesNode = null;
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().publishMaxMessageRate.remove(pulsar().getConfiguration().getClusterName());
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                    policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
+
+            log.info("[{}] Successfully remove the publish_max_message_rate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to remove the publish_max_message_rate for cluster on namespace {}: does not exist",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to remove the publish_max_message_rate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to remove the publish_max_message_rate for cluster on namespace {}", clientAppId(),
                     namespaceName, e);
             throw new RestException(e);
         }

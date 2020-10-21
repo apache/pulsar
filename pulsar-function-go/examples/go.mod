@@ -1,9 +1,9 @@
-module github.com/apache/pulsar/pulsar-function-go/tests
+module github.com/apache/pulsar/pulsar-function-go/examples
 
 go 1.13
 
 require (
-	github.com/apache/pulsar-client-go v0.1.0
+	github.com/apache/pulsar-client-go v0.2.0
 	github.com/apache/pulsar/pulsar-function-go v0.0.0
 )
 

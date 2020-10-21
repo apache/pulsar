@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -304,8 +305,11 @@ public class DispatchRateLimiter {
         final String path = path(POLICIES, namespace.toString());
         Optional<Policies> policies = Optional.empty();
         try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
-                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
+            if (configurationCacheService != null) {
+                policies = configurationCacheService.policiesCache().getAsync(path)
+                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
         }

@@ -239,6 +239,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
+        doc = "The maximum number of tenants that each pulsar cluster can create." 
+                + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
+    )
+    private int maxTenants = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
@@ -423,6 +430,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
+    
+    @FieldContext(
+        category = CATEGORY_POLICIES, 
+        dynamic = true,
+        doc = "The maximum number of namespaces that each tenant can create."
+            + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
+    private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -501,6 +515,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private int maxPublishRatePerTopicInMessages = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long maxPublishRatePerTopicInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -668,6 +696,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerTopic-limit check.")
     private int maxConsumersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max number of subscriptions allowed to subscribe to topic. \n\nOnce this limit reaches, "
+                + " broker will reject new subscription until the number of subscribed subscriptions decrease.\n"
+                + " Using a value of 0, is disabling maxSubscriptionsPerTopic limit check."
+    )
+    private int maxSubscriptionsPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,

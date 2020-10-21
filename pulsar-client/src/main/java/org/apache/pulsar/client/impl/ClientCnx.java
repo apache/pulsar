@@ -64,6 +64,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
@@ -90,6 +91,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -399,6 +401,20 @@ public class ClientCnx extends PulsarHandler {
 
         producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
     }
+
+    @Override
+    protected void handleAckResponse(CommandAckResponse ackResponse) {
+        checkArgument(state == State.Ready);
+        checkArgument(ackResponse.getRequestId() >= 0);
+        long consumerId = ackResponse.getConsumerId();
+        if (!ackResponse.hasError()) {
+            consumers.get(consumerId).ackReceipt(ackResponse.getRequestId());
+        } else {
+            consumers.get(consumerId).ackError(ackResponse.getRequestId(),
+                    getPulsarClientException(ackResponse.getError(), ackResponse.getMessage()));
+        }
+    }
+
 
     @Override
     protected void handleMessage(CommandMessage cmdMessage, ByteBuf headersAndPayload) {
@@ -1029,6 +1045,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.ConsumerAssignException(errorMsg);
         case NotAllowedError:
             return new PulsarClientException.NotAllowedException(errorMsg);
+        case TransactionConflict:
+            return new PulsarClientException.TransactionConflictException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
