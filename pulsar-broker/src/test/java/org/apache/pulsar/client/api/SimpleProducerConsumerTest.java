@@ -3488,6 +3488,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         MessageIdImpl lastMessageId = (MessageIdImpl)lastMsg.getMessageId();
         consumer.close();
+        producer.close();
 
         admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId());
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();

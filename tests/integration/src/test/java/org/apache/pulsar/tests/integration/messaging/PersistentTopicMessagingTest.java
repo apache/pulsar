@@ -63,4 +63,9 @@ public class PersistentTopicMessagingTest extends TopicMessagingBase {
     public void testPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
     }
+
+    @Test(dataProvider = "ServiceUrls")
+    public void testResetCursorCompatibility(String serviceUrl) throws Exception {
+        resetCursorCompatibility(serviceUrl, true);
+    }
 }

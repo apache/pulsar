@@ -25,7 +25,9 @@ import static org.testng.Assert.fail;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -38,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class TopicMessagingBase extends MessagingBase {
@@ -438,6 +441,45 @@ public class TopicMessagingBase extends MessagingBase {
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    protected void resetCursorCompatibility(String serviceUrl, boolean isPersistent) throws Exception {
+        final String topicName = getNonPartitionedTopic("test-reset-cursor-compatibility", isPersistent);
+        final String subName = "my-sub";
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(serviceUrl)
+                .build();
+        @Cleanup
+        final PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(serviceUrl).build();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        for (int i = 0; i < 50; i++) {
+            producer.send("msg" + i);
+        }
+        Message<String> lastMsg = null;
+        for (int i = 0; i < 10; i++) {
+            lastMsg = consumer.receive();
+            assertNotNull(lastMsg);
+            consumer.acknowledge(lastMsg);
+        }
+
+        admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId());
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Message<String> message = consumer2.receive(1, TimeUnit.SECONDS);
+        assertEquals(message.getMessageId(), lastMsg.getMessageId());
+
+        admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId()).get(3, TimeUnit.SECONDS);
+        @Cleanup
+        Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        message = consumer3.receive(1, TimeUnit.SECONDS);
+        assertEquals(message.getMessageId(), lastMsg.getMessageId());
+
     }
 
 }
