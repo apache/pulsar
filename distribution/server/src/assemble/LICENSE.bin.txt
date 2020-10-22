@@ -505,7 +505,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.5.3.jar
     - io.vertx-vertx-web-3.5.3.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-jute-3.5.7.jar
+    - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
+  * Dropwizard metrics
+    - io.dropwizard.metrics-metrics-core-3.2.5.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
@@ -513,6 +515,7 @@ BSD 3-clause "New" or "Revised" License
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
  * JavaHamcrest -- org.hamcrest-hamcrest-core-1.3.jar -- licenses/LICENSE-Hamcrest.txt
+ * Snappy -- org.xerial.snappy-snappy-java-1.1.7.6.jar -- licences/LICENSE-snappy.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt

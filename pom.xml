@@ -99,7 +99,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.19</commons-compress.version>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
-    <zookeeper.version>3.5.7</zookeeper.version>
+    <zookeeper.version>3.6.2</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
@@ -181,6 +181,8 @@ flexible messaging model and an intuitive client API.</description>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <snappy.version>1.1.7.6</snappy.version>
+    <dropwizard.version>3.2.5</dropwizard.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -737,6 +739,18 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${dropwizard.version}</version>
       </dependency>
 
       <dependency>
