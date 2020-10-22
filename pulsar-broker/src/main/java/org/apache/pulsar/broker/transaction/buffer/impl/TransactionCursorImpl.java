@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.NoTxnsCommittedAtL
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
+@Deprecated
 public class TransactionCursorImpl implements TransactionCursor {
 
 

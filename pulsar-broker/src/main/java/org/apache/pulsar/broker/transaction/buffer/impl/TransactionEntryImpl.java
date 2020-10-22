@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 /**
  * A simple implementation of {@link TransactionEntry}.
  */
+@Deprecated
 public class TransactionEntryImpl implements TransactionEntry {
 
     private final TxnID txnId;

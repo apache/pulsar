@@ -44,6 +44,7 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
 /**
  * A persistent transaction buffer reader implementation.
  */
+@Deprecated
 @Slf4j
 public class PersistentTransactionBufferReader implements TransactionBufferReader {
 

@@ -58,6 +58,7 @@ import java.util.stream.Collectors;
 /**
  * A persistent transaction buffer implementation.
  */
+@Deprecated
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 

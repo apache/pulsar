@@ -66,8 +66,6 @@ public class TransactionProduceTest extends TransactionTestBase {
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String PRODUCE_COMMIT_TOPIC = NAMESPACE1 + "/produce-commit";
     private final static String PRODUCE_ABORT_TOPIC = NAMESPACE1 + "/produce-abort";
-    private final static String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
-    private final static String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -81,8 +79,6 @@ public class TransactionProduceTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createPartitionedTopic(PRODUCE_COMMIT_TOPIC, 3);
         admin.topics().createPartitionedTopic(PRODUCE_ABORT_TOPIC, 3);
-        admin.topics().createPartitionedTopic(ACK_COMMIT_TOPIC, 3);
-        admin.topics().createPartitionedTopic(ACK_ABORT_TOPIC, 3);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -115,6 +111,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
     // endAction - commit: true, endAction - abort: false
     private void produceTest(boolean endAction) throws Exception {
+        final String topic = endAction ? PRODUCE_COMMIT_TOPIC : PRODUCE_ABORT_TOPIC;
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         Transaction tnx = pulsarClientImpl.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -128,7 +125,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         @Cleanup
         PartitionedProducerImpl<byte[]> outProducer = (PartitionedProducerImpl<byte[]>) pulsarClientImpl
                 .newProducer()
-                .topic(PRODUCE_COMMIT_TOPIC)
+                .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .create();
@@ -193,7 +190,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         Assert.assertEquals(0, messageSet.size());
-        System.out.println("finish test");
+        log.info("produce and {} test finished.", endAction ? "commit" : "abort");
     }
 
     private void checkMessageId(List<CompletableFuture<MessageId>> futureList, boolean isFinished) {

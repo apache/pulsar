@@ -27,23 +27,15 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
-import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.client.impl.PartitionedProducerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -238,6 +230,16 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // Cant't receive transaction messages after abort.
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
+
+        Thread.sleep(1000);
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            PersistentTopicInternalStats stats =
+                    admin.topics().getInternalStats("persistent://" + TOPIC_OUTPUT + "-partition-" + i);
+            // the transaction abort, the related messages and abort marke should be acked,
+            // so all the entries in this topic should be acked
+            // and the markDeletePosition is equals with the lastConfirmedEntry
+            Assert.assertEquals(stats.cursors.get("test").markDeletePosition, stats.lastConfirmedEntry);
+        }
 
         log.info("finished test partitionAbortTest");
     }

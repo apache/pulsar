@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusE
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
+@Deprecated
 public class TransactionMetaImpl implements TransactionMeta {
 
     private final TxnID txnID;

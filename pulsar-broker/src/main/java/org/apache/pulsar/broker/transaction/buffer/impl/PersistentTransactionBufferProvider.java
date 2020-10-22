@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Persistent transaction buffer provider.
  */
+@Deprecated
 @Slf4j
 public class PersistentTransactionBufferProvider implements TransactionBufferProvider {
 
