@@ -83,7 +83,7 @@ jobs:
 
       - name: build artifacts and docker image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: run integration function
         if: steps.docs.outputs.changed_only == 'no'
