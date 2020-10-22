@@ -169,6 +169,7 @@ class PULSAR_PUBLIC Message {
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class MessageBatch;
+    friend struct OpSendMsg;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);
