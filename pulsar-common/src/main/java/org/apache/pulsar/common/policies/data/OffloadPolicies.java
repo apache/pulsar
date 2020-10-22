@@ -46,7 +46,8 @@ public class OffloadPolicies implements Serializable {
     public final static long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = -1;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
 
-    public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE = "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
+    public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
+            "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
 
     // common config
