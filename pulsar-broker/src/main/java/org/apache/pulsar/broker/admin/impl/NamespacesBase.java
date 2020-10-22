@@ -2732,14 +2732,6 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies == null) {
-                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
-                if (policies.offload_deletion_lag_ms != null) {
-                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
-                }
-            }
-            policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
