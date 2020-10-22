@@ -901,7 +901,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative
                     , new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
-                    , resetCursorData.isExcluded());
+                    , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

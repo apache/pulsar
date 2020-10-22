@@ -31,7 +31,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -130,6 +133,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(true)
                 .batchingMaxMessages(3)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .topic(topicName).create();
 
 
@@ -175,6 +179,85 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             MessageId receiveId = consumer.receive().getMessageId();
             assertEquals(receiveId, messageId);
         }
+    }
+    @Test
+    public void testSeekForBatchByAdmin() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
+        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchByAdmin-" + UUID.randomUUID().toString();
+        String subscriptionName = "my-subscription-batch";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .topic(topicName).create();
+
+
+        List<MessageId> messageIds = new ArrayList<>();
+        List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
+
+        List<String> messages = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            messages.add(message);
+            CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(message);
+            futureMessageIds.add(messageIdCompletableFuture);
+        }
+
+        for (CompletableFuture<MessageId> futureMessageId : futureMessageIds) {
+            MessageId messageId = futureMessageId.get();
+            messageIds.add(messageId);
+        }
+
+        producer.close();
+
+
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        Message<String> receiveBeforeEarliest = consumer.receive();
+        assertEquals(receiveBeforeEarliest.getValue(), messages.get(0));
+
+        admin.topics().resetCursor(topicName, subscriptionName, MessageId.latest);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        Message<String> receiveAfterLatest = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(receiveAfterLatest);
+
+        admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(0), true);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        Message<String> received = consumer.receive();
+        assertEquals(received.getMessageId(), messageIds.get(1));
+
+        admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(0), false);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        received = consumer.receive();
+        assertEquals(received.getMessageId(), messageIds.get(0));
+
+        admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(messageIds.size() - 1), true);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        received = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(received);
+
+        admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(messageIds.size() - 1), false);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        received = consumer.receive();
+        assertEquals(received.getMessageId(), messageIds.get(messageIds.size() - 1));
+
+        admin.topics().resetCursor(topicName, subscriptionName, new BatchMessageIdImpl(-1, -1, -1 ,10), true);
+        // Wait consumer reconnect
+        Thread.sleep(1000);
+        received = consumer.receive();
+        assertEquals(received.getMessageId(), messageIds.get(0));
     }
 
 
