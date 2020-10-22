@@ -298,7 +298,6 @@ func pulsarProducerSendCallbackProxyWithMsgID(res C.pulsar_result, messageId *C.
 		sendCallback.callback(getMessageId(messageId), newError(res, "Failed to send message"))
 	} else {
 		sendCallback.callback(getMessageId(messageId), nil)
-		C.pulsar_message_id_free(messageId)
 	}
 }
 
