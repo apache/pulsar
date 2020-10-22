@@ -36,7 +36,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -47,6 +48,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,7 +60,16 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @Slf4j
-public class ClusterMetadataTearDownTest extends PulsarTestSuite {
+public class ClusterMetadataTearDownTest {
+
+    private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
+            .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
+            .numProxies(0)
+            .numFunctionWorkers(0)
+            .enablePrestoWorker(false)
+            .build();
+
+    private final PulsarCluster pulsarCluster = PulsarCluster.forSpec(spec);
 
     private ZooKeeper localZk;
     private ZooKeeper configStoreZk;
@@ -71,9 +82,8 @@ public class ClusterMetadataTearDownTest extends PulsarTestSuite {
     private PulsarAdmin admin;
 
     @BeforeSuite
-    @Override
     public void setupCluster() throws Exception {
-        super.setupCluster();
+        pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
 
         final int sessionTimeoutMs = 30000;
@@ -89,7 +99,6 @@ public class ClusterMetadataTearDownTest extends PulsarTestSuite {
     }
 
     @AfterSuite
-    @Override
     public void tearDownCluster() {
         try {
             ledgerManager.close();
@@ -105,7 +114,7 @@ public class ClusterMetadataTearDownTest extends PulsarTestSuite {
             localZk.close();
         } catch (InterruptedException ignored) {
         }
-        super.tearDownCluster();
+        pulsarCluster.stop();
     }
 
     @Test
