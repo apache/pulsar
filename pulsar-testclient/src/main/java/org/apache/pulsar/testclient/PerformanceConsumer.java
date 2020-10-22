@@ -84,6 +84,19 @@ public class PerformanceConsumer {
         @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per topic)")
         public int numConsumers = 1;
 
+        @Parameter(names = { "-et", "--explicit-topics" }, description = "An explicit list of topics " +
+                "to consume from, whose size is equal to `--num-topics`. The option `topic` takes " +
+                "precedence over this config when its size is 1. If not set, the list of topics " +
+                "prefixed by option `topic` will be used.")
+        public List<String> explicitTopics;
+
+        @Parameter(names = { "-es", "--explicit-subscriptions" }, description = "An explicit list of " +
+                "subscriptions to consume on, whose size is equal to `--num-consumers`. The option " +
+                "`--subscriber-name` takes precedence over this config when its size is 1. If not set, " +
+                "the list of subscriptions prefixed by option `--subscriber-name` will be used. " +
+                "Note that each of these subscriptions should be existed on every topic of `--explicit-topics`")
+        public List<String> explicitSubscriptions;
+
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
@@ -102,7 +115,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
+        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
         @Parameter(names = { "-c",
@@ -184,6 +197,18 @@ public class PerformanceConsumer {
 
         if (arguments.topic.size() != 1) {
             System.out.println("Only one topic name is allowed");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.explicitTopics != null && arguments.explicitTopics.size() != arguments.numTopics) {
+            System.out.println("The size of explicit list of topics should be equal to --num-topics");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.explicitSubscriptions != null && arguments.explicitSubscriptions.size() != arguments.numConsumers) {
+            System.out.println("The size of explicit list of subscriptions should be equal to --num-consumers");
             jc.usage();
             System.exit(-1);
         }
@@ -326,17 +351,17 @@ public class PerformanceConsumer {
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName explicitTopicName = arguments.explicitTopics == null
+                    ? TopicName.get(String.format("%s-%d", prefixTopicName, i))
+                    : TopicName.get(arguments.explicitTopics.get(i));
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName : explicitTopicName;
             log.info("Adding {} consumers on topic {}", arguments.numConsumers, topicName);
 
             for (int j = 0; j < arguments.numConsumers; j++) {
-                String subscriberName;
-                if (arguments.numConsumers > 1) {
-                    subscriberName = String.format("%s-%d", arguments.subscriberName, j);
-                } else {
-                    subscriberName = arguments.subscriberName;
-                }
+                String explicitSubscriberName = arguments.explicitSubscriptions == null
+                        ? String.format("%s-%d", arguments.subscriberName, j)
+                        : arguments.explicitSubscriptions.get(j);
+                String subscriberName = (arguments.numConsumers == 1) ? arguments.subscriberName : explicitSubscriberName;
 
                 futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
                         .subscribeAsync());

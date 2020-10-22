@@ -422,14 +422,16 @@ Options
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
-|`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
+|`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
 |`-k`, `--encryption-key-name`|The private key name to decrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
-|`-t`, `--num-topic`|The number of topics|1|
+|`-t`, `--num-topics`|The number of topics|1|
+|`-et`, `--explicit-topics`|An explicit list of topics to consume from, whose size is equal to `--num-topics`. The option `topic` takes precedence over this config when its size is 1. If not set, the list of topics prefixed by option `topic` will be used.||
+|`-es`, `--explicit-subscriptions`|An explicit list of subscriptions to consume on, whose size is equal to `--num-consumers`. The option `--subscriber-name` takes precedence over this config when its size is 1. If not set, the list of subscriptions prefixed by option `--subscriber-name` will be used. Note that each of these subscriptions should be existed on every topic of `--explicit-topics`||
 |`-r`, `--rate`|Simulate a slow message consumer (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
@@ -467,7 +469,8 @@ Options
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
 |`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
-|`-t`, `--num-topic`|The number of topics|1|
+|`-t`, `--num-topics`|The number of topics|1|
+|`-et`, `--explicit-topics`|An explicit list of topics to produce messages to, whose size is equal to `--num-topics`. The option `topic` takes precedence over this config when its size is 1. If not set, the list of topics prefixed by option `topic` will be used.||
 |`-f`, `--payload-file`|Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages||
 |`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
@@ -497,7 +500,8 @@ Options
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
-|`-t`, `--num-topic`|The number of topics|1|
+|`-t`, `--num-topics`|The number of topics|1|
+|`-et`, `--explicit-topics`|An explicit list of topics to read on, whose size is equal to `--num-topics`. The option `topic` takes precedence over this config when its size is 1. If not set, the list of topics prefixed by option `topic` will be used.||
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||

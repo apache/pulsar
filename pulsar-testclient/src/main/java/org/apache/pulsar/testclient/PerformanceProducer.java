@@ -99,7 +99,7 @@ public class PerformanceProducer {
         public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topics;
+        public List<String> topic;
 
         @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads")
         public int numTestThreads = 1;
@@ -110,11 +110,17 @@ public class PerformanceProducer {
         @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
 
         @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)")
         public int numProducers = 1;
+
+        @Parameter(names = { "-et", "--explicit-topics" }, description = "An explicit list of topics " +
+                "to produce messages to, whose size is equal to `--num-topics`. The option `topic` takes " +
+                "precedence over this config when its size is 1. If not set, the list of topics " +
+                "prefixed by option `topic` will be used.")
+        public List<String> explicitTopics;
 
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
@@ -262,8 +268,14 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.topics.size() != 1) {
+        if (arguments.topic.size() != 1) {
             System.out.println("Only one topic name is allowed");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.explicitTopics != null && arguments.explicitTopics.size() != arguments.numTopics) {
+            System.out.println("The size of explicit list of topics should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
         }
@@ -424,7 +436,7 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            String prefixTopicName = arguments.topics.get(0);
+            String prefixTopicName = arguments.topic.get(0);
             List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
@@ -479,7 +491,10 @@ public class PerformanceProducer {
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {
-                String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
+                String explicitTopicName = arguments.explicitTopics == null
+                        ? String.format("%s-%d", prefixTopicName, i)
+                        : arguments.explicitTopics.get(i);
+                String topic = (arguments.numTopics == 1) ? prefixTopicName : explicitTopicName;
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {

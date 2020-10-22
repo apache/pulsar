@@ -68,6 +68,12 @@ public class PerformanceReader {
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
 
+        @Parameter(names = { "-et", "--explicit-topics" }, description = "An explicit list of topics " +
+                "to read on, whose size is equal to `--num-topics`. The option `topic` takes " +
+                "precedence over this config when its size is 1. If not set, the list of topics " +
+                "prefixed by option `topic` will be used.")
+        public List<String> explicitTopics;
+
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
 
@@ -143,6 +149,12 @@ public class PerformanceReader {
 
         if (arguments.topic.size() != 1) {
             System.out.println("Only one topic name is allowed");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.explicitTopics != null && arguments.explicitTopics.size() != arguments.numTopics) {
+            System.out.println("The size of explicit list of topics should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
         }
@@ -251,8 +263,10 @@ public class PerformanceReader {
                 .startMessageId(startMessageId);
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName explicitTopicName = arguments.explicitTopics == null
+                    ? TopicName.get(String.format("%s-%d", prefixTopicName, i))
+                    : TopicName.get(arguments.explicitTopics.get(i));
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName : explicitTopicName;
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
