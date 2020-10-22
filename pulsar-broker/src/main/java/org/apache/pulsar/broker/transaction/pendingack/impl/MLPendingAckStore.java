@@ -60,7 +60,7 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private final ManagedCursor cursor;
 
-    private static final String PENDING_ACK_STORE_SUFFIX = "/transaction-pendingack";
+    private static final String PENDING_ACK_STORE_SUFFIX = "-transaction-pendingack";
 
     private static final String PENDING_ACK_STORE_CURSOR_NAME = "pendingack";
 
@@ -334,7 +334,7 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "/" + subName + PENDING_ACK_STORE_SUFFIX;
+        return TopicName.get(originTopicName) + "-" + subName + PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {
