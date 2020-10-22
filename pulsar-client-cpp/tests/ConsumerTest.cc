@@ -19,6 +19,7 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 #include <time.h>
+#include <set>
 
 #include "../lib/Future.h"
 #include "../lib/Utils.h"

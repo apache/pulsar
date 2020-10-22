@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 
+#include <time.h>
 #include <string>
 
 #include <lib/LogUtils.h>

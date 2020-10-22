@@ -18,6 +18,7 @@
  */
 #include <gtest/gtest.h>
 #include <lib/TopicName.h>
+#include <map>
 
 using namespace pulsar;
 
