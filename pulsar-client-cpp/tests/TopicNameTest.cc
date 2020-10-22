@@ -154,3 +154,27 @@ TEST(TopicNameTest, testExtraArguments) {
         TopicName::get("persistent:::/property/cluster/namespace/topic/some/extra/args");
     ASSERT_FALSE(topicName);
 }
+
+TEST(TopicNameTest, testPartitionIndex) {
+    // key: topic name, value: partition index
+    const std::map<std::string, int> nameToPartition = {
+        {"persistent://public/default/xxx-partition-0", 0},
+        {"xxx-partition-0", 0},
+        {"xxx-partition-4", 4},
+        {"xxx-partition-13", 13},
+        {"xxx-partition-x", -1},
+        // Following cases are not the right behavior, but it's Java client's behavior
+        {"xxx-partition--1", 1},
+        {"xxx-partition-00", 0},
+        {"xxx-partition-012", 12},
+    };
+
+    for (const auto& kv : nameToPartition) {
+        const auto& name = kv.first;
+        const auto& partition = kv.second;
+
+        auto topicName = TopicName::get(name);
+        ASSERT_EQ(topicName->getPartitionIndex(), TopicName::getPartitionIndex(name));
+        ASSERT_EQ(topicName->getPartitionIndex(), partition);
+    }
+}
