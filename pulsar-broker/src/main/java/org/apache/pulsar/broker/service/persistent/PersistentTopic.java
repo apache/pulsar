@@ -2366,7 +2366,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
                 future = tb.commitTxn(txnID, sendMessageList);
             } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-                future = tb.abortTxn(txnID);
+                future = tb.abortTxn(txnID, sendMessageList);
             } else {
                 future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
             }

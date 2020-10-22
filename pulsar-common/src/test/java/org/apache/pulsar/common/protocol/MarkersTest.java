@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -162,7 +163,7 @@ public class MarkersTest {
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits);
+        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits, Collections.emptyList());
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 

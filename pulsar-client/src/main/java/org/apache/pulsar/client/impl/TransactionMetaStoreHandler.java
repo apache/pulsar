@@ -256,7 +256,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+    public CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> sendMessageIdList) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Abort txn {}", txnID);
         }
@@ -266,7 +266,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.ABORT, null);
+
+        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        for (MessageId messageId : sendMessageIdList) {
+            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
+                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
+                    .build());
+        }
+        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                PulsarApi.TxnAction.ABORT, messageIdDataList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));

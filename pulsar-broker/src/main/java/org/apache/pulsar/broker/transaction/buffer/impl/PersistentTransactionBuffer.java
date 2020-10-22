@@ -224,7 +224,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, List<PulsarApi.MessageIdData> sendMessageIdList) {
         return txnCursor.getTxnMeta(txnID, false)
                         .thenApply(meta -> createAbortMarker(meta))
                         .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
@@ -237,7 +237,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
         long sequenceId = meta.lastSequenceId() + 1;
         ByteBuf abortMarker = Markers.newTxnAbortMarker(sequenceId, meta.id().getMostSigBits(),
-                                                        meta.id().getLeastSigBits());
+                                                        meta.id().getLeastSigBits(), Collections.emptyList());
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(abortMarker).build();
         return marker;
     }

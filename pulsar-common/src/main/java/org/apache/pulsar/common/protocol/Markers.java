@@ -267,7 +267,8 @@ public class Markers {
     }
 
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits, MessageIdData messageIdData, List<MessageIdData> messageIdDataList) {
+                                             long txnLeastBits, MessageIdData messageIdData,
+                                             List<MessageIdData> messageIdDataList) {
         return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits,
                 messageIdData == null ? Optional.empty() : Optional.of(messageIdData),
                 Optional.of(messageIdDataList));
@@ -280,8 +281,9 @@ public class Markers {
     }
 
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
-                                            long txnLeastBits) {
-        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.empty(), Optional.empty());
+                                            long txnLeastBits, List<MessageIdData> messageIdDataList) {
+        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits,
+                Optional.empty(), Optional.of(messageIdDataList));
     }
 
     public static PulsarMarkers.TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {

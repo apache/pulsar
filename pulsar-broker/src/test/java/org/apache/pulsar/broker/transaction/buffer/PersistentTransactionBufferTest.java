@@ -485,7 +485,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testAbortNonExistentTxn() throws Exception {
         try {
-            buffer.abortTxn(txnID).get();
+            buffer.abortTxn(txnID, Collections.emptyList()).get();
             fail("Should fail to abort a transaction if it doesn't exist");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionNotFoundException);
@@ -506,7 +506,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta.status());
 
         try {
-            buffer.abortTxn(txnID).get();
+            buffer.abortTxn(txnID, Collections.emptyList()).get();
             fail("Should fail to abort a committed transaction");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionStatusException);
@@ -525,7 +525,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        buffer.abortTxn(txnID).get();
+        buffer.abortTxn(txnID, Collections.emptyList()).get();
         verifyTxnNotExist(txnID);
     }
 
@@ -650,7 +650,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         verifyEntries(ledger, appendEntires, meta.getEntries());
 
-        abortBuffer.abortTxn(txnID).get();
+        abortBuffer.abortTxn(txnID, Collections.emptyList()).get();
         assertEquals(meta.id(), txnID);
         assertEquals(meta.numEntries(), numEntries);
         assertEquals(meta.status(), TxnStatus.ABORTED);
@@ -768,9 +768,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         this.committedLedgerId = committedLedgerId;
         this.committedEntryId = committedEntryId;
         if (txnAction.equals(PulsarApi.TxnAction.COMMIT)) {
-            tb.commitTxn(txnId, Collections.EMPTY_LIST).get();
+            tb.commitTxn(txnId, Collections.emptyList()).get();
         } else if (txnAction.equals(PulsarApi.TxnAction.ABORT)) {
-            tb.abortTxn(txnId).get();
+            tb.abortTxn(txnId, Collections.emptyList()).get();
         }
         log.info("endTxn finish");
 //        TransactionMeta meta = tb.getTransactionMeta(txnId).get();

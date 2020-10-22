@@ -108,7 +108,7 @@ public interface TransactionBuffer {
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> abortTxn(TxnID txnID);
+    CompletableFuture<Void> abortTxn(TxnID txnID, List<MessageIdData> sendMessageIdList);
 
     /**
      * Purge all the data of the transactions who are committed and stored

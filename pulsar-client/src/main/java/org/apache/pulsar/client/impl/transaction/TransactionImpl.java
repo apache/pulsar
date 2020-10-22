@@ -150,31 +150,22 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        final TxnID txnID = new TxnID(txnIdMostBits, txnIdLeastBits);
         return allOpComplete().thenCompose(ignored -> {
             for (CompletableFuture<MessageId> future : sendFutureList) {
                 future.thenAccept(sendMessageIdList::add);
             }
-            CompletableFuture<Void> commitFuture = tcClient.commitAsync(txnID, sendMessageIdList);
-            commitFuture.whenComplete((commitResult, commitThrowable) -> {
-                if (commitThrowable != null) {
-                    log.error("Txn {} commit failed.", txnID, commitThrowable);
-                    return;
-                }
-                sendOps.values().forEach(txnSendOp -> {
-                    txnSendOp.sendFuture.whenComplete((messageId, t) -> {
-                        txnSendOp.transactionalSendFuture.complete(messageId);
-                    });
-                });
-            });
-            return commitFuture;
+            return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList);
         });
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return allOpComplete().thenCompose(ignored ->
-                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)));
+        return allOpComplete().thenCompose(ignored -> {
+            for (CompletableFuture<MessageId> future : sendFutureList) {
+                future.thenAccept(sendMessageIdList::add);
+            }
+            return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList);
+        });
     }
 
     private CompletableFuture<Void> allOpComplete() {

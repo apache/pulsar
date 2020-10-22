@@ -85,14 +85,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
             try {
-                if (Markers.isTxnCommitMarker(msgMetadata)) {
-                    entries.set(i, null);
-                    transactionMessageReader.addPendingTxn(metadataAndPayload);
-                    continue;
-                } else if (!transactionMessageReader.isTxnRead()
-                        && (msgMetadata.hasTxnidMostBits() || msgMetadata.hasTxnidLeastBits())) {
-                    entries.set(i, null);
-                    continue;
+                if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                    if (!transactionMessageReader.shouldSendToConsumer(msgMetadata, entry, entries, i)) {
+                        continue;
+                    }
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
                     // Message metadata was corrupted or the messages was a server-only marker
@@ -135,9 +131,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
-        if (transactionMessageReader.isTxnRead()) {
-            transactionMessageReader.finishTxnRead();
-        }
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {

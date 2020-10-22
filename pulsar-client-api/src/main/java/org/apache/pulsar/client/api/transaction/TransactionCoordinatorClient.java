@@ -165,14 +165,14 @@ public interface TransactionCoordinatorClient extends Closeable {
      * Abort txn.
      * @param txnID txn id to abort.
      */
-    void abort(TxnID txnID) throws TransactionCoordinatorClientException;
+    void abort(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
 
     /**
      * Abort txn asynchronously.
      * @param txnID txn id to abort.
      * @return a future represents the result of abort txn.
      */
-    CompletableFuture<Void> abortAsync(TxnID txnID);
+    CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> messageIdList);
 
     /**
      * Get current state of the transaction meta store.

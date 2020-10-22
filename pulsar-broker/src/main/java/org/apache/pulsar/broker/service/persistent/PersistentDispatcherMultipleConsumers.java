@@ -124,7 +124,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionMessageReader = new TransactionMessageReader((ManagedLedgerImpl) topic.getManagedLedger());
+        this.transactionMessageReader = new TransactionMessageReader(
+                (ManagedLedgerImpl) topic.getManagedLedger(), subscription,
+                topic.getBrokerService().getPulsar().getOrderedExecutor());
     }
 
     @Override

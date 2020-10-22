@@ -90,9 +90,9 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
         transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
-        transactionCoordinatorClient.commit(txnID, Collections.EMPTY_LIST);
+        transactionCoordinatorClient.commit(txnID, Collections.emptyList());
         try {
-            transactionCoordinatorClient.abort(txnID);
+            transactionCoordinatorClient.abort(txnID, Collections.emptyList());
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
         } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
            // Ok here
