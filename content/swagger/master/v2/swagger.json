@@ -9764,7 +9764,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -17592,10 +17592,10 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -18014,9 +18014,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "overLoaded": {
-                    "type": "boolean"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18027,28 +18024,31 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 },
-                "loadReportType": {
-                    "type": "string"
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
+                "underLoaded": {
+                    "type": "boolean"
                 },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -18232,10 +18232,10 @@
                 "producerName": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -19141,10 +19141,10 @@
                 "producerName": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -19266,11 +19266,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },
