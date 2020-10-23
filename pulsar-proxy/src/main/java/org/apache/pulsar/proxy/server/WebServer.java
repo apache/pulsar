@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import com.google.common.collect.Lists;
+
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -77,7 +78,7 @@ public class WebServer {
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
-    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
         this.authenticationService = authenticationService;
