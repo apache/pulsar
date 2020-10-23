@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"github.com/apache/pulsar-client-go/pulsar"
 	"testing"
 	"time"
 
@@ -68,4 +69,17 @@ func TestFunctionContext_setCurrentRecord(t *testing.T) {
 	fc.SetCurrentRecord(&MockMessage{})
 
 	assert.IsType(t, &MockMessage{}, fc.record)
+}
+
+func TestFunctionContext_NewOutputMessage(t *testing.T) {
+	fc := NewFuncContext()
+	publishTopic := "publish-topic"
+
+	fc.outputMessage = func(topic string) pulsar.Producer {
+		topic = publishTopic
+		return &MockPulsarProducer{}
+	}
+
+	actualProducer := fc.NewOutputMessage(publishTopic)
+	assert.IsType(t, &MockPulsarProducer{}, actualProducer)
 }
