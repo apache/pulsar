@@ -34,6 +34,7 @@
     <version>2.7.0-SNAPSHOT</version>
 
     <properties>
+        <jersey.version>2.31</jersey.version>
         <presto.version>332</presto.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
@@ -52,7 +53,31 @@
     </properties>
 
     <dependencies>
-
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-common</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet-core</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.prestosql</groupId>
             <artifactId>presto-main</artifactId>
@@ -180,7 +205,7 @@
         </dependency>
 
     </dependencies>
-    
+
     <dependencyManagement>
       <dependencies>
         <dependency>
@@ -193,7 +218,7 @@
           <artifactId>netty</artifactId>
           <version>3.10.6.Final</version>
         </dependency>
-      
+
         <dependency>
           <groupId>org.apache.maven</groupId>
           <artifactId>maven-core</artifactId>
