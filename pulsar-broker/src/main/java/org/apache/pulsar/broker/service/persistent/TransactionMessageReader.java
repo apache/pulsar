@@ -79,7 +79,12 @@ public class TransactionMessageReader {
      * @param readEntriesCallback ReadEntriesCallback
      */
     public void read(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        Entry commitEntry = commitMarkerQueue.poll();
+        Entry commitEntry = commitMarkerQueue.peek();
+        if (commitEntry == null) {
+            log.warn("Commit entry is null.");
+            readEntriesCallback.readEntriesComplete(Collections.emptyList(), ctx);
+            return;
+        }
         ByteBuf byteBuf = commitEntry.getDataBuffer();
         Commands.parseMessageMetadata(byteBuf);
         PulsarMarkers.TxnCommitMarker commitMarker = null;
@@ -123,6 +128,8 @@ public class TransactionMessageReader {
             for (Entry entry : entryList) {
                 pendingReadPosition.add(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
             }
+            commitMarkerQueue.remove(commitEntry);
+            commitEntry.release();
             readEntriesCallback.readEntriesComplete(entryList, ctx);
         });
     }
