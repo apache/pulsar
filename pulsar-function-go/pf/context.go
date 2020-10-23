@@ -30,19 +30,18 @@ import (
 type FunctionContext struct {
 	instanceConf *instanceConf
 	userConfigs  map[string]interface{}
+	secrets      map[string]interface{}
 	logAppender  *LogAppender
 	record       pulsar.Message
 }
 
 func NewFuncContext() *FunctionContext {
 	instanceConf := newInstanceConf()
-	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
-
-	fc := &FunctionContext{
+	return &FunctionContext{
 		instanceConf: instanceConf,
-		userConfigs:  userConfigs,
+		userConfigs:  buildInterfaceMap(instanceConf.funcDetails.GetUserConfig()),
+		secrets:      buildInterfaceMap(instanceConf.funcDetails.GetSecretsMap()),
 	}
-	return fc
 }
 
 func (c *FunctionContext) GetInstanceID() int {
@@ -119,6 +118,15 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
 
+func (c *FunctionContext) GetSecretsMap() map[string]interface{} {
+	return c.secrets
+}
+
+func (c *FunctionContext) GetSecretsValue(key string) interface{} {
+	return c.secrets[key]
+}
+
+
 // SetCurrentRecord sets the current message into the function context
 // called for each message before executing a handler function
 func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
@@ -151,7 +159,7 @@ func FromContext(ctx context.Context) (*FunctionContext, bool) {
 	return fc, ok
 }
 
-func buildUserConfig(data string) map[string]interface{} {
+func buildInterfaceMap(data string) map[string]interface{} {
 	m := make(map[string]interface{})
 
 	json.Unmarshal([]byte(data), &m)

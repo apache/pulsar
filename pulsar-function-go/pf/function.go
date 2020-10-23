@@ -174,3 +174,13 @@ func Start(funcName interface{}) {
 		panic("start function failed, please check.")
 	}
 }
+
+// GetUserConfig provides a means to access the pulsar function's user config map before initializing the pulsar function
+func GetUserConfig() map[string]interface{} {
+	return NewFuncContext().userConfigs
+}
+
+// GetSecrets provides a means to access the pulsar function's secrets  map before initializing the pulsar function
+func GetSecrets() map[string]interface{} {
+	return NewFuncContext().secrets
+}
