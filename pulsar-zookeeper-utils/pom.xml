@@ -106,6 +106,19 @@
       <artifactId>simpleclient_caffeine</artifactId>
     </dependency>
 
+    <dependency>
+      <!--  ZK server is marking this as an optional dependency, but in reality it's required -->
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <!--  ZK server is marking this as an optional dependency, but in reality it's required -->
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
