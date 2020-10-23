@@ -96,7 +96,8 @@ func (producer *MockPulsarProducer) Send(context.Context, *pulsar.ProducerMessag
 	return nil, nil
 }
 
-func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage, func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage,
+	func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
 }
 
 func (producer *MockPulsarProducer) LastSequenceID() int64 {
