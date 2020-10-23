@@ -394,7 +394,7 @@ The Apache Software License, Version 2.0
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
-    - metrics-core-3.1.0.jar
+    - metrics-core-3.2.5.jar
     - metrics-graphite-3.1.0.jar
     - metrics-jvm-3.1.0.jar
   * Prometheus
@@ -457,6 +457,8 @@ The Apache Software License, Version 2.0
     - audience-annotations-0.5.0.jar
   * Swagger
     - swagger-annotations-1.5.21.jar
+  * Snappy
+    - snappy-java-1.1.7.6.jar
 
 Protocol Buffers License
  * Protocol Buffers

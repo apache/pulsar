@@ -488,7 +488,6 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar
   * Dropwizard
-    - io.dropwizard.metrics-metrics-core-3.1.0.jar
     - io.dropwizard.metrics-metrics-graphite-3.1.0.jar
     - io.dropwizard.metrics-metrics-jvm-3.1.0.jar
   * Prometheus
