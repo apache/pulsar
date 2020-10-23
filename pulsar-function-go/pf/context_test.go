@@ -21,10 +21,10 @@ package pf
 
 import (
 	"context"
-	"github.com/apache/pulsar-client-go/pulsar"
 	"testing"
 	"time"
 
+	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,7 +76,6 @@ func TestFunctionContext_NewOutputMessage(t *testing.T) {
 	publishTopic := "publish-topic"
 
 	fc.outputMessage = func(topic string) pulsar.Producer {
-		topic = publishTopic
 		return &MockPulsarProducer{}
 	}
 

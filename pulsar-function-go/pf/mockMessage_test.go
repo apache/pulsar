@@ -82,29 +82,30 @@ func (m *MockMessageID) Serialize() []byte {
 	return []byte(`message-id`)
 }
 
-type MockPulsarProducer struct {}
+type MockPulsarProducer struct{}
 
-func (producer *MockPulsarProducer) Topic() string  {
+func (producer *MockPulsarProducer) Topic() string {
 	return "publish-topic"
 }
 
-func (producer *MockPulsarProducer) Name() string  {
+func (producer *MockPulsarProducer) Name() string {
 	return "publish-producer"
 }
 
-func (producer *MockPulsarProducer) Send(context.Context, *pulsar.ProducerMessage) (pulsar.MessageID, error)  {
+func (producer *MockPulsarProducer) Send(context.Context, *pulsar.ProducerMessage) (pulsar.MessageID, error) {
 	return nil, nil
 }
 
-func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage, func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {}
+func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage, func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+}
 
-func (producer *MockPulsarProducer) LastSequenceID() int64  {
+func (producer *MockPulsarProducer) LastSequenceID() int64 {
 	return int64(10)
 }
 
-func (producer *MockPulsarProducer) Flush() error  {
+func (producer *MockPulsarProducer) Flush() error {
 	return nil
 }
 
-func (producer *MockPulsarProducer) Close()  {
+func (producer *MockPulsarProducer) Close() {
 }
