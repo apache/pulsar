@@ -55,9 +55,22 @@
 
   <build>
     <plugins>
+      <!-- build a `jar in jar` to avoid break bc signature-->
       <plugin>
-        <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-maven-plugin</artifactId>
+        <groupId>de.ntcomputer</groupId>
+        <artifactId>executable-packer-maven-plugin</artifactId>
+        <version>1.0.1</version>
+        <configuration>
+          <finalName>${project.artifactId}-${project.version}</finalName>
+          <mainClass>org.apache.pulsar.bcloader.BouncyCastleFipsLoader</mainClass>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>pack-executable-jar</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

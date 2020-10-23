@@ -583,6 +583,12 @@ Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt
     - net.jcip-jcip-annotations-1.0.jar
 
+Bouncy Castle License
+ * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
+    - org.bouncycastle-bcpkix-jdk15on-1.66.jar
+    - org.bouncycastle-bcprov-ext-jdk15on-1.66.jar
+    - org.bouncycastle-bcprov-jdk15on-1.66.jar
+
 ------------------------
 
 Additionaly, Netty includes code with the following licenses:

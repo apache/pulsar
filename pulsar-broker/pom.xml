@@ -79,6 +79,14 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-discovery-service</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -332,13 +340,6 @@
     </dependency>
 
     <!-- transaction related dependencies (end) -->
-
-     <dependency>
-       <groupId>org.bouncycastle</groupId>
-       <artifactId>bc-fips</artifactId>
-       <version>${bouncycastlefips.version}</version>
-       <scope>test</scope>
-     </dependency>
 
   </dependencies>
 

@@ -43,8 +43,10 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
+      <optional>true</optional>
     </dependency>
 
   </dependencies>
