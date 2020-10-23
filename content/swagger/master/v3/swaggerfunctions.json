@@ -1653,12 +1653,15 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "replicated": {
-                    "type": "boolean"
+                "topicName": {
+                    "type": "string"
                 },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "producerName": {
                     "type": "string"
@@ -1679,9 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "topicName": {
-                    "type": "string"
                 },
                 "value": {
                     "type": "object"
