@@ -371,7 +371,6 @@ The Apache Software License, Version 2.0
     - io.netty-netty-transport-native-epoll-4.1.51.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.51.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.51.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-kqueue-4.1.51.Final-osx-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.30.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
@@ -563,8 +562,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
- * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
- * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
+ * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.2.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
