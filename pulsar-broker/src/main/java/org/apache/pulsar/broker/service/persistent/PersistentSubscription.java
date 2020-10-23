@@ -372,6 +372,7 @@ public class PersistentSubscription implements Subscription {
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            deleteTransactionMarker((PositionImpl) cursor.getMarkDeletedPosition(), ackType, properties);
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -382,7 +383,6 @@ public class PersistentSubscription implements Subscription {
                             .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
                 }
             }
-            deleteTransactionMarker((PositionImpl) cursor.getMarkDeletedPosition());
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
@@ -398,7 +398,7 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
-    private void deleteTransactionMarker(PositionImpl position) {
+    private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String,Long> properties) {
         if (position != null) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
             managedLedger.asyncReadEntry(position, new ReadEntryCallback() {
@@ -406,17 +406,8 @@ public class PersistentSubscription implements Subscription {
                 public void readEntryComplete(Entry entry, Object ctx) {
                     MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     if (Markers.isTxnCommitMarker(messageMetadata)) {
-                        cursor.asyncMarkDelete(position, cursor.getProperties(), new MarkDeleteCallback() {
-                            @Override
-                            public void markDeleteComplete(Object ctx) {
-                                deleteTransactionMarker(managedLedger.getNextValidPosition(position));
-                            }
-
-                            @Override
-                            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("Fail to delete transaction marker! Position : {}", position, exception);
-                            }
-                        }, null);
+                        messageMetadata.recycle();
+                        acknowledgeMessage(Collections.singletonList(position), ackType, properties);
                     }
                 }
 
