@@ -39,6 +39,18 @@
     </dependency>
 
     <dependency>
+      <!--  ZK server is marking this as an optional dependency, but in reality it's required -->
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <!--  ZK server is marking this as an optional dependency, but in reality it's required -->
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>bookkeeper-server</artifactId>
     </dependency>
