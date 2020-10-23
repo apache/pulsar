@@ -286,4 +286,84 @@ public class PersistentSubscriptionTest {
 
         persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
     }
+
+    @Test
+    public void testTransactionMarkerdelete() throws BrokerServiceException, InterruptedException {
+        List<Position> positions = new ArrayList<>();
+        positions.add(new PositionImpl(2, 1));
+        positions.add(new PositionImpl(2, 3));
+        positions.add(new PositionImpl(2, 5));
+
+        Position[] expectedSinglePositions = {new PositionImpl(3, 1),
+                new PositionImpl(3, 3), new PositionImpl(3, 5)};
+
+        doAnswer((invocationOnMock) -> {
+            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), expectedSinglePositions));
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        doReturn(PulsarApi.CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
+
+        persistentSubscription.addConsumer(consumerMock);
+
+        // Single ack for txn1
+        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
+
+        positions.clear();
+        positions.add(new PositionImpl(1, 100));
+
+        // Cumulative ack for txn1
+        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
+
+        positions.clear();
+        positions.add(new PositionImpl(2, 1));
+
+        // Can not single ack message already acked.
+        try {
+            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
+            fail("Single acknowledge for transaction2 should fail. ");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
+                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+        }
+
+        positions.clear();
+        positions.add(new PositionImpl(2, 50));
+
+        // Can not cumulative ack message for another txn.
+        try {
+            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
+            fail("Cumulative acknowledge for transaction2 should fail. ");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
+                    "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+        }
+
+        positions.clear();
+        positions.add(new PositionImpl(1, 1));
+        positions.add(new PositionImpl(1, 3));
+        positions.add(new PositionImpl(1, 5));
+        positions.add(new PositionImpl(3, 1));
+        positions.add(new PositionImpl(3, 3));
+        positions.add(new PositionImpl(3, 5));
+
+        // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
+        persistentSubscription.acknowledgeMessage(positions, AckType.Individual, Collections.emptyMap());
+
+        //Abort txn.
+        persistentSubscription.abortTxn(txnID1, consumerMock);
+
+        positions.clear();
+        positions.add(new PositionImpl(2, 50));
+
+        // Retry above ack, will succeed. As abort has clear pending_ack for those messages.
+        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative);
+
+        positions.clear();
+        positions.add(new PositionImpl(2, 1));
+
+        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
+    }
 }

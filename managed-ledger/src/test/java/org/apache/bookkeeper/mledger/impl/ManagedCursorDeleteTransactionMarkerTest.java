@@ -48,6 +48,8 @@ public class ManagedCursorDeleteTransactionMarkerTest extends MockedBookKeeperTe
                 .newTxnCommitMarker(1, 1, 1, messageIdData).array());
         Position position2 = ledger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1, messageIdData).array());
+        Position position3 = ledger.addEntry(Markers
+                .newTxnCommitMarker(1, 1, 1, messageIdData).array());
         cursor.asyncDelete(position1, new AsyncCallbacks.DeleteCallback() {
             @Override
             public void deleteComplete(Object ctx) {
@@ -61,6 +63,6 @@ public class ManagedCursorDeleteTransactionMarkerTest extends MockedBookKeeperTe
         }, null);
 
         Thread.sleep(1000L);
-        assertEquals(cursor.getManagedLedger().getLastConfirmedEntry(), position2);
+        assertEquals(cursor.getManagedLedger().getLastConfirmedEntry(), position3);
     }
 }

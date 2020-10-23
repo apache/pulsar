@@ -95,9 +95,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -1953,41 +1950,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
             callback.deleteFailed(new ManagedLedgerException(e), ctx);
-        }
-        if (newMarkDeletePosition != null && !newMarkDeletePosition.equals(markDeletePosition)) {
-            PositionImpl nextPosition = ledger.getNextPosition(newMarkDeletePosition);
-            deleteTransactionMarker(nextPosition);
-        }
-    }
-
-    private void deleteTransactionMarker(PositionImpl position) {
-        if (position != null) {
-            ledger.asyncReadEntry(position, new ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    MessageMetadata messageMetadata = Commands.peekMessageMetadata(entry.getDataBuffer());
-                    if (Markers.isTxnCommitMarker(messageMetadata)) {
-                        Map<String, Long> properties = lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties
-                                : Collections.emptyMap();
-                        internalAsyncMarkDelete(position, properties, new MarkDeleteCallback() {
-                            @Override
-                            public void markDeleteComplete(Object ctx) {
-                                deleteTransactionMarker(ledger.getNextPosition(position));
-                            }
-
-                            @Override
-                            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("Fail to delete transaction marker! Position : {}", position, exception);
-                            }
-                        }, null);
-                    }
-                }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Fail to read transaction marker! Position : {}", position, exception);
-                }
-            }, null);
         }
     }
 
