@@ -102,6 +102,7 @@
       <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc-shaded<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${project.parent.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">classifier</span>&gt;</span>pkg<span class="hljs-tag">&lt;/<span class="hljs-name">classifier</span>&gt;</span>
     <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
 <p>Pulsar Broker (<code>pulsar-broker</code>) 模块可以通过间接引入 Pulsar 客户端(<code>pulsar-client-original</code>) 模块来引入 BouncyCastle non-FIPS jar 包。</p>

@@ -1621,6 +1621,12 @@
         "Message": {
             "type": "object",
             "properties": {
+                "producerName": {
+                    "type": "string"
+                },
+                "topicName": {
+                    "type": "string"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1629,15 +1635,19 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicated": {
+                    "type": "boolean"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1649,25 +1659,15 @@
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
-                "topicName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",

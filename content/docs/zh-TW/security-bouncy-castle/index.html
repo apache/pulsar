@@ -102,6 +102,7 @@
       <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc-shaded<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${project.parent.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">classifier</span>&gt;</span>pkg<span class="hljs-tag">&lt;/<span class="hljs-name">classifier</span>&gt;</span>
     <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
 <p>And Pulsar Broker (<code>pulsar-broker</code>) module include BouncyCastle non-FIPS jars by indirectly include Pulsar Client(<code>pulsar-client-original</code>) module.</p>
