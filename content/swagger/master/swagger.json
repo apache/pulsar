@@ -8005,7 +8005,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "307" : {
@@ -14674,10 +14674,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -15065,15 +15065,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -15086,6 +15077,22 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -15093,13 +15100,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -15277,10 +15277,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -16151,10 +16151,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -16277,11 +16277,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
