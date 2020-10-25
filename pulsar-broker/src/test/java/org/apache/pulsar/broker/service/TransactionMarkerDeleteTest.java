@@ -29,6 +29,8 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -52,16 +54,23 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     @Test
     public void TransactionMarkerDeleteTest() throws Exception {
         ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
-        Position position1 = managedLedger.addEntry("test".getBytes());
-        managedLedger.addEntry("test".getBytes());
-        Position position3 = managedLedger.addEntry("test".getBytes());
         PersistentTopic topic = mock(PersistentTopic.class);
         doReturn(managedLedger).when(topic).getManagedLedger();
-        managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
+        MessageIdData messageIdData = MessageIdData.newBuilder()
+                .setLedgerId(1)
+                .setEntryId(1)
+                .build();
+        Position position1 = managedLedger.addEntry("test".getBytes());
+        managedLedger.addEntry(Markers
+                .newTxnCommitMarker(1, 1, 1, messageIdData).array());
+        Position position3 = managedLedger.addEntry(Markers
+                .newTxnCommitMarker(1, 1, 1, messageIdData).array());
+        managedLedger.openCursor("test");
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),
                 AckType.Individual, Collections.emptyMap());
+        Thread.sleep(1000L);
         assertEquals(0, ((PositionImpl) persistentSubscription.getCursor()
                 .getMarkDeletedPosition()).compareTo((PositionImpl) position3));
     }

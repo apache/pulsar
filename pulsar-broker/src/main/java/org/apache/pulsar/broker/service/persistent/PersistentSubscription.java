@@ -370,9 +370,9 @@ public class PersistentSubscription implements Subscription {
                 dispatcher.getRedeliveryTracker().removeBatch(positions);
             }
         }
-
-        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
-            deleteTransactionMarker((PositionImpl) cursor.getMarkDeletedPosition(), ackType, properties);
+        Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
+        if (!currentMarkDeletePosition.equals(previousMarkDeletePosition)) {
+            deleteTransactionMarker((PositionImpl) currentMarkDeletePosition, ackType, properties);
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -401,13 +401,14 @@ public class PersistentSubscription implements Subscription {
     private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String,Long> properties) {
         if (position != null) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-            managedLedger.asyncReadEntry(position, new ReadEntryCallback() {
+            PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
+            managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
                 @Override
                 public void readEntryComplete(Entry entry, Object ctx) {
                     MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     if (Markers.isTxnCommitMarker(messageMetadata)) {
                         messageMetadata.recycle();
-                        acknowledgeMessage(Collections.singletonList(position), ackType, properties);
+                        acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
                     }
                 }
 
