@@ -327,8 +327,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor,
-                    replicated, new PendingAckHandleImpl(topic, subscriptionName));
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 
@@ -761,7 +760,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false, null);
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
                 subscriptions.put(subscriptionName, subscription);
             }
 
