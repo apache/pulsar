@@ -78,41 +78,41 @@
 <p>Clients and brokers exchange <em>commands</em> with each other. Commands are formatted as binary <a href="https://developers.google.com/protocol-buffers/">protocol buffer</a> (aka <em>protobuf</em>) messages. 在 <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto"><code>PulsarApi.proto</code></a> 中指定了 protobuf 命令的格式，并在下面的章节的 <a href="#protobuf-interface">Protobuf interface</a> 中记录。</p>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="连接共享"></a><a href="#连接共享" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接共享</h3>
-<p>Commands for different producers and consumers can be interleaved and sent through the same connection without restriction.</p>
+<p>不同生产者和消费者的指令可以不受限制地相互交错，并通过相同的连接发送。</p>
 </blockquote>
-<p>All commands associated with Pulsar's protocol are contained in a <a href="#pulsar.proto.BaseCommand"><code>BaseCommand</code></a> protobuf message that includes a <a href="#pulsar.proto.Type"><code>Type</code></a> <a href="https://developers.google.com/protocol-buffers/docs/proto#enum">enum</a> with all possible subcommands as optional fields. <code>BaseCommand</code> messages can specify only one subcommand.</p>
+<p>All commands associated with Pulsar's protocol are contained in a <a href="#pulsar.proto.BaseCommand"><code>BaseCommand</code></a> protobuf message that includes a <a href="#pulsar.proto.Type"><code>Type</code></a> <a href="https://developers.google.com/protocol-buffers/docs/proto#enum">enum</a> with all possible subcommands as optional fields. <code>BaseCommand</code> 消息只能指定一个子命令。</p>
 <h2><a class="anchor" aria-hidden="true" id="框架"></a><a href="#框架" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>框架</h2>
-<p>Since protobuf doesn't provide any sort of message frame, all messages in the Pulsar protocol are prepended with a 4-byte field that specifies the size of the frame. The maximum allowable size of a single frame is 5 MB.</p>
-<p>The Pulsar protocol allows for two types of commands:</p>
+<p>因为 protobuf 不提供任何类型的消息帧，所以 Pulsar 协议的所有消息都是以指定帧大小的4字节字段为前缀。 单个帧的最大可用大小是5MB。</p>
+<p>Pulsar 协议允许两个类型的命令：</p>
 <ol>
 <li><strong>Simple commands</strong> that do not carry a message payload.</li>
-<li><strong>Payload commands</strong> that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf <a href="#message-metadata">metadata</a> and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.</li>
+<li><strong>Payload commands</strong> that bear a payload that is used when publishing or delivering messages. 在有效载荷命令中，protobuf 命令数据包含 protobuf <a href="#message-metadata">元数据</a>和原始消息内容，消息以原始格式进行传递。 所有消息都是以4字节无符号大枚举整数的形式进行传递。</li>
 </ol>
 <blockquote>
-<p>Message payloads are passed in raw format rather than protobuf format for efficiency reasons.</p>
+<p>为了提高效率，消息有效负载以原始格式而不是原buf格式传递。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="简单指令"></a><a href="#简单指令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简单指令</h3>
-<p>Simple (payload-free) commands have this basic structure:</p>
+<h3><a class="anchor" aria-hidden="true" id="简单命令"></a><a href="#简单命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简单命令</h3>
+<p>简单消息(无有效载荷)的基本结构如下：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Component</th><th style="text-align:left">Description</th><th style="text-align:left">Size (in bytes)</th></tr>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">Description</th><th style="text-align:left">长度 (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="有效载荷命令"></a><a href="#有效载荷命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>有效载荷命令</h3>
-<p>Payload commands have this basic structure:</p>
+<p>有效载荷命令的基本结构如下：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Component</th><th style="text-align:left">Description</th><th style="text-align:left">Size (in bytes)</th></tr>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">Description</th><th style="text-align:left">长度 (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left">magicNumber</td><td style="text-align:left">A 2-byte byte array (<code>0x0e01</code>) identifying the current format</td><td style="text-align:left">2</td></tr>
 <tr><td style="text-align:left">checksum</td><td style="text-align:left">A <a href="http://www.evanjones.ca/crc32c.html">CRC32-C checksum</a> of everything that comes after it</td><td style="text-align:left">4</td></tr>
 <tr><td style="text-align:left">metadataSize</td><td style="text-align:left">The size of the message <a href="#message-metadata">metadata</a></td><td style="text-align:left">4</td></tr>
@@ -423,7 +423,7 @@
 <h2><a class="anchor" aria-hidden="true" id="protobuf-interface"></a><a href="#protobuf-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Protobuf interface</h2>
 <p>All Pulsar's Protobuf definitions can be found <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-common/src/main/proto/PulsarApi.proto">here</a>
 .</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.2/develop-tools"><span class="arrow-prev">← </span><span>模拟工具</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.2/develop-schema"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#框架">框架</a><ul class="toc-headings"><li><a href="#简单指令">简单指令</a></li><li><a href="#有效载荷命令">有效载荷命令</a></li></ul></li><li><a href="#消息元数据">消息元数据</a><ul class="toc-headings"><li><a href="#批量消息">批量消息</a></li></ul></li><li><a href="#interactions">Interactions</a><ul class="toc-headings"><li><a href="#connection-establishment">Connection establishment</a></li><li><a href="#keep-alive">Keep Alive</a></li><li><a href="#生产者producer">生产者(Producer)</a></li><li><a href="#消费者consumer">消费者(Consumer)</a></li></ul></li><li><a href="#service-discovery">Service discovery</a><ul class="toc-headings"><li><a href="#topic-lookup">Topic lookup</a></li><li><a href="#partitioned-topics-discovery">Partitioned topics discovery</a></li></ul></li><li><a href="#protobuf-interface">Protobuf interface</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.2/develop-tools"><span class="arrow-prev">← </span><span>模拟工具</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.2/develop-schema"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#框架">框架</a><ul class="toc-headings"><li><a href="#简单命令">简单命令</a></li><li><a href="#有效载荷命令">有效载荷命令</a></li></ul></li><li><a href="#消息元数据">消息元数据</a><ul class="toc-headings"><li><a href="#批量消息">批量消息</a></li></ul></li><li><a href="#interactions">Interactions</a><ul class="toc-headings"><li><a href="#connection-establishment">Connection establishment</a></li><li><a href="#keep-alive">Keep Alive</a></li><li><a href="#生产者producer">生产者(Producer)</a></li><li><a href="#消费者consumer">消费者(Consumer)</a></li></ul></li><li><a href="#service-discovery">Service discovery</a><ul class="toc-headings"><li><a href="#topic-lookup">Topic lookup</a></li><li><a href="#partitioned-topics-discovery">Partitioned topics discovery</a></li></ul></li><li><a href="#protobuf-interface">Protobuf interface</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
