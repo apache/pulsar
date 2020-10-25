@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -66,6 +67,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTermina
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1925,7 +1927,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
+
+        updateLedgerOffloader(data);
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
+    }
+
+    private void updateLedgerOffloader(Policies data) {
+        LedgerOffloader ledgerOffloader = this.getManagedLedger().getConfig().getLedgerOffloader();
+        if (ledgerOffloader == null || ledgerOffloader instanceof NullLedgerOffloader) {
+            return;
+        }
+
+        // if topic offload policies is enable, ignore the namespace offload policies
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.getOffloadPolicies() != null) {
+            return;
+        }
+
+        if (data.offload_policies != null) {
+            ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(
+                    data.offload_policies.getManagedLedgerOffloadThresholdInBytes());
+            ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(
+                    data.offload_policies.getManagedLedgerOffloadDeletionLagInMillis());
+            return;
+        }
+
+        if (data.offload_deletion_lag_ms != null) {
+            ledgerOffloader.getOffloadPolicies()
+                    .setManagedLedgerOffloadDeletionLagInMillis(data.offload_deletion_lag_ms);
+        }
+        ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(data.offload_threshold);
     }
 
     /**
