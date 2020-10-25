@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
@@ -71,8 +70,6 @@ public interface PendingAckHandle {
      * @return the future of this operation.
      */
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
-
-    void setPersistentSubscription(PersistentSubscription persistentSubscription);
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
