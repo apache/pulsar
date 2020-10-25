@@ -308,7 +308,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         properties.putAll(config.getConfigProperties());
         return OffloadPolicies.create(properties);
     }
-    
+
+    @Override
+    public void updateConfiguration(String key, String value) {
+        this.config.getConfigProperties().put(key, value);
+    }
 
     @Override
     public void close() {

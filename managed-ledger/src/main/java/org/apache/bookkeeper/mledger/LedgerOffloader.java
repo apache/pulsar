@@ -121,6 +121,8 @@ public interface LedgerOffloader {
      */
     OffloadPolicies getOffloadPolicies();
 
+    void updateConfiguration(String key, String value);
+
     /**
      * Close the resources if necessary
      */

@@ -1933,18 +1933,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void updateLedgerOffloader(Policies data) {
+        log.info("updateLedgerOffloader start. policies: {}", data);
         LedgerOffloader ledgerOffloader = this.getManagedLedger().getConfig().getLedgerOffloader();
         if (ledgerOffloader == null || ledgerOffloader instanceof NullLedgerOffloader) {
+            log.info("ledgerOffloader is null or ledgerOffloader is NullLedgerOffloader. "
+                    + "offloader: {}", ledgerOffloader);
             return;
         }
 
         // if topic offload policies is enable, ignore the namespace offload policies
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (topicPolicies != null && topicPolicies.getOffloadPolicies() != null) {
+            log.info("topic policies is not null");
             return;
         }
 
         if (data.offload_policies != null) {
+            log.info("offload_policies is not null.");
             ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(
                     data.offload_policies.getManagedLedgerOffloadThresholdInBytes());
             ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(
@@ -1957,6 +1962,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .setManagedLedgerOffloadDeletionLagInMillis(data.offload_deletion_lag_ms);
         }
         ledgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(data.offload_threshold);
+        log.info("updateLedgerOffloader finish. offloadPolicies: {}", ledgerOffloader.getOffloadPolicies());
     }
 
     /**

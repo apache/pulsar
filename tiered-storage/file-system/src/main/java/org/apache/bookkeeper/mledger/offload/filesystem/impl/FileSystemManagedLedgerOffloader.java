@@ -346,6 +346,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
+    public void updateConfiguration(String key, String value) {
+        log.info("updateConfiguration key: {}, value: {}", key, value);
+    }
+
+    @Override
     public void close() {
         if (fileSystem != null) {
             try {
