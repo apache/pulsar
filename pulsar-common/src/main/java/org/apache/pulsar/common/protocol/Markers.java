@@ -260,18 +260,10 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
     }
 
-    public static ByteBuf newTxnCommittingMarker(long sequenceId, long txnMostBits,
-                                                 long txnLeastBits, MessageIdData messageIdData) {
-        return newTxnMarker(MarkerType.TXN_COMMITTING, sequenceId,
-                txnMostBits, txnLeastBits, Optional.of(messageIdData), Optional.empty());
-    }
-
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits, MessageIdData messageIdData,
-                                             List<MessageIdData> messageIdDataList) {
-        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits,
-                messageIdData == null ? Optional.empty() : Optional.of(messageIdData),
-                Optional.of(messageIdDataList));
+                                             long txnLeastBits, List<MessageIdData> messageIdDataList) {
+        return newTxnMarker(
+                MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
@@ -282,8 +274,8 @@ public class Markers {
 
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
                                             long txnLeastBits, List<MessageIdData> messageIdDataList) {
-        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits,
-                Optional.empty(), Optional.of(messageIdDataList));
+        return newTxnMarker(
+                MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
 
     public static PulsarMarkers.TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
@@ -302,8 +294,7 @@ public class Markers {
 
     @SneakyThrows
     private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
-                                        long txnLeastBits, Optional<MessageIdData> messageIdData,
-                                        Optional<List<MessageIdData>> messageIdDataList) {
+                                        long txnLeastBits, Optional<List<MessageIdData>> messageIdDataList) {
         MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
         msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
         msgMetadataBuilder.setProducerName("pulsar.txn.marker");
@@ -317,7 +308,6 @@ public class Markers {
         ByteBuf payload;
         PulsarMarkers.TxnCommitMarker.Builder commitMarkerBuilder = PulsarMarkers.TxnCommitMarker.newBuilder();
 
-        messageIdData.ifPresent(commitMarkerBuilder::setMessageId);
         messageIdDataList.ifPresent(commitMarkerBuilder::addAllMessageIdList);
         PulsarMarkers.TxnCommitMarker commitMarker = commitMarkerBuilder.build();
         int size = commitMarker.getSerializedSize();

@@ -134,8 +134,7 @@ public class MarkersTest {
         messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(32).setPartition(3).build());
         messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(33).setPartition(3).build());
 
-        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits,
-                MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build(), messageIdDataList);
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
@@ -145,8 +144,6 @@ public class MarkersTest {
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
 
         PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
-        assertEquals(marker.getMessageId().getLedgerId(), 10);
-        assertEquals(marker.getMessageId().getEntryId(), 11);
         assertEquals(marker.getMessageIdListList().size(), messageIdDataList.size());
         for (int i = 0; i < marker.getMessageIdListList().size(); i++) {
             MessageIdData originalIdData = messageIdDataList.get(i);

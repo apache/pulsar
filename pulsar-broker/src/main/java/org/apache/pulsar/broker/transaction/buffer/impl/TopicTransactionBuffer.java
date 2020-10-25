@@ -76,7 +76,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
-                txnID.getLeastSigBits(), null, getMessageIdDataList(sendMessageIdList));
+                txnID.getLeastSigBits(), getMessageIdDataList(sendMessageIdList));
         topic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
             if (e != null) {
                 log.error("Failed to commit for txn {}", txnID, e);
