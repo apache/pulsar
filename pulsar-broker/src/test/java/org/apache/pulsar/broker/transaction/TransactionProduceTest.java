@@ -18,14 +18,24 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Message;
@@ -36,15 +46,21 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Pulsar client transaction test.
@@ -95,6 +111,101 @@ public class TransactionProduceTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
+
+    @Test
+    public void produceAndCommitTest() throws Exception {
+        produceTest(true);
+    }
+
+    @Test
+    public void produceAndAbortTest() throws Exception {
+        produceTest(false);
+    }
+
+    // endAction - commit: true, endAction - abort: false
+    private void produceTest(boolean endAction) throws Exception {
+        final String topic = endAction ? PRODUCE_COMMIT_TOPIC : PRODUCE_ABORT_TOPIC;
+        PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        Transaction tnx = pulsarClientImpl.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        long txnIdMostBits = ((TransactionImpl) tnx).getTxnIdMostBits();
+        long txnIdLeastBits = ((TransactionImpl) tnx).getTxnIdLeastBits();
+        Assert.assertTrue(txnIdMostBits > -1);
+        Assert.assertTrue(txnIdLeastBits > -1);
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> outProducer = (PartitionedProducerImpl<byte[]>) pulsarClientImpl
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        int messageCntPerPartition = 3;
+        int messageCnt = TOPIC_PARTITION * messageCntPerPartition;
+        String content = "Hello Txn - ";
+        Set<String> messageSet = new HashSet<>();
+        List<CompletableFuture<MessageId>> futureList = new ArrayList<>();
+        for (int i = 0; i < messageCnt; i++) {
+            String msg = content + i;
+            messageSet.add(msg);
+            CompletableFuture<MessageId> produceFuture = outProducer
+                    .newMessage(tnx).value(msg.getBytes(UTF_8)).sendAsync();
+            futureList.add(produceFuture);
+        }
+
+        checkMessageId(futureList, true);
+
+        PulsarApi.MessageMetadata messageMetadata;
+
+        // the target topic hasn't the commit marker before commit
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(topic, i);
+            Assert.assertNotNull(originTopicCursor);
+            log.info("entries count: {}", originTopicCursor.getNumberOfEntries());
+            Assert.assertEquals(messageCntPerPartition, originTopicCursor.getNumberOfEntries());
+
+            List<Entry> entries = originTopicCursor.readEntries(messageCnt);
+            // check the messages
+            for (int j = 0; j < messageCntPerPartition; j++) {
+                messageMetadata = Commands.parseMessageMetadata(entries.get(j).getDataBuffer());
+                Assert.assertEquals(messageMetadata.getTxnidMostBits(), txnIdMostBits);
+                Assert.assertEquals(messageMetadata.getTxnidLeastBits(), txnIdLeastBits);
+
+                byte[] bytes = new byte[entries.get(j).getDataBuffer().readableBytes()];
+                entries.get(j).getDataBuffer().readBytes(bytes);
+                System.out.println(new String(bytes));
+                Assert.assertTrue(messageSet.remove(new String(bytes)));
+            }
+            originTopicCursor.close();
+        }
+
+        if (endAction) {
+            tnx.commit().get();
+        } else {
+            tnx.abort().get();
+        }
+
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            // the target topic partition received the commit marker
+            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(topic, i);
+            List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
+            Assert.assertEquals(messageCntPerPartition + 1, entries.size());
+
+            messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
+            if (endAction) {
+                Assert.assertEquals(PulsarMarkers.MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
+            } else {
+                Assert.assertEquals(PulsarMarkers.MarkerType.TXN_ABORT_VALUE, messageMetadata.getMarkerType());
+            }
+        }
+
+        Assert.assertEquals(0, messageSet.size());
+        log.info("produce and {} test finished.", endAction ? "commit" : "abort");
+    }
+
     private void checkMessageId(List<CompletableFuture<MessageId>> futureList, boolean isFinished) {
         futureList.forEach(messageIdFuture -> {
             try {
@@ -119,6 +230,21 @@ public class TransactionProduceTest extends TransactionTestBase {
                 }
             }
         });
+    }
+
+    private ReadOnlyCursor getOriginTopicCursor(String topic, int partition) {
+        try {
+            if (partition >= 0) {
+                topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
+            }
+            return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
+                    TopicName.get(topic).getPersistenceNamingEncoding(),
+                    PositionImpl.earliest, new ManagedLedgerConfig());
+        } catch (Exception e) {
+            log.error("Failed to get origin topic readonly cursor.", e);
+            Assert.fail("Failed to get origin topic readonly cursor.");
+            return null;
+        }
     }
 
     // TODO flaky https://github.com/apache/pulsar/issues/8070

@@ -23,13 +23,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.Consumer;
@@ -38,7 +38,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -113,7 +112,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         sendNormalMessages(producer, 0, messageCntBeforeTxn);
         // append messages to TB
-        appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt);
+        List<PulsarApi.MessageIdData> txnMessageIdList =
+                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt);
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn);
 
         Message<byte[]> message;
@@ -138,23 +138,17 @@ public class TransactionConsumeTest extends TransactionTestBase {
             }
         }
 
-        transactionBuffer.commitTxn(txnID, Collections.emptyList()).get();
+        transactionBuffer.commitTxn(txnID, txnMessageIdList).get();
         log.info("Commit txn.");
 
-        Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();
-        Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
         // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
             message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
-            checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
             log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
 
             message = sharedConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
-            checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
             log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
         }
         log.info("TransactionConsumeTest noSortedTest finish.");
@@ -167,7 +161,9 @@ public class TransactionConsumeTest extends TransactionTestBase {
         }
     }
 
-    private void appendTransactionMessages(TxnID txnID, TransactionBuffer tb, int transactionMsgCnt) {
+    private List<PulsarApi.MessageIdData> appendTransactionMessages(
+            TxnID txnID, TransactionBuffer tb, int transactionMsgCnt) throws ExecutionException, InterruptedException {
+        List<PulsarApi.MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
             PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
             builder.setProducerName("producerName");
@@ -179,22 +175,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, builder.build(),
                     Unpooled.copiedBuffer((TXN_MSG_CONTENT + i).getBytes(UTF_8)));
-            tb.appendBufferToTxn(txnID, i, 1, headerAndPayload);
+            PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, 1, headerAndPayload).get();
+            positionList.add(PulsarApi.MessageIdData.newBuilder()
+                    .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()).build());
         }
         log.info("append messages to TB finish.");
-    }
-
-    private void checkBatchIndex(Map<String, Integer> batchIndexMap, BatchMessageIdImpl messageId) {
-        batchIndexMap.compute(messageId.getLedgerId() + ":" + messageId.getEntryId(),
-            (key, value) -> {
-                if (value == null) {
-                    Assert.assertEquals(messageId.getBatchIndex(), 0);
-                    return messageId.getBatchIndex();
-                } else {
-                    Assert.assertEquals(messageId.getBatchIndex(), value + 1);
-                    return value + 1;
-                }
-            });
+        return positionList;
     }
 
 }

@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -31,10 +34,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.protocol.Markers;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
+/**
+ * Transaction buffer based on normal persistent topic.
+ */
 @Slf4j
 public class TopicTransactionBuffer implements TransactionBuffer {
 
@@ -114,8 +116,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
             messageIdDataList.add(
                     PulsarMarkers.MessageIdData.newBuilder()
                             .setLedgerId(msgIdData.getLedgerId())
-                            .setEntryId(msgIdData.getEntryId())
-                            .setPartition(msgIdData.getPartition()).build());
+                            .setEntryId(msgIdData.getEntryId()).build());
         }
         return messageIdDataList;
     }

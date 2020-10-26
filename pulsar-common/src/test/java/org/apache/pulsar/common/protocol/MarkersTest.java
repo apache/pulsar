@@ -127,12 +127,12 @@ public class MarkersTest {
         long leastBits = 2345L;
 
         List<MessageIdData> messageIdDataList = new ArrayList<>();
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(12).setPartition(1).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(13).setPartition(1).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(22).setPartition(2).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(23).setPartition(2).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(32).setPartition(3).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(33).setPartition(3).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(12).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(13).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(22).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(23).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(32).build());
+        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(33).build());
 
         ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
 
@@ -150,7 +150,6 @@ public class MarkersTest {
             MessageIdData messageIdData = marker.getMessageIdListList().get(i);
             assertEquals(originalIdData.getLedgerId(), messageIdData.getLedgerId());
             assertEquals(originalIdData.getEntryId(), messageIdData.getEntryId());
-            assertEquals(originalIdData.getPartition(), messageIdData.getPartition());
         }
     }
 

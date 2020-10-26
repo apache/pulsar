@@ -2606,10 +2606,6 @@ public final class PulsarMarkers {
     // required uint64 entry_id = 2;
     boolean hasEntryId();
     long getEntryId();
-    
-    // optional int32 partition = 3 [default = -1];
-    boolean hasPartition();
-    int getPartition();
   }
   public static final class MessageIdData extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -2666,20 +2662,9 @@ public final class PulsarMarkers {
       return entryId_;
     }
     
-    // optional int32 partition = 3 [default = -1];
-    public static final int PARTITION_FIELD_NUMBER = 3;
-    private int partition_;
-    public boolean hasPartition() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public int getPartition() {
-      return partition_;
-    }
-    
     private void initFields() {
       ledgerId_ = 0L;
       entryId_ = 0L;
-      partition_ = -1;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -2712,9 +2697,6 @@ public final class PulsarMarkers {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeUInt64(2, entryId_);
       }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeInt32(3, partition_);
-      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -2730,10 +2712,6 @@ public final class PulsarMarkers {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, entryId_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeInt32Size(3, partition_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -2852,8 +2830,6 @@ public final class PulsarMarkers {
         bitField0_ = (bitField0_ & ~0x00000001);
         entryId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
-        partition_ = -1;
-        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -2895,10 +2871,6 @@ public final class PulsarMarkers {
           to_bitField0_ |= 0x00000002;
         }
         result.entryId_ = entryId_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
-        }
-        result.partition_ = partition_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -2910,9 +2882,6 @@ public final class PulsarMarkers {
         }
         if (other.hasEntryId()) {
           setEntryId(other.getEntryId());
-        }
-        if (other.hasPartition()) {
-          setPartition(other.getPartition());
         }
         return this;
       }
@@ -2961,11 +2930,6 @@ public final class PulsarMarkers {
               entryId_ = input.readUInt64();
               break;
             }
-            case 24: {
-              bitField0_ |= 0x00000004;
-              partition_ = input.readInt32();
-              break;
-            }
           }
         }
       }
@@ -3010,27 +2974,6 @@ public final class PulsarMarkers {
       public Builder clearEntryId() {
         bitField0_ = (bitField0_ & ~0x00000002);
         entryId_ = 0L;
-        
-        return this;
-      }
-      
-      // optional int32 partition = 3 [default = -1];
-      private int partition_ = -1;
-      public boolean hasPartition() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public int getPartition() {
-        return partition_;
-      }
-      public Builder setPartition(int value) {
-        bitField0_ |= 0x00000004;
-        partition_ = value;
-        
-        return this;
-      }
-      public Builder clearPartition() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        partition_ = -1;
         
         return this;
       }
