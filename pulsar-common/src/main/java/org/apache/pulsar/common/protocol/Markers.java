@@ -321,8 +321,11 @@ public class Markers {
             payload.release();
             msgMetadata.recycle();
             msgMetadataBuilder.recycle();
-            if (commitMarkerBuilder != null) {
-                commitMarkerBuilder.recycle();
+            commitMarkerBuilder.recycle();
+            if (messageIdDataList.isPresent()) {
+                for (MessageIdData messageIdData : messageIdDataList.get()) {
+                    messageIdData.recycle();
+                }
             }
         }
     }

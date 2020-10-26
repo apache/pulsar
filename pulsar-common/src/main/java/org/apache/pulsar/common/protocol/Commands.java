@@ -1647,10 +1647,13 @@ public class Commands {
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
                 .setTxnAction(txnAction)
-                .addAllMessageIdList(messageIdList)
+                .addAllMessageId(messageIdList)
                 .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN).setEndTxn(commandEndTxn));
         commandEndTxn.recycle();
+        for (MessageIdData messageIdData : messageIdList) {
+            messageIdData.recycle();
+        }
         return res;
     }
 
@@ -1688,10 +1691,13 @@ public class Commands {
                 .setTxnidMostBits(txnIdMostBits)
                 .setTopic(topic)
                 .setTxnAction(txnAction)
-                .addAllMessageIdList(messageIdDataList);
+                .addAllMessageId(messageIdDataList);
         ByteBuf res = serializeWithSize(
             BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION).setEndTxnOnPartition(txnEndOnPartition));
         txnEndOnPartition.recycle();
+        for (MessageIdData messageIdData : messageIdDataList) {
+            messageIdData.recycle();
+        }
         return res;
     }
 

@@ -199,7 +199,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endToTB(txnID, txnAction, messageIdDataList));
+                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction, messageIdDataList));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -210,7 +210,8 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction, List<PulsarApi.MessageIdData> messageIdDataList) {
+    private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction,
+                                                              List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -237,6 +238,7 @@ public class TransactionMetadataStoreService {
             for (PulsarApi.MessageIdData messageIdData : messageIdDataList) {
                 messageIdList.add(new MessageIdImpl(
                         messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
+                messageIdData.recycle();
             }
 
             txnMeta.producedPartitions().forEach(partition -> {

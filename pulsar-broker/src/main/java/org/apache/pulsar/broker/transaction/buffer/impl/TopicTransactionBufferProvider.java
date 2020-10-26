@@ -29,9 +29,13 @@ import java.util.concurrent.CompletableFuture;
  * A provider that provides topic implementations of {@link TransactionBuffer}.
  */
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
+
     @Override
     public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        return CompletableFuture.completedFuture(null);
+        CompletableFuture<TransactionBuffer> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(new Exception("Unsupported operation new transaction buffer "
+                + "with no arguments for TopicTransactionBufferProvider."));
+        return completableFuture;
     }
 
     @Override

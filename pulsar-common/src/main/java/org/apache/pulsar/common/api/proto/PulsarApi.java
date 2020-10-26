@@ -35645,11 +35645,11 @@ public final class PulsarApi {
     boolean hasTxnAction();
     org.apache.pulsar.common.api.proto.PulsarApi.TxnAction getTxnAction();
     
-    // repeated .pulsar.proto.MessageIdData messageIdList = 5;
+    // repeated .pulsar.proto.MessageIdData message_id = 5;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> 
-        getMessageIdListList();
-    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index);
-    int getMessageIdListCount();
+        getMessageIdList();
+    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index);
+    int getMessageIdCount();
   }
   public static final class CommandEndTxn extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -35726,25 +35726,25 @@ public final class PulsarApi {
       return txnAction_;
     }
     
-    // repeated .pulsar.proto.MessageIdData messageIdList = 5;
-    public static final int MESSAGEIDLIST_FIELD_NUMBER = 5;
-    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIdList_;
-    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdListList() {
-      return messageIdList_;
+    // repeated .pulsar.proto.MessageIdData message_id = 5;
+    public static final int MESSAGE_ID_FIELD_NUMBER = 5;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
+      return messageId_;
     }
     public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder> 
-        getMessageIdListOrBuilderList() {
-      return messageIdList_;
+        getMessageIdOrBuilderList() {
+      return messageId_;
     }
-    public int getMessageIdListCount() {
-      return messageIdList_.size();
+    public int getMessageIdCount() {
+      return messageId_.size();
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index) {
-      return messageIdList_.get(index);
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+      return messageId_.get(index);
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdListOrBuilder(
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdOrBuilder(
         int index) {
-      return messageIdList_.get(index);
+      return messageId_.get(index);
     }
     
     private void initFields() {
@@ -35752,7 +35752,7 @@ public final class PulsarApi {
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
       txnAction_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnAction.COMMIT;
-      messageIdList_ = java.util.Collections.emptyList();
+      messageId_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -35763,8 +35763,8 @@ public final class PulsarApi {
         memoizedIsInitialized = 0;
         return false;
       }
-      for (int i = 0; i < getMessageIdListCount(); i++) {
-        if (!getMessageIdList(i).isInitialized()) {
+      for (int i = 0; i < getMessageIdCount(); i++) {
+        if (!getMessageId(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -35793,8 +35793,8 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeEnum(4, txnAction_.getNumber());
       }
-      for (int i = 0; i < messageIdList_.size(); i++) {
-        output.writeMessage(5, messageIdList_.get(i));
+      for (int i = 0; i < messageId_.size(); i++) {
+        output.writeMessage(5, messageId_.get(i));
       }
     }
     
@@ -35820,9 +35820,9 @@ public final class PulsarApi {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(4, txnAction_.getNumber());
       }
-      for (int i = 0; i < messageIdList_.size(); i++) {
+      for (int i = 0; i < messageId_.size(); i++) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeMessageSize(5, messageIdList_.get(i));
+          .computeMessageSize(5, messageId_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -35945,7 +35945,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         txnAction_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnAction.COMMIT;
         bitField0_ = (bitField0_ & ~0x00000008);
-        messageIdList_ = java.util.Collections.emptyList();
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
@@ -35997,10 +35997,10 @@ public final class PulsarApi {
         }
         result.txnAction_ = txnAction_;
         if (((bitField0_ & 0x00000010) == 0x00000010)) {
-          messageIdList_ = java.util.Collections.unmodifiableList(messageIdList_);
+          messageId_ = java.util.Collections.unmodifiableList(messageId_);
           bitField0_ = (bitField0_ & ~0x00000010);
         }
-        result.messageIdList_ = messageIdList_;
+        result.messageId_ = messageId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -36019,13 +36019,13 @@ public final class PulsarApi {
         if (other.hasTxnAction()) {
           setTxnAction(other.getTxnAction());
         }
-        if (!other.messageIdList_.isEmpty()) {
-          if (messageIdList_.isEmpty()) {
-            messageIdList_ = other.messageIdList_;
+        if (!other.messageId_.isEmpty()) {
+          if (messageId_.isEmpty()) {
+            messageId_ = other.messageId_;
             bitField0_ = (bitField0_ & ~0x00000010);
           } else {
-            ensureMessageIdListIsMutable();
-            messageIdList_.addAll(other.messageIdList_);
+            ensureMessageIdIsMutable();
+            messageId_.addAll(other.messageId_);
           }
           
         }
@@ -36037,8 +36037,8 @@ public final class PulsarApi {
           
           return false;
         }
-        for (int i = 0; i < getMessageIdListCount(); i++) {
-          if (!getMessageIdList(i).isInitialized()) {
+        for (int i = 0; i < getMessageIdCount(); i++) {
+          if (!getMessageId(i).isInitialized()) {
             
             return false;
           }
@@ -36095,7 +36095,7 @@ public final class PulsarApi {
             case 42: {
               org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
-              addMessageIdList(subBuilder.buildPartial());
+              addMessageId(subBuilder.buildPartial());
               break;
             }
           }
@@ -36191,91 +36191,91 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.MessageIdData messageIdList = 5;
-      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIdList_ =
+      // repeated .pulsar.proto.MessageIdData message_id = 5;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_ =
         java.util.Collections.emptyList();
-      private void ensureMessageIdListIsMutable() {
+      private void ensureMessageIdIsMutable() {
         if (!((bitField0_ & 0x00000010) == 0x00000010)) {
-          messageIdList_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageIdList_);
+          messageId_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageId_);
           bitField0_ |= 0x00000010;
          }
       }
       
-      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdListList() {
-        return java.util.Collections.unmodifiableList(messageIdList_);
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
+        return java.util.Collections.unmodifiableList(messageId_);
       }
-      public int getMessageIdListCount() {
-        return messageIdList_.size();
+      public int getMessageIdCount() {
+        return messageId_.size();
       }
-      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index) {
-        return messageIdList_.get(index);
+      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+        return messageId_.get(index);
       }
-      public Builder setMessageIdList(
+      public Builder setMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.set(index, value);
+        ensureMessageIdIsMutable();
+        messageId_.set(index, value);
         
         return this;
       }
-      public Builder setMessageIdList(
+      public Builder setMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.set(index, builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.set(index, builderForValue.build());
         
         return this;
       }
-      public Builder addMessageIdList(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+      public Builder addMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(value);
+        ensureMessageIdIsMutable();
+        messageId_.add(value);
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(index, value);
+        ensureMessageIdIsMutable();
+        messageId_.add(index, value);
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.add(builderForValue.build());
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(index, builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.add(index, builderForValue.build());
         
         return this;
       }
-      public Builder addAllMessageIdList(
+      public Builder addAllMessageId(
           java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> values) {
-        ensureMessageIdListIsMutable();
-        super.addAll(values, messageIdList_);
+        ensureMessageIdIsMutable();
+        super.addAll(values, messageId_);
         
         return this;
       }
-      public Builder clearMessageIdList() {
-        messageIdList_ = java.util.Collections.emptyList();
+      public Builder clearMessageId() {
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000010);
         
         return this;
       }
-      public Builder removeMessageIdList(int index) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.remove(index);
+      public Builder removeMessageId(int index) {
+        ensureMessageIdIsMutable();
+        messageId_.remove(index);
         
         return this;
       }
@@ -36914,11 +36914,11 @@ public final class PulsarApi {
     boolean hasTxnAction();
     org.apache.pulsar.common.api.proto.PulsarApi.TxnAction getTxnAction();
     
-    // repeated .pulsar.proto.MessageIdData messageIdList = 6;
+    // repeated .pulsar.proto.MessageIdData message_id = 6;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> 
-        getMessageIdListList();
-    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index);
-    int getMessageIdListCount();
+        getMessageIdList();
+    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index);
+    int getMessageIdCount();
   }
   public static final class CommandEndTxnOnPartition extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -37027,25 +37027,25 @@ public final class PulsarApi {
       return txnAction_;
     }
     
-    // repeated .pulsar.proto.MessageIdData messageIdList = 6;
-    public static final int MESSAGEIDLIST_FIELD_NUMBER = 6;
-    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIdList_;
-    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdListList() {
-      return messageIdList_;
+    // repeated .pulsar.proto.MessageIdData message_id = 6;
+    public static final int MESSAGE_ID_FIELD_NUMBER = 6;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
+      return messageId_;
     }
     public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder> 
-        getMessageIdListOrBuilderList() {
-      return messageIdList_;
+        getMessageIdOrBuilderList() {
+      return messageId_;
     }
-    public int getMessageIdListCount() {
-      return messageIdList_.size();
+    public int getMessageIdCount() {
+      return messageId_.size();
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index) {
-      return messageIdList_.get(index);
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+      return messageId_.get(index);
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdListOrBuilder(
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdOrBuilder(
         int index) {
-      return messageIdList_.get(index);
+      return messageId_.get(index);
     }
     
     private void initFields() {
@@ -37054,7 +37054,7 @@ public final class PulsarApi {
       txnidMostBits_ = 0L;
       topic_ = "";
       txnAction_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnAction.COMMIT;
-      messageIdList_ = java.util.Collections.emptyList();
+      messageId_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -37065,8 +37065,8 @@ public final class PulsarApi {
         memoizedIsInitialized = 0;
         return false;
       }
-      for (int i = 0; i < getMessageIdListCount(); i++) {
-        if (!getMessageIdList(i).isInitialized()) {
+      for (int i = 0; i < getMessageIdCount(); i++) {
+        if (!getMessageId(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -37098,8 +37098,8 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeEnum(5, txnAction_.getNumber());
       }
-      for (int i = 0; i < messageIdList_.size(); i++) {
-        output.writeMessage(6, messageIdList_.get(i));
+      for (int i = 0; i < messageId_.size(); i++) {
+        output.writeMessage(6, messageId_.get(i));
       }
     }
     
@@ -37129,9 +37129,9 @@ public final class PulsarApi {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(5, txnAction_.getNumber());
       }
-      for (int i = 0; i < messageIdList_.size(); i++) {
+      for (int i = 0; i < messageId_.size(); i++) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeMessageSize(6, messageIdList_.get(i));
+          .computeMessageSize(6, messageId_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -37256,7 +37256,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         txnAction_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnAction.COMMIT;
         bitField0_ = (bitField0_ & ~0x00000010);
-        messageIdList_ = java.util.Collections.emptyList();
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
@@ -37312,10 +37312,10 @@ public final class PulsarApi {
         }
         result.txnAction_ = txnAction_;
         if (((bitField0_ & 0x00000020) == 0x00000020)) {
-          messageIdList_ = java.util.Collections.unmodifiableList(messageIdList_);
+          messageId_ = java.util.Collections.unmodifiableList(messageId_);
           bitField0_ = (bitField0_ & ~0x00000020);
         }
-        result.messageIdList_ = messageIdList_;
+        result.messageId_ = messageId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -37337,13 +37337,13 @@ public final class PulsarApi {
         if (other.hasTxnAction()) {
           setTxnAction(other.getTxnAction());
         }
-        if (!other.messageIdList_.isEmpty()) {
-          if (messageIdList_.isEmpty()) {
-            messageIdList_ = other.messageIdList_;
+        if (!other.messageId_.isEmpty()) {
+          if (messageId_.isEmpty()) {
+            messageId_ = other.messageId_;
             bitField0_ = (bitField0_ & ~0x00000020);
           } else {
-            ensureMessageIdListIsMutable();
-            messageIdList_.addAll(other.messageIdList_);
+            ensureMessageIdIsMutable();
+            messageId_.addAll(other.messageId_);
           }
           
         }
@@ -37355,8 +37355,8 @@ public final class PulsarApi {
           
           return false;
         }
-        for (int i = 0; i < getMessageIdListCount(); i++) {
-          if (!getMessageIdList(i).isInitialized()) {
+        for (int i = 0; i < getMessageIdCount(); i++) {
+          if (!getMessageId(i).isInitialized()) {
             
             return false;
           }
@@ -37418,7 +37418,7 @@ public final class PulsarApi {
             case 50: {
               org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
-              addMessageIdList(subBuilder.buildPartial());
+              addMessageId(subBuilder.buildPartial());
               break;
             }
           }
@@ -37550,91 +37550,91 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.MessageIdData messageIdList = 6;
-      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIdList_ =
+      // repeated .pulsar.proto.MessageIdData message_id = 6;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_ =
         java.util.Collections.emptyList();
-      private void ensureMessageIdListIsMutable() {
+      private void ensureMessageIdIsMutable() {
         if (!((bitField0_ & 0x00000020) == 0x00000020)) {
-          messageIdList_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageIdList_);
+          messageId_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageId_);
           bitField0_ |= 0x00000020;
          }
       }
       
-      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdListList() {
-        return java.util.Collections.unmodifiableList(messageIdList_);
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
+        return java.util.Collections.unmodifiableList(messageId_);
       }
-      public int getMessageIdListCount() {
-        return messageIdList_.size();
+      public int getMessageIdCount() {
+        return messageId_.size();
       }
-      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIdList(int index) {
-        return messageIdList_.get(index);
+      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+        return messageId_.get(index);
       }
-      public Builder setMessageIdList(
+      public Builder setMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.set(index, value);
+        ensureMessageIdIsMutable();
+        messageId_.set(index, value);
         
         return this;
       }
-      public Builder setMessageIdList(
+      public Builder setMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.set(index, builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.set(index, builderForValue.build());
         
         return this;
       }
-      public Builder addMessageIdList(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+      public Builder addMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(value);
+        ensureMessageIdIsMutable();
+        messageId_.add(value);
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(index, value);
+        ensureMessageIdIsMutable();
+        messageId_.add(index, value);
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.add(builderForValue.build());
         
         return this;
       }
-      public Builder addMessageIdList(
+      public Builder addMessageId(
           int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.add(index, builderForValue.build());
+        ensureMessageIdIsMutable();
+        messageId_.add(index, builderForValue.build());
         
         return this;
       }
-      public Builder addAllMessageIdList(
+      public Builder addAllMessageId(
           java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> values) {
-        ensureMessageIdListIsMutable();
-        super.addAll(values, messageIdList_);
+        ensureMessageIdIsMutable();
+        super.addAll(values, messageId_);
         
         return this;
       }
-      public Builder clearMessageIdList() {
-        messageIdList_ = java.util.Collections.emptyList();
+      public Builder clearMessageId() {
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000020);
         
         return this;
       }
-      public Builder removeMessageIdList(int index) {
-        ensureMessageIdListIsMutable();
-        messageIdList_.remove(index);
+      public Builder removeMessageId(int index) {
+        ensureMessageIdIsMutable();
+        messageId_.remove(index);
         
         return this;
       }

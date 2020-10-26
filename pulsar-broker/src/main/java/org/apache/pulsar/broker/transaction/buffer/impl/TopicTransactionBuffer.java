@@ -40,7 +40,7 @@ import org.apache.pulsar.common.protocol.Markers;
 @Slf4j
 public class TopicTransactionBuffer implements TransactionBuffer {
 
-    private PersistentTopic topic;
+    private final PersistentTopic topic;
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         this.topic = topic;
@@ -56,7 +56,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         topic.publishMessage(buffer, (e, ledgerId, entryId) -> {
             if (e != null) {
-                log.error("Failed to appendBufferToTxn for txn {}", txnId, e);
+                log.error("Failed to append buffer to txn {}", txnId, e);
                 completableFuture.completeExceptionally(e);
                 return;
             }
@@ -69,7 +69,6 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
         return null;
     }
-
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, List<MessageIdData> sendMessageIdList) {
         if (log.isDebugEnabled()) {
@@ -111,7 +110,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     }
 
     private List<PulsarMarkers.MessageIdData> getMessageIdDataList(List<MessageIdData> sendMessageIdList) {
-        List<PulsarMarkers.MessageIdData> messageIdDataList = new ArrayList<>();
+        List<PulsarMarkers.MessageIdData> messageIdDataList = new ArrayList<>(sendMessageIdList.size());
         for (MessageIdData msgIdData : sendMessageIdList) {
             messageIdDataList.add(
                     PulsarMarkers.MessageIdData.newBuilder()
