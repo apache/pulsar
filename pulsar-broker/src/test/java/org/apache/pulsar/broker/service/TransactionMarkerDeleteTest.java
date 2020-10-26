@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -55,7 +59,15 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     public void TransactionMarkerDeleteTest() throws Exception {
         ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
         PersistentTopic topic = mock(PersistentTopic.class);
+        BrokerService brokerService = mock(BrokerService.class);
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration configuration = mock(ServiceConfiguration.class);
+        doReturn(brokerService).when(topic).getBrokerService();
+        doReturn(pulsarService).when(brokerService).getPulsar();
+        doReturn(configuration).when(pulsarService).getConfig();
+        doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
+        ManagedCursor cursor = managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
         MessageIdData messageIdData = MessageIdData.newBuilder()
@@ -67,7 +79,8 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 .newTxnCommitMarker(1, 1, 1, messageIdData).array());
         Position position3 = managedLedger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1, messageIdData).array());
-        managedLedger.openCursor("test");
+        assertEquals(3, cursor.getNumberOfEntriesInBacklog(true));
+        assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),
                 AckType.Individual, Collections.emptyMap());
         Thread.sleep(1000L);

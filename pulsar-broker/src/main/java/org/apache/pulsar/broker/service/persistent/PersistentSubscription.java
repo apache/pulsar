@@ -131,6 +131,8 @@ public class PersistentSubscription implements Subscription {
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
+    private volatile Position lastMarkDeleteForTransactionMarker;
+    private volatile boolean isDeleteTransactionMarkerInProcess = false;
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -370,9 +372,8 @@ public class PersistentSubscription implements Subscription {
                 dispatcher.getRedeliveryTracker().removeBatch(positions);
             }
         }
-        Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
-        if (!currentMarkDeletePosition.equals(previousMarkDeletePosition)) {
-            deleteTransactionMarker((PositionImpl) currentMarkDeletePosition, ackType, properties);
+
+        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -382,6 +383,16 @@ public class PersistentSubscription implements Subscription {
                     topic.getReplicatedSubscriptionController()
                             .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
                 }
+            }
+        }
+
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
+            if ((lastMarkDeleteForTransactionMarker == null
+                    || ((PositionImpl) lastMarkDeleteForTransactionMarker)
+                    .compareTo((PositionImpl) currentMarkDeletePosition) < 0) && !isDeleteTransactionMarkerInProcess) {
+                isDeleteTransactionMarkerInProcess = true;
+                deleteTransactionMarker((PositionImpl) currentMarkDeletePosition, ackType, properties);
             }
         }
 
@@ -406,6 +417,7 @@ public class PersistentSubscription implements Subscription {
                 @Override
                 public void readEntryComplete(Entry entry, Object ctx) {
                     MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    isDeleteTransactionMarkerInProcess = false;
                     if (Markers.isTxnCommitMarker(messageMetadata)) {
                         messageMetadata.recycle();
                         acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
@@ -414,9 +426,14 @@ public class PersistentSubscription implements Subscription {
 
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Fail to read transaction marker! Position : {}", position, exception);
+                    isDeleteTransactionMarkerInProcess = false;
+                    if (log.isDebugEnabled()) {
+                        log.debug("Fail to read transaction marker! Position : {}", position, exception);
+                    }
                 }
             }, null);
+        } else {
+            isDeleteTransactionMarkerInProcess = false;
         }
     }
 
