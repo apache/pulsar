@@ -92,11 +92,12 @@
 <p>Most applications will want to use at most one of these.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="retention-policies"></a><a href="#retention-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retention policies</h2>
-<p>By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged on all subscriptions, at which point it will be marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a <em>retention policy</em> for all topics in a given namespace. Retention policies are either a <em>size limit</em> or a <em>time limit</em>.</p>
+<p>By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged on all subscriptions, at which point it will be marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a <em>retention policy</em> for all topics in a given namespace. Retention is based on both a <em>size limit</em> and a <em>time limit</em>.</p>
 <p>Retention policies are particularly useful if you intend to exclusively use the Reader interface. Because the Reader interface does not use acknowledgements, messages will never exist within backlogs. Most realistic Reader-only use cases require that retention be configured.</p>
-<p>When you set a size limit of, say, 10 gigabytes, then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then acknowledged messages for all topics in the namespace will be retained for 24 hours. The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).</p>
+<p>When you set a retention policy you must set <strong>both</strong> a <em>size limit</em> and a <em>time limit</em>. In the case where you don't want to limit by either time or set, the value must be set to <code>-1</code>. Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged messages when either size or time limit is set to <code>0</code>. Infinite retention can be achieved by setting both time and size limits to <code>-1</code>.</p>
+<p>When you set a size limit of, say, 10 gigabytes, and the time limit to <code>-1</code> then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, and the size limit to <code>-1</code> then acknowledged messages for all topics in the namespace will be retained for 24 hours.</p>
+<p>The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).</p>
 <p>When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.</p>
-<p>It is also possible to set <em>unlimited</em> retention time or size by setting <code>-1</code> for either time or size retention.</p>
 <h3><a class="anchor" aria-hidden="true" id="defaults"></a><a href="#defaults" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Defaults</h3>
 <p>There are two configuration parameters that you can use to set <a href="/docs/fr/next/reference-terminology#instance">instance</a>-wide defaults for message retention: <a href="/docs/fr/next/reference-configuration#broker-defaultRetentionTimeInMinutes"><code>defaultRetentionTimeInMinutes=0</code></a> and <a href="/docs/fr/next/reference-configuration#broker-defaultRetentionSizeInMB"><code>defaultRetentionSizeInMB=0</code></a>.</p>
 <p>Both of these parameters are in the <a href="/docs/fr/next/reference-configuration#broker"><code>broker.conf</code></a> configuration file.</p>
@@ -104,21 +105,32 @@
 <p>You can set a retention policy for a namespace by specifying the namespace as well as both a size limit <em>and</em> a time limit.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Use the <a href="/docs/fr/next/pulsar-admin#namespaces-set-retention"><code>set-retention</code></a> subcommand and specify a namespace, a size limit using the <code>-s</code>/<code>--size</code> flag, and a time limit using the <code>-t</code>/<code>--time</code> flag.</p>
+<p>You must set <strong>both</strong> a <em>size limit</em> and a <em>time limit</em>. In the case where you don't want to limit by either time or set, the value must be set to <code>-1</code>. Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged messages when either size or time limit is set to 0.</p>
 <h5><a class="anchor" aria-hidden="true" id="exemples"></a><a href="#exemples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exemples</h5>
 <p>To set a size limit of 10 gigabytes and a time limit of 3 hours for the <code>my-tenant/my-ns</code> namespace:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention my-tenant/my-ns \</span>
   --size 10G \
   --time 3h
 </code></pre>
-<p>To set retention with a size limit but without a time limit:</p>
+<p>To set retention where time limit is ignored and the size limit of 1 terabyte determines retention:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention my-tenant/my-ns \</span>
   --size 1T \
   --time -1
 </code></pre>
-<p>Retention can be configured to be unlimited both in size and time:</p>
+<p>To set retention where size limit is ignored and the time limit of 3 hours determines retention:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention my-tenant/my-ns \</span>
+  --size -1 \
+  --time 3h
+</code></pre>
+<p>To set infinite retention:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention my-tenant/my-ns \</span>
   --size -1 \
   --time -1
+</code></pre>
+<p>To disable the retention policy</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention my-tenant/my-ns \</span>
+  --size 0 \
+  --time 0
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/setRetention"><b>POST</b> <i>/admin/v2/namespaces/:tenant/:namespace/retention</i></a>
@@ -137,7 +149,7 @@ admin.namespaces().setRetention(namespace, policies);
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces get-retention my-tenant/my-ns</span>
 {
   "retentionTimeInMinutes": 10,
-  "retentionSizeInMB": 0
+  "retentionSizeInMB": 500
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-1"></a><a href="#rest-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
