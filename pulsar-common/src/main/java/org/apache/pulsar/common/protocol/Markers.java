@@ -308,7 +308,7 @@ public class Markers {
         ByteBuf payload;
         PulsarMarkers.TxnCommitMarker.Builder commitMarkerBuilder = PulsarMarkers.TxnCommitMarker.newBuilder();
 
-        messageIdDataList.ifPresent(commitMarkerBuilder::addAllMessageIdList);
+        messageIdDataList.ifPresent(commitMarkerBuilder::addAllMessageId);
         PulsarMarkers.TxnCommitMarker commitMarker = commitMarkerBuilder.build();
         int size = commitMarker.getSerializedSize();
         payload = PooledByteBufAllocator.DEFAULT.buffer(size);

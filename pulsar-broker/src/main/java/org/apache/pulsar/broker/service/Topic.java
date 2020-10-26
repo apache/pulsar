@@ -241,10 +241,9 @@ public interface Topic {
      *
      * @param txnID Transaction Id
      * @param headersAndPayload Message data
-     * @param batchSize messages number in a batch
      * @param publishContext Publish context
      */
-    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext);
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
     /**
      * End the transaction in this topic.

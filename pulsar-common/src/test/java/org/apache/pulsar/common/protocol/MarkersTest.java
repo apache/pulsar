@@ -144,10 +144,10 @@ public class MarkersTest {
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
 
         PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
-        assertEquals(marker.getMessageIdListList().size(), messageIdDataList.size());
-        for (int i = 0; i < marker.getMessageIdListList().size(); i++) {
+        assertEquals(marker.getMessageIdList().size(), messageIdDataList.size());
+        for (int i = 0; i < marker.getMessageIdCount(); i++) {
             MessageIdData originalIdData = messageIdDataList.get(i);
-            MessageIdData messageIdData = marker.getMessageIdListList().get(i);
+            MessageIdData messageIdData = marker.getMessageIdList().get(i);
             assertEquals(originalIdData.getLedgerId(), messageIdData.getLedgerId());
             assertEquals(originalIdData.getEntryId(), messageIdData.getEntryId());
         }

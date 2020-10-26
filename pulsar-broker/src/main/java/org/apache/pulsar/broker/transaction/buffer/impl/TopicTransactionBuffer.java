@@ -52,7 +52,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         topic.publishMessage(buffer, (e, ledgerId, entryId) -> {
             if (e != null) {

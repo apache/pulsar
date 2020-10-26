@@ -175,7 +175,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, builder.build(),
                     Unpooled.copiedBuffer((TXN_MSG_CONTENT + i).getBytes(UTF_8)));
-            PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, 1, headerAndPayload).get();
+            PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, headerAndPayload).get();
             positionList.add(PulsarApi.MessageIdData.newBuilder()
                     .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()).build());
         }

@@ -100,7 +100,7 @@ public class TransactionMessageReader {
 
         final List<Entry> entryList = new ArrayList<>();
         List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
-        for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdListList()) {
+        for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdList()) {
             CompletableFuture<Void> future = new CompletableFuture<>();
             completableFutureList.add(future);
             managedLedger.asyncReadEntry(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()),
@@ -159,7 +159,7 @@ public class TransactionMessageReader {
                 PulsarMarkers.TxnCommitMarker abortMarker = null;
                 try {
                     abortMarker = Markers.parseCommitMarker(byteBuf);
-                    for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdListList()) {
+                    for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdList()) {
                         positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
                     }
                     positionList.add(PositionImpl.get(abortEntry.getLedgerId(), abortEntry.getEntryId()));

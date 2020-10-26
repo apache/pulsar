@@ -67,13 +67,12 @@ public interface TransactionBuffer {
      *
      * @param txnId the transaction id
      * @param sequenceId the sequence id of the entry in this transaction buffer.
-     * @param batchSize
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
      *         has been sealed.
      */
-    CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer);
+    CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
 
     /**
      * Open a {@link TransactionBufferReader} to read entries of a given transaction
