@@ -1621,9 +1621,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "producerName": {
-                    "type": "string"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1635,6 +1632,19 @@
                 "topicName": {
                     "type": "string"
                 },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
                 "orderingKey": {
                     "type": "array",
                     "items": {
@@ -1642,8 +1652,9 @@
                         "format": "byte"
                     }
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1652,8 +1663,11 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1668,20 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "replicated": {
-                    "type": "boolean"
                 },
                 "value": {
                     "type": "object"
