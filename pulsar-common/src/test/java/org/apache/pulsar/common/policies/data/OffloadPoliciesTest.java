@@ -32,9 +32,9 @@ public class OffloadPoliciesTest {
     private final long MIN = 1000 * 60;
 
     private final String offloadersDirectory = "./test-offloader-directory";
-    private final int managedLedgerOffloadMaxThreads = 10;
-    private final int managedLedgerOffloadPrefetchRounds = 5;
-    private final long offloadThresholdInBytes = 0;
+    private final Integer managedLedgerOffloadMaxThreads = 10;
+    private final Integer managedLedgerOffloadPrefetchRounds = 5;
+    private final Long offloadThresholdInBytes = 0L;
     private final Long offloadDeletionLagInMillis = 5 * MIN;
 
     @Test
@@ -43,10 +43,10 @@ public class OffloadPoliciesTest {
         final String region = "test-region";
         final String bucket = "test-bucket";
         final String endPoint = "test-endpoint";
-        final int maxBlockSizeInBytes = 5 * M;
-        final int readBufferSizeInBytes = 2 * M;
-        final long offloadThresholdInBytes = 10 * M;
-        final long offloadDeletionLagInMillis = 5 * MIN;
+        final Integer maxBlockSizeInBytes = 5 * M;
+        final Integer readBufferSizeInBytes = 2 * M;
+        final Long offloadThresholdInBytes = 10L * M;
+        final Long offloadDeletionLagInMillis = 5L * MIN;
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create(
                 driver,
@@ -77,10 +77,10 @@ public class OffloadPoliciesTest {
         final String region = "test-region";
         final String bucket = "test-bucket";
         final String endPoint = "test-endpoint";
-        final int maxBlockSizeInBytes = 5 * M;
-        final int readBufferSizeInBytes = 2 * M;
-        final long offloadThresholdInBytes = 0;
-        final long offloadDeletionLagInMillis = 5 * MIN;
+        final Integer maxBlockSizeInBytes = 5 * M;
+        final Integer readBufferSizeInBytes = 2 * M;
+        final Long offloadThresholdInBytes = 0L;
+        final Long offloadDeletionLagInMillis = 5 * MIN;
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create(
                 driver,
@@ -98,10 +98,8 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadBucket(), bucket);
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadMaxBlockSizeInBytes(), maxBlockSizeInBytes);
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                offloadThresholdInBytes);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                new Long(offloadDeletionLagInMillis));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
     }
 
     @Test
@@ -109,15 +107,15 @@ public class OffloadPoliciesTest {
         final String s3ManagedLedgerOffloadRegion = "test-s3-region";
         final String s3ManagedLedgerOffloadBucket = "test-s3-bucket";
         final String s3ManagedLedgerOffloadServiceEndpoint = "test-s3-endpoint";
-        final int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 5 * M;
-        final int s3ManagedLedgerOffloadReadBufferSizeInBytes = 2 * M;
+        final Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = 5 * M;
+        final Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = 2 * M;
         final String s3ManagedLedgerOffloadRole = "test-s3-role";
         final String s3ManagedLedgerOffloadRoleSessionName = "test-s3-role-session-name";
 
         final String gcsManagedLedgerOffloadRegion = "test-gcs-region";
         final String gcsManagedLedgerOffloadBucket = "test-s3-bucket";
-        final int gcsManagedLedgerOffloadMaxBlockSizeInBytes = 10 * M;
-        final int gcsManagedLedgerOffloadReadBufferSizeInBytes = 4 * M;
+        final Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = 10 * M;
+        final Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = 4 * M;
         final String gcsManagedLedgerOffloadServiceAccountKeyFile = "./gcs_key.json";
 
         final String fileSystemProfilePath = "test-file-system-path";
@@ -160,12 +158,9 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloadersDirectory);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
-                managedLedgerOffloadPrefetchRounds);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                offloadThresholdInBytes);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                new Long(offloadDeletionLagInMillis));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
 
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), s3ManagedLedgerOffloadRegion);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), s3ManagedLedgerOffloadBucket);
@@ -207,7 +202,8 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (offloadDeletionLagInMillis + 10));
 
         offloadPolicies = OffloadPolicies.create(properties);
-        Assert.assertEquals(offloadThresholdInBytes + 10, offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        Assert.assertEquals(Long.valueOf(offloadThresholdInBytes + 10),
+                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
         Assert.assertEquals(offloadDeletionLagInMillis + 10,
                 offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().longValue());
 
@@ -218,9 +214,45 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadDeletionLagMs", "" + offloadDeletionLagInMillis + 30);
 
         offloadPolicies = OffloadPolicies.create(properties);
-        Assert.assertEquals(offloadThresholdInBytes + 20, offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        Assert.assertEquals(Long.valueOf(offloadThresholdInBytes + 20),
+                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
         Assert.assertEquals(offloadDeletionLagInMillis + 20,
                 offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().longValue());
+    }
+
+    @Test
+    public void mergeTest() {
+        final String topicBucket = "topic-bucket";
+        OffloadPolicies topicLevelPolicies = new OffloadPolicies();
+        topicLevelPolicies.setS3ManagedLedgerOffloadBucket(topicBucket);
+
+        final String nsBucket = "ns-bucket";
+        final Long nsDeletionLag = 2000L;
+        OffloadPolicies nsLevelPolicies = new OffloadPolicies();
+        nsLevelPolicies.setManagedLedgerOffloadDeletionLagInMillis(nsDeletionLag);
+        nsLevelPolicies.setS3ManagedLedgerOffloadBucket(nsBucket);
+
+        final String brokerDriver = "aws-s3";
+        final Long brokerOffloadThreshold = 0L;
+        final Long brokerDeletionLag = 1000L;
+        final Integer brokerOffloadMaxThreads = 2;
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", brokerDriver);
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
+        brokerProperties.setProperty("managedLedgerOffloadMaxThreads", "" + brokerOffloadMaxThreads);
+
+        OffloadPolicies offloadPolicies =
+                OffloadPolicies.mergeConfiguration(topicLevelPolicies, nsLevelPolicies, brokerProperties);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), brokerDriver);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), topicBucket);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), nsDeletionLag);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), brokerOffloadMaxThreads);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
+                new Integer(OffloadPolicies.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS));
+        Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
 }

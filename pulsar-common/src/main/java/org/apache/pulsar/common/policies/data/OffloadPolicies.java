@@ -22,20 +22,40 @@ import static org.apache.pulsar.common.util.FieldParser.value;
 
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
  */
+@Slf4j
 @Data
 public class OffloadPolicies implements Serializable {
 
     private final static long serialVersionUID = 0L;
+
+    private final static List<Field> CONFIGURATION_FIELDS;
+    static {
+        CONFIGURATION_FIELDS = new ArrayList<>();
+        Class<OffloadPolicies> clazz = OffloadPolicies.class;
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Configuration.class)) {
+                CONFIGURATION_FIELDS.add(field);
+            }
+        }
+    }
 
     public final static int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
@@ -43,7 +63,7 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
     public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem"};
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
-    public final static long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = -1;
+    public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
 
     public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
@@ -51,33 +71,53 @@ public class OffloadPolicies implements Serializable {
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
 
     // common config
+    @Configuration
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
+    @Configuration
     private String managedLedgerOffloadDriver = null;
-    private int managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
-    private int managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
-    private long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+    @Configuration
+    private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+    @Configuration
+    private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+    @Configuration
+    private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+    @Configuration
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
     // s3 config, set by service configuration or cli
+    @Configuration
     private String s3ManagedLedgerOffloadRegion = null;
+    @Configuration
     private String s3ManagedLedgerOffloadBucket = null;
+    @Configuration
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
-    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
-    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+    @Configuration
+    private Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+    @Configuration
+    private Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
     // s3 config, set by service configuration
+    @Configuration
     private String s3ManagedLedgerOffloadRole = null;
+    @Configuration
     private String s3ManagedLedgerOffloadRoleSessionName = "pulsar-s3-offload";
 
     // gcs config, set by service configuration or cli
+    @Configuration
     private String gcsManagedLedgerOffloadRegion = null;
+    @Configuration
     private String gcsManagedLedgerOffloadBucket = null;
-    private int gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
-    private int gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+    @Configuration
+    private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+    @Configuration
+    private Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
     // gcs config, set by service configuration
+    @Configuration
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     // file system config, set by service configuration
+    @Configuration
     private String fileSystemProfilePath = null;
+    @Configuration
     private String fileSystemURI = null;
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
@@ -327,6 +367,51 @@ public class OffloadPolicies implements Serializable {
         if (value != null) {
             properties.setProperty(key, "" + value);
         }
+    }
+
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    private @interface Configuration {
+
+    }
+
+    public static OffloadPolicies mergeConfiguration(OffloadPolicies topicLevelPolicies,
+                                           OffloadPolicies nsLevelPolicies,
+                                           Properties brokerProperties) {
+        try {
+            OffloadPolicies offloadPolicies = new OffloadPolicies();
+            for (Field field : CONFIGURATION_FIELDS) {
+                if (field.get(topicLevelPolicies) != null) {
+                    field.set(offloadPolicies, field.get(topicLevelPolicies));
+                } else if (field.get(nsLevelPolicies) != null) {
+                    field.set(offloadPolicies, field.get(nsLevelPolicies));
+                } else {
+                    field.set(offloadPolicies, getCompatibleValue(brokerProperties, field));
+                }
+            }
+            return offloadPolicies;
+        } catch (Exception e) {
+            log.error("Failed to merge configuration.", e);
+            return null;
+        }
+    }
+
+    private static Object getCompatibleValue(Properties properties, Field field) {
+        Object object = null;
+        if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
+            object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
+                    properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
+        } else if (field.getName().equals("")) {
+            object = properties.getProperty("managedLedgerOffloadDeletionLagInMillis",
+                    properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
+        } else {
+            object = properties.get(field.getName());
+        }
+        return value((String) object, field);
+    }
+
+    public static void main(String[] args) {
+        OffloadPolicies offloadPolicies = new OffloadPolicies();
     }
 
 }

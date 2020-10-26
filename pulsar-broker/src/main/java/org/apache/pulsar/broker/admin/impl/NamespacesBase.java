@@ -2733,9 +2733,10 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+            if (policies.offload_policies == null) {
+                policies.offload_policies = new OffloadPolicies();
             }
+            policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2780,9 +2781,10 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+            if (policies.offload_policies == null) {
+                policies.offload_policies = new OffloadPolicies();
             }
+            policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
             policies.offload_deletion_lag_ms = newDeletionLagMs;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2927,8 +2929,8 @@ public abstract class NamespacesBase extends AdminResource {
             } else {
                 policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
             }
-            if (offloadPolicies.getManagedLedgerOffloadThresholdInBytes() ==
-                    OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) {
+            if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
+                    OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
                 offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
             } else {
                 policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
