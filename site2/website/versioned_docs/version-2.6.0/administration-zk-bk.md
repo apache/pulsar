@@ -205,7 +205,7 @@ BookKeeper provides [persistent message storage](concepts-architecture-overview.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
-### Starting bookies manually
+### Start bookies manually
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
@@ -231,15 +231,13 @@ This command creates a new ledger on the local bookie, writes a few entries, rea
 
 ### Decommissioning bookies cleanly
 
+When you want to decommission a bookie, the following process is useful to follow in order to verify if the decommissioning was safely done.
 
-In case the user wants to decommission a bookie, the following process is useful to follow in order to verify if the
-decommissioning was safely done.
-
-#### Before we decommission
+#### Before you decommission
 1. Ensure state of your cluster can support the decommissioning of the target bookie.
 Check if `EnsembleSize >= Write Quorum >= Ack Quorum` stays true with one less bookie
 
-2. Ensure target bookie shows up in the listbookies command.
+2. Ensure target bookie shows up in the `listbookies` command.
 
 3. Ensure that there is no other process ongoing (upgrade etc).
 
@@ -253,21 +251,21 @@ If there are, the decommission command will force them to be replicated.
 
 3. Run the decommission command.
 If you have logged onto the node you wish to decommission, you don't need to provide `-bookieid`
-If you are running the decommission command for target bookie node from another bookie node you should mention 
-the target bookie id in the arguments for `-bookieid`
+If you are running the decommission command for target bookie node from another bookie node you should mention the target bookie id in the arguments for `-bookieid`
 `$ bin/bookkeeper shell decommissionbookie`
 or
 `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
-4. Validate that there are no ledgers on decommissioned bookie
+4. Validate that no ledgers are on decommissioned bookie.
 `$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
 
-Last step to verify is you could run this command to check if the bookie you decommissioned doesn’t show up in list bookies:
+You can run the following command to check if the bookie you decommissioned is listed in the bookies list:
 
 ```bash
 ./bookkeeper shell listbookies -rw -h
 ./bookkeeper shell listbookies -ro -h
 ```
+
 
 ## BookKeeper persistence policies
 
