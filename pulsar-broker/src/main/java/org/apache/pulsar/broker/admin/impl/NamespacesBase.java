@@ -1753,6 +1753,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
+        validateRetentionPolicies(retention);
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2480,8 +2481,23 @@ public abstract class NamespacesBase extends AdminResource {
         if (policies.persistence != null) {
             validatePersistencePolicies(policies.persistence);
         }
+
+        if (policies.retention_policies != null) {
+            validateRetentionPolicies(policies.retention_policies);
+        }
     }
 
+    protected void validateRetentionPolicies(RetentionPolicies retention) {
+        checkArgument(retention.getRetentionSizeInMB() >= -1,
+                "Invalid retention policy: size limit must be >= -1");
+        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
+                "Invalid retention policy: time limit must be >= -1");
+        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0) ||
+                        (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
+                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when " +
+                        "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a " +
+                        "specific limit. To disable retention both limits must be set to 0.");
+    }
 
     protected int internalGetMaxProducersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);

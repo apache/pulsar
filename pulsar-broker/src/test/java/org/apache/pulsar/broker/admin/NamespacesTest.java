@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -1354,6 +1355,80 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             fail("should have failed");
         } catch (NotFoundException e) {
             // Expected
+        }
+    }
+
+    @Test
+    public void testRetentionPolicyValidation() throws Exception {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+
+        // should pass
+        admin.namespaces().setRetention(namespace, new RetentionPolicies());
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, -1));
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(1, 1));
+
+        // should not pass validation
+        assertInvalidRetentionPolicy(namespace, 1, 0);
+        assertInvalidRetentionPolicy(namespace, 0, 1);
+        assertInvalidRetentionPolicy(namespace, -1, 0);
+        assertInvalidRetentionPolicy(namespace, 0, -1);
+        assertInvalidRetentionPolicy(namespace, -2, 1);
+        assertInvalidRetentionPolicy(namespace, 1, -2);
+
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    private void assertInvalidRetentionPolicy(String namespace, int retentionTimeInMinutes, int retentionSizeInMB) {
+        try {
+            RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+            admin.namespaces().setRetention(namespace, retention);
+            fail("Validation should have failed for " + retention);
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getCause() instanceof BadRequestException);
+            assertTrue(e.getMessage().startsWith("Invalid retention policy"));
+        }
+    }
+
+    @Test
+    public void testRetentionPolicyValidationAsPartOfAllPolicies() throws Exception {
+        Policies policies = new Policies();
+        policies.replication_clusters = Sets.newHashSet(testLocalCluster);
+
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, 0, 0);
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, -1, -1);
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, 1, 1);
+
+        // should not pass validation
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, 0);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, 1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -1, 0);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
+                                                               int retentionSizeInMB) throws PulsarAdminException {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+        policies.retention_policies = retention;
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    private void assertInvalidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
+                                                                 int retentionSizeInMB) {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        try {
+            RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+            policies.retention_policies = retention;
+            admin.namespaces().createNamespace(namespace, policies);
+            fail("Validation should have failed for " + retention);
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getCause() instanceof BadRequestException);
+            assertTrue(e.getMessage().startsWith("Invalid retention policy"));
         }
     }
 }
