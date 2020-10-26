@@ -56,7 +56,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     }
 
     @Test
-    public void TransactionMarkerDeleteTest() throws Exception {
+    public void testTransactionMarkerDelete() throws Exception {
         ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
