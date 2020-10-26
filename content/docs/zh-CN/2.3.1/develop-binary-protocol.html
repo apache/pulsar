@@ -198,7 +198,7 @@
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
 }
 </code></pre>
-<p>参数: * <code>topic</code> → 你想要生产数据的主题的完整名称 * <code>producer_id</code> → 客户端生成的生产者标识符， 同一个连接里面必须是唯一的。 * <code>request_id</code> → 请求的标识符， 用于匹配原始请求的应答， 同一个连接下必须是唯一的。 * <code>producer_name</code> → <em>(可选)</em> 如果生产者名字是唯一的，那将使用该名字作为生产者名称。否则，broker 将生成一个唯一的生产者名称。 broker 生成生产者名称，将会保证全局唯一。 具体做法可以是，让 broker 在创建生产者的时候生成一个新的生产者名称。然后在重新连接，重建生产者的时候使用同一个名字。</p>
+<p>参数: * <code>topic</code> → 你想要生产数据的主题的完整名称。 * <code>producer_id</code> → 客户端生成的生产者标识符。 同一个连接里面必须是唯一的。 * <code>request_id</code> → 请求的标识符， 用于匹配原始请求的应答， 同一个连接下必须是唯一的。 * <code>producer_name</code> → <em>(可选)</em> 如果生产者名字是唯一的，那将使用该名字作为生产者名称。否则，broker 将生成一个唯一的生产者名称。 broker 生成生产者名称，将会保证全局唯一。 具体做法可以是，让 broker 在创建生产者的时候生成一个新的生产者名称。然后在重新连接，重建生产者的时候使用同一个名字。</p>
 <p>broker 将返回<code>生产成功</code>或者<code>错误</code>命令给客户端。</p>
 <h5><a class="anchor" aria-hidden="true" id="生产成功命令"></a><a href="#生产成功命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产成功命令</h5>
 <pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducerSuccess</span> </span>{
