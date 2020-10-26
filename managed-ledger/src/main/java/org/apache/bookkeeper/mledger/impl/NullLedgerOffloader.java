@@ -68,11 +68,6 @@ public class NullLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public void updateConfiguration(String key, String value) {
-
-    }
-
-    @Override
     public void close() {
 
     }
