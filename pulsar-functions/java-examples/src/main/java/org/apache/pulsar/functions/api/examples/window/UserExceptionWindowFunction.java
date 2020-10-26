@@ -19,7 +19,9 @@
 package org.apache.pulsar.functions.api.examples.window;
 
 import java.util.Collection;
-import org.apache.pulsar.functions.api.*;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.apache.pulsar.functions.api.WindowFunction;
 
 
 /**
