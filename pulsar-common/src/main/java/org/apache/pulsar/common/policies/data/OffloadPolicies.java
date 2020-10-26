@@ -121,8 +121,8 @@ public class OffloadPolicies implements Serializable {
     private String fileSystemURI = null;
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
-                                         int maxBlockSizeInBytes, int readBufferSizeInBytes,
-                                         long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
+                                         Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
+                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
@@ -218,6 +218,13 @@ public class OffloadPolicies implements Serializable {
             return true;
         }
         return false;
+    }
+
+    public long getOffloadThresholdInBytesValue() {
+        if (managedLedgerOffloadThresholdInBytes == null) {
+            return -1;
+        }
+        return managedLedgerOffloadThresholdInBytes;
     }
 
     @Override
@@ -408,10 +415,6 @@ public class OffloadPolicies implements Serializable {
             object = properties.get(field.getName());
         }
         return value((String) object, field);
-    }
-
-    public static void main(String[] args) {
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
     }
 
 }

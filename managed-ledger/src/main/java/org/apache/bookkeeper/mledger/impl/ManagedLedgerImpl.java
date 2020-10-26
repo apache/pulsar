@@ -1930,7 +1930,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
         if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null) {
-            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+            if (config.getLedgerOffloader().getOffloadPolicies().getOffloadThresholdInBytesValue() >= 0) {
                 executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
             }
         }
@@ -1953,7 +1953,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                     && config.getLedgerOffloader().getOffloadPolicies() != null) {
-                long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes();
+                long threshold = config.getLedgerOffloader().getOffloadPolicies().getOffloadThresholdInBytesValue();
 
                 long sizeSummed = 0;
                 long alreadyOffloadedSize = 0;
