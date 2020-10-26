@@ -252,6 +252,27 @@ public interface Schema<T> extends Cloneable{
     }
 
     /**
+     * Create a Protobuf-Native schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the Protobuf generated class to be used to extract the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUFNATIVE(Class<T> clazz) {
+        return DefaultImplementation.newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+    }
+
+    /**
+     * Create a Protobuf-Native schema type with schema definition.
+     *
+     * @param schemaDefinition schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUFNATIVE(
+            SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newProtobufNativeSchema(schemaDefinition);
+    }
+
+    /**
      * Create a  Avro schema type by default configuration of the class.
      *
      * @param pojo the POJO class to be used to extract the Avro schema

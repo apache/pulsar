@@ -1,4 +1,4 @@
-/**
+   /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ message SchemaInfo {
 		LOCALDATE = 18;
 		LOCALTIME = 19;
 		LOCALDATETIME = 20;
+		PROTOBUFNATIVE = 21;
     }
     message KeyValuePair {
         required string key = 1;

@@ -69,6 +69,7 @@ public class SchemaInfo {
             case AVRO:
             case JSON:
             case PROTOBUF:
+            case PROTOBUF_NATIVE:
                 return new String(schema, UTF_8);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =

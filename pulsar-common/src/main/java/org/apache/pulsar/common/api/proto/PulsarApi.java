@@ -451,6 +451,7 @@ public final class PulsarApi {
       LocalDate(17, 17),
       LocalTime(18, 18),
       LocalDateTime(19, 19),
+      ProtobufNative(20, 20),
       ;
       
       public static final int None_VALUE = 0;
@@ -473,6 +474,7 @@ public final class PulsarApi {
       public static final int LocalDate_VALUE = 17;
       public static final int LocalTime_VALUE = 18;
       public static final int LocalDateTime_VALUE = 19;
+      public static final int ProtobufNative_VALUE = 20;
       
       
       public final int getNumber() { return value; }
@@ -499,6 +501,7 @@ public final class PulsarApi {
           case 17: return LocalDate;
           case 18: return LocalTime;
           case 19: return LocalDateTime;
+          case 20: return ProtobufNative;
           default: return null;
         }
       }

@@ -44,6 +44,7 @@ message Schema {
         LocalDate = 17;
         LocalTime = 18;
         LocalDateTime = 19;
+        ProtobufNative = 20;
     }
 
     required string name = 1;
