@@ -40,7 +40,7 @@ module.exports = {
     {
       name: 'Hang Chen',
       apacheId: 'chenhang',
-      org: 'Bigo Technology',
+      org: 'BIGO Technology',
       roles: 'Committer'
     },
     {
