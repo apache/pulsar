@@ -388,9 +388,9 @@ public class OffloadPolicies implements Serializable {
         try {
             OffloadPolicies offloadPolicies = new OffloadPolicies();
             for (Field field : CONFIGURATION_FIELDS) {
-                if (field.get(topicLevelPolicies) != null) {
+                if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     field.set(offloadPolicies, field.get(topicLevelPolicies));
-                } else if (field.get(nsLevelPolicies) != null) {
+                } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     field.set(offloadPolicies, field.get(nsLevelPolicies));
                 } else {
                     field.set(offloadPolicies, getCompatibleValue(brokerProperties, field));
