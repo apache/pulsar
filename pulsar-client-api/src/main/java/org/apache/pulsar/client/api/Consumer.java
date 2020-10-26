@@ -87,6 +87,12 @@ public interface Consumer<T> extends Closeable {
      * <p>{@code receiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
      * with received message. Else it creates <i> backlog of receive requests </i> in the application.
      *
+     * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
+     * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
+     * choice for ensuring a proper clean up of the returned future is to use the CompletableFuture.orTimeout method
+     * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
+     * the timeout.
+     *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
     CompletableFuture<Message<T>> receiveAsync();
@@ -128,6 +134,14 @@ public interface Consumer<T> extends Closeable {
      * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
      * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
      * </p>
+     *
+     * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
+     * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
+     * choice for ensuring a proper clean up of the returned future is to use the CompletableFuture.orTimeout method
+     * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
+     * the timeout.
+     *
+     *
      * @return messages
      * @since 2.4.1
      * @throws PulsarClientException
