@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 import java.util.List;
 import java.util.Map;
@@ -33,25 +35,29 @@ public interface PendingAckHandle {
     /**
      * Acknowledge message(s) for an ongoing transaction.
      * <p>
-     * It can be of {@link PulsarApi.CommandAck.AckType#Individual} or {@link PulsarApi.CommandAck.AckType#Cumulative}. Single messages acked by ongoing
+     * It can be of {@link AckType#Individual} or {@link AckType#Cumulative}. Single messages acked by ongoing
      * transaction will be put in pending_ack state and only marked as deleted after transaction is committed.
      * <p>
-     * Only one transaction is allowed to do cumulative ack on a subscription at a given time.
-     * If a transaction do multiple cumulative ack, only the one with largest position determined by
-     * {@link PositionImpl#compareTo(PositionImpl)} will be kept as it cover all position smaller than it.
+     * For a moment, we only allow one transaction cumulative ack multiple times when the position is greater than the
+     * old one.
+     * <p>
+     * We have a transaction with cumulative ack, if other transaction want to cumulative ack, we will
+     * return {@link TransactionConflictException}.
      * <p>
      * If an ongoing transaction cumulative acked a message and then try to ack single message which is
-     * smaller than that one it cumulative acked, it'll succeed.
+     * greater than that one it cumulative acked, it'll succeed.
      * <p>
      * If transaction is aborted all messages acked by it will be put back to pending state.
      *
      * @param txnId                  TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link Position}(s) it try to ack.
-     * @param ackType                {@link PulsarApi.CommandAck.AckType}.
-     *  cumulative ack or try to single ack message already acked by any ongoing transaction.
+     * @param ackType                {@link AckType}.
      * @return the future of this operation.
+     * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
+     * @throws NotAllowedException if Use this method incorrectly eg. not use
+     * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, PulsarApi.CommandAck.AckType ackType);
+    CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType);
 
     /**
      * Commit a transaction.
@@ -71,8 +77,21 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
 
+    /**
+     * Redeliver the unacknowledged messages with consumer which wait for ack in broker, we will filter the positions
+     * in pending ack state.
+     *
+     * @param consumer {@link Consumer} which will be redelivered.
+     */
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
+    /**
+     * Redeliver the unacknowledged messages with the positions for this consumer, we will filter the
+     * position in pending ack state.
+     *
+     * @param consumer {@link Consumer} which will redeliver the position.
+     * @param positions {@link List} the list of positions which will be redelivered.
+     */
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
 }

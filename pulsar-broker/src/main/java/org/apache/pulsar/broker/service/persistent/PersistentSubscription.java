@@ -125,7 +125,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            this.pendingAckHandle = new PendingAckHandleImpl(topicName, subName);
+            this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = null;
         }
