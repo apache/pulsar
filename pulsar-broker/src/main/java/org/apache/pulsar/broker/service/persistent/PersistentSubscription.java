@@ -120,7 +120,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated, PendingAckHandle pendingAckHandle) {
+                                  boolean replicated) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
@@ -128,9 +128,10 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        this.pendingAckHandle = pendingAckHandle;
-        if (this.pendingAckHandle != null) {
-            this.pendingAckHandle.setPersistentSubscription(this);
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            this.pendingAckHandle = new PendingAckHandleImpl(this);
+        } else {
+            this.pendingAckHandle = null;
         }
         IS_FENCED_UPDATER.set(this, FALSE);
     }

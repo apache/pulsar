@@ -328,22 +328,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated) {
         checkNotNull(compactedTopic);
-        PendingAckHandle pendingAckHandle = null;
-        if (brokerService.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            TransactionPendingAckStoreProvider pendingAckStoreProvider =
-                    brokerService.getPulsar().getTransactionPendingAckStoreProvider();
-            if (pendingAckStoreProvider != null) {
-                if (pendingAckStoreProvider instanceof MLPendingAckStoreProvider) {
-                    pendingAckHandle =
-                            new PendingAckHandleImpl(topic, subscriptionName,
-                                    pendingAckStoreProvider.newPendingAckStore(this, subscriptionName));
-                }
-            }
-        }
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
-            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor, pendingAckHandle);
+            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated, pendingAckHandle);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 
@@ -640,8 +628,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
             addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
                 try {
-                    if (!cnx.isActive()) {
-                        consumer.close();
+                if (!cnx.isActive()) {
+                    consumer.close();
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                                     consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
@@ -785,7 +773,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false, null);
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
                 subscriptions.put(subscriptionName, subscription);
             }
 

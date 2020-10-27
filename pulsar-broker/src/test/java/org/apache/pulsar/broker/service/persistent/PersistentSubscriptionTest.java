@@ -154,6 +154,7 @@ public class PersistentSubscriptionTest {
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 
         consumerMock = mock(Consumer.class);
+<<<<<<< HEAD
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.complete(null);
         CompletableFuture<PendingAckStore> storeFuture = new CompletableFuture<>();
@@ -168,6 +169,10 @@ public class PersistentSubscriptionTest {
         changeToReadyState.invoke(pendingAckHandle);
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock,
                 false, pendingAckHandle);
+=======
+
+        persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
+>>>>>>> origin/transaction_pendingack_server_implement
     }
 
     @AfterMethod
