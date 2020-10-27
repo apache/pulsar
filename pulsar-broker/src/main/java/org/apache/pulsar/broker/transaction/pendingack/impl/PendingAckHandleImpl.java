@@ -134,12 +134,14 @@ public class PendingAckHandleImpl implements PendingAckHandle {
     }
 
     private CompletableFuture<Void> acknowledgeMessageIndividual(List<Position> positions, TxnID txnID) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        List<CompletableFuture<Void>> positionsFuture = new ArrayList<>(positions.size());
         for (int i = 0; i < positions.size(); i++) {
             if (!(positions.get(i) instanceof PositionImpl)) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " invalid individual ack received with position is not PositionImpl";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
+                positionsFuture.add(FutureUtil.failedFuture(new NotAllowedException(errorMsg)));
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
@@ -157,7 +159,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
             }
 
             // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
@@ -167,7 +169,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " try to ack message:" + position + " in pending ack status.";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
             }
 
             if (position.hasAckSet()) {
@@ -177,7 +179,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                             " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
                 }
 
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
@@ -202,20 +204,29 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                     andAckSet(this.pendingAckMessages.get(position), position);
                 }
                 txnSet.add(txnID);
+                positionsFuture.add(CompletableFuture.completedFuture(null));
             } else {
                 if (this.pendingAckMessages.containsKey(position)) {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                             " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
                 }
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                         pendingIndividualAckMessagesMap.computeIfAbsent(txnID, txn -> new HashMap<>());
                 pendingAckMessageForCurrentTxn.put(position, position);
                 this.pendingAckMessages.put(position, position);
+                positionsFuture.add(CompletableFuture.completedFuture(null));
             }
         }
-        return CompletableFuture.completedFuture(null);
+        FutureUtil.waitForAll(positionsFuture).whenComplete((v, e) -> {
+            if (e != null) {
+                completableFuture.completeExceptionally(e);
+            } else {
+                completableFuture.complete(null);
+            }
+        });
+        return completableFuture;
     }
 
     @Override
