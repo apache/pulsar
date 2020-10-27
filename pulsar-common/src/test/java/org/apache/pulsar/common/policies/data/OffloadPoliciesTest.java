@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Properties;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Properties;
 
 /**
  * Offload policies configuration test.
@@ -226,13 +225,18 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(policies.offload_threshold, -1);
 
         OffloadPolicies offloadPolicies = OffloadPolicies.oldPoliciesCompatible(null, policies);
-        Assert.assertNotNull(offloadPolicies);
-        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
-        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        Assert.assertNull(offloadPolicies);
 
         policies.offload_deletion_lag_ms = 1000L;
         policies.offload_threshold = 0;
-        OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
+        offloadPolicies = OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), new Long(1000));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), new Long(0));
+
+        policies.offload_deletion_lag_ms = 2000L;
+        policies.offload_threshold = 100;
+        offloadPolicies = OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), new Long(1000));
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), new Long(0));
     }
