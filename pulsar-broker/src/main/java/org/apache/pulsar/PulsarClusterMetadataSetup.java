@@ -232,9 +232,6 @@ public class PulsarClusterMetadataSetup {
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStoreZk, TopicName.TRANSACTION_COORDINATOR_ASSIGN, arguments.numTransactionCoordinators);
 
-        localZk.close();
-        configStoreZk.close();
-
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
