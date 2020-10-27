@@ -16,32 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.tests.integration.backwardscompatibility;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-/**
- * Definition of a Bouncy Castle provider loader NAR package.
- */
-@Data
-@NoArgsConstructor
-public class BcNarDefinition {
+import org.apache.pulsar.tests.integration.topologies.ClientTestBase;
+import org.testng.annotations.Test;
 
-    /**
-     * The name of the Bouncy Castle provider type.
-     *   BC/BCFIPS
-     */
-    private String name;
+public class ClientTest2_3 extends PulsarStandaloneTestSuite2_3 {
 
-    /**
-     * Description to be used for user help.
-     */
-    private String description;
+    private final ClientTestBase clientTestBase = new ClientTestBase();
 
-    /**
-     * The class name for the Bouncy Castle provider loader impl.
-     */
-    private String bcLoaderClass;
+    @Test(dataProvider = "StandaloneServiceUrlAndHttpUrl")
+    public void testResetCursorCompatibility(String serviceUrl, String httpServiceUrl) throws Exception {
+        String topicName = generateTopicName("test-reset-cursor-compatibility", true);
+        clientTestBase.resetCursorCompatibility(serviceUrl, httpServiceUrl, topicName);
+    }
 
 }

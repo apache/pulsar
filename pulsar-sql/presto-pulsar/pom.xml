@@ -65,6 +65,14 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>bouncy-castle-bc</artifactId>
+            <version>${project.version}</version>
+            <classifier>pkg</classifier>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
