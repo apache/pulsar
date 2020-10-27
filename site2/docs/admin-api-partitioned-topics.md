@@ -32,7 +32,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 > If a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/topics/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
 
 <!--Java-->
 ```java
@@ -57,7 +57,7 @@ $ bin/pulsar-admin topics create-missed-partitions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createMissedPartitions}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic|operation/createMissedPartitions}
 
 <!--Java-->
 ```java
@@ -88,7 +88,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
 
 <!--Java-->
 ```java
@@ -115,7 +115,7 @@ $ pulsar-admin topics update-partitioned-topic \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
 
 <!--Java-->
 ```java
@@ -135,7 +135,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/persistent/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
+{@inject: endpoint|DELETE|/admin/v2/topics/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
 
 <!--Java-->
 ```java
@@ -156,7 +156,7 @@ persistent://tenant/namespace/topic2
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getPartitionedTopicList}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace|operation/getPartitionedTopicList}
 
 <!--Java-->
 ```java
@@ -232,7 +232,7 @@ $ pulsar-admin topics partitioned-stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
 
 <!--Java-->
 ```java
@@ -292,7 +292,7 @@ $ pulsar-admin topics stats-internal \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
 <!--Java-->
 ```java
@@ -324,7 +324,7 @@ $ bin/pulsar-admin topics create \
 > When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/topics/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
 
 <!--Java-->
 ```java
@@ -344,7 +344,7 @@ $ bin/pulsar-admin topics delete \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic|operation/deleteTopic}
 
 <!--Java-->
 ```java
@@ -365,7 +365,7 @@ persistent://tenant/namespace/topic2
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace|operation/getList}
 
 <!--Java-->
 ```java
@@ -420,7 +420,7 @@ $ pulsar-admin topics stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/stats|operation/getStats}
 
 <!--Java-->
 ```java
