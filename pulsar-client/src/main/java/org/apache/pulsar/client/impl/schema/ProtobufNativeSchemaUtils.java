@@ -123,7 +123,7 @@ public class ProtobufNativeSchemaUtils {
             } else {
                 throw new SchemaSerializationException(fileDescriptorProto.getName() + "can't resolve  dependency '" + dependency + "'");
             }
-        }).toArray(FileDescriptor[]::n ew);
+        }).toArray(FileDescriptor[]::new);
 
         try {
             FileDescriptor fileDescriptor = FileDescriptor.buildFrom(fileDescriptorProto, dependencyFileDescriptors);

@@ -39,7 +39,7 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
     @Override
     public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
         Descriptor fromDescriptor = ProtobufNativeSchemaUtils.deserialize(from.getData());
-        Descriptor toDescriptor = ProtobufNativeSchemaUtils.deserialize(from.getData());
+        Descriptor toDescriptor = ProtobufNativeSchemaUtils.deserialize(to.getData());
         switch (strategy) {
             case BACKWARD_TRANSITIVE:
             case BACKWARD:
