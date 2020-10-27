@@ -457,11 +457,7 @@ public class Producer {
             entryId = -1L;
             batchSize = 0L;
             startTimeNs = -1L;
-            ledgerId = -1;
-            entryId = -1;
-            batchSize = 0;
             chunked = false;
-            startTimeNs = -1;
             recyclerHandle.recycle(this);
         }
     }
