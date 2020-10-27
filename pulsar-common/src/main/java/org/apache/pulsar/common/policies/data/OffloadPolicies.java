@@ -386,17 +386,29 @@ public class OffloadPolicies implements Serializable {
                                            OffloadPolicies nsLevelPolicies,
                                            Properties brokerProperties) {
         try {
+            boolean allConfigValuesAreNull = true;
             OffloadPolicies offloadPolicies = new OffloadPolicies();
             for (Field field : CONFIGURATION_FIELDS) {
+                Object object;
                 if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
-                    field.set(offloadPolicies, field.get(topicLevelPolicies));
+                    object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
-                    field.set(offloadPolicies, field.get(nsLevelPolicies));
+                    object = field.get(nsLevelPolicies);
                 } else {
-                    field.set(offloadPolicies, getCompatibleValue(brokerProperties, field));
+                    object = getCompatibleValue(brokerProperties, field);
+                }
+                if (object != null) {
+                    field.set(offloadPolicies, object);
+                    if (allConfigValuesAreNull) {
+                        allConfigValuesAreNull = false;
+                    }
                 }
             }
-            return offloadPolicies;
+            if (allConfigValuesAreNull) {
+                return null;
+            } else {
+                return offloadPolicies;
+            }
         } catch (Exception e) {
             log.error("Failed to merge configuration.", e);
             return null;
