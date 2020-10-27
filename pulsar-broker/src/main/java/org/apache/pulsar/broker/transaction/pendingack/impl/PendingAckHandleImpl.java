@@ -142,6 +142,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         " invalid individual ack received with position is not PositionImpl";
                 log.error(errorMsg);
                 positionsFuture.add(FutureUtil.failedFuture(new NotAllowedException(errorMsg)));
+                continue;
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
@@ -160,6 +161,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
                 positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                continue;
             }
 
             // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
@@ -170,6 +172,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         " try to ack message:" + position + " in pending ack status.";
                 log.error(errorMsg);
                 positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                continue;
             }
 
             if (position.hasAckSet()) {
@@ -180,6 +183,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                             " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                    continue;
                 }
 
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
@@ -211,6 +215,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                             " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                    continue;
                 }
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                         pendingIndividualAckMessagesMap.computeIfAbsent(txnID, txn -> new HashMap<>());
