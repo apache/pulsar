@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
 /**
  * A handle for transactions.
