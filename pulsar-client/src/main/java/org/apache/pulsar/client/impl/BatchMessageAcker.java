@@ -77,12 +77,4 @@ class BatchMessageAcker {
         return prevBatchCumulativelyAcked;
     }
 
-    @Override
-    public String toString() {
-        return "BatchMessageAcker{" +
-                "batchSize=" + batchSize +
-                ", bitSet=" + bitSet +
-                ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked +
-                '}';
-    }
 }
