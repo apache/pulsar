@@ -16,32 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.proxy.server.plugin.servlet;
 
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 /**
- * Definition of a Bouncy Castle provider loader NAR package.
+ * The collection of proxy additional servlet definition.
  */
 @Data
-@NoArgsConstructor
-public class BcNarDefinition {
+@Accessors(fluent = true)
+public class ProxyAdditionalServletDefinitions {
 
-    /**
-     * The name of the Bouncy Castle provider type.
-     *   BC/BCFIPS
-     */
-    private String name;
-
-    /**
-     * Description to be used for user help.
-     */
-    private String description;
-
-    /**
-     * The class name for the Bouncy Castle provider loader impl.
-     */
-    private String bcLoaderClass;
-
+    private final Map<String, ProxyAdditionalServletMetadata> servlets = new TreeMap<>();
 }
