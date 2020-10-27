@@ -158,7 +158,7 @@
 <tr><td>serverSockKeepalive</td><td>This setting is used to send keep-alive messages on connection-oriented sockets.</td><td>true</td></tr>
 <tr><td>serverTcpLinger</td><td>The socket linger timeout on close. When enabled, a close or shutdown will not return until all queued messages for the socket have been successfully sent or the linger timeout has been reached. Otherwise, the call returns immediately and the closing is done in the background.</td><td>0</td></tr>
 <tr><td>byteBufAllocatorSizeMax</td><td>The maximum buf size of the received ByteBuf allocator.</td><td>1048576</td></tr>
-<tr><td>nettyMaxFrameSizeBytes</td><td>The maximum netty frame size in bytes. Any message received larger than this will be rejected. The default value is 1G.</td><td>5253120</td></tr>
+<tr><td>nettyMaxFrameSizeBytes</td><td>The maximum netty frame size in bytes. Any message received larger than this will be rejected.</td><td>5253120</td></tr>
 <tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
 <tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>
 <tr><td>pageLimit</td><td>在 ledger 缓存中提供多少索引页面。如果索引页面数量达到此限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 当你发现交换变得更频繁时，可以增加这个值。 但请确认 pageLimit*page 的大小不应超过 JVM 最大内存限制，否则你将会得到 OutOfMemoryException。 In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
@@ -198,7 +198,6 @@
 <tr><td>dbStorage_rocksDB_numLevels</td><td></td><td>-1</td></tr>
 <tr><td>dbStorage_rocksDB_numFilesInLevel0</td><td></td><td>4</td></tr>
 <tr><td>dbStorage_rocksDB_maxSizeInLevel1MB</td><td></td><td>256</td></tr>
-<tr><td>nettyMaxFrameSizeBytes</td><td>Set the maximum netty frame size in bytes. If the size of a received message is larger than the configured value, the message is rejected.</td><td>1 GB</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
