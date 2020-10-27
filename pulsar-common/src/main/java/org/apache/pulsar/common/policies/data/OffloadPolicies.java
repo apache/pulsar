@@ -386,11 +386,11 @@ public class OffloadPolicies implements Serializable {
      * @return offload policies
      */
     public static OffloadPolicies oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
+        if (policies == null || (policies.offload_threshold == -1 && policies.offload_deletion_lag_ms == null)) {
+            return nsLevelPolicies;
+        }
         if (nsLevelPolicies == null) {
             nsLevelPolicies = new OffloadPolicies();
-        }
-        if (policies == null) {
-            return nsLevelPolicies;
         }
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
                 && policies.offload_threshold != -1) {
