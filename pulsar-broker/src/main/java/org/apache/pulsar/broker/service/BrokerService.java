@@ -1217,9 +1217,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
 
             OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
-            OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null));
             OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
-                    topicLevelOffloadPolicies, nsLevelOffloadPolicies, getPulsar().getConfig().getProperties());
+                    topicLevelOffloadPolicies,
+                    OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                    getPulsar().getConfig().getProperties());
             if (topicLevelOffloadPolicies != null) {
                 try {
                     LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(offloadPolicies);

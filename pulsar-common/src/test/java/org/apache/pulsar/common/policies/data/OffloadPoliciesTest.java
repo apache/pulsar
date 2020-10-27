@@ -225,11 +225,8 @@ public class OffloadPoliciesTest {
         Policies policies = new Policies();
         Assert.assertEquals(policies.offload_threshold, -1);
 
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
-        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
-        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
-
-        OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
+        OffloadPolicies offloadPolicies = OffloadPolicies.oldPoliciesCompatible(null, policies);
+        Assert.assertNotNull(offloadPolicies);
         Assert.assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
         Assert.assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
 

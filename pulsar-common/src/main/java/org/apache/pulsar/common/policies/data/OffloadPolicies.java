@@ -384,9 +384,12 @@ public class OffloadPolicies implements Serializable {
      * @param nsLevelPolicies  namespace level offload policies
      * @param policies namespace policies
      */
-    public static void oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
-        if (nsLevelPolicies == null || policies == null) {
-            return;
+    public static OffloadPolicies oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
+        if (nsLevelPolicies == null) {
+            nsLevelPolicies = new OffloadPolicies();
+        }
+        if (policies == null) {
+            return nsLevelPolicies;
         }
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
                 && policies.offload_threshold != -1) {
@@ -396,6 +399,7 @@ public class OffloadPolicies implements Serializable {
                 && policies.offload_deletion_lag_ms != null) {
             nsLevelPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
         }
+        return nsLevelPolicies;
     }
 
     /**
