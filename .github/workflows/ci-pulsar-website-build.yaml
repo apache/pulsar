@@ -22,6 +22,9 @@ on:
   schedule:
     - cron: '0 */6 * * *'
 
+env:
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
   build-website:
     name: Build and publish pulsar website
