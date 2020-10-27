@@ -455,6 +455,10 @@ func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
 func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
   return c.record
 }
+
+func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
+	return c.outputMessage(topic)
+}
 ```
 
 The following example uses several methods available via the `Context` object.
