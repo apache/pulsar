@@ -1,7 +1,7 @@
 ---
 id: admin-api-partitioned-topics
-title: Manage topics
-sidebar_label: Topics
+title: Managing partitioned topics
+sidebar_label: Topics1
 ---
 
 ## Manage partitioned topics
@@ -11,11 +11,12 @@ You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete 
 
 Partitioned topics must be explicitly created. When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.
 
-By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
 
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create partitioned topics in the following ways.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 When you create partitioned topics with the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
@@ -27,8 +28,8 @@ $ bin/pulsar-admin topics create-partitioned-topic \
   --partitions 4
 ```
 
-> **Note**
-> If a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. You have to delete that non-partitioned topic first, and then create the partitioned topic.
+> **Note**    
+> If a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
 
 <!--REST API-->
 {@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
@@ -37,14 +38,14 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 ```java
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
-admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+admin.topics().createPartitionedTopic(topicName, numPartitions);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Create missed partitions
 
-You can create partitions for partitioned topics. It can be used to repair partitions when topic auto creation is disabled.
+When topic auto creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -61,7 +62,7 @@ $ bin/pulsar-admin topics create-missed-partitions \
 <!--Java-->
 ```java
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().createMissedPartitions(topicName);
+admin.topics().createMissedPartitions(topicName);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -85,13 +86,14 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
   "partitions": 4
 }
 ```
+
 <!--REST API-->
 {@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
 
 <!--Java-->
 ```java
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getPartitionedTopicMetadata(topicName);
+admin.topics().getPartitionedTopicMetadata(topicName);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -117,13 +119,14 @@ $ pulsar-admin topics update-partitioned-topic \
 
 <!--Java-->
 ```java
-admin.persistentTopics().updatePartitionedTopic(persistentTopic, numPartitions);
+admin.topics().updatePartitionedTopic(topic, numPartitions);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Delete
 You can delete partitioned topics with the [`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, REST API and Java. 
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
@@ -136,7 +139,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 
 <!--Java-->
 ```java
-admin.persistentTopics().delete(persistentTopic);
+admin.topics().delete(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -157,18 +160,68 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.persistentTopics().getList(namespace);
+admin.topics().getList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Stats
 
-You can view the current statistics of a given partitioned topic. The following is an example payload. For description of each stats, refer to [get stats](#get-stats).
+You can view the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
+```json
+{
+  "msgRateIn" : 999.992947159793,
+  "msgThroughputIn" : 1070918.4635439808,
+  "msgRateOut" : 0.0,
+  "msgThroughputOut" : 0.0,
+  "bytesInCounter" : 270318763,
+  "msgInCounter" : 252489,
+  "bytesOutCounter" : 0,
+  "msgOutCounter" : 0,
+  "averageMsgSize" : 1070.926056966454,
+  "msgChunkPublished" : false,
+  "storageSize" : 270316646,
+  "backlogSize" : 200921133,
+  "publishers" : [ {
+    "msgRateIn" : 999.992947159793,
+    "msgThroughputIn" : 1070918.4635439808,
+    "averageMsgSize" : 1070.3333333333333,
+    "chunkedMessageRate" : 0.0,
+    "producerId" : 0
+  } ],
+  "subscriptions" : {
+    "test" : {
+      "msgRateOut" : 0.0,
+      "msgThroughputOut" : 0.0,
+      "bytesOutCounter" : 0,
+      "msgOutCounter" : 0,
+      "msgRateRedeliver" : 0.0,
+      "chuckedMessageRate" : 0,
+      "msgBacklog" : 144318,
+      "msgBacklogNoDelayed" : 144318,
+      "blockedSubscriptionOnUnackedMsgs" : false,
+      "msgDelayed" : 0,
+      "unackedMessages" : 0,
+      "msgRateExpired" : 0.0,
+      "lastExpireTimestamp" : 0,
+      "lastConsumedFlowTimestamp" : 0,
+      "lastConsumedTimestamp" : 0,
+      "lastAckedTimestamp" : 0,
+      "consumers" : [ ],
+      "isDurable" : true,
+      "isReplicated" : false
+    }
+  },
+  "replication" : { },
+  "metadata" : {
+    "partitions" : 3
+  },
+  "partitions" : { }
+}
+```
 
-
-You can get the stats for the partitioned topic and its connected producers and consumers in the following ways.
+You can view the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -183,7 +236,7 @@ $ pulsar-admin topics partitioned-stats \
 
 <!--Java-->
 ```java
-admin.topics().getPartitionedStats(persistentTopic, true /* per partition */, false /* is precise backlog */);
+admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is precise backlog */);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -228,7 +281,9 @@ You can view the detailed statistics of a topic. The following is an example. Fo
   }
 }
 ```
+
 You can get the internal stats for the partitioned topic in the following ways.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
@@ -241,7 +296,7 @@ $ pulsar-admin topics stats-internal \
 
 <!--Java-->
 ```java
-admin.persistentTopics().getInternalStats(persistentTopic);
+admin.topics().getInternalStats(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -252,7 +307,7 @@ You can use Pulsar [admin API](admin-api-overview.md) to create, delete and chec
 ### Create
 Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
 
-By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
 
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
@@ -265,8 +320,8 @@ When you create non-partitioned topics with the [`create`](reference-pulsar-admi
 $ bin/pulsar-admin topics create \
   persistent://my-tenant/my-namespace/my-topic
 ```
-> **Note**
-> When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same name, in this case 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such non-partitioned topic. 
+> **Note**    
+> When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
 
 <!--REST API-->
 {@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
@@ -293,7 +348,7 @@ $ bin/pulsar-admin topics delete \
 
 <!--Java-->
 ```java
-admin.topics().delete(persistentTopic);
+admin.topics().delete(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -369,6 +424,6 @@ $ pulsar-admin topics stats \
 
 <!--Java-->
 ```java
-admin.topics().getStats(persistentTopic, false /* is precise backlog */);
+admin.topics().getStats(topic, false /* is precise backlog */);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
