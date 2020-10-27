@@ -220,13 +220,6 @@ public class OffloadPolicies implements Serializable {
         return false;
     }
 
-    public long getOffloadThresholdInBytesValue() {
-        if (managedLedgerOffloadThresholdInBytes == null) {
-            return -1;
-        }
-        return managedLedgerOffloadThresholdInBytes;
-    }
-
     @Override
     public int hashCode() {
         return Objects.hash(
@@ -382,6 +375,40 @@ public class OffloadPolicies implements Serializable {
 
     }
 
+    /**
+     * This method is used to make a compatible with old policies.
+     *
+     * The filed {@link Policies#offload_threshold} is primitive, so it can't be known whether it had been set.
+     * In the old logic, if the field value is -1, it could be thought that the field had not been set.
+     *
+     * @param nsLevelPolicies  namespace level offload policies
+     * @param policies namespace policies
+     */
+    public static void oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
+        if (nsLevelPolicies == null || policies == null) {
+            return;
+        }
+        if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
+                && policies.offload_threshold != -1) {
+            nsLevelPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+        }
+        if (nsLevelPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null
+                && policies.offload_deletion_lag_ms != null) {
+            nsLevelPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+        }
+    }
+
+    /**
+     * Merge different level offload policies.
+     *
+     * policies level priority: topic > namespace > broker
+     *
+     * @param topicLevelPolicies topic level offload policies
+     * @param nsLevelPolicies namesapce level offload policies
+     * @param brokerProperties broker level offload configuration
+     *
+     * @return offload policies
+     */
     public static OffloadPolicies mergeConfiguration(OffloadPolicies topicLevelPolicies,
                                            OffloadPolicies nsLevelPolicies,
                                            Properties brokerProperties) {
@@ -415,6 +442,17 @@ public class OffloadPolicies implements Serializable {
         }
     }
 
+    /**
+     * Make configurations of the OffloadPolicies compatible with the config file.
+     *
+     * The names of the fields {@link OffloadPolicies#managedLedgerOffloadDeletionLagInMillis}
+     * and {@link OffloadPolicies#managedLedgerOffloadThresholdInBytes} are not matched with
+     * config file (broker.conf or standalone.conf).
+     *
+     * @param properties
+     * @param field
+     * @return
+     */
     private static Object getCompatibleValue(Properties properties, Field field) {
         Object object = null;
         if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {

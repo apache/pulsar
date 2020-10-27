@@ -221,6 +221,26 @@ public class OffloadPoliciesTest {
     }
 
     @Test
+    public void oldPoliciesCompatibleTest() {
+        Policies policies = new Policies();
+        Assert.assertEquals(policies.offload_threshold, -1);
+
+        OffloadPolicies offloadPolicies = new OffloadPolicies();
+        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+
+        OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
+        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+        Assert.assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+
+        policies.offload_deletion_lag_ms = 1000L;
+        policies.offload_threshold = 0;
+        OffloadPolicies.oldPoliciesCompatible(offloadPolicies, policies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), new Long(1000));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), new Long(0));
+    }
+
+    @Test
     public void mergeTest() {
         final String topicBucket = "topic-bucket";
         OffloadPolicies topicLevelPolicies = new OffloadPolicies();
