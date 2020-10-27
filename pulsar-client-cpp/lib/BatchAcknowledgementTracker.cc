@@ -33,7 +33,6 @@ BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic
 }
 
 void BatchAcknowledgementTracker::clear() {
-    Lock lock(mutex_);
     trackerMap_.clear();
     sendList_.clear();
 }
