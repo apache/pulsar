@@ -36,7 +36,7 @@ $ pulsar-admin topics list \
 <!--Java-->
 ```java
 String namespace = "my-tenant/my-namespace";
-admin.persistentTopics().getList(namespace);
+admin.topics().getList(namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -60,7 +60,7 @@ $ pulsar-admin topics grant-permission \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
-admin.persistentTopics().grantPermission(topic, role, actions);
+admin.topics().grantPermission(topic, role, actions);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -89,7 +89,7 @@ $ pulsar-admin topics permissions \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getPermissions(topic);
+admin.topics().getPermissions(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -119,7 +119,7 @@ $ pulsar-admin topics revoke-permission \
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
-admin.persistentTopics().revokePermissions(topic, role);
+admin.topics().revokePermissions(topic, role);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -141,7 +141,7 @@ $ pulsar-admin topics delete \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().delete(topic);
+admin.topics().delete(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -162,7 +162,7 @@ $ pulsar-admin topics unload \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().unload(topic);
+admin.topics().unload(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -314,7 +314,7 @@ $ pulsar-admin topics stats \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getStats(topic);
+admin.topics().getStats(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -446,7 +446,7 @@ $ pulsar-admin topics stats-internal \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getInternalStats(topic);
+admin.topics().getInternalStats(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -474,7 +474,7 @@ msg-payload
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().peekMessages(topic, subName, numMessages);
+admin.topics().peekMessages(topic, subName, numMessages);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -499,7 +499,7 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long ledgerId = 10;
 long entryId = 10;
-admin.persistentTopics().getMessageById(topic, ledgerId, entryId);
+admin.topics().getMessageById(topic, ledgerId, entryId);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -524,7 +524,7 @@ $ pulsar-admin topics skip \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().skipMessages(topic, subName, numMessages);
+admin.topics().skipMessages(topic, subName, numMessages);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -548,7 +548,7 @@ $ pulsar-admin topics skip-all \
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
-admin.persistentTopics().skipAllMessages(topic, subName);
+admin.topics().skipAllMessages(topic, subName);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -573,7 +573,7 @@ $ pulsar-admin topics reset-cursor \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
+admin.topics().skipAllMessages(topic, subName, timestamp);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -645,7 +645,7 @@ $ pulsar-admin topics subscriptions \
 <!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getSubscriptions(topic);
+admin.topics().getSubscriptions(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -669,7 +669,7 @@ $ pulsar-admin topics unsubscribe \
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
-admin.persistentTopics().deleteSubscription(topic, subscriptionName);
+admin.topics().deleteSubscription(topic, subscriptionName);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -690,7 +690,7 @@ pulsar-admin topics last-message-id topic-name
 <!--Java-->
 ```Java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getLastMessage(topic);
+admin.topics().getLastMessage(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
