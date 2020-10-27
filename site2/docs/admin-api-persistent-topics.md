@@ -325,67 +325,67 @@ You can get the detailed statistics of a topic.
 
   -   **entriesAddedCounter**: Messages published since this broker loaded this topic.
 
-  -   **numberOfEntries**: Total number of messages being tracked
+  -   **numberOfEntries**: The total number of messages being tracked.
 
-  -   **totalSize**: Total storage size in bytes of all messages
+  -   **totalSize**: The total storage size in bytes of all messages.
 
-  -   **currentLedgerEntries**: Count of messages written to the ledger currently open for writing
+  -   **currentLedgerEntries**: The count of messages written to the ledger that is currently open for writing.
 
-  -   **currentLedgerSize**: Size in bytes of messages written to ledger currently open for writing
+  -   **currentLedgerSize**: The size in bytes of messages written to the ledger that is currently open for writing.
 
-  -   **lastLedgerCreatedTimestamp**: time when last ledger was created
+  -   **lastLedgerCreatedTimestamp**: The time when the last ledger is created.
 
-  -   **lastLedgerCreationFailureTimestamp:** time when last ledger was failed
+  -   **lastLedgerCreationFailureTimestamp:** The time when the last ledger failed.
 
-  -   **waitingCursorsCount**: How many cursors are "caught up" and waiting for a new message to be published
+  -   **waitingCursorsCount**: How many cursors are "caught up" and waiting for a new message to be published.
 
-  -   **pendingAddEntriesCount**: How many messages have (asynchronous) write requests we are waiting on completion
+  -   **pendingAddEntriesCount**: The number of messages that complete (asynchronous) write requests.
 
-  -   **lastConfirmedEntry**: The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.
+  -   **lastConfirmedEntry**: The ledgerid:entryid of the last message that is written successfully. If the entryid is `-1`, then the ledger is open, yet no entries are written.
 
-  -   **state**: The state of this ledger for writing. LedgerOpened means we have a ledger open for saving published messages.
+  -   **state**: The state of this ledger for writing. The state `LedgerOpened` means that a ledger is open for saving published messages.
 
-  -   **ledgers**: The ordered list of all ledgers for this topic holding its messages
+  -   **ledgers**: The ordered list of all ledgers for this topic holding messages.
 
-      -   **ledgerId**: Id of this ledger
+      -   **ledgerId**: Id of this ledger.
 
-      -   **entries**: Total number of entries belong to this ledger
+      -   **entries**: The total number of entries belong to this ledger.
 
-      -   **size**: Size of messages written to this ledger (in bytes)
+      -   **size**: The size of messages written to this ledger (in bytes).
 
-      -   **offloaded**: Whether this ledger is offloaded
+      -   **offloaded**: Whether this ledger is offloaded.
 
   -   **compactedLedger**: The ledgers holding un-acked messages after topic compaction.
  
-      -   **ledgerId**: Id of this ledger
+      -   **ledgerId**: The Id of this ledger.
      
-      -   **entries**: Total number of entries belong to this ledger
+      -   **entries**: The total number of entries belong to this ledger.
      
-      -   **size**: Size of messages written to this ledger (in bytes)
+      -   **size**: The size of messages written to this ledger (in bytes).
      
-      -   **offloaded**: Will always be false for compacted topic ledger.
+      -   **offloaded**: Whether this ledger is offloaded. The value is `false` for the compacted topic ledger.
       
-  -   **cursors**: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
+  -   **cursors**: The list of all cursors on this topic. Each subscription in the topic stats has a cursor.
 
-      -   **markDeletePosition**: All of messages before the markDeletePosition are acknowledged by the subscriber.
+      -   **markDeletePosition**: All messages before the markDeletePosition are acknowledged by the subscriber.
 
-      -   **readPosition**: The latest position of subscriber for reading message
+      -   **readPosition**: The latest position of subscriber for reading message.
 
-      -   **waitingReadOp**: This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.
+      -   **waitingReadOp**: This is true when the subscription has read the latest message published to the topic and is waiting for new messages to be published.
 
-      -   **pendingReadOps**: The counter for how many outstanding read requests to the BookKeepers we have in progress
+      -   **pendingReadOps**: The counter for how many outstanding read requests to the BookKeepers in progress.
 
-      -   **messagesConsumedCounter**: Number of messages this cursor has acked since this broker loaded this topic
+      -   **messagesConsumedCounter**: The number of messages this cursor has acked since this broker loaded this topic.
 
-      -   **cursorLedger**: The ledger being used to persistently store the current markDeletePosition
+      -   **cursorLedger**: The ledger being used to persistently store the current markDeletePosition.
 
-      -   **cursorLedgerLastEntry**: The last entryid used to persistently store the current markDeletePosition
+      -   **cursorLedgerLastEntry**: The last entryid used to persistently store the current markDeletePosition.
 
-      -   **individuallyDeletedMessages**: If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position
+      -   **individuallyDeletedMessages**: If Acks are being done out of order, the ranges of messages Acked between the markDeletePosition and the read-position shows.
 
-      -   **lastLedgerSwitchTimestamp**: The last time the cursor ledger was rolled over
+      -   **lastLedgerSwitchTimestamp**: The last time the cursor ledger is rolled over.
 
-      -   **state**: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.
+      -   **state**: The state of the cursor ledger: `Open` means you have a cursor ledger for saving updates of the markDeletePosition.
 
 The following is an example of the detailed statistics of a topic.
 
