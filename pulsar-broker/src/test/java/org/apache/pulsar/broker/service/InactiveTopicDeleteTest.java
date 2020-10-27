@@ -303,10 +303,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
-        //wait for init
-        Thread.sleep(2000);
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
+        //wait for init
+        Thread.sleep(3000);
 
         InactiveTopicPolicies inactiveTopicPolicies = admin.topics().getInactiveTopicPolicies(topicName);
         assertNull(inactiveTopicPolicies);
@@ -317,19 +317,19 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         policies.setMaxInactiveDurationSeconds(10);
         admin.topics().setInactiveTopicPolicies(topicName, policies);
         
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 10; i++) {
+            Thread.sleep(500);
             if (admin.topics().getInactiveTopicPolicies(topicName) != null) {
                 break;
             }
-            Thread.sleep(100);
         }
         assertEquals(admin.topics().getInactiveTopicPolicies(topicName), policies);
         admin.topics().removeInactiveTopicPolicies(topicName);
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 10; i++) {
+            Thread.sleep(500);
             if (admin.topics().getInactiveTopicPolicies(topicName) == null) {
                 break;
             }
-            Thread.sleep(100);
         }
         assertNull(admin.topics().getInactiveTopicPolicies(topicName));
 
@@ -348,8 +348,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 , 1000, true);
 
         super.baseSetup();
-        //wait for cache init
-        Thread.sleep(2000);
         final String namespace = "prop/ns-abc";
         final String topic = "persistent://prop/ns-abc/testTopicLevelInactivePolicy" + UUID.randomUUID().toString();
         final String topic2 = "persistent://prop/ns-abc/testTopicLevelInactivePolicy" + UUID.randomUUID().toString();
@@ -359,6 +357,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         for (String tp : topics) {
             admin.topics().createNonPartitionedTopic(tp);
         }
+        //wait for cache init
+        Thread.sleep(3000);
 
         InactiveTopicPolicies inactiveTopicPolicies =
                 new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
@@ -406,12 +406,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         //wait for zk
         Thread.sleep(1000);
         admin.topics().removeInactiveTopicPolicies(topic2);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getInactiveTopicPolicies(topic2) == null) {
-                break;
-            }
-            Thread.sleep(100);
-        }
+        // The cache has been updated, but the system-event may not be consumed yet
+        // ，so wait for topic-policies update event
+        Thread.sleep(2000);
         InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topic2, false).get().get()).inactiveTopicPolicies;
         assertEquals(nsPolicies.getMaxInactiveDurationSeconds(), 999);
