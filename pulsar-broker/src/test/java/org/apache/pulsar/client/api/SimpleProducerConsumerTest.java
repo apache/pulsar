@@ -3038,6 +3038,74 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testMultiTopicsConsumerImplPause() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/partition-topic";
+
+        admin.topics().createPartitionedTopic(topicName, 1);
+
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .create();
+
+        // 1. produce 5 messages
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes(UTF_8));
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(1)
+                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .subscriptionName("test-multi-topic-consumer").subscribe();
+
+        int counter = 0;
+        Message<byte[]> consumedMessage = consumer.receive(3, TimeUnit.SECONDS);
+        while(consumedMessage != null) {
+            assertEquals(consumedMessage.getData(), ("my-message-" + counter++ ).getBytes());
+            consumedMessage = consumer.receive(3, TimeUnit.SECONDS);
+        }
+        assertEquals(counter, 5);
+
+        // 2. pause multi-topic consumer
+        consumer.pause();
+
+        // 3. update partition
+        admin.topics().updatePartitionedTopic(topicName, 3);
+
+        // 4. wait for client to update partitions
+        Thread.sleep(5000);
+
+        // 5. produce 95 messages more
+        for (int i = 5; i < 100; i++) {
+            final String message = "my-message-" + i;
+            System.out.println("### " + producer.send(message.getBytes()));
+        }
+
+        while(consumer.receive(3, TimeUnit.SECONDS) != null) {
+            counter++;
+        }
+
+        assertTrue(counter < 100);
+        // 6. resume multi-topic consumer
+        consumer.resume();
+
+        // 7. continue consume
+        while(consumer.receive(3, TimeUnit.SECONDS) != null) {
+           counter++;
+        }
+        assertEquals(counter, 100);
+
+        producer.close();;
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     public void testFlushBatchEnabled() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
