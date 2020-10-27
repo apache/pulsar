@@ -48,11 +48,8 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class PendingAckHandleImpl implements PendingAckHandle {
 
-    // Map to keep track of message ack by each txn.
     private Map<TxnID, HashMap<PositionImpl, PositionImpl>> pendingIndividualAckMessagesMap;
 
-    // Messages acked by ongoing transaction, pending transaction commit to materialize the acks. For faster look up.
-    // Using hashset as a message should only be acked once by one transaction.
     private Map<PositionImpl, PositionImpl> pendingAckMessages;
 
     private Map<PositionImpl, HashSet<TxnID>> pendingAckBatchMessageMap;
@@ -159,17 +156,6 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (((ManagedCursorImpl) persistentSubscription.getCursor()).isMessageDeleted(position)) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " try to ack message:" + position + " already acked before.";
-                log.error(errorMsg);
-                positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
-                continue;
-            }
-
-            // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
-            // Acking single message within range of cumulative ack(if exist) is considered valid operation.
-            if (!position.hasAckSet() && pendingAckMessages.containsKey(position)) {
-
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " try to ack message:" + position + " in pending ack status.";
                 log.error(errorMsg);
                 positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
                 continue;

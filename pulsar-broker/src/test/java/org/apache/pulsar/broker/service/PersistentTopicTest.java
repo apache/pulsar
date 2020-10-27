@@ -571,7 +571,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testChangeSubscriptionType() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false );
+        PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
                 "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
