@@ -30,7 +30,6 @@ public class ResetCursorData {
     protected long entryId;
     protected int partitionIndex = -1;
     protected boolean isExcluded = false;
-    protected int batchIndex = -1;
 
     public ResetCursorData(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
@@ -44,16 +43,11 @@ public class ResetCursorData {
     }
 
     public ResetCursorData(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            this.ledgerId = batchMessageId.getLedgerId();
-            this.entryId = batchMessageId.getEntryId();
-            this.batchIndex = batchMessageId.getBatchIndex();
-        } else if (messageId instanceof MessageIdImpl) {
+        if (messageId instanceof MessageIdImpl) {
             MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             this.ledgerId = messageIdImpl.getLedgerId();
             this.entryId = messageIdImpl.getEntryId();
-        }  else if (messageId instanceof TopicMessageIdImpl) {
+        } else if (messageId instanceof TopicMessageIdImpl) {
             throw new IllegalArgumentException("Not supported operation on partitioned-topic");
         }
     }
