@@ -205,7 +205,7 @@ public abstract class BaseResource {
         } else if (e instanceof WebApplicationException) {
             // Handle 5xx exceptions
             if (e instanceof ServerErrorException) {
-                return new PulsarAdminException((WebApplicationException) e);
+                return new PulsarAdminException((WebApplicationException)e);
                 //ServerErrorException see = (ServerErrorException) e;
                 //return new ServerSideErrorException(see, e.getMessage());
             } else if (e instanceof ClientErrorException) {
