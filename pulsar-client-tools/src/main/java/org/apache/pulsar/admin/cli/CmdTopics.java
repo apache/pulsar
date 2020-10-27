@@ -560,20 +560,12 @@ public class CmdTopics extends CmdBase {
                 "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
         private String resetMessageIdStr;
 
-        @Parameter(names = { "-e", "--exclude-reset-position" },
-                description = "Exclude the reset position, start consume messages from the next position.", required = false)
-        private boolean excludeResetPosition = false;
-
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
-                if (excludeResetPosition) {
-                    topics.resetCursor(persistentTopic, subName, messageId, true);
-                } else {
-                    topics.resetCursor(persistentTopic, subName, messageId);
-                }
+                topics.resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
                 long resetTimeInMillis = TimeUnit.SECONDS
                         .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
