@@ -378,11 +378,12 @@ public class OffloadPolicies implements Serializable {
     /**
      * This method is used to make a compatible with old policies.
      *
-     * The filed {@link Policies#offload_threshold} is primitive, so it can't be known whether it had been set.
+     * <p>The filed {@link Policies#offload_threshold} is primitive, so it can't be known whether it had been set.
      * In the old logic, if the field value is -1, it could be thought that the field had not been set.
      *
      * @param nsLevelPolicies  namespace level offload policies
      * @param policies namespace policies
+     * @return offload policies
      */
     public static OffloadPolicies oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
         if (nsLevelPolicies == null) {
@@ -405,12 +406,11 @@ public class OffloadPolicies implements Serializable {
     /**
      * Merge different level offload policies.
      *
-     * policies level priority: topic > namespace > broker
+     * <p>policies level priority: topic > namespace > broker
      *
      * @param topicLevelPolicies topic level offload policies
      * @param nsLevelPolicies namesapce level offload policies
      * @param brokerProperties broker level offload configuration
-     *
      * @return offload policies
      */
     public static OffloadPolicies mergeConfiguration(OffloadPolicies topicLevelPolicies,
@@ -449,16 +449,16 @@ public class OffloadPolicies implements Serializable {
     /**
      * Make configurations of the OffloadPolicies compatible with the config file.
      *
-     * The names of the fields {@link OffloadPolicies#managedLedgerOffloadDeletionLagInMillis}
+     * <p>The names of the fields {@link OffloadPolicies#managedLedgerOffloadDeletionLagInMillis}
      * and {@link OffloadPolicies#managedLedgerOffloadThresholdInBytes} are not matched with
      * config file (broker.conf or standalone.conf).
      *
-     * @param properties
-     * @param field
-     * @return
+     * @param properties broker configuration properties
+     * @param field filed
+     * @return field value
      */
     private static Object getCompatibleValue(Properties properties, Field field) {
-        Object object = null;
+        Object object;
         if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
             object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
                     properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
