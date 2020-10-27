@@ -297,14 +297,11 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 60000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
-        super.resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
-        //wait for init
-        Thread.sleep(2000);
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
 
@@ -336,7 +333,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 60000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
         super.resetConfig();
         conf.setSystemTopicEnabled(true);
