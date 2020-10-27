@@ -1,20 +1,20 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one	
- * or more contributor license agreements.  See the NOTICE file	
- * distributed with this work for additional information	
- * regarding copyright ownership.  The ASF licenses this file	
- * to you under the Apache License, Version 2.0 (the	
- * "License"); you may not use this file except in compliance	
- * with the License.  You may obtain a copy of the License at	
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0	
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,	
- * software distributed under the License is distributed on an	
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY	
- * KIND, either express or implied.  See the License for the	
- * specific language governing permissions and limitations	
- * under the License.	
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.pulsar.broker.namespace;
 
@@ -124,7 +124,7 @@ public class OwnerShipForCurrentServerTestBase {
     }
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
-        // Override default providers with mocked ones	
+        // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
 
@@ -156,7 +156,7 @@ public class OwnerShipForCurrentServerTestBase {
         return spy(new NonClosableMockBookKeeper(zookeeper, executor));
     }
 
-    // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test	
+    // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
     public static class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
         public NonClosableMockBookKeeper(ZooKeeper zk, ExecutorService executor) throws Exception {
@@ -165,12 +165,12 @@ public class OwnerShipForCurrentServerTestBase {
 
         @Override
         public void close() {
-            // no-op	
+            // no-op
         }
 
         @Override
         public void shutdown() {
-            // no-op	
+            // no-op
         }
 
         public void reallyShutdown() {
@@ -183,7 +183,7 @@ public class OwnerShipForCurrentServerTestBase {
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                                                    int zkSessionTimeoutMillis) {
-            // Always return the same instance (so that we don't loose the mock ZK content on broker restart	
+            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
             return CompletableFuture.completedFuture(mockZooKeeper);
         }
     };
@@ -194,7 +194,7 @@ public class OwnerShipForCurrentServerTestBase {
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties) {
-            // Always return the same instance (so that we don't loose the mock BK content on broker restart	
+            // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
 
@@ -202,20 +202,20 @@ public class OwnerShipForCurrentServerTestBase {
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties, StatsLogger statsLogger) {
-            // Always return the same instance (so that we don't loose the mock BK content on broker restart	
+            // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
 
         @Override
         public void close() {
-            // no-op	
+            // no-op
         }
     };
 
     protected final void internalCleanup() {
         try {
-            // if init fails, some of these could be null, and if so would throw	
-            // an NPE in shutdown, obscuring the real error	
+            // if init fails, some of these could be null, and if so would throw
+            // an NPE in shutdown, obscuring the real error
             if (admin != null) {
                 admin.close();
                 admin = null;
