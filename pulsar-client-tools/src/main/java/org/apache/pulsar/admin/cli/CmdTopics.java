@@ -74,6 +74,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
+        jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("unload", new UnloadCmd());
@@ -260,6 +261,18 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             print(admin.lookups().lookupTopic(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
+    private class PartitionedLookup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/partitionedTopic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            print(admin.lookups().lookupPartitionedTopic(topic));
         }
     }
 

@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
- * A generic schema representation.
+ * A generic schema representation for AvroBasedGenericSchema .
+ * warning :
+ * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
  */
 public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
@@ -56,7 +58,7 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
 
     /**
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
-     *
+     *  warning : we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
@@ -64,6 +66,13 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
         return of(schemaInfo, true);
     }
 
+    /**
+     * warning :
+     * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
+     * @param schemaInfo
+     * @param useProvidedSchemaAsReaderSchema
+     * @return
+     */
     public static GenericSchemaImpl of(SchemaInfo schemaInfo,
                                        boolean useProvidedSchemaAsReaderSchema) {
         switch (schemaInfo.getType()) {

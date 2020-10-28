@@ -133,6 +133,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
+    public boolean cacheIsInitialized(TopicName topicName) {
+        return policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && policyCacheInitMap.get(topicName.getNamespaceObject());
+    }
+
+    @Override
     public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
         if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
                 && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
