@@ -16,26 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+syntax = "proto2";
 
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarTransaction.PendingAckMetadataEntry;
+package pulsar.proto;
+option java_package = "org.apache.pulsar.common.api.proto";
+option optimize_for = LITE_RUNTIME;
 
-/**
- * Call back for pending ack reply.
- */
-public interface PendingAckReplyCallBack {
+enum TransactionAckType {
+  Individual = 0;
+  Cumulative = 1;
+}
 
-    /**
-     * Pending ack replay complete callback for pending ack store.
-     */
-    void replayComplete();
-
-    /**
-     * Handle metadata entry.
-     *
-     * @param position {@link Position} the pending ack operation position
-     * @param pendingAckMetadataEntry {@link PendingAckMetadataEntry} the metadata entry of pending ack
-     */
-    void handleMetadataEntry(Position position, PendingAckMetadataEntry pendingAckMetadataEntry);
+message PendingAckMetadataEntry {
+  required uint64 txnid_least_bits                = 1 [default = 0];
+  required uint64 txnid_most_bits                 = 2 [default = 0];
+  optional TransactionAckType ack_type            = 3;
+  required int64 ledger_id                        = 4;
+  required int64 entry_id                         = 5;
+  repeated int64 ack_set                          = 6;
 }

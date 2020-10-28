@@ -33,7 +33,7 @@ public interface TransactionPendingAckStoreProvider {
     /**
      * Construct a provider from the provided class.
      *
-     * @param providerClassName the provider class name
+     * @param providerClassName {@link String} the provider class name
      * @return an instance of transaction buffer provider.
      */
     static TransactionPendingAckStoreProvider newProvider(String providerClassName) throws IOException {

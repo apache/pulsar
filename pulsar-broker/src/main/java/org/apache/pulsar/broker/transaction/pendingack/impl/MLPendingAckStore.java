@@ -37,7 +37,9 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.PendingAckMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarTransaction;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionAckType;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.PendingAckMetadataEntry;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -115,7 +117,7 @@ public class MLPendingAckStore implements PendingAckStore {
             pendingIndividualAckPersistentMap = new ConcurrentOpenHashMap<>();
         }
         PendingAckMetadataEntry.Builder builder = PendingAckMetadataEntry.newBuilder();
-        builder.setAckType(ackType);
+        builder.setAckType(PulsarTransaction.TransactionAckType.valueOf(ackType.getNumber()));
         builder.setTxnidLeastBits(txnID.getLeastSigBits());
         builder.setTxnidMostBits(txnID.getMostSigBits());
         builder.setLedgerId(position.getLedgerId());

@@ -23,7 +23,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.PendingAckMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.PendingAckMetadataEntry;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -73,7 +73,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                     SafeCollectionUtils.longListToArray(pendingAckMetadataEntry.getAckSetList()));
         }
 
-        if (pendingAckMetadataEntry.getAckType() == AckType.Cumulative) {
+        if (pendingAckMetadataEntry.getAckType().getNumber() == AckType.Cumulative.getNumber()) {
             this.mlPendingAckStore.pendingCumulativeAckPosition = new KeyValue<>(txnID, position);
         } else {
             if (this.mlPendingAckStore.pendingIndividualAckPersistentMap == null) {
@@ -84,7 +84,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                             .computeIfAbsent(txnID, t -> new ConcurrentOpenHashSet<>());
             positions.add(position);
         }
-        this.pendingAckHandle.handleMetadataEntry(txnID, opPosition, pendingAckMetadataEntry.getAckType());
+        this.pendingAckHandle.handleMetadataEntry(txnID, opPosition, AckType.valueOf(pendingAckMetadataEntry.getAckType().getNumber()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckReplyCallBack.class);
