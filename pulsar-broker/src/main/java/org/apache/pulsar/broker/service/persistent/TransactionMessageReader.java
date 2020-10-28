@@ -99,7 +99,6 @@ public class TransactionMessageReader {
                     for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdList()) {
                         positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
                     }
-                    positionList.add(PositionImpl.get(abortEntry.getLedgerId(), abortEntry.getEntryId()));
                 } catch (IOException e) {
                     log.error("Failed to parse abort marker.", e);
                 }
