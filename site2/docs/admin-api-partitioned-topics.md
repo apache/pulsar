@@ -16,7 +16,6 @@ By default, after 60 seconds of creation, topics are considered inactive and del
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create partitioned topics in the following ways.
-
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 When you create partitioned topics with the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
@@ -146,7 +145,6 @@ admin.topics().delete(topic);
 
 ### List
 You can get the list of topics under a given namespace in the following ways.  
-
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
