@@ -124,9 +124,9 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.11.4</protobuf3.version>
-    <protoc3.version>3.11.4</protoc3.version>
+    <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
-    <protoc-gen-grpc-java.version>1.12.0</protoc-gen-grpc-java.version>
+    <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.2</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
@@ -185,7 +185,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.11.2</testcontainers.version>
+    <testcontainers.version>1.14.3</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>6.14.3</testng.version>
     <mockito.version>2.28.2</mockito.version>
@@ -801,6 +801,14 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-bom</artifactId>
+        <version>${protobuf3.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
