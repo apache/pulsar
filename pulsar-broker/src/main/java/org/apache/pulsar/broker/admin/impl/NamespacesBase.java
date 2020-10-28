@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
@@ -2766,11 +2767,7 @@ public abstract class NamespacesBase extends AdminResource {
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (policies.offload_policies == null) {
-                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
-                if (policies.offload_deletion_lag_ms != null) {
-                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
-                }
+                policies.offload_policies = new OffloadPolicies();
             }
             policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
@@ -2817,13 +2814,8 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-
             if (policies.offload_policies == null) {
-                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
-                if (policies.offload_threshold != -1) {
-                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
-                }
+                policies.offload_policies = new OffloadPolicies();
             }
             policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
             policies.offload_deletion_lag_ms = newDeletionLagMs;
@@ -2964,15 +2956,14 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null && OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS == null
-                    || offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() != null
-                    && offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+            if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
+                    OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                 offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
             } else {
                 policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
             }
-            if (offloadPolicies.getManagedLedgerOffloadThresholdInBytes() ==
-                    OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) {
+            if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
+                    OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
                 offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
             } else {
                 policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();

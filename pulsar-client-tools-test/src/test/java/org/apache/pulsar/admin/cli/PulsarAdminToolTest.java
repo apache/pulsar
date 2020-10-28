@@ -544,7 +544,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024, 10000L));
+                        10L * 1024 * 1024, 10000L));
 
         namespaces.run(split("get-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
