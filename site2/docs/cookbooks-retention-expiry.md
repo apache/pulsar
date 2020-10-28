@@ -27,37 +27,38 @@ Pulsar's [admin interface](admin-api-overview.md) enables you to manage both ret
 
 ## Retention policies
 
-By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged on all subscriptions, at which point it will be marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention is based on both a *size limit* and a *time limit*.
+By default, when a Pulsar message arrives at a broker, the message is stored until it has been acknowledged on all subscriptions, at which point it is marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention is based on both a *size limit* and a *time limit*.
 
-Retention policies are particularly useful if you intend to exclusively use the Reader interface. Because the Reader interface does not use acknowledgements, messages will never exist within backlogs. Most realistic Reader-only use cases require that retention be configured.
+Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a retention policy you must set **both** a *size limit* and a *time limit*. In the case where you don't want to limit by either time or set, the value must be set to `-1`. Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged messages when either size or time limit is set to `0`. Infinite retention can be achieved by setting both time and size limits to `-1`.
+When you set a retention policy, you must set **both** a *size limit* and a *time limit*. 
 
-When you set a size limit of, say, 10 gigabytes, and the time limit to `-1` then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, and the size limit to `-1` then acknowledged messages for all topics in the namespace will be retained for 24 hours.
+- If you do not want to limit the message by time, set the value of time limit to `-1`.
+- If you do not want to limit the message by size, set the value of size limit to `-1`.
+- If you need infinite retention, set the values of time limit and size limit to `-1`.
+- If you want to disable retention policy, set the values of time limit and size limit to `0`. Retention policy is disabled by default.
 
-The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).
+When you set a size limit of, for example, 10 gigabytes, and set the time limit to `-1`, then the acknowledged messages in all topics in the namespace are retained until the topic size reaches the limit(10 gigabytes). If you set a time limit of, for example, 1 day, and set the size limit to `-1`, then the acknowledged messages for all topics in the namespace are retained for 24 hours.
+
+The retention settings apply to all messages on topics that do not have any subscriptions, or to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions. The unacknowledged messages are controlled by the backlog quota.
 
 When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
 
 ### Defaults
 
-There are two configuration parameters that you can use to set [instance](reference-terminology.md#instance)-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
+You can use the following two configuration parameters to set [instance](reference-terminology.md#instance)-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
 
 Both of these parameters are in the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
 ### Set retention policy
 
-You can set a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit.
+You can set a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit in `pulsar-admin`, REST API and Java.
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
-Use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
-
-You must set **both** a *size limit* and a *time limit*. In the case where you don't want to limit by either time or set, the value must be set to `-1`. Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged messages when either size or time limit is set to 0.
-
-##### Examples
-
-To set a size limit of 10 gigabytes and a time limit of 3 hours for the `my-tenant/my-ns` namespace:
+In the following example, size limit is set to 10 gigabytes and time limit is set to 3 hours for the `my-tenant/my-ns` namespace:
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -65,7 +66,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-To set retention where time limit is ignored and the size limit of 1 terabyte determines retention:
+In the following example, time is not limited and size limit is set to 1 terabyte. The size limit determines the retention result.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -73,7 +74,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
-To set retention where size limit is ignored and the time limit of 3 hours determines retention:
+In the following example, size is not limited and time limit is set to 3 hours. The time limit determines the retention result.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -81,7 +82,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-To set infinite retention:
+To set infinite retention, set both values to `-1`.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -89,7 +90,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
-To disable the retention policy
+To disable the retention policy, set both values to `0`.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -97,19 +98,18 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 0
 ```
 
-
-#### REST API
-
+<!--REST API-->
 {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
 
-#### Java
-
+<!--Java-->
 ```java
 int retentionTime = 10; // 10 minutes
 int retentionSize = 500; // 500 megabytes
 RetentionPolicies policies = new RetentionPolicies(retentionTime, retentionSize);
 admin.namespaces().setRetention(namespace, policies);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get retention policy
 
