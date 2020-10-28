@@ -80,6 +80,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -3064,12 +3065,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
-        Message<byte[]> consumedMessage = consumer.receive(3, TimeUnit.SECONDS);
-        while(consumedMessage != null) {
-            assertEquals(consumedMessage.getData(), ("my-message-" + counter++ ).getBytes());
-            consumedMessage = consumer.receive(3, TimeUnit.SECONDS);
+        for (; counter < 5; counter ++) {
+            assertEquals(consumer.receive().getData(), ("my-message-" + counter).getBytes());
         }
-        assertEquals(counter, 5);
 
         // 2. pause multi-topic consumer
         consumer.pause();
@@ -3078,19 +3076,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName, 3);
 
         // 4. wait for client to update partitions
-        Thread.sleep(5000);
+        while(((MultiTopicsConsumerImpl)consumer).getConsumers().size() <= 1) {
+            Thread.sleep(1);
+        }
 
-        // 5. produce 95 messages more
-        for (int i = 5; i < 100; i++) {
+        // 5. produce 5 messages more
+        for (int i = 5; i < 10; i++) {
             final String message = "my-message-" + i;
-            System.out.println("### " + producer.send(message.getBytes()));
+            producer.send(message.getBytes());
         }
 
         while(consumer.receive(3, TimeUnit.SECONDS) != null) {
             counter++;
         }
 
-        assertTrue(counter < 100);
+        assertTrue(counter < 10);
         // 6. resume multi-topic consumer
         consumer.resume();
 
@@ -3098,7 +3098,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         while(consumer.receive(3, TimeUnit.SECONDS) != null) {
            counter++;
         }
-        assertEquals(counter, 100);
+        assertEquals(counter, 10);
 
         producer.close();;
         consumer.close();
