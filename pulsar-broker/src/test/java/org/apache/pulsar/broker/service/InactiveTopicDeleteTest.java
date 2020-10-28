@@ -329,7 +329,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         }
         assertEquals(admin.topics().getInactiveTopicPolicies(topicName), policies);
         admin.topics().removeInactiveTopicPolicies(topicName);
-        for (int i = 0; i <50; i++) {
+        for (int i = 0; i < 50; i++) {
             if (admin.topics().getInactiveTopicPolicies(topicName) == null) {
                 break;
             }
