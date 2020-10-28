@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -63,8 +64,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void testDuplicationApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
-        waitCacheInit(topicName);
         admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
         Boolean enabled = admin.topics().getDeduplicationEnabled(topicName);
         assertNull(enabled);
 
@@ -91,8 +92,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
         final int maxMsgNum = 100;
-        waitCacheInit(topicName);
         admin.topics().createPartitionedTopic(testTopic, 3);
+        waitCacheInit(topicName);
         //1) Start up producer and send msg.We specified the max sequenceId
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
@@ -142,18 +143,10 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void waitCacheInit(String topicName) throws Exception {
-        for (int i = 0; i < 50; i++) {
-            //wait for server init
-            Thread.sleep(3000);
-            try {
-                admin.topics().getDeduplicationEnabled(topicName);
-                break;
-            } catch (Exception e) {
-                //ignore
-            }
-            if (i == 49) {
-                throw new RuntimeException("Waiting for cache initialization has timed out");
-            }
+        pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
+        TopicName topic = TopicName.get(topicName);
+        while (!pulsar.getTopicPoliciesService().cacheIsInitialized(topic)){
+            Thread.sleep(500);
         }
     }
 
