@@ -46,7 +46,7 @@ public class GenericProtobufNativeReaderTest {
     }
 
     @Test
-    public void testGenericAvroReaderByClazzBasedWriterSchema() {
+    public void testGenericReaderByClazzBasedWriterSchema() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
         GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());
         GenericRecord genericRecordByWriterSchema = genericProtobufNativeReader.read(message.toByteArray());
