@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
@@ -696,4 +697,86 @@ public class KubernetesRuntimeTest {
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
+
+    InstanceConfig createGolangInstanceConfig() {
+        InstanceConfig config = new InstanceConfig();
+
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.GO, false));
+        config.setFunctionId(java.util.UUID.randomUUID().toString());
+        config.setFunctionVersion("1.0");
+        config.setInstanceId(0);
+        config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
+
+        return config;
+    }
+
+    @Test
+    public void testGolangConstructor() throws Exception {
+        InstanceConfig config = createGolangInstanceConfig();
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+
+        verifyGolangInstance(config);
+    }
+
+    private void verifyGolangInstance(InstanceConfig config) throws Exception {
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        List<String> args = container.getProcessArgs();
+
+        int totalArgs = 8;
+
+        assertEquals(args.size(), totalArgs,
+                "Actual args : " + StringUtils.join(args, " "));
+
+        HashMap goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$", ""), HashMap.class);
+
+        assertEquals(args.get(0), "chmod");
+        assertEquals(args.get(1), "777");
+        assertEquals(args.get(2), pulsarRootDir + "/" + userJarFile);
+        assertEquals(args.get(3), "&&");
+        assertEquals(args.get(4), "exec");
+        assertEquals(args.get(5), pulsarRootDir + "/" + userJarFile);
+        assertEquals(args.get(6), "-instance-conf");
+        assertEquals(goInstanceConfig.get("maxBufTuples"), 1024);
+        assertEquals(goInstanceConfig.get("maxMessageRetries"), 0);
+        assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
+        assertEquals(goInstanceConfig.get("parallelism"), 0);
+        assertEquals(goInstanceConfig.get("className"), "");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://sample/standalone/ns1/test_src");
+        assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
+        assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
+        assertEquals(goInstanceConfig.get("clusterName"), "standalone");
+        assertEquals(goInstanceConfig.get("nameSpace"), TEST_NAMESPACE);
+        assertEquals(goInstanceConfig.get("receiverQueueSize"), 0);
+        assertEquals(goInstanceConfig.get("tenant"), TEST_TENANT);
+        assertEquals(goInstanceConfig.get("logTopic"), TEST_NAME + "-log");
+        assertEquals(goInstanceConfig.get("processingGuarantees"), 0);
+        assertEquals(goInstanceConfig.get("autoAck"), false);
+        assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
+        assertEquals(goInstanceConfig.get("pulsarServiceURL"), pulsarServiceUrl);
+        assertEquals(goInstanceConfig.get("runtime"), 0);
+        assertEquals(goInstanceConfig.get("cpu"), 1.0);
+        assertEquals(goInstanceConfig.get("funcVersion"), "1.0");
+        assertEquals(goInstanceConfig.get("disk"), 10000);
+        assertEquals(goInstanceConfig.get("instanceID"), 0);
+        assertEquals(goInstanceConfig.get("cleanupSubscription"), false);
+        assertEquals(goInstanceConfig.get("port"), 0);
+        assertEquals(goInstanceConfig.get("subscriptionType"), 0);
+        assertEquals(goInstanceConfig.get("timeoutMs"), 0);
+        assertEquals(goInstanceConfig.get("subscriptionName"), "");
+        assertEquals(goInstanceConfig.get("name"), TEST_NAME);
+        assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
+        assertEquals(goInstanceConfig.get("deadLetterTopic"), "");
+
+        // check padding and xmx
+        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
+        assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(),
+                Math.round(RESOURCES.getRam() + (RESOURCES.getRam() * 0.1)));
+
+        // check cpu
+        assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+        assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+    }
+
 }
