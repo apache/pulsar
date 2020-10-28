@@ -115,4 +115,9 @@ public interface Dispatcher {
     default void acknowledgementWasProcessed() {
         // No-op
     }
+
+    default void addMessageToRedelivery(long ledgerId, long entryId) {
+        // No-op
+    }
+
 }

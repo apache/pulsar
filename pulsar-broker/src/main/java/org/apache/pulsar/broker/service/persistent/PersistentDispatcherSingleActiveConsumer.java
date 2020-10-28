@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
+import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +77,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final ServiceConfiguration serviceConfig;
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
+    LongPairSet messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
     private final RedeliveryTracker redeliveryTracker;
+    private volatile boolean havePendingReplayRead = false;
 
     private TransactionMessageReader transactionMessageReader;
 
@@ -90,8 +95,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
         this.transactionMessageReader = new TransactionMessageReader(
-                (ManagedLedgerImpl) topic.getManagedLedger(), subscription,
-                topic.getBrokerService().getPulsar().getOrderedExecutor());
+                subscription, this, topic.getBrokerService().getPulsar().getOrderedExecutor());
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -192,6 +196,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }
 
         havePendingRead = false;
+        if (havePendingReplayRead) {
+            entries.forEach(entry -> {
+                messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId());
+            });
+            havePendingReplayRead = false;
+        }
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
@@ -450,8 +460,21 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
             havePendingRead = true;
 
-            if (transactionMessageReader.havePendingTxnToRead()) {
-                transactionMessageReader.read(messagesToRead, consumer, this);
+            if (havePendingReplayRead) {
+                if (log.isDebugEnabled()) {
+                    log.debug("have pending replay read");
+                }
+                return;
+            }
+
+            if (messagesToRedeliver.size() > 0) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Schedule replay of {} messages", name, messagesToRedeliver.size());
+                }
+
+                havePendingReplayRead = true;
+                Set<PositionImpl> positionSet = messagesToRedeliver.items(messagesToRead, PositionImpl::get);
+                cursor.asyncReplayEntries(positionSet, this, consumer, true);
             } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
@@ -557,6 +580,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
         return disconnectAllConsumers();
+    }
+
+    @Override
+    public void addMessageToRedelivery(long ledgerId, long entryId) {
+        this.messagesToRedeliver.add(ledgerId, entryId);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

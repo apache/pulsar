@@ -110,11 +110,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
         TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
         log.info("transactionBuffer init finish.");
 
-        sendNormalMessages(producer, 0, messageCntBeforeTxn);
+        List<String> sendMessageList = new ArrayList<>();
+        sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
         // append messages to TB
         List<PulsarApi.MessageIdData> txnMessageIdList =
-                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt);
-        sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn);
+                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
+        sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
         Message<byte[]> message;
         for (int i = 0; i < totalMsgCnt; i++) {
@@ -154,15 +155,76 @@ public class TransactionConsumeTest extends TransactionTestBase {
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
 
-    private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt, int messageCnt)
+    @Test
+    public void sortedTest() throws Exception {
+        int messageCntBeforeTxn = 10;
+        int transactionMessageCnt = 10;
+        int messageCntAfterTxn = 10;
+        int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(CONSUME_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("exclusive-test")
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("shared-test")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        long mostSigBits = 2L;
+        long leastSigBits = 5L;
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(CONSUME_TOPIC, false).get().get();
+        TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
+        log.info("transactionBuffer init finish.");
+
+        List<String> sendMessageList = new ArrayList<>();
+        sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
+        // append messages to TB
+        List<PulsarApi.MessageIdData> txnMessageIdList =
+                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
+        transactionBuffer.commitTxn(txnID, txnMessageIdList).get();
+        log.info("Commit txn.");
+        sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
+
+        Message<byte[]> message;
+        for (int i = 0; i < totalMsgCnt; i++) {
+            message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
+            log.info("Receive exclusive normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+            message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
+            log.info("Receive shared normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+        }
+        log.info("TransactionConsumeTest sortedTest finish.");
+    }
+
+    private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt,
+                                    int messageCnt, List<String> sendMessageList)
             throws PulsarClientException {
         for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage().value((NORMAL_MSG_CONTENT + (startMsgCnt + i)).getBytes(UTF_8)).send();
+            String msg = NORMAL_MSG_CONTENT + (startMsgCnt + i);
+            sendMessageList.add(msg);
+            producer.newMessage().value(msg.getBytes(UTF_8)).send();
         }
     }
 
     private List<PulsarApi.MessageIdData> appendTransactionMessages(
-            TxnID txnID, TransactionBuffer tb, int transactionMsgCnt) throws ExecutionException, InterruptedException {
+            TxnID txnID, TransactionBuffer tb, int transactionMsgCnt,
+            List<String> sendMessageList) throws ExecutionException, InterruptedException {
         List<PulsarApi.MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
             PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
@@ -172,9 +234,11 @@ public class TransactionConsumeTest extends TransactionTestBase {
             builder.setTxnidLeastBits(txnID.getLeastSigBits());
             builder.setPublishTime(System.currentTimeMillis());
 
+            String msg = TXN_MSG_CONTENT + i;
+            sendMessageList.add(msg);
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, builder.build(),
-                    Unpooled.copiedBuffer((TXN_MSG_CONTENT + i).getBytes(UTF_8)));
+                    Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
             PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, headerAndPayload).get();
             positionList.add(PulsarApi.MessageIdData.newBuilder()
                     .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()).build());

@@ -18,31 +18,23 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import com.beust.jcommander.internal.Sets;
-import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.FutureUtil;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executor;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 
 /**
  * Transaction message reader.
@@ -50,104 +42,49 @@ import java.util.concurrent.Executor;
 @Slf4j
 public class TransactionMessageReader {
 
-    private ManagedLedgerImpl managedLedger;
-    private Subscription subscription;
-    private Executor executor;
+    private final Subscription subscription;
+    private final Dispatcher dispatcher;
+    private final Executor executor;
 
-    private final ConcurrentLinkedQueue<Entry> commitMarkerQueue;
-    private final Set<PositionImpl> pendingReadPosition;
+    private final ConcurrentLongPairSet pendingReadPosition;
     private final ArrayList<Entry> abortMarkerList;
 
-    public TransactionMessageReader(ManagedLedgerImpl managedLedger, Subscription subscription, Executor executor) {
-        this.managedLedger = managedLedger;
+    public TransactionMessageReader(Subscription subscription,
+                                    Dispatcher dispatcher, Executor executor) {
         this.subscription = subscription;
+        this.dispatcher = dispatcher;
         this.executor = executor;
-        this.commitMarkerQueue = Queues.newConcurrentLinkedQueue();
-        this.pendingReadPosition = Sets.newHashSet();
+        this.pendingReadPosition = new ConcurrentLongPairSet(256, 1);
         this.abortMarkerList = new ArrayList<>();
-    }
-
-    public boolean havePendingTxnToRead() {
-        return commitMarkerQueue.size() > 0;
-    }
-
-    /**
-     * Read transaction messages.
-     *
-     * @param readMessageNum messages num to read
-     * @param ctx context object
-     * @param readEntriesCallback ReadEntriesCallback
-     */
-    public void read(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        Entry commitEntry = commitMarkerQueue.peek();
-        if (commitEntry == null) {
-            log.warn("Commit entry is null.");
-            readEntriesCallback.readEntriesComplete(Collections.emptyList(), ctx);
-            return;
-        }
-        ByteBuf byteBuf = commitEntry.getDataBuffer();
-        Commands.parseMessageMetadata(byteBuf);
-        PulsarMarkers.TxnCommitMarker commitMarker = null;
-        try {
-            commitMarker = Markers.parseCommitMarker(byteBuf);
-        } catch (IOException e) {
-            log.error("Failed to parse commit marker.", e);
-            readEntriesCallback.readEntriesFailed(
-                    ManagedLedgerException.getManagedLedgerException(
-                            new Exception("Failed to parse commit marker.")), ctx);
-            return;
-        }
-
-        final List<Entry> entryList = new ArrayList<>();
-        List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
-        for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdList()) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            completableFutureList.add(future);
-            managedLedger.asyncReadEntry(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()),
-                    new AsyncCallbacks.ReadEntryCallback() {
-                        @Override
-                        public void readEntryComplete(Entry entry, Object ctx) {
-                            entryList.add(entry);
-                            future.complete(null);
-                        }
-
-                        @Override
-                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                            future.completeExceptionally(exception);
-                        }
-                    }, null);
-        }
-        FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.error("Failed to read transaction messages.", throwable);
-                readEntriesCallback.readEntriesFailed(
-                        ManagedLedgerException.getManagedLedgerException(
-                                new Exception("Failed to read transaction messages.")), ctx);
-                return;
-            }
-            for (Entry entry : entryList) {
-                pendingReadPosition.add(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-            }
-            commitMarkerQueue.remove(commitEntry);
-            commitEntry.release();
-            readEntriesCallback.readEntriesComplete(entryList, ctx);
-        });
     }
 
     public boolean shouldSendToConsumer(PulsarApi.MessageMetadata msgMetadata, Entry entry,
                                             List<Entry> entries, int entryIndex) {
-        if (pendingReadPosition.remove(
-                PositionImpl.get(entries.get(entryIndex).getLedgerId(), entries.get(entryIndex).getEntryId()))) {
+        if (pendingReadPosition.remove(entries.get(entryIndex).getLedgerId(), entries.get(entryIndex).getEntryId())) {
             return true;
         }
         if (Markers.isTxnCommitMarker(msgMetadata)) {
-            commitMarkerQueue.add(entry);
+            getTransactionPositionList(entry);
         } else if (Markers.isTxnAbortMarker(msgMetadata)) {
             abortMarkerList.add(entry);
             handleAbort();
         }
         entries.set(entryIndex, null);
         return false;
+    }
+
+    private void getTransactionPositionList(Entry entry) {
+        try {
+            ByteBuf byteBuf = entry.getDataBuffer();
+            Commands.skipMessageMetadata(byteBuf);
+            PulsarMarkers.TxnCommitMarker commitMarker = Markers.parseCommitMarker(byteBuf);
+            for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdList()) {
+                pendingReadPosition.add(messageIdData.getLedgerId(), messageIdData.getEntryId());
+                dispatcher.addMessageToRedelivery(messageIdData.getLedgerId(), messageIdData.getEntryId());
+            }
+        } catch (IOException e) {
+            log.error("Failed to get transaction message id list.", e);
+        }
     }
 
     private void handleAbort() {

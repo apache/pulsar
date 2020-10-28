@@ -125,8 +125,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
         this.transactionMessageReader = new TransactionMessageReader(
-                (ManagedLedgerImpl) topic.getManagedLedger(), subscription,
-                topic.getBrokerService().getPulsar().getOrderedExecutor());
+                subscription, this, topic.getBrokerService().getPulsar().getOrderedExecutor());
     }
 
     @Override
@@ -343,8 +342,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (transactionMessageReader.havePendingTxnToRead()) {
-                transactionMessageReader.read(messagesToRead, ReadType.Normal, this);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -635,7 +632,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     /**
-     * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
+     * returns true only if {@link AbstractDispatcherMultipleConsumers#consumerList}
+     * has atleast one unblocked consumer and have available permits
      *
      * @return
      */
@@ -811,6 +809,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
             this.lastIndividualDeletedRangeFromCursorRecovery = null;
         }
+    }
+
+    @Override
+    public void addMessageToRedelivery(long ledgerId, long entryId) {
+        this.messagesToRedeliver.add(ledgerId, entryId);
     }
 
     public PersistentTopic getTopic() {

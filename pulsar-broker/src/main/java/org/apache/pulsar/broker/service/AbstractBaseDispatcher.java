@@ -74,6 +74,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         long totalBytes = 0;
         int totalChunkedMessages = 0;
 
+        boolean afterTxnCommitMarker = false;
+
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -86,6 +88,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             try {
                 if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                    if (!afterTxnCommitMarker && Markers.isTxnCommitMarker(msgMetadata)) {
+                        afterTxnCommitMarker = true;
+                    }
                     if (!transactionMessageReader.shouldSendToConsumer(msgMetadata, entry, entries, i)) {
                         continue;
                     }
@@ -105,6 +110,11 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 } else if (msgMetadata.hasDeliverAtTime()
                         && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                     // The message is marked for delayed delivery. Ignore for now.
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
+                } else if (afterTxnCommitMarker) {
+                    addMessageToRedelivery(entry.getLedgerId(), entry.getEntryId());
                     entries.set(i, null);
                     entry.release();
                     continue;
