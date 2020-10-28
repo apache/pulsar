@@ -320,20 +320,20 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         policies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         policies.setMaxInactiveDurationSeconds(10);
         admin.topics().setInactiveTopicPolicies(topicName, policies);
-        
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(500);
+
+        for (int i = 0; i < 50; i++) {
             if (admin.topics().getInactiveTopicPolicies(topicName) != null) {
                 break;
             }
+            Thread.sleep(100);
         }
         assertEquals(admin.topics().getInactiveTopicPolicies(topicName), policies);
         admin.topics().removeInactiveTopicPolicies(topicName);
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(500);
+        for (int i = 0; i <50; i++) {
             if (admin.topics().getInactiveTopicPolicies(topicName) == null) {
                 break;
             }
+            Thread.sleep(100);
         }
         assertNull(admin.topics().getInactiveTopicPolicies(topicName));
 
@@ -361,8 +361,14 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         for (String tp : topics) {
             admin.topics().createNonPartitionedTopic(tp);
         }
-        //wait for cache init
-        Thread.sleep(3000);
+        for (String tp : topics) {
+            //wait for cache
+            pulsarClient.newConsumer().topic(tp).subscriptionName("my-sub").subscribe().close();
+            TopicName topicName = TopicName.get(tp);
+            while (!pulsar.getTopicPoliciesService().cacheIsInitialized(topicName)) {
+                Thread.sleep(500);
+            }
+        }
 
         InactiveTopicPolicies inactiveTopicPolicies =
                 new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
@@ -387,14 +393,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         assertEquals(policies, admin.topics().getInactiveTopicPolicies(topic));
 
         admin.topics().removeInactiveTopicPolicies(topic);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getInactiveTopicPolicies(topic) == null) {
-                break;
-            }
-            Thread.sleep(100);
-        }
         //Only the broker-level policies is set, so after removing the topic-level policies
         // , the topic will use the broker-level policies
+        Thread.sleep(1000);
         assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies
                 , defaultPolicy);
 
@@ -412,7 +413,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().removeInactiveTopicPolicies(topic2);
         // The cache has been updated, but the system-event may not be consumed yet
         // ，so wait for topic-policies update event
-        Thread.sleep(2000);
+        Thread.sleep(1000);
         InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topic2, false).get().get()).inactiveTopicPolicies;
         assertEquals(nsPolicies.getMaxInactiveDurationSeconds(), 999);
