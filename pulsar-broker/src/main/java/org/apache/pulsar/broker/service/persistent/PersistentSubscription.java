@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -120,7 +121,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated) {
+            boolean replicated) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
@@ -981,9 +982,8 @@ public class PersistentSubscription implements Subscription {
             return FutureUtil.failedFuture(new Exception("Broker does't support Transaction pending ack!"));
         }
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (PulsarApi.TxnAction.COMMIT.getNumber() == txnAction) {
-            completableFuture = pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
+            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
         } else if (PulsarApi.TxnAction.ABORT.getNumber() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() != null) {
@@ -994,11 +994,10 @@ public class PersistentSubscription implements Subscription {
                     redeliverConsumer = ((PersistentDispatcherMultipleConsumers) getDispatcher()).getNextConsumer();
                 }
             }
-            completableFuture = pendingAckHandle.abortTxn(txnID, redeliverConsumer);
+            return pendingAckHandle.abortTxn(txnID, redeliverConsumer);
         } else {
-            completableFuture.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+            return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
-        return completableFuture;
     }
 
     @VisibleForTesting

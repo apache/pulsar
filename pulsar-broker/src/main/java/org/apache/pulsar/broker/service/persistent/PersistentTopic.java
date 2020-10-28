@@ -31,7 +31,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -98,10 +97,6 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -132,7 +127,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -624,36 +618,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
-            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
-                try {
+            try {
+                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                addConsumerToSubscription(subscription, consumer);
+
+                checkBackloggedCursors();
+
                 if (!cnx.isActive()) {
                     consumer.close();
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                                    consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
-                        }
-                        USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
-                        future.completeExceptionally(
-                                new BrokerServiceException("Connection was closed while the opening the cursor "));
-                    } else {
-                        checkReplicatedSubscriptionControllerState();
-                        log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
-                        future.complete(consumer);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
+                                consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
                     }
-                } catch (BrokerServiceException e) {
-                    if (e instanceof ConsumerBusyException) {
-                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
-                                consumerName);
-                    } else if (e instanceof SubscriptionBusyException) {
-                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
-                    }
-
                     USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
-                    future.completeExceptionally(e);
+                    future.completeExceptionally(
+                            new BrokerServiceException("Connection was closed while the opening the cursor "));
+                } else {
+                    checkReplicatedSubscriptionControllerState();
+                    log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                    future.complete(consumer);
                 }
-            }).exceptionally(e -> {
+            } catch (BrokerServiceException e) {
                 if (e instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
@@ -663,8 +649,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 future.completeExceptionally(e);
-                return null;
-            });
+            }
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);

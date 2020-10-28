@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
-<<<<<<< HEAD
+
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -28,21 +28,20 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-=======
+
 import com.google.common.collect.ComparisonChain;
->>>>>>> origin/transaction_pendingack_server_implement
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
-<<<<<<< HEAD
+
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-=======
+
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
->>>>>>> origin/transaction_pendingack_server_implement
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -52,12 +51,12 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.FutureUtil;
-<<<<<<< HEAD
+
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
-=======
+
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -70,7 +69,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 
->>>>>>> origin/transaction_pendingack_server_implement
 
 /**
  * Implement of pending ack handle.
@@ -78,11 +76,8 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class PendingAckHandleImpl extends PendingAckHandleState implements PendingAckHandle {
 
-    // Map to keep track of message ack by each txn.
     private Map<TxnID, HashMap<PositionImpl, PositionImpl>> pendingIndividualAckMessagesMap;
 
-    // Messages acked by ongoing transaction, pending transaction commit to materialize the acks. For faster look up.
-    // Using hashset as a message should only be acked once by one transaction.
     private Map<PositionImpl, PositionImpl> pendingAckMessages;
 
     private Map<PositionImpl, HashSet<TxnID>> pendingAckBatchMessageMap;
@@ -186,7 +181,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName, subName, txnID.toString(), position);
         }
-
         if (this.cumulativeAckPair == null || (this.cumulativeAckPair.getKey().equals(txnID)
                 && compareToWithAckSetForCumulativeAck(position, this.cumulativeAckPair.getValue()) > 0)) {
             this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
@@ -208,17 +202,21 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             log.error(errorMsg);
             return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
         }
-        return CompletableFuture.completedFuture(null);
+        return completableFuture;
     }
 
     private CompletableFuture<Void> acknowledgeMessageIndividual(List<Position> positions, TxnID txnID) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+
+        List<CompletableFuture<Void>> positionsFuture = new ArrayList<>(positions.size());
+
         for (int i = 0; i < positions.size(); i++) {
             if (!(positions.get(i) instanceof PositionImpl)) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " invalid individual ack received with position is not PositionImpl";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
+                positionsFuture.add(FutureUtil.failedFuture(new NotAllowedException(errorMsg)));
+                continue;
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
@@ -236,17 +234,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                         " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
-            }
-
-            // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
-            // Acking single message within range of cumulative ack(if exist) is considered valid operation.
-            if (!position.hasAckSet() && pendingAckMessages.containsKey(position)) {
-
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " try to ack message:" + position + " in pending ack status.";
-                log.error(errorMsg);
-                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                continue;
             }
 
             if (position.hasAckSet()) {
@@ -256,42 +245,22 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                             " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                    continue;
                 }
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.append(txnID, position, AckType.Individual).whenComplete((v, e) -> {
+                        pendingAckStore.append(txnID, position, AckType.Cumulative).whenComplete((v, e) -> {
                             if (e != null) {
+                                positionsFuture.add(c);
                                 completableFuture.completeExceptionally(e);
                             } else {
-                                ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
-                                        pendingIndividualAckMessagesMap
-                                                .computeIfAbsent(txnId, txn -> new ConcurrentOpenHashMap<>());
-
-                                ConcurrentOpenHashSet<TxnID> txnSet = getBatchTxnSetByPosition(position);
-
-                                if (pendingAckMessageForCurrentTxn.containsKey(position)) {
-                                    ((PositionImpl) pendingAckMessageForCurrentTxn
-                                            .get(position)).andAckSet(position);
-                                } else {
-                                    pendingAckMessageForCurrentTxn.put(position, position);
-                                }
-
-                                if (!pendingAckMessages.containsKey(position)) {
-                                    this.pendingAckMessages.put(position, position);
-                                } else {
-                                    ((PositionImpl) this.pendingAckMessages.get(position)).andAckSet(position);
-                                }
-                                txnSet.add(txnId);
+                                this.cumulativeAckPair = MutablePair.of(txnID, position);
                                 completableFuture.complete(null);
                             }
-                })).exceptionally(e -> {
+                        })).exceptionally(e -> {
                     completableFuture.completeExceptionally(e);
                     return null;
                 });
-=======
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
-                }
-
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                         pendingIndividualAckMessagesMap.computeIfAbsent(txnID, txn -> new HashMap<>());
 
@@ -314,45 +283,30 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     andAckSet(this.pendingAckMessages.get(position), position);
                 }
                 txnSet.add(txnID);
->>>>>>> origin/transaction_pendingack_server_implement
+                positionsFuture.add(CompletableFuture.completedFuture(null));
             } else {
                 if (this.pendingAckMessages.containsKey(position)) {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                             " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-<<<<<<< HEAD
-                    completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
-                }
-                this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.append(txnId, position, ackType).whenComplete((v, e) -> {
-                            if (e != null) {
-                                completableFuture.completeExceptionally(e);
-                            } else {
-                                ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
-                                        pendingIndividualAckMessagesMap
-                                                .computeIfAbsent(txnId, txn -> new ConcurrentOpenHashMap<>());
-                                pendingAckMessageForCurrentTxn.put(position, position);
-                                this.pendingAckMessages.put(position, position);
-                                completableFuture.complete(null);
-                            }
-                })).exceptionally(e -> {
-                    completableFuture.completeExceptionally(e);
-                    return null;
-                });
-            }
-        }
-        return completableFuture;
-=======
-                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                    continue;
                 }
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                         pendingIndividualAckMessagesMap.computeIfAbsent(txnID, txn -> new HashMap<>());
                 pendingAckMessageForCurrentTxn.put(position, position);
                 this.pendingAckMessages.put(position, position);
+                positionsFuture.add(CompletableFuture.completedFuture(null));
             }
         }
-        return CompletableFuture.completedFuture(null);
->>>>>>> origin/transaction_pendingack_server_implement
+        FutureUtil.waitForAll(positionsFuture).whenComplete((v, e) -> {
+            if (e != null) {
+                completableFuture.completeExceptionally(e);
+            } else {
+                completableFuture.complete(null);
+            }
+        });
+        return completableFuture;
     }
 
     @Override
@@ -371,62 +325,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (this.cumulativeAckPair != null) {
             if (cumulativeAckPair.getKey().equals(txnId)) {
                 persistentSubscription.acknowledgeMessage(Collections
-<<<<<<< HEAD
-                        .singletonList(POSITION_UPDATER.get(this)), AckType.Cumulative, properties);
-                this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.deleteTxn(txnId, AckType.Cumulative).whenComplete((v, e) -> {
-                            if (e != null) {
-                                commitFuture.completeExceptionally(e);
-                            } else {
-                                // Reset txdID and position for cumulative ack.
-                                PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
-                                POSITION_UPDATER.set(this, null);
-                                commitFuture.complete(null);
-                            }
-                })).exceptionally(e -> {
-                    commitFuture.completeExceptionally(e);
-                    return null;
-                });
-            } else {
-                commitFuture.complete(null);
-            }
-        } else {
-            if (pendingIndividualAckMessagesMap != null && pendingIndividualAckMessagesMap.containsKey(txnId)) {
-                ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
-                        pendingIndividualAckMessagesMap.get(txnId);
-                if (pendingAckMessageForCurrentTxn != null) {
-                    List<Position> positions = pendingAckMessageForCurrentTxn.values();
-                    persistentSubscription.acknowledgeMessage(positions, AckType.Individual, properties);
-                    this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                            pendingAckStore.deleteTxn(txnId, AckType.Individual).whenComplete((v, e) -> {
-                                if (e != null) {
-                                    commitFuture.completeExceptionally(e);
-                                } else {
-                                    for (Position position : positions) {
-                                        if (pendingAckBatchMessageMap != null
-                                                && pendingAckBatchMessageMap.containsKey(position)) {
-                                            ConcurrentOpenHashSet<TxnID> txnIDConcurrentOpenHashSet =
-                                                    pendingAckBatchMessageMap.get(position);
-                                            txnIDConcurrentOpenHashSet.remove(txnId);
-                                            if (txnIDConcurrentOpenHashSet.isEmpty()) {
-                                                pendingAckBatchMessageMap.remove(position);
-                                                pendingAckMessages.remove(position);
-                                            }
-                                        } else {
-                                            pendingAckMessages.remove(position);
-                                        }
-                                    }
-                                    pendingIndividualAckMessagesMap.remove(txnId);
-                                    commitFuture.complete(null);
-                                }
-                    })).exceptionally(e -> {
-                        commitFuture.completeExceptionally(e);
-                        return null;
-                    });
-                } else {
-                    commitFuture.complete(null);
-=======
                         .singletonList(this.cumulativeAckPair.getValue()), AckType.Cumulative, properties);
+
                 this.cumulativeAckPair = null;
             }
         } else {
@@ -449,7 +349,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }
                     persistentSubscription.acknowledgeMessage(new ArrayList<>(pendingAckMessageForCurrentTxn.values()),
                             AckType.Individual, properties);
->>>>>>> origin/transaction_pendingack_server_implement
                 }
             }
         }
@@ -466,62 +365,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             "success! " + "TopicName : " + topicName + ", SubName: " + subName));
         }
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-<<<<<<< HEAD
-        if (pendingCumulativeAckTxnId != null && pendingCumulativeAckMessage != null) {
-            if (PENDING_CUMULATIVE_ACK_TXNID_UPDATER.get(this).equals(txnId)) {
-                this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.deleteTxn(txnId, AckType.Cumulative).whenComplete((v, e) -> {
-                            if (e != null) {
-                                abortFuture.completeExceptionally(e);
-                            } else {
-                                POSITION_UPDATER.set(this, null);
-                                PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
-                                redeliverUnacknowledgedMessages(consumer);
-                                abortFuture.complete(null);
-                            }
-                })).exceptionally(e -> {
-                    abortFuture.completeExceptionally(e);
-                    return null;
-                });
-            } else {
-                abortFuture.complete(null);
-            }
-        } else if (this.pendingIndividualAckMessagesMap != null){
-            ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
-                    pendingIndividualAckMessagesMap.get(txnId);
-            if (pendingAckMessageForCurrentTxn != null) {
-                pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.deleteTxn(txnId, AckType.Individual).whenComplete((v, e) -> {
-                            if (e != null) {
-                                abortFuture.completeExceptionally(null);
-                            } else {
-                                List<Position> positions = pendingAckMessageForCurrentTxn.values();
-                                for (Position position : positions) {
-                                    if (pendingAckBatchMessageMap != null
-                                            && pendingAckBatchMessageMap.containsKey(position)) {
-                                        ConcurrentOpenHashSet<TxnID> txnIDConcurrentOpenHashSet =
-                                                pendingAckBatchMessageMap.get(position);
-                                        txnIDConcurrentOpenHashSet.remove(txnId);
-                                        if (txnIDConcurrentOpenHashSet.isEmpty()) {
-                                            pendingAckBatchMessageMap.remove(position);
-                                            pendingAckMessages.remove(position);
-                                        }
-                                    } else {
-                                        this.pendingAckMessages.remove(position);
-                                    }
-                                }
-                                pendingIndividualAckMessagesMap.remove(txnId);
-                                redeliverUnacknowledgedMessages(consumer,
-                                        (List<PositionImpl>) (List<?>) pendingAckMessageForCurrentTxn.values());
-                                abortFuture.complete(null);
-                            }
-                })).exceptionally(e -> {
-                    abortFuture.completeExceptionally(e);
-                    return null;
-                });
-            } else {
-                abortFuture.complete(null);
-=======
         if (this.cumulativeAckPair != null) {
             if (this.cumulativeAckPair.getKey().equals(txnId)) {
                 this.cumulativeAckPair = null;
@@ -545,16 +388,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }
                 }
                 redeliverUnacknowledgedMessages(consumer, new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
->>>>>>> origin/transaction_pendingack_server_implement
             }
         }
         return abortFuture;
-    }
-
-    @Override
-<<<<<<< HEAD
-    public void setPersistentSubscription(PersistentSubscription persistentSubscription) {
-        this.persistentSubscription = persistentSubscription;
     }
 
     @Override
@@ -562,9 +398,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (consumer == null) {
             return;
         }
-=======
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
->>>>>>> origin/transaction_pendingack_server_implement
         ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
         // Only check if message is in pending_ack status when there's ongoing transaction.
         if (null != positionMap && ((pendingAckMessages != null && pendingAckMessages.size() != 0)
@@ -585,14 +418,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-<<<<<<< HEAD
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         if (consumer == null) {
             return;
         }
-=======
-    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
->>>>>>> origin/transaction_pendingack_server_implement
         // If there's ongoing transaction.
         if ((pendingAckMessages != null && pendingAckMessages.size() != 0) || this.cumulativeAckPair != null) {
             // Check if message is in pending_ack status.
@@ -624,7 +453,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             ConcurrentOpenHashMap<Position, Position> pendingAckMessageForCurrentTxn =
                     pendingIndividualAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashMap<>());
 
-            if (((PositionImpl) position).isBatchPosition()) {
+            if (((PositionImpl) position).hasAckSet()) {
                 PositionImpl currentPosition = (PositionImpl) position;
 
                 ConcurrentOpenHashSet<TxnID> txnSet = getBatchTxnSetByPosition(position);
@@ -712,14 +541,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-<<<<<<< HEAD
-    private ConcurrentOpenHashSet<TxnID> getBatchTxnSetByPosition(Position position) {
+    private HashSet<TxnID> getBatchTxnSetByPosition(PositionImpl position) {
         if (pendingAckBatchMessageMap == null) {
-            this.pendingAckBatchMessageMap = new ConcurrentOpenHashMap<>();
+            this.pendingAckBatchMessageMap = new HashMap<>();
         }
         return this.pendingAckBatchMessageMap
-                .computeIfAbsent(position, txn -> new ConcurrentOpenHashSet<>());
-=======
+                .computeIfAbsent(position, txn -> new HashSet<>());
+    }
     public int compareToWithAckSetForCumulativeAck(PositionImpl currentPosition,PositionImpl otherPosition) {
         int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
                 otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
@@ -771,6 +599,5 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         currentPosition.setAckSet(thisAckSet.toLongArray());
         thisAckSet.recycle();
         otherAckSet.recycle();
->>>>>>> origin/transaction_pendingack_server_implement
     }
 }
