@@ -562,9 +562,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
- * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.2.jar
- * Jakarta Activation -- - com.sun.activation-jakarta.activation-1.2.2.jar
- * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
+ * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
