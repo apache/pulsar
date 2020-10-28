@@ -1656,16 +1656,16 @@ public class CmdNamespaces extends CmdBase {
                 Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
                 if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
                         && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
-                    offloadAfterElapsedInMillis = new Long(offloadAfterElapsed);
+                    offloadAfterElapsedInMillis = offloadAfterElapsed;
                 }
             }
 
-            long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            Long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
                 long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
                 if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
                         && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
-                    offloadAfterThresholdInBytes = new Long(offloadAfterThreshold);
+                    offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
 

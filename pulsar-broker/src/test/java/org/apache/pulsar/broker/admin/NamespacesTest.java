@@ -1244,7 +1244,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -1);
+                new Long(-1));
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
@@ -1258,7 +1258,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                100);
+                new Long(100));
 
         // set another negative value to disable
         admin.namespaces().setOffloadThreshold(namespace, -2);
@@ -1271,7 +1271,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -2);
+                new Long(-2));
 
         // set back to -1 and fall back to default
         admin.namespaces().setOffloadThreshold(namespace, -1);
@@ -1284,7 +1284,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -1);
+                new Long(-1));
 
         // cleanup
         admin.topics().delete(topicName.toString(), true);
