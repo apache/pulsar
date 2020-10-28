@@ -364,11 +364,11 @@ class SchemaTest(TestCase):
                         'my-avro-python-schema-version-topic',
                         schema=AvroSchema(Example))
 
-        r = Example(a=1, b=2)
-        producer.send(r)
-
         consumer = client.subscribe('my-avro-python-schema-version-topic', 'sub-1',
                                     schema=AvroSchema(Example))
+        
+        r = Example(a=1, b=2)
+        producer.send(r)
 
         msg = consumer.receive()
 
