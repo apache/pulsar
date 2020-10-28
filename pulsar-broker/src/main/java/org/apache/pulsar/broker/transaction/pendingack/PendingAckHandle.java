@@ -75,7 +75,7 @@ public interface PendingAckHandle {
      * Abort a transaction.
      *
      * @param txnId  {@link TxnID} to identify the transaction.
-     * @param consumer {@link Consumer} which aborting transaction.
+     * @param consumer {@link Consumer} which consumer should be redeliver.
      * @return the future of this operation.
      */
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
@@ -97,11 +97,27 @@ public interface PendingAckHandle {
      */
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
-    void handleMetadataEntry(TxnID txnId, Position position, AckType ackType);
+    /**
+     * Handle the metadata entry for pending ack
+     *
+     * @param txnId {@link TxnID} which txnID should be recover.
+     * @param position {@link PositionImpl} which will position should be recover.
+     * @param ackType {@link AckType} the ack type for recover the transaction .
+     */
+    void handleMetadataEntry(TxnID txnId, PositionImpl position, AckType ackType);
 
+    /**
+     * Check the handle whether or not ready
+     */
     boolean checkIfReady();
 
+    /**
+     * Close the handle.
+     */
     CompletableFuture<Void> closeAsync();
 
+    /**
+     * When add the consumer to subscription, we will return the ready future to this operation.
+     */
     CompletableFuture<Void> getReadyCompletableFuture();
 }
