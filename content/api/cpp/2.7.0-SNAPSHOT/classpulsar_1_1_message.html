@@ -139,6 +139,10 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasPartitionKey</b> (
 <tr class="separator:a220ce3bef7b8e5bfdcb64c22cc8c1f79"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8f47033662118123b86d257df85e069d"><td class="memItemLeft" align="right" valign="top">const int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a8f47033662118123b86d257df85e069d">getRedeliveryCount</a> () const </td></tr>
 <tr class="separator:a8f47033662118123b86d257df85e069d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a419bb04fa9b52e0b43d24d5b0a55800c"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a419bb04fa9b52e0b43d24d5b0a55800c">hasSchemaVersion</a> () const </td></tr>
+<tr class="separator:a419bb04fa9b52e0b43d24d5b0a55800c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a86cc577f4f0968589d4a7f8695826548"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a86cc577f4f0968589d4a7f8695826548">getSchemaVersion</a> () const </td></tr>
+<tr class="separator:a86cc577f4f0968589d4a7f8695826548"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb23b1f6a00e4378ce26355dd83912a1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afb23b1f6a00e4378ce26355dd83912a1"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg) const </td></tr>
 <tr class="separator:afb23b1f6a00e4378ce26355dd83912a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -380,6 +384,22 @@ PULSAR_PUBLIC std::ostream &amp;&#160;</td><td class="memItemRight" valign="bott
 
 </div>
 </div>
+<a class="anchor" id="a86cc577f4f0968589d4a7f8695826548"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const std::string&amp; pulsar::Message::getSchemaVersion </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the schema version </p>
+
+</div>
+</div>
 <a class="anchor" id="a220ce3bef7b8e5bfdcb64c22cc8c1f79"></a>
 <div class="memitem">
 <div class="memproto">
@@ -436,6 +456,22 @@ PULSAR_PUBLIC std::ostream &amp;&#160;</td><td class="memItemRight" valign="bott
 <dl class="section return"><dt>Returns</dt><dd>true if the message has the specified property </dd>
 <dd>
 false if the property is not defined </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a419bb04fa9b52e0b43d24d5b0a55800c"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::Message::hasSchemaVersion </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Check if schema version exists </p>
 
 </div>
 </div>
