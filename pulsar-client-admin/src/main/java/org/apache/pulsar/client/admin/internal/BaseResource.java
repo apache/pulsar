@@ -43,6 +43,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -204,9 +205,8 @@ public abstract class BaseResource {
         } else if (e instanceof WebApplicationException) {
             // Handle 5xx exceptions
             if (e instanceof ServerErrorException) {
-                return new PulsarAdminException((WebApplicationException) e);
-                //ServerErrorException see = (ServerErrorException) e;
-                //return new ServerSideErrorException(see, e.getMessage());
+                ServerErrorException see = (ServerErrorException) e;
+                return new ServerSideErrorException(see, e.getMessage());
             } else if (e instanceof ClientErrorException) {
                 // Handle 4xx exceptions
                 ClientErrorException cee = (ClientErrorException) e;

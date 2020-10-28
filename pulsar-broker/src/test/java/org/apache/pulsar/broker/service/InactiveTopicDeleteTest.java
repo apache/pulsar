@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Consumer;
 
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.testng.Assert;
@@ -305,8 +306,11 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
-        //wait for init
-        Thread.sleep(3000);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
+        TopicName topic = TopicName.get(topicName);
+        while (!pulsar.getTopicPoliciesService().cacheIsInitialized(topic)) {
+            Thread.sleep(500);
+        }
 
         InactiveTopicPolicies inactiveTopicPolicies = admin.topics().getInactiveTopicPolicies(topicName);
         assertNull(inactiveTopicPolicies);
