@@ -423,7 +423,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testCommitNonExistentTxn() throws ExecutionException, InterruptedException {
         try {
-            buffer.commitTxn(txnID, 22L, 33L).get();
+            buffer.commitTxn(txnID).get();
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionNotFoundException);
         }
@@ -467,8 +467,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         endTxnAndWaitTillFinish(buffer, txnID, PulsarApi.TxnAction.COMMIT, 22L, 33L);
         try {
-            buffer.commitTxn(txnID, 23L, 34L).get();
-            buffer.commitTxn(txnID, 24L, 34L).get();
+            buffer.commitTxn(txnID).get();
+            buffer.commitTxn(txnID).get();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionStatusException);
         }
@@ -766,13 +766,18 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                                          long committedLedgerId, long committedEntryId) throws Exception {
         this.committedLedgerId = committedLedgerId;
         this.committedEntryId = committedEntryId;
-        tb.endTxnOnPartition(txnId, txnAction.getNumber());
-        TransactionMeta meta = tb.getTransactionMeta(txnId).get();
-        while (meta.status().equals(TxnStatus.OPEN)
-                || meta.status().equals(TxnStatus.COMMITTING)
-                || meta.status().equals(TxnStatus.ABORTING)) {
-            Thread.sleep(1000);
+        if (txnAction.equals(PulsarApi.TxnAction.COMMIT)) {
+            tb.commitTxn(txnId).get();
+        } else if (txnAction.equals(PulsarApi.TxnAction.ABORT)) {
+            tb.abortTxn(txnId).get();
         }
+        log.info("endTxn finish");
+//        TransactionMeta meta = tb.getTransactionMeta(txnId).get();
+//        while (meta.status().equals(TxnStatus.OPEN)
+//                || meta.status().equals(TxnStatus.COMMITTING)
+//                || meta.status().equals(TxnStatus.ABORTING)) {
+//            Thread.sleep(1000);
+//        }
     }
 
 }

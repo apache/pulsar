@@ -88,7 +88,7 @@ A message that has been delivered to a consumer for processing but not yet confi
 
 #### Retention Policy
 
-Size and/or time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
+Size and time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
 that have already been [acknowledged](#acknowledgement-ack).
 
 #### Multi-Tenancy

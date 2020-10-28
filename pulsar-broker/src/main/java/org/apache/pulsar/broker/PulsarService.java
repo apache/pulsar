@@ -587,8 +587,6 @@ public class PulsarService implements AutoCloseable {
                 this.protocolHandlers.newChannelInitializers();
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
-            state = State.Started;
-
             acquireSLANamespace();
 
             // start function worker service if necessary
@@ -603,6 +601,8 @@ public class PulsarService implements AutoCloseable {
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
+
+            state = State.Started;
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
             throw new PulsarServerException(e);

@@ -49,9 +49,9 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -133,6 +133,15 @@ public abstract class NamespacesBase extends AdminResource {
         validatePolicies(namespaceName, policies);
 
         try {
+            int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+            //no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
+            if (maxNamespacesPerTenant > 0) {
+                List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+                if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
+                }
+            }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             zkCreateOptimistic(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies));
@@ -1744,6 +1753,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
+        validateRetentionPolicies(retention);
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2173,40 +2183,56 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "antiAffinityGroup can't be empty");
         }
 
-        Map.Entry<Policies, Stat> policiesNode = null;
-
         try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
-                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().antiAffinityGroup = antiAffinityGroup;
+            String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
+            Stat nodeStat = new Stat();
 
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
-            log.info("[{}] Successfully updated the antiAffinityGroup {} on namespace {}", clientAppId(),
-                    antiAffinityGroup, namespaceName);
+            LocalPolicies localPolicies = null;
+            int version = -1;
+            try {
+                byte[] content = pulsar().getLocalZkCache().getZooKeeper().getData(path, false, nodeStat);
+                localPolicies = jsonMapper().readValue(content, LocalPolicies.class);
+                version = nodeStat.getVersion();
+            } catch (KeeperException.NoNodeException e) {
+                log.info("local-policies for {} is not setup at path {}", this.namespaceName, path);
+                // if policies is not present into localZk then create new policies
+                this.pulsar().getLocalZkCacheService().createPolicies(path, false)
+                        .get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                localPolicies = new LocalPolicies();
+            }
+            localPolicies.namespaceAntiAffinityGroup = antiAffinityGroup;
+            byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
+            pulsar().getLocalZkCache().getZooKeeper().setData(path, data, Math.toIntExact(version));
+            // invalidate namespace's local-policies
+            pulsar().getLocalZkCacheService().policiesCache().invalidate(path);
+            log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
+                    namespaceName, jsonMapper().writeValueAsString(localPolicies));
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update the antiAffinityGroup for namespace {}: does not exist", clientAppId(),
+            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to update the antiAffinityGroup on namespace {} expected policy node version={} : concurrent modification",
-                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
+            log.warn("[{}] Failed to update policies for namespace {}: concurrent modification", clientAppId(),
+                    namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
-            log.error("[{}] Failed to update the antiAffinityGroup on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
             throw new RestException(e);
         }
     }
 
     protected String internalGetNamespaceAntiAffinityGroup() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).antiAffinityGroup;
+
+        try {
+            return localPoliciesCache()
+                    .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString()))
+                    .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(Status.NOT_FOUND, "Couldn't find namespace policies");
+        }
     }
 
     protected void internalRemoveNamespaceAntiAffinityGroup() {
@@ -2217,12 +2243,12 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            final String path = path(POLICIES, namespaceName.toString());
-            byte[] content = globalZk().getData(path, null, nodeStat);
-            Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.antiAffinityGroup = null;
-            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+            byte[] content = localZk().getData(path, null, nodeStat);
+            LocalPolicies policies = jsonMapper().readValue(content, LocalPolicies.class);
+            policies.namespaceAntiAffinityGroup = null;
+            localZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString()));
             log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
 
         } catch (KeeperException.NoNodeException e) {
@@ -2257,14 +2283,14 @@ public abstract class NamespacesBase extends AdminResource {
             List<String> namespaces = getListOfNamespaces(tenant);
 
             return namespaces.stream().filter(ns -> {
-                Optional<Policies> policies;
+                Optional<LocalPolicies> policies;
                 try {
-                    policies = policiesCache().get(AdminResource.path(POLICIES, ns));
+                    policies = localPoliciesCache().get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
 
-                String storedAntiAffinityGroup = policies.orElse(new Policies()).antiAffinityGroup;
+                String storedAntiAffinityGroup = policies.orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
                 return antiAffinityGroup.equalsIgnoreCase(storedAntiAffinityGroup);
             }).collect(Collectors.toList());
 
@@ -2455,8 +2481,23 @@ public abstract class NamespacesBase extends AdminResource {
         if (policies.persistence != null) {
             validatePersistencePolicies(policies.persistence);
         }
+
+        if (policies.retention_policies != null) {
+            validateRetentionPolicies(policies.retention_policies);
+        }
     }
 
+    protected void validateRetentionPolicies(RetentionPolicies retention) {
+        checkArgument(retention.getRetentionSizeInMB() >= -1,
+                "Invalid retention policy: size limit must be >= -1");
+        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
+                "Invalid retention policy: time limit must be >= -1");
+        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0) ||
+                        (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
+                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when " +
+                        "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a " +
+                        "specific limit. To disable retention both limits must be set to 0.");
+    }
 
     protected int internalGetMaxProducersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
