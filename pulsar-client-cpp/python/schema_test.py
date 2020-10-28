@@ -374,8 +374,8 @@ class SchemaTest(TestCase):
 
         self.assertIsNotNone(msg.schema_version())
 
-        self.assertEqual(0, int.from_bytes(msg.schema_version().encode(), byteorder='big'))
-
+        self.assertEquals(b'\x00\x00\x00\x00\x00\x00\x00\x00', msg.schema_version().encode())
+        
         self.assertEqual(r, msg.value())
 
         client.close()
