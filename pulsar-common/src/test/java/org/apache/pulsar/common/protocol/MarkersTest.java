@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import io.netty.buffer.ByteBuf;
 
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
@@ -38,6 +41,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class MarkersTest {
     @Test
     public void testSnapshotRequest() throws Exception {
@@ -126,16 +130,23 @@ public class MarkersTest {
         long mostBits = 1234L;
         long leastBits = 2345L;
 
+        List<String> messageIdInfoList = new ArrayList<>();
         List<MessageIdData> messageIdDataList = new ArrayList<>();
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(12).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(11).setEntryId(13).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(22).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(21).setEntryId(23).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(32).build());
-        messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(31).setEntryId(33).build());
+        for (int i = 0; i < 10; i++) {
+            long entryId = i + 1;
+            messageIdInfoList.add(i + ":" + entryId);
+            messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(i).setEntryId(entryId).build());
+        }
 
         ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
-
+        for (MessageIdData messageIdData : messageIdDataList) {
+            try {
+                messageIdData.recycle();
+                fail("message id data should be recycled after create the marker bytebuf.");
+            } catch (Exception e) {
+                assertTrue(e instanceof java.lang.IllegalStateException);
+            }
+        }
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
         assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
@@ -144,12 +155,10 @@ public class MarkersTest {
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
 
         PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
-        assertEquals(marker.getMessageIdList().size(), messageIdDataList.size());
+        assertEquals(marker.getMessageIdList().size(), messageIdInfoList.size());
         for (int i = 0; i < marker.getMessageIdCount(); i++) {
-            MessageIdData originalIdData = messageIdDataList.get(i);
             MessageIdData messageIdData = marker.getMessageIdList().get(i);
-            assertEquals(originalIdData.getLedgerId(), messageIdData.getLedgerId());
-            assertEquals(originalIdData.getEntryId(), messageIdData.getEntryId());
+            assertEquals(messageIdData.getLedgerId() + ":" + messageIdData.getEntryId(), messageIdInfoList.get(i));
         }
     }
 

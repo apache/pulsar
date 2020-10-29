@@ -56,6 +56,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private final static String TENANT = "tnx";
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    private final static String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -68,6 +69,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
+        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, TOPIC_PARTITION);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -325,11 +327,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     @Test
     public void txnMessageAckTest() throws Exception {
+        final String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
                 .newConsumer()
-                .topic(TOPIC_OUTPUT)
+                .topic(topic)
                 .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
@@ -338,7 +341,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         @Cleanup
         PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
                 .newProducer()
-                .topic(TOPIC_OUTPUT)
+                .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .create();
@@ -375,7 +378,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats = getTopicStats(TOPIC_OUTPUT, i);
+            PersistentTopicInternalStats stats = getTopicStats(topic, i);
             Assert.assertNotEquals(stats.lastConfirmedEntry, stats.cursors.get(subName).markDeletePosition);
         }
 
@@ -394,7 +397,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats = getTopicStats(TOPIC_OUTPUT, i);
+            PersistentTopicInternalStats stats = getTopicStats(topic, i);
             Assert.assertEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
         }
 

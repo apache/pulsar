@@ -66,15 +66,15 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
         int i = 0;
         while (i < numEntries && entries.hasNext()) {
             Entry<Long, ByteBuf> entry = entries.next();
-//            TransactionEntry txnEntry = new TransactionEntryImpl(
-//                txnId,
-//                entry.getKey(),
-//                EntryImpl.create(-1L, -1L, entry.getValue()),
-//                committedAtLedgerId,
-//                committedAtEntryId,
-//                -1
-//            );
-//            txnEntries.add(txnEntry);
+            TransactionEntry txnEntry = new TransactionEntryImpl(
+                txnId,
+                entry.getKey(),
+                EntryImpl.create(-1L, -1L, entry.getValue()),
+                committedAtLedgerId,
+                committedAtEntryId,
+                -1
+            );
+            txnEntries.add(txnEntry);
             ++i;
         }
 
