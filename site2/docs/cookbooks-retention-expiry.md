@@ -41,7 +41,7 @@ When you set a retention policy, you must set **both** a *size limit* and a *tim
 | 0        | 0        | Disable message retention(by default) |
 | 0        | >0       | Invalid  |
 | >0       | 0        | Invalid  |
-| >0       | >0       | Acknowledged messages or messages with no active subscription will not be retained  |
+| >0       | >0       | Acknowledged messages or messages with no active subscription will not be retained when either time or size reaches the limit. |
 
 The retention settings apply to all messages on topics that do not have any subscriptions, or to messages that have been acknowledged by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions. The unacknowledged messages are controlled by the backlog quota.
 
