@@ -168,6 +168,7 @@ public class ServerCnx extends PulsarHandler {
     private boolean preciseDispatcherFlowControl;
 
     private boolean preciseTopicPublishRateLimitingEnable;
+    private boolean encryptionRequireOnProducer;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
@@ -203,6 +204,7 @@ public class ServerCnx extends PulsarHandler {
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
+        this.encryptionRequireOnProducer = pulsar.getConfiguration().isEncryptionRequireOnProducer();
     }
 
     @Override
@@ -1103,7 +1105,7 @@ public class ServerCnx extends PulsarHandler {
                             }
 
                             // Check whether the producer will publish encrypted messages or not
-                            if (topic.isEncryptionRequired() && !isEncrypted) {
+                            if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
                                 String msg = String.format("Encryption is required in %s", topicName);
                                 log.warn("[{}] {}", remoteAddress, msg);
                                 commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
