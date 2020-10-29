@@ -23,9 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
+import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +33,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.service.BrokerServiceThrottlingTest.NoOpPulsarMockLedgerHandle;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -47,6 +50,11 @@ import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  */
@@ -256,6 +264,61 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         } else {
             ZkUtils.createFullPathOptimistic(mockZooKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        }
+    }
+
+    @Test
+    public void testBrokerMaxPendingMessages() throws Exception {
+        int maxConcurrentPendingPublishMessages = 10;
+        int totalTopics = 100;
+        conf.setMaxConcurrentPendingPublishMessages(maxConcurrentPendingPublishMessages);
+        restartBroker();
+        final String topicName = "persistent://prop/ns-abc/maxPendingMsg";
+
+        org.apache.pulsar.client.api.Producer[] producers = new org.apache.pulsar.client.api.Producer[totalTopics];
+
+        // shutdown bookie so, broker will fail to publish
+        ((NonClosableMockBookKeeper) mockBookKeeper)
+                .setLedgerHandler((PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd) -> {
+                    try {
+                        return new NoOpPulsarMockLedgerHandle(bk, id, digest, "test".getBytes());
+                    } catch (GeneralSecurityException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                });
+
+        for (int i = 0; i < totalTopics; i++) {
+            producers[i] = pulsarClient.newProducer().sendTimeout(2, TimeUnit.MINUTES).topic(topicName + i).create();
+            // producers[i].send("open-ledger".getBytes());
+        }
+
+        // publish maxConcurrentPendingPublishMessages
+        for (int i = 0; i < maxConcurrentPendingPublishMessages + 1; i++) {
+            producers[i].sendAsync("test".getBytes());
+        }
+        Thread.sleep(2000);
+        pulsar.getBrokerService().checkPendingPublishMessages();
+
+        for (int i = maxConcurrentPendingPublishMessages + 1; i < totalTopics; i++) {
+            producers[i].sendAsync("test".getBytes());
+        }
+        Thread.sleep(2000);
+        long totalPendingMessages = pulsar.getBrokerService().getBrokerPendingMessages().sum();
+        assertNotEquals(totalPendingMessages, totalTopics);
+        ((NonClosableMockBookKeeper) mockBookKeeper).reallyShutdown();
+    }
+
+    static class NoOpPulsarMockLedgerHandle extends PulsarMockLedgerHandle {
+
+        public NoOpPulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
+                throws GeneralSecurityException {
+            super(bk, id, digest, passwd);
+        }
+
+        @Override
+        public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
+            // No-op
         }
     }
 }

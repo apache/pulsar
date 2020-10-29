@@ -235,6 +235,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public final int maxUnackedMsgsPerDispatcher;
     private static final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
+
+    // manage max pending messages across all topics in broker
+    private final LongAdder brokerPendingMessages;
+    private final ConcurrentOpenHashSet<ServerCnx> serverConnections;
+    private volatile boolean isPublishPaused = false;
+    private volatile ScheduledFuture<?> publishResumeTask = null;
+
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
@@ -309,6 +316,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         };
         this.blockedDispatchers = new ConcurrentOpenHashSet<>();
+        this.serverConnections = new ConcurrentOpenHashSet<>();
+        this.brokerPendingMessages = new LongAdder();
+        if (pulsar.getConfiguration().getMaxConcurrentPendingPublishMessages() > 0) {
+            pulsar.getExecutor().scheduleAtFixedRate(() -> checkPendingPublishMessages(), 30, 5, TimeUnit.SECONDS);
+        }
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
@@ -2446,5 +2458,57 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void setInterceptor(BrokerInterceptor interceptor) {
         this.interceptor = interceptor;
+    }
+
+    public ConcurrentOpenHashSet<ServerCnx> getServerConnections() {
+        return serverConnections;
+    }
+
+    public void checkPendingPublishMessages() {
+        if (isPublishPaused) {
+            checkPublishMessageResume();
+        }
+        long currentPendingMessages = brokerPendingMessages.sum();
+        if (currentPendingMessages > pulsar().getConfiguration().getMaxConcurrentPendingPublishMessages()) {
+            // pause the reads
+            if (log.isDebugEnabled()) {
+                log.debug("Disabling auto-read as maxConcurrentPendingPublishMessages exceeded {}",
+                        pulsar().getConfiguration().getMaxConcurrentPendingPublishMessages());
+            }
+            serverConnections.forEach(cnx -> {
+                cnx.setAutoRead(false);
+            });
+            isPublishPaused = true;
+            // schedule a timer to check again and resume reads if pending-message limit decreased
+            checkPublishMessageResume();
+        }
+    }
+
+    private void checkPublishMessageResume() {
+        if (publishResumeTask != null) {
+            return;
+        }
+        publishResumeTask = pulsar.getExecutor().schedule(() -> {
+            long pendingMessages = brokerPendingMessages.sum();
+            if (pendingMessages < pulsar().getConfiguration().getMaxConcurrentPendingPublishMessages()) {
+                // resume the reads
+                if (log.isDebugEnabled()) {
+                    log.debug("Enabling auto-read after cleaing max-pending messages");
+                }
+                serverConnections.forEach(cnx -> {
+                    cnx.setAutoRead(true);
+                });
+                isPublishPaused = false;
+                publishResumeTask = null;
+            } else {
+                publishResumeTask = null;
+                // else check again after a delay
+                checkPublishMessageResume();
+            }
+        }, 1, TimeUnit.SECONDS);
+    }
+
+    public LongAdder getBrokerPendingMessages() {
+        return brokerPendingMessages;
     }
 }
