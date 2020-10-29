@@ -11,7 +11,7 @@ You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete 
 
 Partitioned topics must be explicitly created. When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.
 
-By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+By default, 60 seconds after creation, topics are considered inactive and deleted automatically to aviod generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
 
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
@@ -28,7 +28,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 ```
 
 > **Note**    
-> If a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
+> If a non-partitioned topic with the suffix '-partition-' followed by a numeric value like 'xyz-topic-partition-10', you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
 
 <!--REST API-->
 {@inject: endpoint|PUT|/admin/v2/topics/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
@@ -44,7 +44,7 @@ admin.topics().createPartitionedTopic(topicName, numPartitions);
 
 ### Create missed partitions
 
-When topic auto creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic.
+When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -76,7 +76,7 @@ Field | Description
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
-You can view the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata) subcommand. 
+You can check the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata) subcommand. 
 
 ```shell
 $ pulsar-admin topics get-partitioned-topic-metadata \
@@ -165,7 +165,7 @@ admin.topics().getList(namespace);
 
 ### Stats
 
-You can view the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
+You can check the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
 ```json
 {
@@ -219,7 +219,7 @@ You can view the current statistics of a given partitioned topic. The following 
 }
 ```
 
-You can view the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
+You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -241,7 +241,7 @@ admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is 
 
 ### Internal stats
 
-You can view the detailed statistics of a topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
+You can check the detailed statistics of a topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
 
 ```json
 {
@@ -374,7 +374,7 @@ admin.topics().getList(namespace);
 
 ### Stats
 
-You can view the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
+You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
 ```json
 {
@@ -408,7 +408,7 @@ You can view the current statistics of a given topic. The following is an exampl
   "replication": {}
 }
 ```
-You can view the current statistics of a given topic and its connected producers and consumers in the following ways.
+You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
