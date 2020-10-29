@@ -31,22 +31,25 @@ By default, when a Pulsar message arrives at a broker, the message is stored unt
 
 Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a retention policy, you must set **both** a *size limit* and a *time limit*. 
+When you set a retention policy, you must set **both** a *size limit* and a *time limit*. You can refer to the following table to set retention policies in `pulsar-admin` and Java.
 
-- If you do not want to limit the message by time, set the value of time limit to `-1`.
-- If you do not want to limit the message by size, set the value of size limit to `-1`.
-- If you need infinite retention, set the values of time limit and size limit to `-1`.
-- If you want to disable retention policy, set the values of time limit and size limit to `0`. Retention policy is disabled by default.
+|Time limit|Size limit| Message retention      |
+|----------|----------|------------------------|
+| -1       | -1       | Infinite retention  |
+| -1       | >0       | Based on the size limit  |
+| >0       | -1       | Based on the time limit  |
+| 0        | 0        | Disable message retention(by default) |
+| 0        | >0       | Invalid  |
+| >0       | 0        | Invalid  |
+| >0       | >0       | Messages are deleted when either time or size reaches the limit  |
 
-When you set a size limit of, for example, 10 gigabytes, and set the time limit to `-1`, then the acknowledged messages in all topics in the namespace are retained until the topic size reaches the size limit(10 gigabytes). If you set a time limit of, for example, 1 day, and set the size limit to `-1`, then the acknowledged messages for all topics in the namespace are retained for 1 day.
-
-The retention settings apply to all messages on topics that do not have any subscriptions, or to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions. The unacknowledged messages are controlled by the backlog quota.
+The retention settings apply to all messages on topics that do not have any subscriptions, or to messages that have been acknowledged by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions. The unacknowledged messages are controlled by the backlog quota.
 
 When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
 
 ### Defaults
 
-You can use the following two configuration parameters to set instance-wide defaults for message retention: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
+You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
 
 For more information of the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
@@ -58,7 +61,9 @@ You can set a retention policy for a namespace by specifying the namespace, a si
 <!--pulsar-admin-->
 You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
-In the following example, size limit is set to 10 gigabytes and time limit is set to 3 hours for the `my-tenant/my-ns` namespace:
+In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for the `my-tenant/my-ns` namespace. 
+- When the message size reaches 10 GB within 3 hours, the acknowledged messages will not be retained. 
+- After 3 hours, even the message size is less than 10 GB, the acknowledged messages will not be retained. 
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -66,7 +71,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-In the following example, time is not limited and size limit is set to 1 terabyte. The size limit determines the retention result.
+In the following example, the time is not limited and the size limit is set to 1 TB. The size limit determines the retention.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -74,7 +79,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
-In the following example, size is not limited and time limit is set to 3 hours. The time limit determines the retention result.
+In the following example, the size is not limited and the time limit is set to 3 hours. The time limit determines the retention.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -82,7 +87,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-To set infinite retention, set both values to `-1`.
+To achieve infinite retention, set both values to `-1`.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -100,6 +105,9 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 
 <!--REST API-->
 {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
+
+> **Note**  
+> To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid. 
 
 <!--Java-->
 ```java
