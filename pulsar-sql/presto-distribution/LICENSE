@@ -237,7 +237,6 @@ The Apache Software License, Version 2.0
     - netty-codec-http-4.1.51.Final.jar
     - netty-common-4.1.51.Final.jar
     - netty-handler-4.1.51.Final.jar
-    - netty-handler-proxy-4.1.51.Final.jar
     - netty-reactive-streams-2.0.4.jar
     - netty-resolver-4.1.51.Final.jar
     - netty-resolver-dns-4.1.51.Final.jar
@@ -301,6 +300,9 @@ The Apache Software License, Version 2.0
     - stats-0.195.jar
     - trace-token-0.195.jar
     - units-1.6.jar
+   * Apache HTTP Client
+    - httpclient-4.5.5.jar
+    - httpcore-4.4.9.jar
   * Error Prone Annotations
     - error_prone_annotations-2.1.3.jar
   * Esri Geometry API For Java
@@ -424,7 +426,7 @@ The Apache Software License, Version 2.0
     - commons-configuration-1.10.jar
     - commons-io-2.5.jar
     - commons-lang-2.6.jar
-    - commons-logging-1.1.1.jar
+    - commons-logging-1.2.jar
   * GSON
     - gson-2.8.2.jar
   * Jackson
@@ -520,6 +522,9 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-media-jaxb-2.31.jar
     - jersey-server-2.31.jar
     - jersey-common-2.31.jar
+    - jersey-entity-filtering-2.31.jar
+    - jersey-media-json-jackson-2.31.jar
+    - jersey-media-multipart-2.31.jar
  * JAXB
     - jaxb-api-2.3.1.jar
 
@@ -544,6 +549,9 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
  * jakarta.annotation-api-1.3.5.jar
+ * jakarta.inject-2.6.1.jar
+ * jakarta.validation-api-2.0.2.jar
+ * jakarta.ws.rs-api-2.1.6.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
