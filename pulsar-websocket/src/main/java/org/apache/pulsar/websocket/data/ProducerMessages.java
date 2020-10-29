@@ -20,14 +20,14 @@ package org.apache.pulsar.websocket.data;
 
 import java.util.List;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Class represent messages to be published.
  */
 @Data
-@Setter
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProducerMessages {

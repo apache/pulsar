@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.websocket.data;
 
-import lombok.*;
-
 import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represent results of publishing multiple messages.
  */
 @Data
-@Setter
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProducerAcks {
