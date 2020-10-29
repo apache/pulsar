@@ -300,6 +300,10 @@ flexible messaging model and an intuitive client API.</description>
         <version>${bookkeeper.version}</version>
         <exclusions>
           <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
             <groupId>org.slf4j</groupId>
           </exclusion>
@@ -1032,6 +1036,10 @@ flexible messaging model and an intuitive client API.</description>
       <scope>test</scope>
       <classifier>tests</classifier>
       <exclusions>
+        <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
