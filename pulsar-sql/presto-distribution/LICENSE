@@ -386,7 +386,7 @@ The Apache Software License, Version 2.0
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
   * RocksDB JNI
-    - rocksdbjni-5.13.3.jar
+    - rocksdbjni-6.10.2.jar
   * SnakeYAML
     - snakeyaml-1.26.jar
   * Bean Validation API
@@ -409,17 +409,17 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.11.0.jar
-    - bookkeeper-common-allocator-4.11.0.jar
-    - bookkeeper-proto-4.11.0.jar
-    - bookkeeper-server-4.11.0.jar
-    - bookkeeper-stats-api-4.11.0.jar
-    - bookkeeper-tools-framework-4.11.0.jar
-    - circe-checksum-4.11.0.jar
-    - codahale-metrics-provider-4.11.0.jar
-    - cpu-affinity-4.11.0.jar
-    - http-server-4.11.0.jar
-    - prometheus-metrics-provider-4.11.0.jar
+    - bookkeeper-common-4.11.1.jar
+    - bookkeeper-common-allocator-4.11.1.jar
+    - bookkeeper-proto-4.11.1.jar
+    - bookkeeper-server-4.11.1.jar
+    - bookkeeper-stats-api-4.11.1.jar
+    - bookkeeper-tools-framework-4.11.1.jar
+    - circe-checksum-4.11.1.jar
+    - codahale-metrics-provider-4.11.1.jar
+    - cpu-affinity-4.11.1.jar
+    - http-server-4.11.1.jar
+    - prometheus-metrics-provider-4.11.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -500,7 +500,7 @@ MIT License
 
 CDDL - 1.0
  * OSGi Resource Locator
-    - osgi-resource-locator-1.0.1.jar
+    - osgi-resource-locator-1.0.3.jar
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -510,18 +510,19 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - javax.activation-api-1.2.0.jar
    - jakarta.activation-api-1.2.1.jar
  * HK2 - Dependency Injection Kernel
-   - hk2-api-2.5.0-b42.jar
-   - hk2-locator-2.5.0-b42.jar
-   - hk2-utils-2.5.0-b42.jar
+   - hk2-api-2.6.1.jar
+   - hk2-locator-2.6.1.jar
+   - hk2-utils-2.6.1.jar
+   - aopalliance-repackaged-2.6.1.jar
  * Jersey
     - jaxrs-0.195.jar
-    - jersey-client-2.26.jar
-    - jersey-container-servlet-2.26.jar
-    - jersey-container-servlet-core-2.26.jar
-    - jersey-hk2-2.26.jar
-    - jersey-media-jaxb-2.26.jar
-    - jersey-server-2.26.jar
-    - jersey-common-2.26.jar
+    - jersey-client-2.31.jar
+    - jersey-container-servlet-2.31.jar
+    - jersey-container-servlet-core-2.31.jar
+    - jersey-hk2-2.31.jar
+    - jersey-media-jaxb-2.31.jar
+    - jersey-server-2.31.jar
+    - jersey-common-2.31.jar
  * JAXB
     - jaxb-api-2.3.1.jar
 
