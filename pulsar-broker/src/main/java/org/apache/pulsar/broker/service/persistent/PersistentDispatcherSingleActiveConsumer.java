@@ -81,8 +81,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final RedeliveryTracker redeliveryTracker;
     private volatile boolean havePendingReplayRead = false;
 
-    private TransactionMessageReader transactionMessageReader;
-
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName(), subscription);
@@ -94,8 +92,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionMessageReader = new TransactionMessageReader(
-                subscription, this, topic.getBrokerService().getPulsar().getOrderedExecutor());
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -196,7 +192,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }
 
         havePendingRead = false;
+        boolean isReplayRead = false;
         if (havePendingReplayRead) {
+            isReplayRead = true;
             entries.forEach(entry -> {
                 messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId());
             });
@@ -245,7 +243,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, transactionMessageReader);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, isReplayRead);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
@@ -462,7 +460,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
             if (havePendingReplayRead) {
                 if (log.isDebugEnabled()) {
-                    log.debug("have pending replay read");
+                    log.debug("[{}] Skipping replay while awaiting previous replay read to complete", name);
                 }
                 return;
             }
@@ -583,7 +581,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
-    public void addMessageToRedelivery(long ledgerId, long entryId) {
+    public void addMessageToReplay(long ledgerId, long entryId) {
         this.messagesToRedeliver.add(ledgerId, entryId);
     }
 

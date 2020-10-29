@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -325,8 +323,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
     }
 
-    //TODO: after PR `[Transaction] TransactionBuffer Refactor #8347` commit, the test can open.
-//    @Test
+    @Test
     public void txnMessageAckTest() throws Exception {
         final String subName = "test";
         @Cleanup
@@ -361,32 +358,25 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         txn.commit().get();
 
-        Map<Integer, MessageIdImpl> messageIdMap = new HashMap<>();
         int ackedMessageCount = 0;
         int receiveCnt = 0;
         for (int i = 0; i < messageCnt; i++) {
             message = consumer.receive();
+            Assert.assertNotNull(message);
+            receiveCnt ++;
             if (i % 2 == 0) {
                 consumer.acknowledge(message);
                 ackedMessageCount ++;
             }
-            Assert.assertNotNull(message);
-            receiveCnt ++;
-
-            MessageIdImpl messageId;
-            if (message.getMessageId() instanceof TopicMessageIdImpl) {
-                messageId = (MessageIdImpl) ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId();
-            } else {
-                messageId = (MessageIdImpl) message.getMessageId();
-            }
-            messageIdMap.put(messageId.getPartitionIndex(), messageId);
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
         for (int i = 0; i < TOPIC_PARTITION; i++) {
-            Assert.assertEquals(
-                    messageIdMap.get(i).getLedgerId() + ":-1",
-                    getMarkDeletePosition(TOPIC_OUTPUT, i, subName));
+            PersistentTopicInternalStats stats = getTopicStats(TOPIC_OUTPUT, i);
+            Assert.assertNotEquals(stats.lastConfirmedEntry, stats.cursors.get(subName).markDeletePosition);
         }
 
         consumer.redeliverUnacknowledgedMessages();
@@ -394,7 +384,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         receiveCnt = 0;
         for (int i = 0; i < messageCnt - ackedMessageCount; i++) {
             message = consumer.receive(2, TimeUnit.SECONDS);
-            log.info("second receive messageId: {}", message.getMessageId());
             Assert.assertNotNull(message);
             consumer.acknowledge(message);
             receiveCnt ++;
@@ -405,9 +394,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         for (int i = 0; i < TOPIC_PARTITION; i++) {
-            Assert.assertEquals(
-                    messageIdMap.get(i).getLedgerId() + ":" + messageIdMap.get(i).getEntryId(),
-                    getMarkDeletePosition(TOPIC_OUTPUT, i, subName));
+            PersistentTopicInternalStats stats = getTopicStats(TOPIC_OUTPUT, i);
+            Assert.assertEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
         }
 
         log.info("receive transaction messages count: {}", receiveCnt);
@@ -421,10 +409,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .get();
     }
 
-    private String getMarkDeletePosition(String topic, Integer partition, String subName) throws Exception {
+    private PersistentTopicInternalStats getTopicStats(String topic, Integer partition) throws Exception {
         topic = TopicName.get(topic).getPartition(partition).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
-        return stats.cursors.get(subName).markDeletePosition;
+        return admin.topics().getInternalStats(topic, false);
     }
 
 }

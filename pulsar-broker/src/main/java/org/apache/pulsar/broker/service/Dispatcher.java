@@ -116,8 +116,4 @@ public interface Dispatcher {
         // No-op
     }
 
-    default void addMessageToRedelivery(long ledgerId, long entryId) {
-        // No-op
-    }
-
 }
