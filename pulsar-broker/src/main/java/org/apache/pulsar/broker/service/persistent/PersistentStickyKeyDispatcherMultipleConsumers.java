@@ -229,7 +229,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         stuckConsumers.clear();
 
-        if (totalMessagesSent == 0 && recentlyJoinedConsumers != null && recentlyJoinedConsumers.isEmpty()) {
+        if (totalMessagesSent == 0 && (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:
             //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)
