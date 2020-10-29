@@ -8005,7 +8005,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -15065,6 +15065,15 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -15091,15 +15100,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         }
       }
     },
@@ -15271,6 +15271,9 @@
           "type" : "number",
           "format" : "double"
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -15278,9 +15281,6 @@
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         }
       }
@@ -16145,6 +16145,9 @@
             "type" : "string"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -16152,9 +16155,6 @@
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         }
       }
