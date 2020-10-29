@@ -18014,13 +18014,23 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
+                "underLoaded": {
+                    "type": "boolean"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "loadReportType": {
+                    "type": "string"
                 },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -18032,23 +18042,13 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "underLoaded": {
-                    "type": "boolean"
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
@@ -18539,13 +18539,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
+                "fileSystemDriver": {
+                    "type": "boolean"
+                },
                 "s3Driver": {
                     "type": "boolean"
                 },
                 "gcsDriver": {
-                    "type": "boolean"
-                },
-                "fileSystemDriver": {
                     "type": "boolean"
                 }
             }
