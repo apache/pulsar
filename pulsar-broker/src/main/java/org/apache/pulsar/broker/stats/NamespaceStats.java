@@ -43,7 +43,7 @@ public class NamespaceStats {
     public static final String BRK_ADD_ENTRY_LATENCY_PREFIX = "brk_AddEntryLatencyBuckets";
     public long[] addLatencyBucket = new long[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
     public static final String[] ADD_LATENCY_BUCKET_KEYS = new String[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
-    private final int ratePeriodInSeconds;
+    private int ratePeriodInSeconds = 1;
 
     static {
         // create static ref for add-latency-bucket keys to avoid new object allocation on every stats call.
@@ -63,7 +63,7 @@ public class NamespaceStats {
     }
 
     public NamespaceStats(int ratePeriodInSeconds) {
-        this.ratePeriodInSeconds  = ratePeriodInSeconds;
+        this.ratePeriodInSeconds = Math.max(1, ratePeriodInSeconds);
         reset();
     }
 
