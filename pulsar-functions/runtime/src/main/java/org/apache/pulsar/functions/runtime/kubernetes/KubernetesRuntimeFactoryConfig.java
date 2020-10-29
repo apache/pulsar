@@ -146,4 +146,9 @@ public class KubernetesRuntimeFactoryConfig {
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
+    @FieldContext(
+            doc = "The classpath where function instance files stored"
+    )
+    private String functionInstanceClassPath = "";
+
 }
