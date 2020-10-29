@@ -77,7 +77,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final ServiceConfiguration serviceConfig;
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
-    LongPairSet messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
+    LongPairSet messagesToRedeliver;
     private final RedeliveryTracker redeliveryTracker;
     private volatile boolean havePendingReplayRead = false;
 
@@ -92,6 +92,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
+        }
     }
 
     protected void scheduleReadOnActiveConsumer() {

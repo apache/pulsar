@@ -377,10 +377,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats = getTopicStats(topic, i);
-            Assert.assertNotEquals(stats.lastConfirmedEntry, stats.cursors.get(subName).markDeletePosition);
-        }
+        markDeletePositionCheck(topic, subName, false);
 
         consumer.redeliverUnacknowledgedMessages();
 
@@ -396,10 +393,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats = getTopicStats(topic, i);
-            Assert.assertEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
-        }
+        markDeletePositionCheck(topic, subName, true);
 
         log.info("receive transaction messages count: {}", receiveCnt);
     }
@@ -412,9 +406,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .get();
     }
 
-    private PersistentTopicInternalStats getTopicStats(String topic, Integer partition) throws Exception {
-        topic = TopicName.get(topic).getPartition(partition).toString();
-        return admin.topics().getInternalStats(topic, false);
+    private void markDeletePositionCheck(String topic, String subName, boolean equalsWithLastConfirm) throws Exception {
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            PersistentTopicInternalStats stats = null;
+            for (int j = 0; j < 10; j++) {
+                topic = TopicName.get(topic).getPartition(i).toString();
+                stats = admin.topics().getInternalStats(topic, false);
+                if (stats.lastConfirmedEntry.equals(stats.cursors.get(subName).markDeletePosition)) {
+                    break;
+                }
+                Thread.sleep(200);
+            }
+            if (equalsWithLastConfirm) {
+                Assert.assertEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
+            } else {
+                Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
+            }
+        }
     }
 
 }
