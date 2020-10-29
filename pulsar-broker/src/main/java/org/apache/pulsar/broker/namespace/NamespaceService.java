@@ -931,7 +931,19 @@ public class NamespaceService {
         if (bundle.isPresent()) {
             return ownershipCache.getOwnedBundle(bundle.get()) != null;
         } else {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
+            // Calling `getBundle(TopicName)` here can cause a deadlock.
+            // cf. https://github.com/apache/pulsar/pull/4190
+            //
+            // This method returns false once if the bundle metadata is not cached, but gets the metadata asynchronously
+            // to cache it. Otherwise, the clients will never be able to connect to the topic due to ServiceUnitNotReadyException.
+            // cf. https://github.com/apache/pulsar/pull/5919
+            getBundleAsync(topicName).thenAccept(bundle2 -> {
+                LOG.info("Succeeded in getting bundle {} for topic - [{}]", bundle2, topicName);
+            }).exceptionally(ex -> {
+                LOG.warn("Failed to get bundle for topic - [{}] {}", topicName, ex.getMessage());
+                return null;
+            });
+            return false;
         }
     }
 
