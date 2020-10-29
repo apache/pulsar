@@ -78,7 +78,7 @@
               <artifactSet>
                 <!-- package the dependencies that use protobuf & grpc and relocate protobuf -->
                 <includes>
-                  <include>com.google.protobuf:protobuf-lite</include>
+                  <include>com.google.protobuf:protobuf-javalite</include>
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.protobuf.nano:protobuf-javanano</include>
                   <include>com.google.protobuf:protobuf-java-util</include>

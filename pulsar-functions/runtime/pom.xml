@@ -34,6 +34,18 @@
   <dependencies>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf3.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-instance</artifactId>
       <version>${project.version}</version>
@@ -73,11 +85,11 @@
       </exclusions>
     </dependency>
 
-      <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-broker-common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
+    <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>pulsar-broker-common</artifactId>
+        <version>${project.version}</version>
+    </dependency>
 
   </dependencies>
 
