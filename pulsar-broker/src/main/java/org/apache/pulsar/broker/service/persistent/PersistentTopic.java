@@ -1403,10 +1403,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
-            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
-            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
-                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
-            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -1422,6 +1418,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replicationMetrics.msgReplBacklog += rStat.replicationBacklog;
                 if (update) {
                     replStats.put(namespaceClusterKey, replicationMetrics);
+                }
+                // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+                if (rStat.replicationDelayInSeconds > replicationMetrics.maxMsgReplDelayInSeconds) {
+                    replicationMetrics.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
                 }
             }
         });
