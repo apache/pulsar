@@ -70,19 +70,21 @@ public class PulsarClientTool {
     CmdConsume consumeCommand;
 
     public PulsarClientTool(Properties properties) {
-        this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
+        this.serviceURL = isNotBlank(properties.getProperty("brokerServiceUrl"))
                 ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         if (StringUtils.isBlank(this.serviceURL)) {
             this.serviceURL = properties.getProperty("serviceUrl");
         }
-        this.authPluginClassName = properties.getProperty("authPlugin");
-        this.authParams = properties.getProperty("authParams");
-        this.tlsAllowInsecureConnection = Boolean
-                .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
-        this.tlsEnableHostnameVerification = Boolean
-                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        this.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        this.authPluginClassName = isNotBlank(authPluginClassName) ? authPluginClassName
+                : properties.getProperty("authPlugin");
+        this.authParams = isNotBlank(authParams) ? authParams : properties.getProperty("authParams");
+        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection != null ? tlsAllowInsecureConnection
+                : Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
+        this.tlsEnableHostnameVerification = tlsEnableHostnameVerification != null ? tlsEnableHostnameVerification
+                : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
+        this.tlsTrustCertsFilePath = isNotBlank(tlsTrustCertsFilePath) ? tlsTrustCertsFilePath
+                : properties.getProperty("tlsTrustCertsFilePath");
 
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
