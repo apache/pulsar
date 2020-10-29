@@ -45,7 +45,7 @@ class PULSAR_PUBLIC RoundRobinMessageRouter : public MessageRouterBase {
     const boost::posix_time::time_duration maxBatchingDelay_;
 
     std::atomic<uint32_t> currentPartitionCursor_;
-    std::atomic<boost::posix_time::ptime> lastPartitionChange_;
+    std::atomic<int64_t> lastPartitionChange_;
     std::atomic<uint32_t> msgCounter_;
     std::atomic<uint32_t> cumulativeBatchSize_;
 };

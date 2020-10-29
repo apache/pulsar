@@ -30,7 +30,7 @@ RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingS
                                                  boost::posix_time::time_duration maxBatchingDelay)
     : MessageRouterBase(hashingScheme),
       batchingEnabled_(batchingEnabled),
-      lastPartitionChange_(TimeUtils::now()),
+      lastPartitionChange_(TimeUtils::currentTimeMillis()),
       msgCounter_(0),
       cumulativeBatchSize_(0),
       maxBatchingMessages_(maxBatchingMessages),
@@ -70,12 +70,13 @@ int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadat
     uint32_t messageSize = msg.getLength();
     uint32_t messageCount = msgCounter_;
     uint32_t batchSize = cumulativeBatchSize_;
-    boost::posix_time::ptime lastPartitionChange = lastPartitionChange_;
+    int64_t lastPartitionChange = lastPartitionChange_;
+    int64_t now = TimeUtils::currentTimeMillis();
 
     if (messageCount >= maxBatchingMessages_ || (messageSize >= maxBatchingSize_ - batchSize) ||
-        (TimeUtils::now() - lastPartitionChange >= maxBatchingDelay_)) {
+        (now - lastPartitionChange >= maxBatchingDelay_.total_milliseconds())) {
         uint32_t currentPartitionCursor = ++currentPartitionCursor_;
-        lastPartitionChange_ = TimeUtils::now();
+        lastPartitionChange_ = now;
         cumulativeBatchSize_ = messageSize;
         msgCounter_ = 1;
         return currentPartitionCursor % topicMetadata.getNumPartitions();
