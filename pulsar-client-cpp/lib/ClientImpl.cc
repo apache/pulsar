@@ -28,8 +28,9 @@
 #include "PatternMultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 #include <sstream>
-#include <openssl/sha.h>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
@@ -45,24 +46,19 @@ namespace pulsar {
 
 static const char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+static const boost::random::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits));
+static boost::random::mt19937 randomEngine(std::chrono::system_clock::now().time_since_epoch().count());
 
-const std::string generateRandomName() {
-    unsigned char hash[SHA_DIGEST_LENGTH];  // == 20;
-    boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
-    long nanoSeconds = t.time_of_day().total_nanoseconds();
-    std::stringstream ss;
-    ss << nanoSeconds;
-    SHA1(reinterpret_cast<const unsigned char*>(ss.str().c_str()), ss.str().length(), hash);
+std::string generateRandomName() {
+    const int randomNameLength = 10;
 
-    const int nameLength = 10;
-    std::stringstream hexHash;
-    for (int i = 0; i < nameLength / 2; i++) {
-        hexHash << hexDigits[(hash[i] & 0xF0) >> 4];
-        hexHash << hexDigits[hash[i] & 0x0F];
+    std::string randomName;
+    for(int i = 0; i < randomNameLength; ++i) {
+        randomName += hexDigits[hexDigitsDist(randomEngine)];
     }
-
-    return hexHash.str();
+    return randomName;
 }
+
 typedef std::unique_lock<std::mutex> Lock;
 
 typedef std::vector<std::string> StringList;
