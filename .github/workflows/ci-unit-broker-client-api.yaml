@@ -34,8 +34,6 @@ jobs:
   unit-tests:
     name:
     runs-on: ubuntu-latest
-    container:
-      image: apachepulsar/pulsar-build:latest
     timeout-minutes: 120
 
     steps:
