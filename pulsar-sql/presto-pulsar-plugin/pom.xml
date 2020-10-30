@@ -56,6 +56,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <attach>true</attach>
