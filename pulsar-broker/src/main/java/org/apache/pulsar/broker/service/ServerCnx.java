@@ -1714,16 +1714,16 @@ public class ServerCnx extends PulsarHandler {
         final int txnAction = command.getTxnAction().getNumber();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
-        service.pulsar().getTransactionMetadataStoreService().endTransaction(txnID, txnAction)
-            .thenRun(() -> {
-                ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
-            }).exceptionally(throwable -> {
-                log.error("Send response error for end txn request.", throwable);
-                ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
-                        BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
-                return null;
-        });
+        service.pulsar().getTransactionMetadataStoreService()
+                .endTransaction(txnID, txnAction, command.getMessageIdList())
+                .thenRun(() -> {
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                }).exceptionally(throwable -> {
+                    log.error("Send response error for end txn request.", throwable);
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                            BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
+                    return null; });
     }
 
     @Override
@@ -1739,7 +1739,7 @@ public class ServerCnx extends PulsarHandler {
                         "Topic " + command.getTopic() + " is not found."));
                 return;
             }
-            topic.get().endTxn(txnID, txnAction)
+            topic.get().endTxn(txnID, txnAction, command.getMessageIdList())
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle endTxnOnPartition {} failed.", command.getTopic(), throwable);

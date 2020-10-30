@@ -767,6 +767,7 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
+    repeated MessageIdData message_id = 5;
 }
 
 message CommandEndTxnResponse {
@@ -783,6 +784,7 @@ message CommandEndTxnOnPartition {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional string topic = 4;
     optional TxnAction txn_action = 5;
+    repeated MessageIdData message_id = 6;
 }
 
 message CommandEndTxnOnPartitionResponse {
