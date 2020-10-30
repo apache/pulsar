@@ -178,7 +178,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < txn1MessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
-            log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(txn1MessageCnt, receiveCnt);
@@ -193,7 +192,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < txn2MessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
-            log.info("receive second msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(txn2MessageCnt, receiveCnt);
