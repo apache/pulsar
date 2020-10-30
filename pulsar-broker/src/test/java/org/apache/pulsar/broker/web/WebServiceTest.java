@@ -274,6 +274,20 @@ public class WebServiceTest {
         assertEquals(res3.getStatusCode(), 200);
     }
 
+    @Test
+    public void testBrokerReady() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false, -1);
+
+        String url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
+
+        @Cleanup
+        AsyncHttpClient client = new DefaultAsyncHttpClient();
+
+        Response res = client.prepareGet(url).execute().get();
+        assertEquals(res.getStatusCode(), 200);
+        assertEquals(res.getResponseBody(), "ok");
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {

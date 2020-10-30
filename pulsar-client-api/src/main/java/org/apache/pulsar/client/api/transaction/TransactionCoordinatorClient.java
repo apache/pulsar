@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.MessageId;
 
 /**
  * Transaction coordinator client.
@@ -150,27 +151,27 @@ public interface TransactionCoordinatorClient extends Closeable {
      * Commit txn.
      * @param txnID txn id to commit.
      */
-    void commit(TxnID txnID) throws TransactionCoordinatorClientException;
+    void commit(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
 
     /**
      * Commit txn asynchronously.
      * @param txnID txn id to commit.
      * @return a future represents the result of commit txn.
      */
-    CompletableFuture<Void> commitAsync(TxnID txnID);
+    CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> messageIdList);
 
     /**
      * Abort txn.
      * @param txnID txn id to abort.
      */
-    void abort(TxnID txnID) throws TransactionCoordinatorClientException;
+    void abort(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
 
     /**
      * Abort txn asynchronously.
      * @param txnID txn id to abort.
      * @return a future represents the result of abort txn.
      */
-    CompletableFuture<Void> abortAsync(TxnID txnID);
+    CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> messageIdList);
 
     /**
      * Get current state of the transaction meta store.

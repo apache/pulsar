@@ -192,6 +192,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 }
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
+                    LOG.info(
+                            "Not found enough available-bookies from primary isolation group {} , checking secondary group",
+                            primaryIsolationGroups, secondaryIsolationGroups);
                     for (String group : secondaryIsolationGroups) {
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {

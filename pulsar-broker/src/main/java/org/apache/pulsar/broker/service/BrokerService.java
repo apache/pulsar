@@ -111,6 +111,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
+import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -201,6 +202,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
+
+    private final ObserverGauge pendingLookupRequests;
+    private final ObserverGauge pendingTopicLoadRequests;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -335,6 +339,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
 
         this.defaultServerBootstrap = defaultServerBootstrap();
+
+        this.pendingLookupRequests = ObserverGauge.build("pulsar_broker_lookup_pending_requests", "-")
+                .supplier(() -> pulsar.getConfig().getMaxConcurrentLookupRequest()
+                        - lookupRequestSemaphore.get().availablePermits())
+                .register();
+
+        this.pendingTopicLoadRequests = ObserverGauge.build("pulsar_broker_topic_load_pending_requests", "-")
+                .supplier(() -> pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
+                        - topicLoadRequestSemaphore.get().availablePermits())
+                .register();
     }
 
     // This call is used for starting additional protocol handlers
@@ -1201,10 +1215,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
-            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+
+            OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+            OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
+                    topicLevelOffloadPolicies,
+                    OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                    getPulsar().getConfig().getProperties());
             if (topicLevelOffloadPolicies != null) {
                 try {
-                    LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(topicLevelOffloadPolicies);
+                    LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(offloadPolicies);
                     managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
                 } catch (PulsarServerException e) {
                     future.completeExceptionally(e);

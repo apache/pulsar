@@ -66,10 +66,9 @@ class KeyBasedBatchingTest : public ::testing::Test {
 TEST_F(KeyBasedBatchingTest, testFlush) {
     initTopicName("Flush");
     // no limits for batching
-    initProducer(createDefaultProducerConfig()
-                     .setBatchingMaxMessages(static_cast<unsigned int>(-1))  // no limits for batching
-                     // only 2+1=3 spots are needed because there're at most only 2 batches to send
-                     .setMaxPendingMessages(3));
+    initProducer(createDefaultProducerConfig().setBatchingMaxMessages(
+        static_cast<unsigned int>(-1))  // no limits for batching
+    );
 
     constexpr int numMessages = 100;
     const std::string keys[] = {"A", "B"};
