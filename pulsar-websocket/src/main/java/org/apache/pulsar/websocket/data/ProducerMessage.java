@@ -21,11 +21,53 @@ package org.apache.pulsar.websocket.data;
 import java.util.List;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Class represent single message to be published.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProducerMessage {
+    // Actual message payload.
     public String payload;
+
+    // Optional properties.
     public Map<String, String> properties;
+
+    // Request context
     public String context;
+
+    // Partition key.
     public String key;
+
+    // Clusters to replicate message to.
     public List<String> replicationClusters;
+
+    // Message event time.
     public String eventTime;
+
+    // Message sequenceId.
+    public long sequenceId;
+
+    // Whether to disable replication of the message.
+    public boolean disableReplication;
+
+    // Deliver the message only at or after the specified absolute timestamp.
+    public long deliverAt;
+
+    // Deliver the message only after the specified relative delay in milliseconds.
+    public long deliverAfterMs;
+
+    // Version of schema to use for the message.
+    public long schemaVersion;
+
+    // Base64 encoded serialized schema for key
+    public String keySchema;
+
+    // Base64 encoded serialized schema for payload
+    public String valueSchema;
 }
