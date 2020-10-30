@@ -1621,6 +1621,12 @@
         "Message": {
             "type": "object",
             "properties": {
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1628,9 +1634,6 @@
                 "eventTime": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
                 },
                 "sequenceId": {
                     "type": "integer",
@@ -1642,15 +1645,9 @@
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1659,14 +1656,13 @@
                         "format": "byte"
                     }
                 },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "keyBytes": {
+                "orderingKey": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1680,8 +1676,12 @@
                         "format": "byte"
                     }
                 },
-                "topicName": {
-                    "type": "string"
+                "keyBytes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "value": {
                     "type": "object"
