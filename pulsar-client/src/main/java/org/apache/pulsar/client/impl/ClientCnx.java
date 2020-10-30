@@ -407,6 +407,7 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(state == State.Ready);
         checkArgument(ackResponse.getRequestId() >= 0);
         long consumerId = ackResponse.getConsumerId();
+        consumers.get(consumerId).increaseAvailablePermits(this);
         if (!ackResponse.hasError()) {
             consumers.get(consumerId).ackReceipt(ackResponse.getRequestId());
         } else {
