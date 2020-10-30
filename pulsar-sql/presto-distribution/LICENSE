@@ -242,7 +242,6 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-4.1.51.Final.jar
     - netty-tcnative-boringssl-static-2.0.30.Final.jar
     - netty-transport-4.1.51.Final.jar
-    - netty-transport-native-epoll-4.1.51.Final.jar
     - netty-transport-native-epoll-4.1.51.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.51.Final.jar
     - netty-transport-native-unix-common-4.1.51.Final-linux-x86_64.jar
@@ -301,6 +300,9 @@ The Apache Software License, Version 2.0
     - stats-0.195.jar
     - trace-token-0.195.jar
     - units-1.6.jar
+   * Apache HTTP Client
+    - httpclient-4.5.5.jar
+    - httpcore-4.4.9.jar
   * Error Prone Annotations
     - error_prone_annotations-2.1.3.jar
   * Esri Geometry API For Java
@@ -383,7 +385,7 @@ The Apache Software License, Version 2.0
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
   * RocksDB JNI
-    - rocksdbjni-5.13.3.jar
+    - rocksdbjni-6.10.2.jar
   * SnakeYAML
     - snakeyaml-1.26.jar
   * Bean Validation API
@@ -406,17 +408,17 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.10.0.jar
-    - bookkeeper-common-allocator-4.10.0.jar
-    - bookkeeper-proto-4.10.0.jar
-    - bookkeeper-server-4.10.0.jar
-    - bookkeeper-stats-api-4.10.0.jar
-    - bookkeeper-tools-framework-4.10.0.jar
-    - circe-checksum-4.10.0.jar
-    - codahale-metrics-provider-4.10.0.jar
-    - cpu-affinity-4.10.0.jar
-    - http-server-4.10.0.jar
-    - prometheus-metrics-provider-4.10.0.jar
+    - bookkeeper-common-4.11.1.jar
+    - bookkeeper-common-allocator-4.11.1.jar
+    - bookkeeper-proto-4.11.1.jar
+    - bookkeeper-server-4.11.1.jar
+    - bookkeeper-stats-api-4.11.1.jar
+    - bookkeeper-tools-framework-4.11.1.jar
+    - circe-checksum-4.11.1.jar
+    - codahale-metrics-provider-4.11.1.jar
+    - cpu-affinity-4.11.1.jar
+    - http-server-4.11.1.jar
+    - prometheus-metrics-provider-4.11.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -424,7 +426,7 @@ The Apache Software License, Version 2.0
     - commons-configuration-1.10.jar
     - commons-io-2.5.jar
     - commons-lang-2.6.jar
-    - commons-logging-1.1.1.jar
+    - commons-logging-1.2.jar
   * GSON
     - gson-2.8.2.jar
   * Jackson
@@ -506,13 +508,11 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - javax.activation-1.2.0.jar
    - javax.activation-api-1.2.0.jar
    - jakarta.activation-api-1.2.1.jar
-   - jakarta.validation-api-2.0.2.jar
-   - jakarta.ws.rs-api-2.1.6.jar
  * HK2 - Dependency Injection Kernel
    - hk2-api-2.6.1.jar
    - hk2-locator-2.6.1.jar
    - hk2-utils-2.6.1.jar
-   - jakarta.inject-2.6.1.jar 
+   - aopalliance-repackaged-2.6.1.jar
  * Jersey
     - jaxrs-0.195.jar
     - jersey-client-2.31.jar
@@ -523,11 +523,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-server-2.31.jar
     - jersey-common-2.31.jar
     - jersey-entity-filtering-2.31.jar
-    - jersey-hk2-2.31.jar
     - jersey-media-json-jackson-2.31.jar
     - jersey-media-multipart-2.31.jar
-    - aopalliance-repackaged-2.6.1.jar
-
  * JAXB
     - jaxb-api-2.3.1.jar
 
@@ -552,6 +549,9 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
  * jakarta.annotation-api-1.3.5.jar
+ * jakarta.inject-2.6.1.jar
+ * jakarta.validation-api-2.0.2.jar
+ * jakarta.ws.rs-api-2.1.6.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
@@ -567,7 +567,6 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk15on-1.66.jar
-    - bcprov-ext-jdk15on-1.66.jar
-    - bcprov-jdk15on-1.66.jar
-    - bouncy-castle-bc-2.7.0-SNAPSHOT-pkg.jar
+-    - bcpkix-jdk15on-1.66.jar
+-    - bcprov-ext-jdk15on-1.66.jar
+-    - bcprov-jdk15on-1.66.jar
