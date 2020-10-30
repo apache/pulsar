@@ -54,8 +54,6 @@ jobs:
       - name: clean disk
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h
