@@ -91,40 +91,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void produceTest() throws Exception {
-        String topic = NAMESPACE1 + "/txn-test";
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient
-                .newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
-
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
-                .newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create();
-
-        Transaction txn = getTxn();
-
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage(txn).value("Hello".getBytes()).sendAsync();
-        }
-
-        txn.commit().get();
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
-            log.info("receive msg: {}", new String(message.getData()));
-        }
-
-    }
-
-    @Test
     public void noBatchProduceCommitTest() throws Exception {
         produceCommitTest(false);
     }
