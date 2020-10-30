@@ -75,4 +75,12 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @throws IOException
      */
     OpSendMsg createOpSendMsg() throws IOException;
+
+    /**
+     * Check whether the added message belong to the same txn with batch message container.
+     *
+     * @param msg added message
+     * @return belong to the same txn or not
+     */
+    boolean hasSameTxn(MessageImpl<?> msg);
 }
