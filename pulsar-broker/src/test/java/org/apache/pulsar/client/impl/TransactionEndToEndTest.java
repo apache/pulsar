@@ -335,6 +335,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
+                .receiverQueueSize(1000)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
 
