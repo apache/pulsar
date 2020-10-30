@@ -36,6 +36,11 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
+      - name: optimize filesystem performance
+        run: |
+          sudo mount -o remount,nodiscard,commit=999999,nobarrier /
+          sudo mount -o remount,nodiscard,commit=999999,nobarrier /mnt
+
       - name: checkout
         uses: actions/checkout@v2
 

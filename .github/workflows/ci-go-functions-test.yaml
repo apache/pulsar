@@ -52,6 +52,11 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
+      - name: optimize filesystem performance
+        run: |
+          sudo mount -o remount,nodiscard,commit=999999,nobarrier /
+          sudo mount -o remount,nodiscard,commit=999999,nobarrier /mnt
+
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
