@@ -73,11 +73,7 @@ jobs:
 
       - name: clean disk
         if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          time sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          time sudo apt clean
-          time docker rmi $(docker images -q) -f
-          df -h
+        uses: ./.github/actions/clean-disk
 
       - name: run install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
