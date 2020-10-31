@@ -112,7 +112,8 @@ public class BrokerRateLimiterTest extends BrokerTestBase {
         Assert.assertTrue(consumeRateLimiter.isConsumeRateExceeded());
         message = consumer.receive(100, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
-        Assert.assertTrue(getCurrentMaxMessage(consumeRateLimiter).sum() >= getMaxMessage(consumeRateLimiter));
+        Assert.assertTrue(getLongAdder(consumeRateLimiter, "currentDispatchRateOnMessage").sum()
+                >= getProperty(consumeRateLimiter, "maxMsgRate"));
 
         // update max byte to 1
         admin.brokers().updateDynamicConfiguration("brokerDispatchThrottlingRateInBytes", "1");
@@ -124,8 +125,10 @@ public class BrokerRateLimiterTest extends BrokerTestBase {
             count++;
         }
         Assert.assertTrue(count < 5);
-        Assert.assertTrue(getCurrentMaxMessage(consumeRateLimiter).sum() < getMaxMessage(consumeRateLimiter));
-        Assert.assertTrue(getCurrentMaxByte(consumeRateLimiter).sum() >= getMaxByte(consumeRateLimiter));
+        Assert.assertTrue(getLongAdder(consumeRateLimiter, "currentDispatchRateOnMessage").sum()
+                < getProperty(consumeRateLimiter, "maxMsgRate"));
+        Assert.assertTrue(getLongAdder(consumeRateLimiter, "currentDispatchRateOnByte").sum()
+                >= getProperty(consumeRateLimiter, "maxByteRate"));
 
         //unlimited，so we can consume all the messages
         admin.brokers().updateDynamicConfiguration("brokerDispatchThrottlingRateInMessages", "0");
@@ -214,9 +217,9 @@ public class BrokerRateLimiterTest extends BrokerTestBase {
         // give consumers some time to consume
         Thread.sleep(500);
         Assert.assertTrue(counter.get() < messageNum);
-        System.out.println("messages received:" + counter.get());
         Assert.assertTrue(consumeRateLimiter.isConsumeRateExceeded());
-        Assert.assertTrue(getCurrentMaxMessage(consumeRateLimiter).sum() >= getMaxMessage(consumeRateLimiter));
+        Assert.assertTrue(getLongAdder(consumeRateLimiter, "currentDispatchRateOnMessage").sum()
+                >= getProperty(consumeRateLimiter, "maxMsgRate"));
     }
 
     private void closeRestMonitor(ConsumeRateLimiterImpl consumeRateLimiter) throws Exception {
@@ -226,26 +229,14 @@ public class BrokerRateLimiterTest extends BrokerTestBase {
         monitor.shutdownNow();
     }
 
-    private LongAdder getCurrentMaxMessage(ConsumeRateLimiterImpl consumeRateLimiter) throws Exception {
-        Field field = ConsumeRateLimiterImpl.class.getDeclaredField("currentDispatchRateOnMessage");
+    private LongAdder getLongAdder(ConsumeRateLimiterImpl consumeRateLimiter, String propertyName) throws Exception {
+        Field field = ConsumeRateLimiterImpl.class.getDeclaredField(propertyName);
         field.setAccessible(true);
         return (LongAdder) field.get(consumeRateLimiter);
     }
 
-    private LongAdder getCurrentMaxByte(ConsumeRateLimiterImpl consumeRateLimiter) throws Exception {
-        Field field = ConsumeRateLimiterImpl.class.getDeclaredField("currentDispatchRateOnByte");
-        field.setAccessible(true);
-        return (LongAdder) field.get(consumeRateLimiter);
-    }
-
-    private long getMaxMessage(ConsumeRateLimiterImpl consumeRateLimiter) throws Exception {
-        Field field = ConsumeRateLimiterImpl.class.getSuperclass().getDeclaredField("maxMsgRate");
-        field.setAccessible(true);
-        return (long) field.get(consumeRateLimiter);
-    }
-
-    private long getMaxByte(ConsumeRateLimiterImpl consumeRateLimiter) throws Exception {
-        Field field = ConsumeRateLimiterImpl.class.getSuperclass().getDeclaredField("maxByteRate");
+    private long getProperty(ConsumeRateLimiterImpl consumeRateLimiter, String propertyName) throws Exception {
+        Field field = ConsumeRateLimiterImpl.class.getSuperclass().getDeclaredField(propertyName);
         field.setAccessible(true);
         return (long) field.get(consumeRateLimiter);
     }
