@@ -52,10 +52,12 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - name: optimize filesystem performance
+      - name: tune OS performance
         run: |
           sudo mount -o remount,nodiscard,commit=999999,nobarrier /
           sudo mount -o remount,nodiscard,commit=999999,nobarrier /mnt
+          echo 1 | sudo tee /proc/sys/vm/swappiness
+          echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2

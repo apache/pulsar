@@ -42,10 +42,12 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - name: optimize filesystem performance
+      - name: tune OS performance
         run: |
           sudo mount -o remount,nodiscard,commit=999999,nobarrier /
           sudo mount -o remount,nodiscard,commit=999999,nobarrier /mnt
+          echo 1 | sudo tee /proc/sys/vm/swappiness
+          echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
 
       - name: checkout
         uses: actions/checkout@v2
@@ -76,10 +78,9 @@ jobs:
       - name: clean disk
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
-          docker rmi $(docker images -q) -f
+          time sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          time sudo apt clean
+          time docker rmi $(docker images -q) -f
           df -h
 
       - name: run install by skip tests
