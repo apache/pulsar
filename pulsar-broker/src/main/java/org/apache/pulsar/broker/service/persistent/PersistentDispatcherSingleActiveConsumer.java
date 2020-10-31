@@ -245,7 +245,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         if (future.isSuccess()) {
                             // acquire message-dispatch permits for already delivered messages
                             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                                if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                                if (topic.getBrokerService().getBrokerDispatchRateLimiter() != null) {
                                     topic.getBrokerService().getBrokerDispatchRateLimiter()
                                             .incrementConsumeCount(totalMessages, totalBytes);
                                 }

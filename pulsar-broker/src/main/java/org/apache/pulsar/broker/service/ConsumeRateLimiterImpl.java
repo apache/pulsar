@@ -37,7 +37,7 @@ public class ConsumeRateLimiterImpl extends AbstractScheduledRateLimiter {
 
     @Override
     public boolean incrementConsumeCount(long msgPermits, long bytePermits) {
-        if (!isConsumeRateExceeded() && isDispatchRateLimitingEnabled()) {
+        if (hasMessageDispatchPermit()) {
             currentDispatchRateOnMessage.add(msgPermits);
             currentDispatchRateOnByte.add(bytePermits);
             return true;
@@ -90,16 +90,16 @@ public class ConsumeRateLimiterImpl extends AbstractScheduledRateLimiter {
 
     @Override
     public void checkConsumeRate() {
-        try {
-            lock.lock();
-            if (isDispatchRateLimitingEnabled() && !isConsumeRateExceeded()) {
+        if (hasMessageDispatchPermit()) {
+            try {
+                lock.lock();
                 if (currentDispatchRateOnMessage.sum() >= maxMsgRate
                         || currentDispatchRateOnByte.sum() >= maxByteRate) {
                     consumeRateExceeded = true;
                 }
+            } finally {
+                lock.unlock();
             }
-        } finally {
-            lock.unlock();
         }
     }
 

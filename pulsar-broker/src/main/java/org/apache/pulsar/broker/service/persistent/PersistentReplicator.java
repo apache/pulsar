@@ -402,7 +402,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     continue;
                 }
 
-                if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                if (topic.getBrokerService().getBrokerDispatchRateLimiter() != null) {
                     topic.getBrokerService().getBrokerDispatchRateLimiter()
                             .incrementConsumeCount(1, entry.getLength());
                 }
