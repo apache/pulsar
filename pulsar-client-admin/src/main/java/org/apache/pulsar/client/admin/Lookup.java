@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,6 +41,23 @@ public interface Lookup {
      * @return the broker URL that serves the topic
      */
     CompletableFuture<String> lookupTopicAsync(String topic);
+
+    /**
+     * Lookup a partitioned topic.
+     *
+     * @param topic
+     * @return the broker URLs that serves the topic
+     */
+    Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException;
+
+
+    /**
+     * Lookup a partitioned topic.
+     *
+     * @param topic
+     * @return the broker URLs that serves the topic
+     */
+    CompletableFuture<Map<String, String>> lookupPartitionedTopicAsync(String topic);
 
     /**
      * Get a bundle range of a topic.

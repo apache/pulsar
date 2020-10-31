@@ -378,15 +378,16 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set the retention time for the ManagedLedger
+     * Set the retention time for the ManagedLedger.
      * <p>
-     * Retention time will prevent data from being deleted for at least the specified amount of time, even if no cursors
-     * are created, or if all the cursors have marked the data for deletion.
+     * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
+     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
+     * the data marked for deletion.
      * <p>
-     * A retention time of 0 (the default), will to have no time based retention.
+     * A retention time of 0 (default) will make data to be deleted immediately.
      * <p>
-     * Specifying a negative retention time will make the data to be retained indefinitely, based on the
-     * {@link #setRetentionSizeInMB(long)} value.
+     * A retention time of -1 , means to have an unlimited retention time.
      *
      * @param retentionTime
      *            duration for which messages should be retained
@@ -409,12 +410,14 @@ public class ManagedLedgerConfig {
     /**
      * The retention size is used to set a maximum retention size quota on the ManagedLedger.
      * <p>
-     * This setting works in conjuction with {@link #setRetentionSizeInMB(long)} and places a max size for retention,
-     * after which the data is deleted.
+     * Retention size and retention time ({@link #setRetentionTime(int, TimeUnit)}) are together used to retain the
+     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
+     * the data marked for deletion.
      * <p>
-     * A retention size of 0, will make data to be deleted immediately.
+     * A retention size of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention size of -1, means to have an unlimited retention size.
+     * A retention size of -1 , means to have an unlimited retention size.
      *
      * @param retentionSizeInMB
      *            quota for message retention

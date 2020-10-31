@@ -1595,11 +1595,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
-
         // Perform the read
         long firstEntry = opReadEntry.readPosition.getEntryId();
         long lastEntryInLedger;
-        final ManagedCursorImpl cursor = opReadEntry.cursor;
 
         PositionImpl lastPosition = lastConfirmedEntry;
 
@@ -1627,6 +1625,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     opReadEntry.updateReadPosition(new PositionImpl(ledger.getId() + 1, 0));
                 }
+            } else {
+                opReadEntry.updateReadPosition(opReadEntry.readPosition);
             }
 
             opReadEntry.checkReadCompletion();
@@ -1928,11 +1928,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                && config.getLedgerOffloader().getOffloadPolicies() != null) {
-            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
-                executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
-            }
+        if (config.getLedgerOffloader() != null
+                && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                && config.getLedgerOffloader().getOffloadPolicies() != null
+                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
+                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
     }
 
@@ -1951,8 +1952,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 });
 
-            if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                    && config.getLedgerOffloader().getOffloadPolicies() != null) {
+            if (config.getLedgerOffloader() != null
+                    && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                    && config.getLedgerOffloader().getOffloadPolicies() != null
+                    && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null) {
                 long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes();
 
                 long sizeSummed = 0;

@@ -124,6 +124,8 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -166,6 +168,7 @@ public class ServerCnx extends PulsarHandler {
     private boolean preciseDispatcherFlowControl;
 
     private boolean preciseTopicPublishRateLimitingEnable;
+    private boolean encryptionRequireOnProducer;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
@@ -201,6 +204,7 @@ public class ServerCnx extends PulsarHandler {
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
+        this.encryptionRequireOnProducer = pulsar.getConfiguration().isEncryptionRequireOnProducer();
     }
 
     @Override
@@ -582,7 +586,8 @@ public class ServerCnx extends PulsarHandler {
                 // If the connection was already ready, it means we're doing a refresh
                 if (!StringUtils.isEmpty(authRole)) {
                     if (!authRole.equals(newAuthRole)) {
-                        log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
+                        log.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
+                                remoteAddress, authRole, newAuthRole);
                         ctx.close();
                     } else {
                         log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);
@@ -1101,7 +1106,7 @@ public class ServerCnx extends PulsarHandler {
                             }
 
                             // Check whether the producer will publish encrypted messages or not
-                            if (topic.isEncryptionRequired() && !isEncrypted) {
+                            if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
                                 String msg = String.format("Encryption is required in %s", topicName);
                                 log.warn("[{}] {}", remoteAddress, msg);
                                 commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
@@ -1264,7 +1269,19 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Consumer> consumerFuture = consumers.get(ack.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).messageAcked(ack);
+            consumerFuture.getNow(null).messageAcked(ack).thenRun(() -> {
+                        if (ack.hasRequestId()) {
+                            ctx.writeAndFlush(Commands.newAckResponse(
+                                    ack.getRequestId(), null, null, ack.getConsumerId()));
+                        }
+                    }).exceptionally(e -> {
+                        if (ack.hasRequestId()) {
+                            ctx.writeAndFlush(Commands.newAckResponse(ack.getRequestId(),
+                                    BrokerServiceException.getClientErrorCode(e),
+                                    e.getMessage(), ack.getConsumerId()));
+                        }
+                        return null;
+                    });
         }
     }
 
@@ -1338,7 +1355,13 @@ public class ServerCnx extends PulsarHandler {
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
 
-            Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
+            long[] ackSet = null;
+            if (msgIdData.getAckSetCount() > 0) {
+                ackSet = SafeCollectionUtils.longListToArray(msgIdData.getAckSetList());
+            }
+
+            Position position = new PositionImpl(msgIdData.getLedgerId(),
+                    msgIdData.getEntryId(), ackSet);
 
 
             subscription.resetCursor(position).thenRun(() -> {
@@ -1692,16 +1715,16 @@ public class ServerCnx extends PulsarHandler {
         final int txnAction = command.getTxnAction().getNumber();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
-        service.pulsar().getTransactionMetadataStoreService().endTransaction(txnID, txnAction)
-            .thenRun(() -> {
-                ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
-            }).exceptionally(throwable -> {
-                log.error("Send response error for end txn request.", throwable);
-                ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
-                        BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
-                return null;
-        });
+        service.pulsar().getTransactionMetadataStoreService()
+                .endTransaction(txnID, txnAction, command.getMessageIdList())
+                .thenRun(() -> {
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                }).exceptionally(throwable -> {
+                    log.error("Send response error for end txn request.", throwable);
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                            BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
+                    return null; });
     }
 
     @Override
@@ -1717,7 +1740,7 @@ public class ServerCnx extends PulsarHandler {
                         "Topic " + command.getTopic() + " is not found."));
                 return;
             }
-            topic.get().endTxn(txnID, txnAction)
+            topic.get().endTxn(txnID, txnAction, command.getMessageIdList())
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle endTxnOnPartition {} failed.", command.getTopic(), throwable);

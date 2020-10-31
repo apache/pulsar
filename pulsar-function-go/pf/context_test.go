@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,6 +32,10 @@ func TestContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	fc := NewFuncContext()
+	fc.record = &MockMessage{
+		properties: map[string]string{"FOO": "BAR"},
+		messageID:  &MockMessageID{},
+	}
 	ctx = NewContext(ctx, fc)
 
 	if resfc, ok := FromContext(ctx); ok {
@@ -54,5 +59,26 @@ func TestContext(t *testing.T) {
 			t,
 			map[string]interface{}{"word-of-the-day": "hapax legomenon"},
 			resfc.GetUserConfMap())
+		assert.IsType(t, &MockMessage{}, fc.GetCurrentRecord())
 	}
+}
+
+func TestFunctionContext_setCurrentRecord(t *testing.T) {
+	fc := NewFuncContext()
+
+	fc.SetCurrentRecord(&MockMessage{})
+
+	assert.IsType(t, &MockMessage{}, fc.record)
+}
+
+func TestFunctionContext_NewOutputMessage(t *testing.T) {
+	fc := NewFuncContext()
+	publishTopic := "publish-topic"
+
+	fc.outputMessage = func(topic string) pulsar.Producer {
+		return &MockPulsarProducer{}
+	}
+
+	actualProducer := fc.NewOutputMessage(publishTopic)
+	assert.IsType(t, &MockPulsarProducer{}, actualProducer)
 }

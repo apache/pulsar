@@ -268,7 +268,6 @@ func (p *producer) SendAndGetMsgID(ctx context.Context, msg ProducerMessage) (Me
 	}
 }
 
-
 type sendCallback struct {
 	message  ProducerMessage
 	callback func(ProducerMessage, error)
@@ -287,6 +286,7 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, messageId *C.pulsar_me
 		sendCallback.callback(sendCallback.message, newError(res, "Failed to send message"))
 	} else {
 		sendCallback.callback(sendCallback.message, nil)
+		C.pulsar_message_id_free(messageId)
 	}
 }
 
