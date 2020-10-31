@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.util;
 
-
+/**
+ * A rate-limiter that periodically checks whether the threshold is exceeded.
+ */
 public interface ScheduledRateLimiter {
 
     /**
@@ -44,8 +46,8 @@ public interface ScheduledRateLimiter {
 
     /**
      * Update dispatch rate by updating msg and byte rate-limiter.
-     * </p>
-     * If dispatch-rate is configured < 0 then it closes the rate-limiter and disables appropriate rate-limiter.
+     * <p>If dispatch-rate is configured < 0
+     * then it closes the rate-limiter and disables appropriate rate-limiter.
      */
     void updateDispatchRate(long maxMsgRate, long maxByteRate, long rateTime);
 

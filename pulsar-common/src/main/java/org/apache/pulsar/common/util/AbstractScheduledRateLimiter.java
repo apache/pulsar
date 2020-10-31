@@ -27,11 +27,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * This class is not a precise rate-limiter, but its performance is better.
  * We have defined 2 thread pools:
- * <p>
  * `checkRateExceededMonitor` is responsible for continuously detecting whether the traffic has exceeded the threshold.
  * `resetRateMonitor` is responsible for resetting the permit count per second.
  *
- * We can reduce the value of `brokerDispatchThrottlingRateTimeMillis` to increase the frequency of detection(at least 1ms),
+ * We can reduce the value of `brokerDispatchThrottlingRateTimeMillis`
+ * to increase the frequency of detection(at least 1ms),
  * thereby improving the accuracy of rate-limiter.
  * The consumption is lower than that of detecting every request.
  */
