@@ -135,7 +135,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
             policies.bundles = new BundlesData(4);
-            policies.auth_policies.namespace_auth.put("admin", ImmutableSet.of(AuthAction.produce, AuthAction.consume));
             policies.replication_clusters = ImmutableSet.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
@@ -144,6 +143,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 ex.printStackTrace();
                 fail("Should not have thrown an exception");
             }
+            String topicName = String.format("persistent://%s/t1", "tenant/ns");
+            admin.lookups().lookupTopic(topicName);
         }
 
     }

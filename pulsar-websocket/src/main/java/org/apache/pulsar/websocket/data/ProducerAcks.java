@@ -16,32 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.websocket.data;
 
+import java.util.List;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Definition of a Bouncy Castle provider loader NAR package.
+ * Represent results of publishing multiple messages.
  */
 @Data
 @NoArgsConstructor
-public class BcNarDefinition {
+@AllArgsConstructor
+public class ProducerAcks {
+    List<ProducerAck> messagePublishResults;
 
-    /**
-     * The name of the Bouncy Castle provider type.
-     *   BC/BCFIPS
-     */
-    private String name;
-
-    /**
-     * Description to be used for user help.
-     */
-    private String description;
-
-    /**
-     * The class name for the Bouncy Castle provider loader impl.
-     */
-    private String bcLoaderClass;
-
+    // Version of schema used to encode messages.
+    long schemaVersion;
 }

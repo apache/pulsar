@@ -41,6 +41,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -76,7 +77,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             Topic mockTopic = Mockito.mock(Topic.class);
-            Mockito.when(mockTopic.endTxn(Mockito.any(), Mockito.anyInt()))
+            Mockito.when(mockTopic.endTxn(Mockito.any(), Mockito.anyInt(), Mockito.anyList()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(mockTopic.getSubscription(Mockito.any())).thenReturn(mockSubscription);
 
@@ -96,7 +97,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.commitTxnOnTopic(topic, 1L, i));
+            futures.add(tbClient.commitTxnOnTopic(topic, 1L, i, Collections.emptyList()));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
@@ -109,7 +110,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.abortTxnOnTopic(topic, 1L, i));
+            futures.add(tbClient.abortTxnOnTopic(topic, 1L, i, Collections.emptyList()));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);

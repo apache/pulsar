@@ -47,7 +47,7 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
+
      <dependency>
       <groupId>org.apache.storm</groupId>
       <artifactId>storm-server</artifactId>
@@ -63,6 +63,14 @@
             <artifactId>log4j-over-slf4j</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

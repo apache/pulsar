@@ -75,7 +75,7 @@ public class TestPulsarConnectorConfig {
 
         final String managedLedgerOffloadDriver = "s3";
         final String offloaderDirectory = "/pulsar/offloaders";
-        final int managedLedgerOffloadMaxThreads = 5;
+        final Integer managedLedgerOffloadMaxThreads = 5;
         final String bucket = "offload-bucket";
         final String region = "us-west-2";
         final String endpoint = "http://s3.amazonaws.com";

@@ -88,6 +88,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
+            log.info("first test success: without certs set, meet exception {}", ex);
         }
 
         // Test 2 - Using TLS on binary protocol - sending certs
@@ -95,6 +96,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            log.info("second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -116,6 +118,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
+            log.info("first test success: without certs set, meet exception {}", ex);
         }
 
         // Test 2 - Using TLS on https - sending certs
@@ -123,6 +126,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            log.info("second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }

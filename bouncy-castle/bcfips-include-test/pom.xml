@@ -47,7 +47,7 @@
       <exclusions>
         <exclusion>
           <groupId>${project.groupId}</groupId>
-          <artifactId>bouncy-castle-bc-shaded</artifactId>
+          <artifactId>bouncy-castle-bc</artifactId>
         </exclusion>
       </exclusions>
       <type>test-jar</type>
@@ -61,7 +61,7 @@
       <exclusions>
         <exclusion>
           <groupId>${project.groupId}</groupId>
-          <artifactId>bouncy-castle-bc-shaded</artifactId>
+          <artifactId>bouncy-castle-bc</artifactId>
         </exclusion>
       </exclusions>
       <scope>test</scope>
