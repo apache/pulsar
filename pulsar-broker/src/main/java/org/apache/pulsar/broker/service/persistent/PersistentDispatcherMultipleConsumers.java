@@ -266,6 +266,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+                //If it reaches the threshold of the entire Broker rate limit, try to read again later.
+                if (topic.getBrokerService().getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled()
+                        && topic.getBrokerService().getBrokerDispatchRateLimiter().isConsumeRateExceeded()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded, schedule after {} ms", name, MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
+                            TimeUnit.MILLISECONDS);
+                    return;
+                }
                 if (topic.getDispatchRateLimiter().isPresent() && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
                     DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
                     if (!topicRateLimiter.hasMessageDispatchPermit()) {
@@ -538,6 +548,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                topic.getBrokerService().getBrokerDispatchRateLimiter()
+                        .incrementConsumeCount(totalMessagesSent, totalBytesSent);
+            }
             if (topic.getDispatchRateLimiter().isPresent()) {
                 topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
             }

@@ -218,6 +218,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                topic.getBrokerService().getBrokerDispatchRateLimiter()
+                        .incrementConsumeCount(totalMessagesSent, totalBytesSent);
+            }
             if (topic.getDispatchRateLimiter().isPresent()) {
                 topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
             }

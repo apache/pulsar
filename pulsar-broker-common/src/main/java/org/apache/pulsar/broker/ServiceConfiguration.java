@@ -575,6 +575,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
+        doc = "Default number of message dispatching throttling-limit for a broker. \n\n"
+            + "Using a value of 0, is disabling default message dispatch-throttling.")
+    private long brokerDispatchThrottlingRateInBytes = 0;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message-bytes dispatching throttling-limit for a broker. \n\n"
+            + "Using a value of 0, is disabling default message-byte dispatch-throttling.")
+    private long brokerDispatchThrottlingRateInMessages = 0;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Rate time to schedule task that reset broker consume rate limit-permit.")
+    private long brokerDispatchThrottlingRateTimeMillis = 50;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
         doc = "Default number of message dispatching throttling-limit for every replicator in replication. \n\n"
             + "Using a value of 0, is disabling replication message dispatch-throttling")
     private int dispatchThrottlingRatePerReplicatorInMsg = 0;

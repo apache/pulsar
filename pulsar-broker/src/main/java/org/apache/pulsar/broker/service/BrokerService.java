@@ -153,6 +153,7 @@ import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.common.util.ScheduledRateLimiter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -215,6 +216,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+    protected volatile ScheduledRateLimiter brokerDispatchRateLimiter;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -442,6 +444,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
+        this.updateBrokerDispatchRateLimiter();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -1742,6 +1745,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInByte", (dispatchRatePerTopicInByte) -> {
             updateSubscriptionMessageDispatchRate();
         });
+        registerConfigurationListener((dispatchRatePerTopicInByte) -> updateBrokerDispatchRateLimiter()
+                , "brokerDispatchThrottlingRateInBytes","brokerDispatchThrottlingRateInMessages"
+                ,"brokerDispatchThrottlingRateTimeMillis");
 
         // add listener to update message-dispatch-rate in msg for replicator
         registerConfigurationListener("dispatchThrottlingRatePerReplicatorInMsg", (dispatchRatePerTopicInMsg) -> {
@@ -1772,6 +1778,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         // add more listeners here
+    }
+
+    private synchronized void updateBrokerDispatchRateLimiter() {
+        ServiceConfiguration configuration = pulsar().getConfiguration();
+        long maxMsgRate = configuration.getBrokerDispatchThrottlingRateInMessages();
+        long maxByteRate = configuration.getBrokerDispatchThrottlingRateInBytes();
+        long rateTime = configuration.getBrokerDispatchThrottlingRateTimeMillis();
+        if (brokerDispatchRateLimiter != null) {
+            brokerDispatchRateLimiter.updateDispatchRate(maxMsgRate, maxByteRate, rateTime);
+        } else {
+            brokerDispatchRateLimiter = new ConsumeRateLimiterImpl(maxMsgRate, maxByteRate, rateTime);
+        }
     }
 
     private void updateBrokerPublisherThrottlingMaxRate() {
@@ -1875,6 +1893,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
         validateConfigKey(configKey);
         configRegisteredListeners.put(configKey, listener);
+    }
+
+    public <T> void registerConfigurationListener(Consumer<T> listener, String... configKey) {
+        for (String key : configKey) {
+            registerConfigurationListener(key, listener);
+        }
     }
 
     private void addDynamicConfigValidator(String key, Predicate<String> validator) {

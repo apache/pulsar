@@ -241,6 +241,11 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             return 0;
         }
 
+        if (topic.getBrokerService().getBrokerDispatchRateLimiter().isConsumeRateExceeded()
+                && !topic.getBrokerService().getBrokerDispatchRateLimiter().isConsumeRateExceeded()) {
+            return -1;
+        }
+
         // handle rate limit
         if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
             DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
@@ -395,6 +400,11 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entry.release();
                     msg.recycle();
                     continue;
+                }
+
+                if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                    topic.getBrokerService().getBrokerDispatchRateLimiter()
+                            .incrementConsumeCount(1, entry.getLength());
                 }
 
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));

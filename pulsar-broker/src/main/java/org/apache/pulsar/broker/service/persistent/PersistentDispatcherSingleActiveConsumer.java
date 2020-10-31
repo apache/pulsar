@@ -245,6 +245,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         if (future.isSuccess()) {
                             // acquire message-dispatch permits for already delivered messages
                             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+                                if (topic.getBrokerService().getBrokerDispatchRateLimiter().hasMessageDispatchPermit()) {
+                                    topic.getBrokerService().getBrokerDispatchRateLimiter()
+                                            .incrementConsumeCount(totalMessages, totalBytes);
+                                }
                                 if (topic.getDispatchRateLimiter().isPresent()) {
                                     topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessages, totalBytes);
                                 }
@@ -379,6 +383,15 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+                //If it reaches the threshold of the entire Broker rate limit, try to read again later.
+                if (topic.getBrokerService().getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled()
+                        && topic.getBrokerService().getBrokerDispatchRateLimiter().isConsumeRateExceeded()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded, schedule after {} ms", name, MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    readMessagesBackOff();
+                    return;
+                }
                 if (topic.getDispatchRateLimiter().isPresent()
                         && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
                     DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
@@ -388,17 +401,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                                 topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                         }
-                        topic.getBrokerService().executor().schedule(() -> {
-                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                            if (currentConsumer != null && !havePendingRead) {
-                                readMoreEntries(currentConsumer);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Skipping read retry for topic: Current Consumer {}, havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                                }
-                            }
-                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                        readMessagesBackOff();
                         return;
                     } else {
                         // if dispatch-rate is in msg then read only msg according to available permit
@@ -416,17 +419,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                                 dispatchRateLimiter.get().getDispatchRateOnMsg(), dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                         }
-                        topic.getBrokerService().executor().schedule(() -> {
-                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                            if (currentConsumer != null && !havePendingRead) {
-                                readMoreEntries(currentConsumer);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                                }
-                            }
-                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                        readMessagesBackOff();
                         return;
                     } else {
                         // if dispatch-rate is in msg then read only msg according to available permit
@@ -459,6 +452,20 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
+    }
+
+    private void readMessagesBackOff() {
+        topic.getBrokerService().executor().schedule(() -> {
+            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            if (currentConsumer != null && !havePendingRead) {
+                readMoreEntries(currentConsumer);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
+                            topic.getName(), currentConsumer, havePendingRead);
+                }
+            }
+        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
     }
 
     @Override
