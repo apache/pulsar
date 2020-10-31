@@ -52,18 +52,14 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - name: tune OS performance
-        run: |
-          sudo mount -o remount,nodiscard,commit=999999,nobarrier /
-          sudo mount -o remount,nodiscard,commit=999999,nobarrier /mnt
-          echo 1 | sudo tee /proc/sys/vm/swappiness
-          echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: tune OS performance
+        uses: ./.github/actions/tune-os
 
       - name: Check if this pull request only changes documentation
         id:   docs
