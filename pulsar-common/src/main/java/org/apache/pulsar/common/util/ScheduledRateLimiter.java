@@ -46,7 +46,7 @@ public interface ScheduledRateLimiter {
 
     /**
      * Update dispatch rate by updating msg and byte rate-limiter.
-     * <p>
+     * <p/>
      * If dispatch-rate is configured < 0 then it closes the rate-limiter and disables appropriate rate-limiter.
      */
     void updateDispatchRate(long maxMsgRate, long maxByteRate, long rateTime);

@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
  * We have defined 2 thread pools:
  * `checkRateExceededMonitor` is responsible for continuously detecting whether the traffic has exceeded the threshold.
  * `resetRateMonitor` is responsible for resetting the permit count per second.
- * <p>
  * We can reduce the value of `brokerDispatchThrottlingRateTimeMillis`
  * to increase the frequency of detection(at least 1ms),
  * thereby improving the accuracy of rate-limiter.
