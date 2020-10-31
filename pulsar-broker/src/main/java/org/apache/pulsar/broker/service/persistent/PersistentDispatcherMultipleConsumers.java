@@ -265,7 +265,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                 //If it reaches the threshold of the entire Broker rate limit, try to read again later.
-                if (topic.getBrokerService().getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled()
+                if (topic.getBrokerService().getBrokerDispatchRateLimiter() != null
+                        && topic.getBrokerService().getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled()
                         && topic.getBrokerService().getBrokerDispatchRateLimiter().isConsumeRateExceeded()) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded, schedule after {} ms", name, MESSAGE_RATE_BACKOFF_MS);
