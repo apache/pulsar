@@ -587,7 +587,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
-        doc = "Rate time to schedule task that reset broker consume rate limit-permit.")
+        doc = "Rate time to schedule task that check permit of broker-level rate-limiter.")
     private long brokerDispatchThrottlingRateTimeMillis = 50;
 
     @FieldContext(
