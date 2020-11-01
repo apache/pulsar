@@ -91,42 +91,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void produceTest() throws Exception {
-        String topic = NAMESPACE1 + "/txn-test";
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient
-                .newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
-
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
-                .newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create();
-
-        Transaction txn = getTxn();
-
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage(txn).value("Hello".getBytes()).sendAsync();
-        }
-
-        txn.commit().get();
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
-            log.info("receive msg: {}", new String(message.getData()));
-        }
-
+    public void noBatchProduceCommitTest() throws Exception {
+        produceCommitTest(false);
     }
 
     @Test
-    public void noBatchProduceCommitTest() throws Exception {
-        produceCommitTest(false);
+    public void batchProduceCommitTest() throws Exception {
+        produceCommitTest(true);
     }
 
     private void produceCommitTest(boolean enableBatch) throws Exception {
@@ -149,12 +120,16 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn1 = getTxn();
         Transaction txn2 = getTxn();
 
-        int messageCnt = 20;
+        int txn1MessageCnt = 0;
+        int txn2MessageCnt = 0;
+        int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
-            if (i % 2 == 0) {
+            if (i % 5 == 0) {
                 producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                txn1MessageCnt ++;
             } else {
                 producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                txn2MessageCnt ++;
             }
         }
 
@@ -166,13 +141,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // txn1 messages could be received after txn1 committed
         int receiveCnt = 0;
-        for (int i = 0; i < messageCnt / 2; i++) {
+        for (int i = 0; i < txn1MessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
-            log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
-        Assert.assertEquals(messageCnt / 2, receiveCnt);
+        Assert.assertEquals(txn1MessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
@@ -181,13 +155,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // txn2 messages could be received after txn2 committed
         receiveCnt = 0;
-        for (int i = 0; i < messageCnt / 2; i++) {
+        for (int i = 0; i < txn2MessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
-            log.info("receive second msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
-        Assert.assertEquals(messageCnt / 2, receiveCnt);
+        Assert.assertEquals(txn2MessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
