@@ -1621,7 +1621,7 @@
         "Message": {
             "type": "object",
             "properties": {
-                "producerName": {
+                "topicName": {
                     "type": "string"
                 },
                 "publishTime": {
@@ -1632,28 +1632,21 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "topicName": {
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
                     "type": "string"
                 },
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "keyBytes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1672,16 +1665,23 @@
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "keyBytes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
                 },
                 "value": {
                     "type": "object"
