@@ -161,7 +161,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         .setTimestamp(clock.millis())
                         .addAllProps(toPairs(schema.getProps()))
                         .build();
-                return schemaStorage.put(schemaId, new byte[2], context);
+                return schemaStorage.put(schemaId, info.toByteArray(), context);
 
             });
 
@@ -392,7 +392,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             for (Map.Entry<String, String> entry : map.entrySet()) {
                 SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builder =
                     SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder();
-                System.out.println(entry.getKey() + "#############" + entry.getValue());
                 pairs.add(builder.setKey(entry.getKey()).setValue(entry.getValue()).build());
             }
             return pairs;
