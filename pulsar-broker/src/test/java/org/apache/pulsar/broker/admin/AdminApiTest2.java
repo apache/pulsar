@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -1426,5 +1427,44 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer1.close();
         consumer2.close();
         admin.topics().deletePartitionedTopic(topic);
+    }
+    
+    @Test
+    public void testTopicListWithBundle() throws Exception {
+        admin.clusters().createCluster("usw", new ClusterData());
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test", "usw"));
+        admin.tenants().updateTenant("prop-xyz", tenantInfo);
+
+        final String namespace = "prop-xyz/test/ns1";
+        final String topicName = String.format("persistent://%s/t1", "prop-xyz/test/ns1");
+        admin.namespaces().createNamespace(namespace, 200);
+        int totalTopics = 100;
+        List<Consumer> persistentConsumers = Lists.newArrayList();
+        List<Consumer> nonPersistentConsumers = Lists.newArrayList();
+        for (int i = 0; i < totalTopics; i++) {
+            persistentConsumers.add(pulsarClient.newConsumer().subscriptionName("s1").topic(topicName+i).subscribe());
+            nonPersistentConsumers.add(pulsarClient.newConsumer().subscriptionName("s1").topic(topicName+"np"+i).subscribe());
+        }
+
+        String findPersistentTopic = topicName+"0";
+        String findNonPersistentTopic = topicName+"np"+"0";
+        String bundleRange = pulsar.getNamespaceService().getBundle(TopicName.get(findPersistentTopic)).getBundleRange();
+        List<String> bundleTopics = admin.topics().getListInBundle(namespace, bundleRange);
+        assertTrue(bundleTopics.contains(findPersistentTopic));
+        // topics should have distributed across 200 bundles so, one bundle will not have all 100 t
+        assertNotEquals(totalTopics, bundleTopics.size());
+        
+        // check for non-persistent topic
+        bundleRange = pulsar.getNamespaceService().getBundle(TopicName.get(findNonPersistentTopic)).getBundleRange();
+        bundleTopics = admin.topics().getListInBundle(namespace, bundleRange);
+        assertTrue(bundleTopics.contains(findNonPersistentTopic));
+
+        persistentConsumers.forEach(t -> {
+            try {
+                t.close();
+            } catch (PulsarClientException e) {
+                // Ok
+            }
+        });
     }
 }

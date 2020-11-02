@@ -142,6 +142,10 @@ public class PersistentTopicsBase extends AdminResource {
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
     protected List<String> internalGetList() {
+        return internalGetList(null);
+    }
+
+    protected List<String> internalGetList(String bundle) {
         validateAdminAccessForTenant(namespaceName.getTenant());
 
         // Validate that namespace exists, throws 404 if it doesn't exist
@@ -161,7 +165,12 @@ public class PersistentTopicsBase extends AdminResource {
             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
             for (String topic : managedLedgerListCache().get(path)) {
                 if (domain().equals(TopicDomain.persistent.toString())) {
-                    topics.add(TopicName.get(domain(), namespaceName, decode(topic)).toString());
+                    TopicName topicName = TopicName.get(domain(), namespaceName, decode(topic));
+                    boolean bundleMatched = StringUtils.isNotBlank(bundle) ? pulsar().getNamespaceService()
+                            .getBundle(topicName).getBundleRange().equals(bundle) : true;
+                    if (bundleMatched) {
+                        topics.add(topicName.toString());
+                    }
                 }
             }
         } catch (KeeperException.NoNodeException e) {

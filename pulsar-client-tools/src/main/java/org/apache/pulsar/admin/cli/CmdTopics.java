@@ -187,10 +187,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = "--bundle", description = "list of topics under a bundle", required = false)
+        private String bundle;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(topics.getList(namespace));
+            print(topics.getListInBundle(namespace, bundle));
         }
     }
 

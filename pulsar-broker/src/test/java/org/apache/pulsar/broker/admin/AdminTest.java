@@ -717,7 +717,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 CreateMode.PERSISTENT);
 
         AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.getList(response, property, cluster, namespace);
+        persistentTopics.getList(response, property, cluster, namespace, null);
         verify(response, times(1)).resume(Lists.newArrayList());
         // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());

@@ -42,7 +42,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -170,7 +170,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @QueryParam("bundle") String bundleRange) {
         log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
 
         Policies policies = null;
@@ -197,8 +198,10 @@ public class NonPersistentTopics extends PersistentTopics {
 
         final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
         final List<String> boundaries = policies.bundles.getBoundaries();
-        for (int i = 0; i < boundaries.size() - 1; i++) {
-            final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+        int bundleSize = StringUtils.isNotBlank(bundleRange) ? 1 : boundaries.size() - 1;
+        for (int i = 0; i < bundleSize; i++) {
+            final String bundle = StringUtils.isNotBlank(bundleRange) ? bundleRange
+                    : String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
             try {
                 futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(nsName.toString(),
                         bundle));

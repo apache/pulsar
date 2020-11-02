@@ -47,6 +47,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -118,11 +120,21 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace) {
+        return getListInBundleAsync(namespace, null);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundle) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
+        // add bundle query param if exist
+        persistentPath = StringUtils.isNotBlank(bundle) ? persistentPath.queryParam("bundle", bundle) : persistentPath;
+        nonPersistentPath = StringUtils.isNotBlank(bundle) ? nonPersistentPath.queryParam("bundle", bundle)
+                : nonPersistentPath;
+
         asyncGetRequest(persistentPath,
                 new InvocationCallback<List<String>>() {
                     @Override
@@ -216,27 +228,6 @@ public class TopicsImpl extends BaseResource implements Topics {
             throw new PulsarAdminException.TimeoutException(e);
         }
     }
-
-    @Override
-    public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
-        NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        WebTarget path = namespacePath("non-persistent", ns, bundleRange);
-
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
-    }
-
 
     @Override
     public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {

@@ -93,10 +93,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @QueryParam("bundle") String bundle) {
         try {
             validateNamespaceName(tenant, namespace);
-            asyncResponse.resume(internalGetList());
+            asyncResponse.resume(internalGetList(bundle));
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

@@ -69,16 +69,18 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("deprecation")
 public class PersistentTopics extends PersistentTopicsBase {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
+
     @GET
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Get the list of topics under a namespace.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @QueryParam("bundle") String bundle) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            asyncResponse.resume(internalGetList());
+            asyncResponse.resume(internalGetList(bundle));
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

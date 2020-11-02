@@ -92,10 +92,13 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "property/cluster/namespace\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-b", "--bundle" }, description = "list of topics under a bundle", required = false)
+        private String bundle;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(persistentTopics.getList(namespace));
+            print(persistentTopics.getListInBundle(namespace, bundle));
         }
     }
 
