@@ -1629,20 +1629,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
                 },
@@ -1666,8 +1652,18 @@
                 "topicName": {
                     "type": "string"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "replicated": {
                     "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "keyBytes": {
                     "type": "array",
@@ -1682,6 +1678,10 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "value": {
                     "type": "object"
