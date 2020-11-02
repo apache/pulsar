@@ -24,7 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.impl.TopicsBase;
-import org.apache.pulsar.common.policies.data.ProduceMessageRequest;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -59,9 +59,9 @@ public class Topics extends TopicsBase {
                                @ApiParam(value = "Specify topic name", required = true)
                                @PathParam("topic") @Encoded String encodedTopic,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                               ProduceMessageRequest produceMessageRequest) {
+                               ProducerMessages producerMessages) {
         validateTopicName(tenant, namespace, encodedTopic);
-        publishMessages(asyncResponse, produceMessageRequest, authoritative);
+        publishMessages(asyncResponse, producerMessages, authoritative);
     }
 
     @POST
@@ -81,9 +81,9 @@ public class Topics extends TopicsBase {
                                         @ApiParam(value = "Specify topic partition", required = true)
                                         @PathParam("partition") int partition,
                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                        ProduceMessageRequest produceMessageRequest) {
+                                        ProducerMessages producerMessages) {
         validateTopicName(tenant, namespace, encodedTopic);
-        publishMessagesToPartition(asyncResponse, produceMessageRequest, authoritative, partition);
+        publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
     }
 
 }

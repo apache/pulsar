@@ -18,10 +18,31 @@
  */
 package org.apache.pulsar.utils;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Collections;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
+import org.apache.avro.reflect.AvroDefault;
+import org.apache.avro.reflect.Nullable;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.pulsar.broker.admin.AdminApiSchemaTest;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonReader;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,10 +55,72 @@ public class SimpleTextOutputStreamTest {
     private ByteBuf buf;
     private SimpleTextOutputStream stream;
 
+    @Data
+    public static class Foo {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+        private int field3;
+        @Nullable
+        private Bar field4;
+        @Nullable
+        private Color color;
+        @AvroDefault("\"defaultValue\"")
+        private String fieldUnableNull;
+    }
+
+    @Data
+    public static class Bar {
+        private boolean field1;
+    }
+
+    public enum  Color {
+        RED,
+        BLUE
+    }
+
     @BeforeMethod
     public void reset() {
         buf = Unpooled.buffer(4096);
         stream = new StatsOutputStream(buf);
+    }
+
+    @Test
+    public void test() throws Exception {
+        StringSchema ss = new StringSchema();
+        System.out.println(ss.getSchemaInfo().getType());
+        System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(ss));
+        String data = new String("{\"type\":\"STRING\", \"schema\":\"\"}".getBytes());
+        SchemaInfo si = ObjectMapperFactory.getThreadLocal().readValue(data, SchemaInfo.class);
+        System.out.println(si.getType());
+    }
+
+    @Test
+    public void test2() throws Exception {
+        Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
+        GenericSchema decodeSchema = GenericJsonSchema.of(encodeSchema.getSchemaInfo());
+        String schemaStr = new String(decodeSchema.getSchemaInfo().getSchema());
+        System.out.println(schemaStr);
+        System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(decodeSchema.getSchemaInfo()));
+        String data = new String("{\"type\":\"JSON\", \"schema\":\"eyJ0eXBlIjoicmVjb3JkIiwibmFtZSI6IkZvbyIsIm5hbWVzcGFjZSI6Im9yZy5hcGFjaGUucHVsc2FyLnV0aWxzLlNpbXBsZVRleHRPdXRwdXRTdHJlYW" +
+                "1UZXN0IiwiZmllbGRzIjpbeyJuYW1lIjoiZmllbGQxIiwidHlwZSI6WyJudWxsIiwic3RyaW5nIl0sImRlZmF1bHQiOm51bGx9LHsibmFtZSI6ImZpZWxkMiIsInR5cGUiOlsibnVsbCIsInN0cmluZyJdLCJkZWZhdWx0IjpudWx" +
+                "sfSx7Im5hbWUiOiJmaWVsZDMiLCJ0eXBlIjoiaW50In0seyJuYW1lIjoiZmllbGQ0IiwidHlwZSI6WyJudWxsIix7InR5cGUiOiJyZWNvcmQiLCJuYW1lIjoiQmFyIiwiZmllbGRzIjpbeyJuYW1lIjoiZmllbGQxIiwidHlwZSI6" +
+                "ImJvb2xlYW4ifV19XSwiZGVmYXVsdCI6bnVsbH0seyJuYW1lIjoiY29sb3IiLCJ0eXBlIjpbIm51bGwiLHsidHlwZSI6ImVudW0iLCJuYW1lIjoiQ29sb3IiLCJzeW1ib2xzIjpbIlJFRCIsIkJMVUUiXX1dLCJkZWZhdWx0Ijpud" +
+                "WxsfSx7Im5hbWUiOiJmaWVsZFVuYWJsZU51bGwiLCJ0eXBlIjpbIm51bGwiLCJzdHJpbmciXSwiZGVmYXVsdCI6ImRlZmF1bHRWYWx1ZSJ9XX0=\"}");
+        System.out.println(new String(Base64.getEncoder().encode(data.getBytes())));
+        SchemaInfo si = ObjectMapperFactory.getThreadLocal().readValue(data, SchemaInfo.class);
+        Schema s = AutoConsumeSchema.getSchema(si);
+        System.out.println(new String(s.getSchemaInfo().getSchema()));
+
+        GenericJsonReader reader = new GenericJsonReader(Collections.emptyList(), si);
+        String jsonStr = "{\"field1\":\"123455\", \"field2\":\"abcdefg\", \"field3\":2, \"field4\": {\"field1\":false}, \"color\":\"BLUE\"}";
+        String payload = new  String(Base64.getEncoder().encode(s.encode(reader.read(jsonStr.getBytes()))));
+        System.out.println(payload);
+
+        JsonNode jn = ObjectMapperFactory.getThreadLocal().readTree(jsonStr);
+        System.out.println(jn.toString());
+        System.out.println(((GenericJsonRecord)s.decode(Base64.getDecoder().decode(payload.getBytes()))).getJsonNode());
     }
 
     @Test

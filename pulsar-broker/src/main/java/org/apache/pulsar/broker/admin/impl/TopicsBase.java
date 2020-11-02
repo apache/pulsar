@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -32,15 +33,17 @@ import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.schema.*;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ProduceMessageRequest;
-import org.apache.pulsar.common.policies.data.ProduceMessageResponse;
-import org.apache.pulsar.common.policies.data.ProduceMessageRequest.RestProduceMessage;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -48,10 +51,15 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.websocket.data.ProducerAck;
+import org.apache.pulsar.websocket.data.ProducerAcks;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -71,34 +79,40 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TopicsBase extends PersistentTopicsBase {
 
-    private ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
+    private static ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
 
     private static String DEFAULT_PRODUCER_NAME = "RestProducer";
 
-    protected  void publishMessages(AsyncResponse asyncResponse, ProduceMessageRequest request,
+    protected  void publishMessages(AsyncResponse asyncResponse, ProducerMessages request,
                                            boolean authoritative) {
         String topic = topicName.getPartitionedTopicName();
         if (owningTopics.containsKey(topic) || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
             // if we've done look up or or after look up this broker owns some of the partitions then proceed to publish message
             // else asyncResponse will be complete by look up.
             addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
-                new LongSchemaVersion(request.getSchemaVersion())).thenAccept(schemaMeta -> {
-                    // Both schema version and schema data are necessary.
-                    if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
-                                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaMeta.getLeft().toSchemaInfo());
-                        publishMessagesToMultiplePartitions(topicName, request, owningTopics.get(topic), asyncResponse,
-                                (KeyValueSchema) KeyValueSchema.of(AutoConsumeSchema.getSchema(kvSchemaInfo.getKey()),
-                                        AutoConsumeSchema.getSchema(kvSchemaInfo.getValue())), schemaMeta.getRight());
-                    } else {
-                        asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
-                    }
+                new LongSchemaVersion(request.getSchemaVersion()))
+            .thenAccept(schemaMeta -> {
+                // Both schema version and schema data are necessary.
+                if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
+                    KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
+                            KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaMeta.getLeft().toSchemaInfo());
+                    publishMessagesToMultiplePartitions(topicName, request, owningTopics.get(topic), asyncResponse,
+                            (KeyValueSchema) KeyValueSchema.of(AutoConsumeSchema.getSchema(kvSchemaInfo.getKey()),
+                                    AutoConsumeSchema.getSchema(kvSchemaInfo.getValue())), schemaMeta.getRight());
+                } else {
+                    asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
+                }
+            }).exceptionally(e -> {
+                if (log.isDebugEnabled()) {
+                    log.warn("Fail to add or retrieve schema: " + e.getLocalizedMessage());
+                }
+                asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
+                return null;
             });
-
         }
     }
 
-    protected void publishMessagesToPartition(AsyncResponse asyncResponse, ProduceMessageRequest request,
+    protected void publishMessagesToPartition(AsyncResponse asyncResponse, ProducerMessages request,
                                                      boolean authoritative, int partition) {
         if (topicName.isPartitioned()) {
             asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Topic name can't contain '-partition-' suffix."));
@@ -107,23 +121,31 @@ public class TopicsBase extends PersistentTopicsBase {
         // If broker owns the partition then proceed to publish message, else do look up.
         if ((owningTopics.containsKey(topic) && owningTopics.get(topic).contains(partition)) || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
             addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
-                new LongSchemaVersion(request.getSchemaVersion())).thenAccept(schemaMeta -> {
-                    // Both schema version and schema data are necessary.
-                    if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaMeta.getLeft().toSchemaInfo());
-                        publishMessagesToSinglePartition(topicName, request, partition, asyncResponse,
-                                (KeyValueSchema) KeyValueSchema.of(AutoConsumeSchema.getSchema(kvSchemaInfo.getKey()),
-                                        AutoConsumeSchema.getSchema(kvSchemaInfo.getValue())), schemaMeta.getRight());
-                    } else {
-                        asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
-                    }
+                new LongSchemaVersion(request.getSchemaVersion()))
+            .thenAccept(schemaMeta -> {
+                // Both schema version and schema data are necessary.
+                if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
+                    KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaMeta.getLeft().toSchemaInfo());
+                    publishMessagesToSinglePartition(topicName, request, partition, asyncResponse,
+                            (KeyValueSchema) KeyValueSchema.of(AutoConsumeSchema.getSchema(kvSchemaInfo.getKey()),
+                                    AutoConsumeSchema.getSchema(kvSchemaInfo.getValue())), schemaMeta.getRight());
+                } else {
+                    asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
+                }
+            }).exceptionally(e -> {
+                if (log.isDebugEnabled()) {
+                    log.warn("Fail to add or retrieve schema: " + e.getLocalizedMessage());
+                }
+                asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Fail to add or retrieve schema."));
+                return null;
             });
         }
     }
 
     private CompletableFuture<PositionImpl> publishSingleMessageToPartition(String topic, Message message) {
         CompletableFuture<PositionImpl> publishResult = new CompletableFuture<>();
-        pulsar().getBrokerService().getTopic(topic, false).thenAccept(t -> {
+        pulsar().getBrokerService().getTopic(topic, false)
+        .thenAccept(t -> {
             // TODO: Check message backlog
             if (!t.isPresent()) {
                 // Topic not found, and remove from owning partition list.
@@ -139,26 +161,26 @@ public class TopicsBase extends PersistentTopicsBase {
         return publishResult;
     }
 
-    private void publishMessagesToSinglePartition(TopicName topicName, ProduceMessageRequest request,
+    private void publishMessagesToSinglePartition(TopicName topicName, ProducerMessages request,
                                                   int partition, AsyncResponse asyncResponse,
                                                   KeyValueSchema keyValueSchema, SchemaVersion schemaVersion) {
         try {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())? DEFAULT_PRODUCER_NAME : request.getProducerName();
             List<Message> messages = buildMessage(request, keyValueSchema, producerName);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
-            List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults = new ArrayList<>();
+            List<ProducerAck> produceMessageResults = new ArrayList<>();
             for (int index = 0; index < messages.size(); index++) {
-                ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
-                produceMessageResult.setPartition(partition);
+                ProducerAck produceMessageResult = new ProducerAck();
+                produceMessageResult.setMessageId(partition + "");
                 produceMessageResults.add(produceMessageResult);
                 publishResults.add(publishSingleMessageToPartition(topicName.getPartition(partition).toString(), messages.get(index)));
             }
             FutureUtil.waitForAll(publishResults).thenRun(() -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
-                asyncResponse.resume(Response.ok().entity(new ProduceMessageResponse(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
+                asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
             }).exceptionally(e -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
-                asyncResponse.resume(Response.ok().entity(new ProduceMessageResponse(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
+                asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
                 return null;
             });
         } catch (Exception e) {
@@ -170,7 +192,7 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private void publishMessagesToMultiplePartitions(TopicName topicName, ProduceMessageRequest request,
+    private void publishMessagesToMultiplePartitions(TopicName topicName, ProducerMessages request,
                                                      ConcurrentOpenHashSet<Integer> partitionIndexes,
                                                      AsyncResponse asyncResponse, KeyValueSchema keyValueSchema,
                                                      SchemaVersion schemaVersion) {
@@ -178,21 +200,21 @@ public class TopicsBase extends PersistentTopicsBase {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())? DEFAULT_PRODUCER_NAME : request.getProducerName();
             List<Message> messages = buildMessage(request, keyValueSchema, producerName);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
-            List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults = new ArrayList<>();
+            List<ProducerAck> produceMessageResults = new ArrayList<>();
             List<Integer> owningPartitions = partitionIndexes.values();
             for (int index = 0; index < messages.size(); index++) {
-                ProduceMessageResponse.ProduceMessageResult produceMessageResult = new ProduceMessageResponse.ProduceMessageResult();
-                produceMessageResult.setPartition(owningPartitions.get(index % (int)partitionIndexes.size()));
+                ProducerAck produceMessageResult = new ProducerAck();
+                produceMessageResult.setMessageId(owningPartitions.get(index % (int)partitionIndexes.size()) + "");
                 produceMessageResults.add(produceMessageResult);
                 publishResults.add(publishSingleMessageToPartition(topicName.getPartition(owningPartitions.get(index % (int)partitionIndexes.size())).toString(),
                     messages.get(index)));
             }
             FutureUtil.waitForAll(publishResults).thenRun(() -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
-                asyncResponse.resume(Response.ok().entity(new ProduceMessageResponse(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
+                asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
             }).exceptionally(e -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
-                asyncResponse.resume(Response.ok().entity(new ProduceMessageResponse(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
+                asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults, ((LongSchemaVersion)schemaVersion).getVersion())).build());
                 return null;
             });
         } catch (Exception e) {
@@ -205,13 +227,15 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private void processPublishMessageResults(List<ProduceMessageResponse.ProduceMessageResult> produceMessageResults,
+    private void processPublishMessageResults(List<ProducerAck> produceMessageResults,
                                               List<CompletableFuture<PositionImpl>> publishResults) {
         // process publish message result
         for (int index = 0; index < publishResults.size(); index++) {
             try {
                 PositionImpl position = publishResults.get(index).get();
-                produceMessageResults.get(index).setMessageId(position.toString());
+                MessageId messageId = new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                        Integer.parseInt(produceMessageResults.get(index).getMessageId()));
+                produceMessageResults.get(index).setMessageId(messageId.toString());
             } catch (Exception e) {
                 if (log.isDebugEnabled()) {
                     log.warn("Fail publish [{}] message with rest produce message request for topic  {}: {} ",
@@ -226,13 +250,13 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private void extractException(Exception e, ProduceMessageResponse.ProduceMessageResult produceMessageResult) {
+    private void extractException(Exception e, ProducerAck produceMessageResult) {
         if (!(e instanceof BrokerServiceException.TopicFencedException && e instanceof ManagedLedgerException)) {
             produceMessageResult.setErrorCode(2);
         } else {
             produceMessageResult.setErrorCode(1);
         }
-        produceMessageResult.setError(e.getMessage());
+        produceMessageResult.setErrorMsg(e.getMessage());
     }
 
     // Look up topic owner for given topic.
@@ -252,9 +276,10 @@ public class TopicsBase extends PersistentTopicsBase {
             lookupFutures.add(lookUpBrokerForTopic(topicName, authoritative, redirectAddresses));
         }
 
-        // Current broker doesn't own the topic or any partition of the topic, redirect client to a broker
-        // that own partition of the topic or know who own partition of the topic.
-        FutureUtil.waitForAll(lookupFutures).thenRun(() -> {
+        FutureUtil.waitForAll(lookupFutures)
+        .thenRun(() -> {
+            // Current broker doesn't own the topic or any partition of the topic, redirect client to a broker
+            // that own partition of the topic or know who own partition of the topic.
             if (!owningTopics.containsKey(topicName.getPartitionedTopicName())) {
                 if (redirectAddresses.isEmpty()) {
                     // No broker to redirect, means look up for some partitions failed, client should retry with other brokers.
@@ -273,14 +298,22 @@ public class TopicsBase extends PersistentTopicsBase {
                         future.complete(true);
                     }
                 }
+            } else {
+                future.complete(false);
             }
-            future.complete(false);
+        }).exceptionally(e -> {
+            if (log.isDebugEnabled()) {
+                log.warn("Fail to look up topic: " + e.getCause());
+            }
+            asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Error look up topic: " + e.getLocalizedMessage()));
+            future.complete(true);
+            return null;
         });
         try {
             return future.get();
         } catch (InterruptedException | ExecutionException e) {
             if (log.isDebugEnabled()) {
-                log.debug("Fail to lookup topic for rest produce message request for topic {}.", topicName.toString());
+                log.warn("Fail to lookup topic for rest produce message request for topic {}.", topicName.toString());
             }
             return true;
         }
@@ -295,7 +328,7 @@ public class TopicsBase extends PersistentTopicsBase {
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Fail to lookup topic for rest produce message request for topic {}.",
+                    log.warn("Fail to lookup topic for rest produce message request for topic {}.",
                             partitionedTopicName);
                 }
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
@@ -307,7 +340,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 pulsar().getBrokerService().getLookupRequestSemaphore().release();
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
-                    log.debug("Complete topic look up for rest produce message request for topic {}, current broker is owner broker: {}",
+                    log.warn("Complete topic look up for rest produce message request for topic {}, current broker is owner broker: {}",
                             partitionedTopicName, result.getLookupData());
                 }
                 owningTopics.computeIfAbsent(partitionedTopicName.getPartitionedTopicName(),
@@ -316,7 +349,7 @@ public class TopicsBase extends PersistentTopicsBase {
             } else {
                 // Current broker doesn't own the topic or doesn't know who own the topic.
                 if (log.isDebugEnabled()) {
-                    log.debug("Complete topic look up for rest produce message request for topic {}, current broker is not owner broker: {}",
+                    log.warn("Complete topic look up for rest produce message request for topic {}, current broker is not owner broker: {}",
                             partitionedTopicName, result.getLookupData());
                 }
                 if (result.isRedirect()) {
@@ -370,21 +403,21 @@ public class TopicsBase extends PersistentTopicsBase {
         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
         for (int index = 0; index < partitions.size(); index++) {
             CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
-            String partitionTopicName = topicName.getPartition(partitions.get(index)).toString();
-            pulsar().getBrokerService().getTopic(partitionTopicName, false)
-                .thenAccept(topic -> {
-                    if (!topic.isPresent()) {
-                        future.completeExceptionally(new BrokerServiceException.TopicNotFoundException(
-                                "Topic " + partitionTopicName + " not found"));
-                    } else {
-                        topic.get().addSchema(schemaData).thenAccept(schemaVersion -> future.complete(schemaVersion))
-                        .exceptionally(exception -> {
-                            exception.printStackTrace();
-                            future.completeExceptionally(exception);
-                            return null;
-                        });
-                    }
-                });
+            String topicPartitionName = topicName.getPartition(partitions.get(index)).toString();
+            pulsar().getBrokerService().getTopic(topicPartitionName, false)
+            .thenAccept(topic -> {
+                if (!topic.isPresent()) {
+                    future.completeExceptionally(new BrokerServiceException.TopicNotFoundException(
+                            "Topic " + topicPartitionName + " not found"));
+                } else {
+                    topic.get().addSchema(schemaData).thenAccept(schemaVersion -> future.complete(schemaVersion))
+                    .exceptionally(exception -> {
+                        exception.printStackTrace();
+                        future.completeExceptionally(exception);
+                        return null;
+                    });
+                }
+            });
             try {
                 result.complete(future.get());
                 break;
@@ -404,6 +437,12 @@ public class TopicsBase extends PersistentTopicsBase {
                         ObjectMapperFactory.getThreadLocal().readValue(Base64.getDecoder().decode(keySchema), SchemaInfo.class);
                 SchemaInfo valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())? StringSchema.utf8().getSchemaInfo():
                         ObjectMapperFactory.getThreadLocal().readValue(Base64.getDecoder().decode(valueSchema), SchemaInfo.class);
+                if (null == keySchemaInfo.getName()) {
+                    keySchemaInfo.setName(keySchemaInfo.getType().toString());
+                }
+                if (null == valueSchemaInfo.getName()) {
+                    valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
+                }
                 SchemaInfo schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo("KVSchema-" + topicName.getPartitionedTopicName(),
                         keySchemaInfo, valueSchemaInfo,
                         KeyValueEncodingType.SEPARATED);
@@ -451,53 +490,64 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     // Build pulsar message from serialized message.
-    private List<Message> buildMessage(ProduceMessageRequest produceMessageRequest, KeyValueSchema keyValueSchema,
+    private List<Message> buildMessage(ProducerMessages producerMessages, KeyValueSchema keyValueSchema,
                                        String producerName) {
-        List<RestProduceMessage> messages;
+        List<ProducerMessage> messages;
         List<Message> pulsarMessages = new ArrayList<>();
 
-        messages = produceMessageRequest.getMessages();
-        for (RestProduceMessage message : messages) {
+        messages = producerMessages.getMessages();
+        for (ProducerMessage message : messages) {
             try {
-            PulsarApi.MessageMetadata.Builder metadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-            metadataBuilder.setProducerName(producerName);
-            metadataBuilder.setPublishTime(System.currentTimeMillis());
-            metadataBuilder.setSequenceId(message.getSequenceId());
-            if (null != message.getReplicationClusters()) {
-                metadataBuilder.addAllReplicateTo(message.getReplicationClusters());
-            }
+                PulsarApi.MessageMetadata.Builder metadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+                metadataBuilder.setProducerName(producerName);
+                metadataBuilder.setPublishTime(System.currentTimeMillis());
+                metadataBuilder.setSequenceId(message.getSequenceId());
+                if (null != message.getReplicationClusters()) {
+                    metadataBuilder.addAllReplicateTo(message.getReplicationClusters());
+                }
 
-            if (null != message.getProperties()) {
-                metadataBuilder.addAllProperties(message.getProperties().entrySet().stream().map(entry ->
-                    PulsarApi.KeyValue.newBuilder()
-                            .setKey(entry.getKey())
-                            .setValue(entry.getValue())
-                            .build()
-                ).collect(Collectors.toList()));
-            }
-            if (null != message.getKey()) {
-                log.info(new String(Base64.getDecoder().decode(message.getKey())));
-                metadataBuilder.setPartitionKey(keyValueSchema.getKeySchema().decode(Base64.getDecoder().decode(message.getKey())).toString());
-            }
-            if (0 != message.getEventTime()) {
-                metadataBuilder.setEventTime(message.getEventTime());
-            }
-            if (message.isDisableReplication()) {
-                metadataBuilder.clearReplicateTo();
-                metadataBuilder.addReplicateTo("__local__");
-            }
-            if (message.getDeliverAt() != 0) {
-                metadataBuilder.setDeliverAtTime(message.getDeliverAt());
-            } else if (message.getDeliverAfterMs() != 0) {
-                metadataBuilder.setDeliverAtTime(message.getEventTime() + message.getDeliverAfterMs());
-            }
-            pulsarMessages.add(MessageImpl.create(metadataBuilder, ByteBuffer.wrap(Base64.getDecoder().decode(message.getValue())), keyValueSchema.getValueSchema()));
+                if (null != message.getProperties()) {
+                    metadataBuilder.addAllProperties(message.getProperties().entrySet().stream().map(entry ->
+                        PulsarApi.KeyValue.newBuilder()
+                                .setKey(entry.getKey())
+                                .setValue(entry.getValue())
+                                .build()
+                    ).collect(Collectors.toList()));
+                }
+                if (null != message.getKey()) {
+                    if (keyValueSchema.getKeySchema().getSchemaInfo().getType() == SchemaType.JSON) {
+                        metadataBuilder.setPartitionKey(new String(processJSONMsg(message.getKey())));
+                    } else {
+                        metadataBuilder.setPartitionKey(new String(keyValueSchema.getKeySchema().encode(message.getKey())));
+                    }
+                }
+                if (null != message.getEventTime() && !message.getEventTime().isEmpty()) {
+                    metadataBuilder.setEventTime(Long.valueOf(message.getEventTime()));
+                }
+                if (message.isDisableReplication()) {
+                    metadataBuilder.clearReplicateTo();
+                    metadataBuilder.addReplicateTo("__local__");
+                }
+                if (message.getDeliverAt() != 0 && metadataBuilder.hasEventTime()) {
+                    metadataBuilder.setDeliverAtTime(message.getDeliverAt());
+                } else if (message.getDeliverAfterMs() != 0) {
+                    metadataBuilder.setDeliverAtTime(metadataBuilder.getEventTime() + message.getDeliverAfterMs());
+                }
+                if (keyValueSchema.getValueSchema().getSchemaInfo().getType() == SchemaType.JSON) {
+                    pulsarMessages.add(MessageImpl.create(metadataBuilder, ByteBuffer.wrap(processJSONMsg(message.getPayload())), keyValueSchema.getValueSchema()));
+                } else {
+                    pulsarMessages.add(MessageImpl.create(metadataBuilder, ByteBuffer.wrap(keyValueSchema.getValueSchema().encode(message.getPayload())), keyValueSchema.getValueSchema()));
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
         return pulsarMessages;
+    }
+
+    private byte[] processJSONMsg(String msg) throws JsonProcessingException {
+        return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ObjectMapperFactory.getThreadLocal().readTree(msg));
     }
 
     private synchronized void completeLookup( Pair<List<String>, Boolean> result, List<String> redirectAddresses,

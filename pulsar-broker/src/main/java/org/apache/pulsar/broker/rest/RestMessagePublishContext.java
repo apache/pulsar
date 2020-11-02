@@ -41,19 +41,19 @@ public class RestMessagePublishContext implements Topic.PublishContext {
      */
     @Override
     public void completed(Exception exception, long ledgerId, long entryId) {
-        log.info("message publish completed");
         if (exception != null) {
             positionFuture.completeExceptionally(exception);
-            log.error("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. triggered send callback.",
-                    ledgerId, entryId);
+            if (log.isDebugEnabled()) {
+                log.warn("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. triggered send callback.",
+                        ledgerId, entryId);
+            }
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. triggered send callback.",
+                log.warn("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. triggered send callback.",
                         topic.getName(), ledgerId, entryId);
             }
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.MICROSECONDS);
             positionFuture.complete(PositionImpl.get(ledgerId, entryId));
-            log.error("Message publish complete");
         }
         recycle();
     }

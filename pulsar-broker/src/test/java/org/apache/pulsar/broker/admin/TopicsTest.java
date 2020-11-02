@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Schema;
@@ -33,6 +34,9 @@ import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerAcks;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -87,27 +91,27 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         String key = "my-key", value = "my-value";
-        ProduceMessageRequest produceMessageRequest = new ProduceMessageRequest();
-        produceMessageRequest.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        produceMessageRequest.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
         String message = "[" +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
-        produceMessageRequest.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProduceMessageRequest.RestProduceMessage>>() {}));
-        topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, produceMessageRequest);
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
+        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProducerMessage>>() {}));
+        topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
         Object responseEntity = responseCaptor.getValue().getEntity();
-        Assert.assertTrue(responseEntity instanceof ProduceMessageResponse);
-        ProduceMessageResponse response = (ProduceMessageResponse) responseEntity;
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
         Assert.assertEquals(response.getMessagePublishResults().size(), 3);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(response.getMessagePublishResults().get(index).getPartition(), -1);
+            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index).getMessageId().split(":")[2]), -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
             Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
         }
@@ -115,39 +119,39 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceToPartitionedTopic() throws Exception {
-        admin.topics().createPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName, 5);
+        admin.topics().createPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName + "-p", 5);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         String key = "my-key", value = "my-value";
-        ProduceMessageRequest produceMessageRequest = new ProduceMessageRequest();
-        produceMessageRequest.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        produceMessageRequest.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
         String message = "[" +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":5}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":6}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":7}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":8}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":9}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":10}]";
-        produceMessageRequest.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProduceMessageRequest.RestProduceMessage>>() {}));
-        topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, produceMessageRequest);
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":5}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":6}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":7}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":8}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":9}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":10}]";
+        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProducerMessage>>() {}));
+        topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName + "-p", false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
         Object responseEntity = responseCaptor.getValue().getEntity();
-        Assert.assertTrue(responseEntity instanceof ProduceMessageResponse);
-        ProduceMessageResponse response = (ProduceMessageResponse) responseEntity;
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
         Assert.assertEquals(response.getMessagePublishResults().size(), 10);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         int[] messagePerPartition = new int[5];
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            messagePerPartition[response.getMessagePublishResults().get(index).getPartition()]++;
+            messagePerPartition[Integer.parseInt(response.getMessagePublishResults().get(index).getMessageId().split(":")[2])]++;
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
             Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
         }
@@ -163,29 +167,28 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         String key = "my-key", value = "my-value";
-        ProduceMessageRequest produceMessageRequest = new ProduceMessageRequest();
-        produceMessageRequest.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        produceMessageRequest.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()).getBytes()));
         String message = "[" +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
-        produceMessageRequest.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProduceMessageRequest.RestProduceMessage>>() {}));
-        // Previous request should trigger namespace bundle loading, retry produce.
-        topics.produceOnTopicPartition(asyncResponse, testTenant, testNamespace, testTopicName, 2,false, produceMessageRequest);
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
+                "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
+        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProducerMessage>>() {}));
+        topics.produceOnTopicPartition(asyncResponse, testTenant, testNamespace, testTopicName, 2,false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
         Object responseEntity = responseCaptor.getValue().getEntity();
-        Assert.assertTrue(responseEntity instanceof ProduceMessageResponse);
-        ProduceMessageResponse response = (ProduceMessageResponse) responseEntity;
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
         Assert.assertEquals(response.getMessagePublishResults().size(), 4);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(response.getMessagePublishResults().get(index).getPartition(), 2);
+            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index).getMessageId().split(":")[2]), 2);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
             Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
         }
@@ -216,36 +219,36 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 AsyncResponse asyncResponse = mock(AsyncResponse.class);
                 Schema<String> schema = StringSchema.utf8();
                 String key = "my-key", value = "my-value";
-                ProduceMessageRequest produceMessageRequest = new ProduceMessageRequest();
-                produceMessageRequest.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+                ProducerMessages producerMessages = new ProducerMessages();
+                producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                         writeValueAsString(schema.getSchemaInfo()).getBytes()));
-                produceMessageRequest.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
+                producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
                         writeValueAsString(schema.getSchemaInfo()).getBytes()));
                 String message = "[" +
-                        "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                        "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                        "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                        "{\"key\":\"enhjLWtleQ==\",\"value\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
-                produceMessageRequest.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProduceMessageRequest.RestProduceMessage>>() {}));
+                        "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
+                        "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
+                        "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
+                        "{\"key\":\"enhjLWtleQ==\",\"payload\":\"enhjLXZhbHVl\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
+                producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message, new TypeReference<List<ProducerMessage>>() {}));
                 // Previous request should trigger namespace bundle loading, retry produce.
-                topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, produceMessageRequest);
+                topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
                 ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
                 verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
                 Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
                 Object responseEntity = responseCaptor.getValue().getEntity();
-                Assert.assertTrue(responseEntity instanceof ProduceMessageResponse);
-                ProduceMessageResponse response = (ProduceMessageResponse) responseEntity;
+                Assert.assertTrue(responseEntity instanceof ProducerAcks);
+                ProducerAcks response = (ProducerAcks) responseEntity;
                 Assert.assertEquals(response.getMessagePublishResults().size(), 4);
                 int errorResponse = 0;
                 for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-                    Assert.assertEquals(response.getMessagePublishResults().get(index).getPartition(), -1);
                     int errorCode = response.getMessagePublishResults().get(index).getErrorCode();
                     if (0 == errorCode) {
+                        Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index).getMessageId().split(":")[2]), -1);
                         Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
                     } else {
                         errorResponse++;
                         Assert.assertEquals(errorCode, 2);
-                        Assert.assertEquals(response.getMessagePublishResults().get(index).getError(),"org.apache.pulsar.broker.service.BrokerServiceException$TopicFencedException: Fake exception");
+                        Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorMsg(),"org.apache.pulsar.broker.service.BrokerServiceException$TopicFencedException: Fake exception");
                     }
                 }
                 // Add entry start to fail after 2nd operation, we published 4 msg so expecting 2 error response.
