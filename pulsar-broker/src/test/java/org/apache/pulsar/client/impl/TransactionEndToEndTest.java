@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.fail;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 
@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -293,7 +292,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             try {
                 commitTxn.commit().get();
-                Assert.fail("recommit one transaction should be failed.");
+                fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
@@ -460,7 +459,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             commitTxn.commit().get();
             try {
                 commitTxn.commit().get();
-                Assert.fail("recommit one transaction should be failed.");
+                fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
