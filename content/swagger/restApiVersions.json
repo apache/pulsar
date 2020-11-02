@@ -73,9 +73,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersource",
+                "swaggerfunctions",
                 "swaggersink",
-                "swaggerfunctions"
+                "swaggersource"
             ]
         }
     ],
@@ -159,7 +159,7 @@
             ]
         }
     ],
-    "2.7.0-SNAPSHOT": [
+    "2.6.1": [
         {
             "version": "v2",
             "fileName": [
@@ -175,7 +175,7 @@
             ]
         }
     ],
-    "2.6.1": [
+    "2.7.0-SNAPSHOT": [
         {
             "version": "v2",
             "fileName": [
@@ -202,8 +202,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggersink"
             ]
         }
     ]
