@@ -22,6 +22,7 @@ on:
   pull_request:
     branches:
       - branch-2.6
+      - branch-2.6
 
 jobs:
 
