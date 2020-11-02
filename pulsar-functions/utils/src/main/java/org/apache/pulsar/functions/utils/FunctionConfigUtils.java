@@ -208,17 +208,7 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
-            }
-            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
-            }
-            if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(functionConfig.getProducerConfig().getUseThreadLocalProducers());
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig()));
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -281,6 +271,10 @@ public class FunctionConfigUtils {
 
         if (functionConfig.getSecrets() != null && !functionConfig.getSecrets().isEmpty()) {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
+        }
+
+        if (functionConfig.getExternalPulsars() != null && !functionConfig.getExternalPulsars().isEmpty()) {
+            functionDetailsBuilder.setExternalPulsarsMap(new Gson().toJson(functionConfig.getExternalPulsars()));
         }
 
         if (functionConfig.getAutoAck() != null) {
@@ -366,15 +360,7 @@ public class FunctionConfigUtils {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
         if (functionDetails.getSink().getProducerSpec() != null) {
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(functionDetails.getSink().getProducerSpec().getMaxPendingMessages());
-            }
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
-            }
-            producerConfig.setUseThreadLocalProducers(functionDetails.getSink().getProducerSpec().getUseThreadLocalProducers());
-            functionConfig.setProducerConfig(producerConfig);
+            functionConfig.setProducerConfig(ProducerConfigUtils.convertFromSpec(functionDetails.getSink().getProducerSpec()));
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
@@ -414,6 +400,13 @@ public class FunctionConfigUtils {
             }.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             functionConfig.setSecrets(secretsMap);
+        }
+
+        if (isNotEmpty(functionDetails.getExternalPulsarsMap())) {
+            Type type = new TypeToken<Map<String, ExternalPulsarConfig>>() {
+            }.getType();
+            Map<String, ExternalPulsarConfig> externalPulsarsMap = new Gson().fromJson(functionDetails.getExternalPulsarsMap(), type);
+            functionConfig.setExternalPulsars(externalPulsarsMap);
         }
 
         if (functionDetails.hasResources()) {

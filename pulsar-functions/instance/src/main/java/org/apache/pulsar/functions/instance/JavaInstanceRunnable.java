@@ -102,6 +102,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // input topic consumer & output topic producer
     private final PulsarClientImpl client;
+    //private final Map<String, PulsarClient> pulsarClientMap;
 
     private LogAppender logAppender;
 

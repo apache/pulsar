@@ -148,17 +148,7 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
-            }
-            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
-            }
-            if (sourceConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(sourceConfig.getProducerConfig().getUseThreadLocalProducers());
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -231,15 +221,7 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (sinkSpec.getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(sinkSpec.getProducerSpec().getMaxPendingMessages());
-            }
-            if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
-            }
-            producerConfig.setUseThreadLocalProducers(sinkSpec.getProducerSpec().getUseThreadLocalProducers());
-            sourceConfig.setProducerConfig(producerConfig);
+            sourceConfig.setProducerConfig(ProducerConfigUtils.convertFromSpec(sinkSpec.getProducerSpec()));
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
