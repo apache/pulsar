@@ -188,9 +188,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
             if (conf.getCryptoConfig() != null) {
                 // add provider only if it's not in the JVM
-//                if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-//                    Security.addProvider(new BouncyCastleProvider());
-//                }
+                if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                    Security.addProvider(new BouncyCastleProvider());
+                }
 
                 consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
                 consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(

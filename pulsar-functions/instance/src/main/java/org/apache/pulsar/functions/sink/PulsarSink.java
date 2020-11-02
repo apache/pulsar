@@ -398,9 +398,9 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         // add provider only if it's not in the JVM
-//        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-//            Security.addProvider(new BouncyCastleProvider());
-//        }
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
 
         Crypto.CryptoBuilder bldr = Crypto.builder()
                 .failureAction(cryptoConfig.getProducerCryptoFailureAction())
