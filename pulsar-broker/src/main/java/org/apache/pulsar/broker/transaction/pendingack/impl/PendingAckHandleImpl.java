@@ -277,14 +277,12 @@ public class PendingAckHandleImpl implements PendingAckHandle {
         if (this.cumulativeAckOfTransaction != null) {
             if (this.cumulativeAckOfTransaction.getKey().equals(txnId)) {
                 this.cumulativeAckOfTransaction = null;
-                redeliverUnacknowledgedMessages(consumer);
             }
         } else if (this.individualAckOfTransaction != null){
             HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                     individualAckOfTransaction.remove(txnId);
             if (pendingAckMessageForCurrentTxn != null) {
                 endIndividualAckTxnCommon(pendingAckMessageForCurrentTxn);
-                redeliverUnacknowledgedMessages(consumer, new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
             }
         }
         abortFuture.complete(null);

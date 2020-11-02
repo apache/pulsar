@@ -242,7 +242,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction txn = getTxn();
 
-            int messageCnt = 130;
+            int messageCnt = 1000;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
@@ -250,14 +250,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             // consume and ack messages with txn
             for (int i = 0; i < messageCnt; i++) {
-                Message<byte[]> message = consumer.receive();
+                Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}", message.getMessageId());
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-
-            consumer.redeliverUnacknowledgedMessages();
-
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
@@ -414,7 +411,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction abortTxn = getTxn();
-            int messageCnt = 130;
+            int messageCnt = 1000;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
@@ -445,6 +442,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             } catch (Exception e) {
                 Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
             }
+
+            // the messages are pending ack state and can't be received
+            message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNull(message);
+
             abortTxn.abort().get();
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
@@ -456,22 +458,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
             }
 
-            try {
-                consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
-                fail("not ack conflict ");
-            } catch (Exception e) {
-                Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
-            }
-
-            try {
-                consumer.acknowledgeCumulativeAsync(DefaultImplementation
-                                .newMessageId(((MessageIdImpl) message.getMessageId()).getLedgerId(),
-                                        ((MessageIdImpl) message.getMessageId()).getEntryId() - 1, -1),
-                        abortTxn).get();
-                fail("not ack conflict ");
-            } catch (Exception e) {
-                Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
-            }
             commitTxn.commit().get();
             try {
                 commitTxn.commit().get();

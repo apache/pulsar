@@ -431,11 +431,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
         if (txn != null) {
-            if (ackType == AckType.Cumulative) {
-                txn.registerCumulativeAckConsumer(this);
+            if (this instanceof ConsumerImpl) {
+                // it is okay that we register acked topic after sending the acknowledgements. because
+                // the transactional ack will not be visiable for consumers until the transaction is
+                // committed
+                if (ackType == AckType.Cumulative) {
+                    txn.registerCumulativeAckConsumer(this);
+                } else {
+                    txn.registerIndividualAckConsumer(this, messageIdList);
+                }
+                txn.registerAckedTopic(getTopic(), subscription);
+                // register the ackFuture as part of the transaction
+                txn.registerAckOp(ackFuture);
             }
-            txn.registerAckedTopic(getTopic(), subscription);
-            return txn.registerAckOp(ackFuture);
+            return ackFuture;
         } else {
             return ackFuture;
         }
@@ -445,16 +454,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        if (txn != null && (this instanceof ConsumerImpl)) {
-            // it is okay that we register acked topic after sending the acknowledgements. because
-            // the transactional ack will not be visiable for consumers until the transaction is
-            // committed
-            if (ackType == AckType.Cumulative) {
-                txn.registerCumulativeAckConsumer(this);
+        if (txn != null) {
+            if (this instanceof ConsumerImpl) {
+                // it is okay that we register acked topic after sending the acknowledgements. because
+                // the transactional ack will not be visiable for consumers until the transaction is
+                // committed
+                if (ackType == AckType.Cumulative) {
+                    txn.registerCumulativeAckConsumer(this);
+                } else {
+                    txn.registerIndividualAckConsumer(this, messageId);
+                }
+                txn.registerAckedTopic(getTopic(), subscription);
+                // register the ackFuture as part of the transaction
+                txn.registerAckOp(ackFuture);
             }
-            txn.registerAckedTopic(getTopic(), subscription);
-            // register the ackFuture as part of the transaction
-            txn.registerAckOp(ackFuture);
             return ackFuture;
         } else {
             return ackFuture;
@@ -548,12 +561,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
     }
-
-    public void clearIncomingMessages() {
-        incomingMessages.clear();
-        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
-    }
-
     @Override
     public String getTopic() {
         return topic;
@@ -575,7 +582,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
      * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
      * breaks, the messages are redelivered after reconnect.
      */
-    protected abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds);
+    public abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds);
 
     @Override
     public String toString() {

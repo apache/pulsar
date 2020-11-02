@@ -872,11 +872,10 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
-        // Only check if message is in pending_ack status when there's ongoing transaction.
         if (pendingAckHandle == null) {
             dispatcher.redeliverUnacknowledgedMessages(consumer);
         } else {
+            // Only check if message is in pending_ack status when there's ongoing transaction.
             this.pendingAckHandle.redeliverUnacknowledgedMessages(consumer);
         }
     }
