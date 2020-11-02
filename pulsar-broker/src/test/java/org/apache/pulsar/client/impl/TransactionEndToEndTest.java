@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.fail;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.Sets;
 
@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -96,6 +97,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void noBatchProduceCommitTest() throws Exception {
         produceCommitTest(false);
+    }
+
+    @Test
+    public void batchProduceCommitTest() throws Exception {
+        produceCommitTest(true);
     }
 
     private void produceCommitTest(boolean enableBatch) throws Exception {
@@ -249,7 +255,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction txn = getTxn();
 
-            int messageCnt = 1000;
+            int messageCnt = 10;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
@@ -257,14 +263,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             // consume and ack messages with txn
             for (int i = 0; i < messageCnt; i++) {
-                Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+                Message<byte[]> message = consumer.receive();
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}", message.getMessageId());
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-
-            consumer.redeliverUnacknowledgedMessages();
-
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
@@ -290,7 +293,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             try {
                 commitTxn.commit().get();
-                fail("recommit one transaction should be failed.");
+                Assert.fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
@@ -457,7 +460,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             commitTxn.commit().get();
             try {
                 commitTxn.commit().get();
-                fail("recommit one transaction should be failed.");
+                Assert.fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
