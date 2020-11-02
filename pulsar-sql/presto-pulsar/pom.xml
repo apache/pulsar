@@ -109,6 +109,12 @@
           <version>${joda.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-record-decoder</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>
