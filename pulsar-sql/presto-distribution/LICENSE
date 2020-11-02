@@ -435,12 +435,12 @@ The Apache Software License, Version 2.0
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
-    - jetty-http-9.4.31.v20200723.jar
-    - jetty-io-9.4.31.v20200723.jar
-    - jetty-security-9.4.31.v20200723.jar
-    - jetty-server-9.4.31.v20200723.jar
-    - jetty-servlet-9.4.31.v20200723.jar
-    - jetty-util-9.4.31.v20200723.jar
+    - jetty-http-9.4.33.v20201020.jar
+    - jetty-io-9.4.33.v20201020.jar
+    - jetty-security-9.4.33.v20201020.jar
+    - jetty-server-9.4.33.v20201020.jar
+    - jetty-servlet-9.4.33.v20201020.jar
+    - jetty-util-9.4.33.v20201020.jar
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
