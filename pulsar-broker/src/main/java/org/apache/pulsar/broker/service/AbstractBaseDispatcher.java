@@ -213,7 +213,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdList()) {
                     positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
                 }
-                positionList.add(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                 subscription.acknowledgeMessage(
                         positionList, PulsarApi.CommandAck.AckType.Individual, Collections.emptyMap());
             } catch (IOException e) {
