@@ -14671,10 +14671,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -15087,10 +15087,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -15100,6 +15096,10 @@
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -15271,13 +15271,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -15576,10 +15576,10 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "s3Driver" : {
+        "gcsDriver" : {
           "type" : "boolean"
         },
-        "gcsDriver" : {
+        "s3Driver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
@@ -16145,13 +16145,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -16234,15 +16234,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
