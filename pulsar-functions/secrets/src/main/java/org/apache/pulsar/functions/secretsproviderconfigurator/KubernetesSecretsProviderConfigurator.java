@@ -52,6 +52,7 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
             case PYTHON:
                 return "secretsprovider.EnvironmentBasedSecretsProvider";
             case GO:
+                // [TODO] See GH issue #8425, we should finish this part once the issue is resolved.
                 return "";
             default:
                 throw new RuntimeException("Unknown function runtime " + functionDetails.getRuntime());
