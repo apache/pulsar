@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.13, 1.14]
+        go-version: [1.11, 1.12, 1.13, 1.14]
     timeout-minutes: 120
 
     steps:
@@ -65,4 +65,5 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           go test -v $(go list ./... | grep -v examples) ${{ matrix.go-version }}
