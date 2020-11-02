@@ -1629,18 +1629,15 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "topicName": {
+                    "type": "string"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "replicated": {
+                    "type": "boolean"
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1649,12 +1646,28 @@
                         "format": "byte"
                     }
                 },
-                "replicatedFrom": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "keyBytes": {
                     "type": "array",
@@ -1669,19 +1682,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "producerName": {
-                    "type": "string"
                 },
                 "value": {
                     "type": "object"
