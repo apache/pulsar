@@ -19,21 +19,24 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
+
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -222,6 +225,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnAckTestBatchAndSharedSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Shared);
+    }
+
+
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
@@ -258,10 +267,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}", message.getMessageId());
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(1000);
-
-            consumer.redeliverUnacknowledgedMessages();
-
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
@@ -287,7 +292,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             try {
                 commitTxn.commit().get();
-                Assert.fail("recommit one transaction should be failed.");
+                fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
@@ -369,6 +374,103 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         markDeletePositionCheck(topic, subName, true);
 
         log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
+    @Test
+    public void txnAckTestBatchAndCumulativeSub() throws Exception {
+        txnCumulativeAckTest(true, 200, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnAckTestNoBatchAndCumulativeSub() throws Exception {
+        txnCumulativeAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    public void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
+            throws Exception {
+        String normalTopic = NAMESPACE1 + "/normal-topic";
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(normalTopic)
+                .subscriptionName("test")
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(subscriptionType)
+                .ackTimeout(1, TimeUnit.MINUTES)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(normalTopic)
+                .enableBatching(batchEnable)
+                .batchingMaxMessages(maxBatchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+
+        for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
+            Transaction abortTxn = getTxn();
+            int messageCnt = 1000;
+            // produce normal messages
+            for (int i = 0; i < messageCnt; i++){
+                producer.newMessage().value("hello".getBytes()).sendAsync();
+            }
+            Message<byte[]> message = null;
+            Thread.sleep(1000L);
+            for (int i = 0; i < messageCnt; i++) {
+                message = consumer.receive(1, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                if (i % 3 == 0) {
+                    consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
+                }
+                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+            }
+            try {
+                consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
+                fail("not ack conflict ");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            }
+
+            try {
+                consumer.acknowledgeCumulativeAsync(DefaultImplementation
+                        .newMessageId(((MessageIdImpl) message.getMessageId()).getLedgerId(),
+                                ((MessageIdImpl) message.getMessageId()).getEntryId() - 1, -1),
+                        abortTxn).get();
+                fail("not ack conflict ");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            }
+
+            // the messages are pending ack state and can't be received
+            message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNull(message);
+
+            abortTxn.abort().get();
+            Transaction commitTxn = getTxn();
+            for (int i = 0; i < messageCnt; i++) {
+                message = consumer.receive(1, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                if (i % 3 == 0) {
+                    consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTxn).get();
+                }
+                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+            }
+
+            commitTxn.commit().get();
+            try {
+                commitTxn.commit().get();
+                fail("recommit one transaction should be failed.");
+            } catch (Exception reCommitError) {
+                // recommit one transaction should be failed
+                log.info("expected exception for recommit one transaction.");
+                Assert.assertNotNull(reCommitError);
+                Assert.assertTrue(reCommitError.getCause() instanceof
+                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+            }
+
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            Assert.assertNull(message);
+        }
     }
 
     private Transaction getTxn() throws Exception {

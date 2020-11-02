@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.impl.transaction;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -31,9 +31,11 @@ import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
@@ -71,11 +73,13 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
+    private Set<ConsumerBase<?>> cumulativeAckConsumers;
+    private HashMap<ConsumerBase<?>, HashSet<MessageId>> individualAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> registPartitionFutureList;
+    private final ArrayList<CompletableFuture<Void>> registerPartitionFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
-    private final ArrayList<CompletableFuture<Void>> registSubscriptionFutureList;
+    private final ArrayList<CompletableFuture<Void>> registerSubscriptionFutureList;
     private final ArrayList<MessageId> sendMessageIdList;
 
     TransactionImpl(PulsarClientImpl client,
@@ -91,11 +95,10 @@ public class TransactionImpl implements Transaction {
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
         this.tcClient = client.getTcClient();
-
         sendFutureList = new ArrayList<>();
-        registPartitionFutureList = new ArrayList<>();
+        registerPartitionFutureList = new ArrayList<>();
         ackFutureList = new ArrayList<>();
-        registSubscriptionFutureList = new ArrayList<>();
+        registerSubscriptionFutureList = new ArrayList<>();
         sendMessageIdList = new ArrayList<>();
     }
 
@@ -107,7 +110,7 @@ public class TransactionImpl implements Transaction {
     public synchronized void registerProducedTopic(String topic) {
         if (producedTopics.add(topic)) {
             // we need to issue the request to TC to register the produced topic
-            registPartitionFutureList.add(
+            registerPartitionFutureList.add(
                     tcClient.addPublishPartitionToTxnAsync(
                             new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
             );
@@ -116,12 +119,6 @@ public class TransactionImpl implements Transaction {
 
     public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
                                                                     CompletableFuture<MessageId> sendFuture) {
-//        CompletableFuture<MessageId> transactionalSendFuture = new CompletableFuture<>();
-//        TransactionalSendOp sendOp = new TransactionalSendOp(
-//            sendFuture,
-//            transactionalSendFuture
-//        );
-//        sendOps.put(sequenceId, sendOp);
         sendFutureList.add(sendFuture);
         return sendFuture;
     }
@@ -130,49 +127,104 @@ public class TransactionImpl implements Transaction {
     public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
             // we need to issue the request to TC to register the acked topic
-            registSubscriptionFutureList.add(
+            registerSubscriptionFutureList.add(
                     tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
             );
         }
     }
 
+    public synchronized void registerCumulativeAckConsumer(ConsumerBase<?> consumer) {
+        if (this.cumulativeAckConsumers == null) {
+            this.cumulativeAckConsumers = new HashSet<>();
+        }
+        cumulativeAckConsumers.add(consumer);
+    }
+
+    public synchronized void registerIndividualAckConsumer(ConsumerBase<?> consumer, MessageId messageId) {
+        if (this.individualAckConsumers == null) {
+            this.individualAckConsumers = new HashMap<>();
+        }
+        Set<MessageId> messageIds = individualAckConsumers.computeIfAbsent(consumer, (v) -> new HashSet<>());
+        messageIds.add(messageId);
+    }
+
+    public synchronized void registerIndividualAckConsumer(ConsumerBase<?> consumer,
+                                                           List<MessageId> messageIds) {
+        if (this.individualAckConsumers == null) {
+            this.individualAckConsumers = new HashMap<>();
+        }
+        Set<MessageId> ackedMessageIds = individualAckConsumers.computeIfAbsent(consumer, (v) -> new HashSet<>());
+        ackedMessageIds.addAll(messageIds);
+    }
+
     public synchronized CompletableFuture<Void> registerAckOp(CompletableFuture<Void> ackFuture) {
-//        CompletableFuture<Void> transactionalAckFuture = new CompletableFuture<>();
-//        TransactionalAckOp ackOp = new TransactionalAckOp(
-//            ackFuture,
-//            transactionalAckFuture
-//        );
-//        ackOps.add(ackOp);
-//        return transactionalAckFuture;
         ackFutureList.add(ackFuture);
         return ackFuture;
     }
 
     @Override
     public CompletableFuture<Void> commit() {
-        return allOpComplete().thenCompose(ignored -> {
-            for (CompletableFuture<MessageId> future : sendFutureList) {
-                future.thenAccept(sendMessageIdList::add);
+        CompletableFuture<Void> commitFuture = new CompletableFuture<>();
+        allOpComplete().whenComplete((v, e) -> {
+            if (e != null) {
+                abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+            } else {
+                for (CompletableFuture<MessageId> future : sendFutureList) {
+                    future.thenAccept(sendMessageIdList::add);
+                }
+                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList)
+                        .whenComplete((vx, ex) -> {
+                    if (ex != null) {
+                        commitFuture.completeExceptionally(ex);
+                    } else {
+                        commitFuture.complete(vx);
+                    }
+                });
             }
-            return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList);
         });
+        return commitFuture;
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return allOpComplete().thenCompose(ignored -> {
+
+        CompletableFuture<Void> abortFuture = new CompletableFuture<>();
+        allOpComplete().whenComplete((v, e) -> {
+            if (e != null) {
+                log.error(e.getMessage());
+            }
             for (CompletableFuture<MessageId> future : sendFutureList) {
                 future.thenAccept(sendMessageIdList::add);
             }
-            return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList);
+            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList).whenComplete((vx, ex) -> {
+                if (cumulativeAckConsumers != null) {
+                    cumulativeAckConsumers.forEach(Consumer::redeliverUnacknowledgedMessages);
+                    cumulativeAckConsumers.clear();
+                }
+                if (individualAckConsumers != null) {
+                    individualAckConsumers.forEach((consumerBase, messageIds) -> {
+                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    });
+                    individualAckConsumers.clear();
+                }
+
+                if (ex != null) {
+                    abortFuture.completeExceptionally(ex);
+                } else {
+                    abortFuture.complete(null);
+                }
+
+            });
         });
+
+        return abortFuture;
     }
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(registPartitionFutureList);
+        futureList.addAll(registerPartitionFutureList);
         futureList.addAll(sendFutureList);
-        futureList.addAll(registSubscriptionFutureList);
+        futureList.addAll(registerSubscriptionFutureList);
         futureList.addAll(ackFutureList);
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }

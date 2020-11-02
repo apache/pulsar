@@ -2383,7 +2383,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
-                batchMessageId.ackIndividual();
                 bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
@@ -2399,7 +2398,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);
-        unAckedMessageTracker.remove(messageId);
+        if (ackType == AckType.Cumulative) {
+            unAckedMessageTracker.removeMessagesTill(messageId);
+        } else {
+            unAckedMessageTracker.remove(messageId);
+        }
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;

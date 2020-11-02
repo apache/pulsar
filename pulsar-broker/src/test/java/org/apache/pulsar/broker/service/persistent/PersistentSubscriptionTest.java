@@ -61,11 +61,14 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -173,18 +176,36 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() {
-        List<Position> expectedSinglePositions = new ArrayList<>();
-        expectedSinglePositions.add(new PositionImpl(1, 1));
-        expectedSinglePositions.add(new PositionImpl(1, 3));
-        expectedSinglePositions.add(new PositionImpl(1, 5));
-
+    public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
         doAnswer((invocationOnMock) -> {
-            assertTrue(((List)invocationOnMock.getArguments()[0]).containsAll(expectedSinglePositions));
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        List<Position> positions = new ArrayList<>();
+        positions.add(new PositionImpl(1, 1));
+        positions.add(new PositionImpl(1, 3));
+        positions.add(new PositionImpl(1, 5));
+
+        doAnswer((invocationOnMock) -> {
+            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), positions.toArray()));
+            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
+                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
+
+        // Single ack for txn
+        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
+
+        // Commit txn
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE).get();
+
+        positions.clear();
+        positions.add(new PositionImpl(3, 100));
+
+        // Cumulative ack for txn
+        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
 
         doAnswer((invocationOnMock) -> {
             assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
@@ -193,26 +214,8 @@ public class PersistentSubscriptionTest {
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
-        List<Position> positions = new ArrayList<>();
-        positions.add(new PositionImpl(1, 1));
-        positions.add(new PositionImpl(1, 3));
-        positions.add(new PositionImpl(1, 5));
-
-        // Single ack for txn
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
-
-        positions.clear();
-        positions.add(new PositionImpl(3, 100));
-
-        // Cumulative ack for txn
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
-
         // Commit txn
-        persistentSubscription.commitTxn(txnID1, Collections.emptyMap());
-
-        // Verify corresponding ledger method was called with expected args.
-        verify(cursorMock, times(1)).asyncDelete(any(List.class), any(), any());
-        verify(cursorMock, times(1)).asyncMarkDelete(any(), any(Map.class), any(), any());
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE).get();
     }
 
     @Test
@@ -222,11 +225,7 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(2, 3));
         positions.add(new PositionImpl(2, 5));
 
-        Position[] expectedSinglePositions = {new PositionImpl(3, 1),
-                                        new PositionImpl(3, 3), new PositionImpl(3, 5)};
-
         doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), expectedSinglePositions));
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
@@ -265,8 +264,10 @@ public class PersistentSubscriptionTest {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+            assertTrue(e.getCause() instanceof TransactionConflictException);
+            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
+                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
+                    "2:50 within range of current currentPosition: 1:100");
         }
 
         positions.clear();
@@ -281,7 +282,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription.acknowledgeMessage(positions, AckType.Individual, Collections.emptyMap());
 
         //Abort txn.
-        persistentSubscription.abortTxn(txnID1, consumerMock);
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE);
 
         positions.clear();
         positions.add(new PositionImpl(2, 50));
