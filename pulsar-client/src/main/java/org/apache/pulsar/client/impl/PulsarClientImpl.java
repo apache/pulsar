@@ -41,10 +41,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -295,7 +293,7 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1, schema, interceptors);
             }
-    
+
             producers.add(producer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
@@ -385,7 +383,7 @@ public class PulsarClientImpl implements PulsarClient {
                         consumerSubscribedFuture,null, schema, interceptors,
                         true /* createTopicIfDoesNotExist */);
             }
-            
+
             consumers.add(consumer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
@@ -402,7 +400,7 @@ public class PulsarClientImpl implements PulsarClient {
         ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
                 externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
-        
+
         consumers.add(consumer);
 
         return consumerSubscribedFuture;
@@ -436,7 +434,7 @@ public class PulsarClientImpl implements PulsarClient {
                     externalExecutorProvider.getExecutor(),
                     consumerSubscribedFuture,
                     schema, subscriptionMode, interceptors);
-                
+
                 consumers.add(consumer);
             })
             .exceptionally(ex -> {
@@ -508,7 +506,7 @@ public class PulsarClientImpl implements PulsarClient {
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
-            
+
             consumers.add(reader.getConsumer());
 
             consumerSubscribedFuture.thenRun(() -> {
@@ -548,8 +546,16 @@ public class PulsarClientImpl implements PulsarClient {
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
+        } catch (ExecutionException e) {
+            PulsarClientException unwrapped = PulsarClientException.unwrap(e);
+            if (unwrapped instanceof PulsarClientException.AlreadyClosedException) {
+                // this is not a problem
+                return;
+            }
+            throw unwrapped;
         }
     }
 
@@ -562,7 +568,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
-    
+
         producers.forEach(p -> futures.add(p.closeAsync()));
         consumers.forEach(c -> futures.add(c.closeAsync()));
 
@@ -600,6 +606,12 @@ public class PulsarClientImpl implements PulsarClient {
             log.warn("Failed to shutdown Pulsar client", t);
             throw PulsarClientException.unwrap(t);
         }
+    }
+
+    @Override
+    public boolean isClosed() {
+        State currentState = state.get();
+        return currentState == State.Closed || currentState == State.Closing;
     }
 
     @Override
