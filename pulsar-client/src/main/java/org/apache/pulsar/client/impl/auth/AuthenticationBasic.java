@@ -38,6 +38,9 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
         // noop
     }
 
+    // test 2.6.2 action ci
+    //
+    //
     @Override
     public String getAuthMethodName() {
         return "basic";
