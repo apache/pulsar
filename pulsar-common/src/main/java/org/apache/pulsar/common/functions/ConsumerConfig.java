@@ -44,6 +44,8 @@ public class ConsumerConfig {
     private Map<String, String> schemaProperties = new HashMap<>();
     private Integer receiverQueueSize;
 
+    // test 2.6.2 action CI
+    // don't merge.
     public ConsumerConfig(String schemaType) {
         this.schemaType = schemaType;
     }
