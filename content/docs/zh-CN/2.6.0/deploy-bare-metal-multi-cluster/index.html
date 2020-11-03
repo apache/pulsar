@@ -252,7 +252,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </code></pre>
 <p>Bookie hosts are responsible for storing message data on disk. 为了使 bookies 能有更好的性能，必须选择合适的硬件配置。 以下是 bookie 硬件配置的关键指标。</p>
 <ul>
-<li>磁盘 I/O 的读/写能力。</li>
+<li>硬盘的读/写能力。</li>
 <li>存储容量</li>
 </ul>
 <p>Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:</p>

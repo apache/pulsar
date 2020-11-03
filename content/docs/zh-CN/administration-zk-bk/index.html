@@ -177,24 +177,24 @@
 <h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
 <p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>BookKeeper stores all durable message in Pulsar. Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> write-ahead log</a> WAL 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<p>Pulsar 使用 Bookeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
 <blockquote>
-<p>To manage message persistence, retention, and expiry in Pulsar, refer to <a href="/docs/zh-CN/cookbooks-retention-expiry">cookbook</a>.</p>
+<p>Pulsar 中管理消息的持久性，保留策略和过期时间，请参考<a href="/docs/zh-CN/cookbooks-retention-expiry">该指南</a>。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="hardware-requirements"></a><a href="#hardware-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hardware requirements</h3>
-<p>Bookie hosts store message data on disk. To provide optimal performance, ensure that the bookies have a suitable hardware configuration. The following are two key dimensions of bookie hardware capacity:</p>
+<h3><a class="anchor" aria-hidden="true" id="硬件要求"></a><a href="#硬件要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件要求</h3>
+<p>Bookie 机器将数据存储在本机磁盘上。 为了确保最佳性能，需要确保 bookie 有合适的硬件配置。 以下是 Bookie 机器相关的两个关键的硬件指标：</p>
 <ul>
-<li>磁盘 I/O 的读/写能力。</li>
+<li>硬盘的读/写能力。</li>
 <li>存储容量</li>
 </ul>
-<p>Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker by default. To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
+<p>默认情况下，在向 Pulsar Broker 返回确认消息之前，消息条目总是同步的写入到磁盘的。 To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
 <ul>
-<li>A <strong>journal</strong> to ensure durability. For sequential writes, it is critical to have fast <a href="https://linux.die.net/man/2/fsync">fsync</a> operations on bookie hosts. Typically, small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) should suffice, or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> controller and a battery-backed write cache. 这两种方案 fsync 延时大约为0.4ms。</li>
+<li>A <strong>journal</strong> to ensure durability. 对于连续的写入来说，bookie 机器的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作必须是快速的。 通常情况下，使用容量小并且读写快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘(SSDS)</a>设备就足够了。也可以是带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动(HDDs)</a>。 这两种方案 fsync 延时大约为0.4ms。</li>
 <li>A <strong>ledger storage device</strong> stores data. 写入操作是在后台运行的，所以写入的 I/O 性能不是一个大问题。 大部分的读取操作是连续的。backlog 只有在没有消费者的情况下，才会被删除。 要存储大量的数据，典型的配置是多块 HDD 硬盘和 一个RAID 控制器构建硬盘阵列。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="configure-bookkeeper"></a><a href="#configure-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure BookKeeper</h3>
-<p>你能够通过配置文件<a href="/docs/zh-CN/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 When you configure each bookie, ensure that the <a href="/docs/zh-CN/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a> parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.</p>
-<p>The minimum configuration changes required in <code>conf/bookkeeper.conf</code> are as follows:</p>
+<p>你能够通过配置文件<a href="/docs/zh-CN/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置bookie时，需要确保<a href="/docs/zh-CN/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>参数设置的是 Pulsar 集群的本地 Zookeeper 的地址的。</p>
+<p>至少需要修改<code>conf/bookkeeper.conf</code>文件的如下四个配置：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Change to point to journal disk mount point</span>
 <span class="hljs-attr">journalDirectory</span>=<span class="hljs-string">data/bookkeeper/journal</span>
 <span class="hljs-comment">
@@ -207,30 +207,30 @@
 # Change the ledger manager type</span>
 <span class="hljs-attr">ledgerManagerType</span>=<span class="hljs-string">hierarchical</span>
 </code></pre>
-<p>To change the ZooKeeper root path that BookKeeper uses, use <code>zkLedgersRootPath=/MY-PREFIX/ledgers</code> instead of <code>zkServers=localhost:2181/MY-PREFIX</code>.</p>
+<p>如果需要更改 Bookeeper 在 Zookeeper 中的目录路径，需要使用<code>zkLedgersRootPath=/MY-PREFIX/ledgers</code>，而不是<code>zkServers=localhost:2181/MY-PREFIX</code>。</p>
 <blockquote>
-<p>For more information about BookKeeper, refer to the official <a href="http://bookkeeper.apache.org">BookKeeper docs</a>.</p>
+<p>需要了解更多 Bookeeper 的信息，请参考<a href="http://bookkeeper.apache.org">BookKeeper 官方文档</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="部署-bookkeeper"></a><a href="#部署-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookkeeper</h3>
-<p>BookKeeper provides <a href="/docs/zh-CN/concepts-architecture-overview#persistent-storage">persistent message storage</a> for Pulsar. Each Pulsar broker has its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
-<h3><a class="anchor" aria-hidden="true" id="start-bookies-manually"></a><a href="#start-bookies-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start bookies manually</h3>
-<p>You can start a bookie in the foreground or as a background daemon.</p>
-<p>To start a bookie in the foreground, use the <a href="/docs/zh-CN/reference-cli-tools#bookkeeper"><code>bookkeeper</code></a> CLI tool:</p>
+<p>BookKeeper provides <a href="/docs/zh-CN/concepts-architecture-overview#persistent-storage">persistent message storage</a> for Pulsar. 每个 Pulsar Broker 都有属于自己的 bookie。 The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
+<h3><a class="anchor" aria-hidden="true" id="手动启动-bookie"></a><a href="#手动启动-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动启动 bookie</h3>
+<p>你可以在前台或者后台启动 bookie。</p>
+<p>可以使用<a href="/docs/zh-CN/reference-cli-tools#bookkeeper"><code>bookkeeper</code></a>命令行工具在前台启动 bookie。</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper bookie
 </code></pre>
 <p>To start a bookie in the background, use the <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
 </code></pre>
-<p>You can verify whether the bookie works properly with the <code>bookiesanity</code> command for the <a href="/docs/zh-CN/reference-cli-tools#bookkeeper-shell">BookKeeper shell</a>:</p>
+<p>你可以使用<a href="/docs/zh-CN/reference-cli-tools#bookkeeper-shell"> BookKeeper shell</a> 命令的<code>bookiesanity</code>选项，来校验 bookie 是否正常工作。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
 </code></pre>
-<p>When you use this command, you create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.</p>
-<h3><a class="anchor" aria-hidden="true" id="decommission-bookies-cleanly"></a><a href="#decommission-bookies-cleanly" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Decommission bookies cleanly</h3>
-<p>Before you decommission a bookie, you need to check your environment and meet the following requirements.</p>
+<p>使用这个命令的时候，底层的机制是在本地的 bookie 创建新的 ledger ，往里面写一些新的条目，然后读取它，最后删除这个ledger。</p>
+<h3><a class="anchor" aria-hidden="true" id="下线-bookie"></a><a href="#下线-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下线 bookie</h3>
+<p>下线 bookie 之前，你必须检查你的环境并满足以下要求：</p>
 <ol>
 <li><p>Ensure the state of your cluster supports decommissioning the target bookie. Check if <code>EnsembleSize &gt;= Write Quorum &gt;= Ack Quorum</code> is <code>true</code> with one less bookie.</p></li>
-<li><p>Ensure the target bookie is listed after using the <code>listbookies</code> command.</p></li>
-<li><p>Ensure that no other process is ongoing (upgrade etc).</p></li>
+<li><p>确保目标 bookie 在<code>listbookies</code>命令列出的 bookie 列表中，</p></li>
+<li><p>确保没有其他的程序正在运行(比如升级)。</p></li>
 </ol>
 <p>And then you can decommission bookies safely. To decommission bookies, complete the following steps.</p>
 <ol>
@@ -238,13 +238,13 @@
 <li><p>Stop the bookie by killing the bookie process. Make sure that no liveness/readiness probes setup for the bookies to spin them back up if you deploy it in a Kubernetes environment.</p></li>
 <li><p>运行下线命令。</p>
 <ul>
-<li>If you have logged in to the node to be decommissioned, you do not need to provide <code>-bookieid</code>.</li>
-<li>If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for <code>-bookieid</code> <code>$ bin/bookkeeper shell decommissionbookie</code> or <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></li>
+<li>如果你已经登录到了目标节点，则不需要指定参数<code>-bookieid</code>。</li>
+<li>如果你已经登录到需要下线的节点，你就不需要添加<code>-bookieid</code>参数。如果你希望从其他节点远程执行下线命令，可以加上参数<code>-bookieid</code>。<code>$ bin/bookkeeper shell decommissionbookie</code> 或者 <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></li>
 </ul></li>
 <li><p>Validate that no ledgers are on the decommissioned bookie.<br>
 <code>$ bin/bookkeeper shell listledgers -bookieid &lt;target bookieid&gt;</code></p></li>
 </ol>
-<p>You can run the following command to check if the bookie you have decommissioned is listed in the bookies list:</p>
+<p>你可以通过运行一下命令检查下线的 bookie 是否还在 bookie 列表中:</p>
 <pre><code class="hljs css language-bash">./bookkeeper shell listbookies -rw -h
 ./bookkeeper shell listbookies -ro -h
 </code></pre>
@@ -311,7 +311,7 @@ admin.namespaces().setPersistence(namespace, policies);
 <p>This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:</p>
 <p><img src="/docs/assets/pulsar-system-architecture.png" alt="ZooKeeper 和 BookKeeper"></p>
 <p>Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/deploy-monitoring"><span class="arrow-prev">← </span><span>Monitor</span></a><a class="docs-next button" href="/docs/zh-CN/administration-geo"><span>跨地域复制</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署-configuration-store">部署 Configuration Store</a></li><li><a href="#zookeeper-配置项说明">Zookeeper 配置项说明</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#hardware-requirements">Hardware requirements</a></li><li><a href="#configure-bookkeeper">Configure BookKeeper</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a></li><li><a href="#start-bookies-manually">Start bookies manually</a></li><li><a href="#decommission-bookies-cleanly">Decommission bookies cleanly</a></li></ul></li><li><a href="#bookeeper-持久化策略">Bookeeper 持久化策略</a><ul class="toc-headings"><li><a href="#设置持久化策略">设置持久化策略</a></li><li><a href="#列出持久化策略">列出持久化策略</a></li></ul></li><li><a href="#pulsar-如何使用-zookeeper-和-bookkeeper">Pulsar 如何使用 ZooKeeper 和 BookKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/deploy-monitoring"><span class="arrow-prev">← </span><span>Monitor</span></a><a class="docs-next button" href="/docs/zh-CN/administration-geo"><span>跨地域复制</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署-configuration-store">部署 Configuration Store</a></li><li><a href="#zookeeper-配置项说明">Zookeeper 配置项说明</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#硬件要求">硬件要求</a></li><li><a href="#configure-bookkeeper">Configure BookKeeper</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a></li><li><a href="#手动启动-bookie">手动启动 bookie</a></li><li><a href="#下线-bookie">下线 bookie</a></li></ul></li><li><a href="#bookeeper-持久化策略">Bookeeper 持久化策略</a><ul class="toc-headings"><li><a href="#设置持久化策略">设置持久化策略</a></li><li><a href="#列出持久化策略">列出持久化策略</a></li></ul></li><li><a href="#pulsar-如何使用-zookeeper-和-bookkeeper">Pulsar 如何使用 ZooKeeper 和 BookKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
