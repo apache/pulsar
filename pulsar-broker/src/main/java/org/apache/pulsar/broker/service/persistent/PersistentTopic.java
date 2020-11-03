@@ -109,6 +109,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -874,7 +875,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                            boolean closeIfClientsConnected,
                                            boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
-
         lock.writeLock().lock();
         try {
             if (isClosingOrDeleting) {
@@ -931,6 +931,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
                                     brokerService.pulsar().getTopicPoliciesService().unregisterListener(TopicName.get(topic), getPersistentTopic());
+
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
@@ -1724,6 +1725,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // This topic is not included in GC
             return;
         }
+        if (TopicName.get(topic).isPartitioned() && !isDeletePartitionedTopicWhileInactive()) {
+            return;
+        }
         InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode();
         int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
@@ -1771,6 +1775,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, true))
+                    .thenApply((res) -> deleteZkNode())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1783,7 +1788,44 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                         return null;
                     });
+        }
+    }
 
+    private CompletableFuture<Void> deleteZkNode() {
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
+                , topicName.getDomain().value(), topicName.getEncodedLocalName());
+        try {
+            if (topicName.isPartitioned() && !getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // make sure all sub partitions were deleted
+            PartitionedTopicMetadata metadata = getBrokerService()
+                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName())).get();
+            String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
+                    , topicName.getDomain().value());
+            Set<String> cache = brokerService.pulsar().getLocalZkCacheService().managedLedgerListCache().get(managedPath);
+            for (int i = 0; i < metadata.partitions; i++) {
+                if (cache.contains(topicName.getPartition(i).getLocalName())) {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }
+
+            CompletableFuture<Void> deleteZkNodeFuture = new CompletableFuture<>();
+            getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
+                    , (rc, s, o) -> {
+                        if (KeeperException.Code.OK.intValue() == rc
+                                || KeeperException.Code.NONODE.intValue() == rc) {
+                            getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
+                            deleteZkNodeFuture.complete(null);
+                        } else {
+                            deleteZkNodeFuture.completeExceptionally(
+                                    KeeperException.create(KeeperException.Code.get(rc)));
+                        }
+                    }, null);
+            return deleteZkNodeFuture;
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
         }
     }
 
