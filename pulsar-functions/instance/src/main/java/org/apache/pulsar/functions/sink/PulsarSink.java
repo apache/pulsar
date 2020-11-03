@@ -391,11 +391,13 @@ public class PulsarSink<T> implements Sink<T> {
     @SuppressWarnings("unchecked")
     @VisibleForTesting
     Crypto initializeCrypto() throws ClassNotFoundException {
-        CryptoConfig cryptoConfig = pulsarSinkConfig.getProducerConfig().getCryptoConfig();
-
-        if (cryptoConfig == null || isEmpty(cryptoConfig.getCryptoKeyReaderClassName())) {
+        if (pulsarSinkConfig.getProducerConfig() == null
+                || pulsarSinkConfig.getProducerConfig().getCryptoConfig() == null
+                || isEmpty(pulsarSinkConfig.getProducerConfig().getCryptoConfig().getCryptoKeyReaderClassName())) {
             return null;
         }
+
+        CryptoConfig cryptoConfig = pulsarSinkConfig.getProducerConfig().getCryptoConfig();
 
         // add provider only if it's not in the JVM
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
