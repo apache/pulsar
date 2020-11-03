@@ -1085,7 +1085,7 @@ public abstract class ComponentImpl {
         } catch (RestException e) {
             throw e;
         } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException | StreamNotFoundException e) {
-            log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
+            log.debug("State not found while processing getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.NOT_FOUND, e.getMessage());
         } catch (Exception e) {
@@ -1164,7 +1164,7 @@ public abstract class ComponentImpl {
         try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
             result(table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), value));
         } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException | org.apache.bookkeeper.clients.exceptions.StreamNotFoundException e) {
-            log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
+            log.debug("State not found while processing putFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.NOT_FOUND, e.getMessage());
         } catch (Exception e) {
