@@ -61,7 +61,7 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem"};
+    public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob"};
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
@@ -119,6 +119,9 @@ public class OffloadPolicies implements Serializable {
     private String fileSystemProfilePath = null;
     @Configuration
     private String fileSystemURI = null;
+
+    // --------- new offload configurations ---------
+    // they are universal configurations and could be used to `aws-s3`, `google-cloud-storage` or `azureblob`.
     @Configuration
     private String managedLedgerOffloadBucket;
     @Configuration
@@ -225,6 +228,9 @@ public class OffloadPolicies implements Serializable {
     public boolean bucketValid() {
         if (managedLedgerOffloadDriver == null) {
             return false;
+        }
+        if (StringUtils.isNotEmpty(managedLedgerOffloadBucket)) {
+            return true;
         }
         if (isS3Driver()) {
             return StringUtils.isNotEmpty(s3ManagedLedgerOffloadBucket);
