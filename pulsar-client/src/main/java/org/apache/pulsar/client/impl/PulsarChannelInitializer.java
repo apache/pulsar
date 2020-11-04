@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -115,7 +116,18 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
 
+   /**
+     * Initialize TLS for a channel. Should be invoked before the channel is connected to the remote address.
+     *
+     * @param ch      the channel
+     * @param sniHost the value of this argument will be passed as peer host and port when creating the SSLEngine (which
+     *                in turn will use these values to set SNI header when doing the TLS handshake). Cannot be
+     *                <code>null</code>.
+     * @return a {@link CompletableFuture} that completes when the TLS is set up.
+     */
     CompletableFuture<Channel> initTls(Channel ch, InetSocketAddress sniHost) {
+        Objects.requireNonNull(ch, "A channel is required");
+        Objects.requireNonNull(sniHost, "A sniHost is required");
         if (!tlsEnabled) {
             throw new IllegalStateException("TLS is not enabled in client configuration");
         }

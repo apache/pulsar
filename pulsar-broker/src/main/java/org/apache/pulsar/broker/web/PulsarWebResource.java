@@ -167,6 +167,15 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected boolean hasSuperUserAccess() {
+        try {
+            validateSuperUserAccess();
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Checks whether the user has Pulsar Super-User access to the system.
      *

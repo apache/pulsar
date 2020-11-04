@@ -49,6 +49,7 @@ Pulsar Client(`pulsar-client-original`) module include BouncyCastle non-FIPS jar
       <groupId>org.apache.pulsar</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 ```
 

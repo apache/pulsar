@@ -65,7 +65,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
         try {
             validateClusterOwnership(topicName.getCluster());
-            checkConnect(topicName);
+            validateAdminAndClientPermission(topicName);
             validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
         } catch (WebApplicationException we) {
             // Validation checks failed
@@ -125,6 +125,14 @@ public class TopicLookupBase extends PulsarWebResource {
             completeLookupResponseExceptionally(asyncResponse, exception);
             return null;
         });
+    }
+
+    private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
+        try {
+            validateAdminAccessForTenant(topic.getTenant());
+        } catch (Exception e) {
+            checkConnect(topic);
+        }
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {

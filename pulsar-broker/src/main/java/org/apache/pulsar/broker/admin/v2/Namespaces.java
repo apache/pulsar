@@ -295,6 +295,17 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceMessageTTL(null);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(value = "Get the subscription expiration time for the namespace")
@@ -486,6 +497,15 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Publish rate for all topics of the specified namespace") PublishRate publishRate) {
         validateNamespaceName(property, namespace);
         internalSetPublishRate(publishRate);
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void removePublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalRemovePublishRate();
     }
 
     @GET

@@ -304,13 +304,17 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
-                                   const SchemaInfo& schemaInfo) {
+                                   const SchemaInfo& schemaInfo, uint64_t epoch,
+                                   bool userProvidedProducerName) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
     producer->set_topic(topic);
     producer->set_producer_id(producerId);
     producer->set_request_id(requestId);
+    producer->set_epoch(epoch);
+    producer->set_user_provided_producer_name(userProvidedProducerName);
+
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
         proto::KeyValue* keyValue = proto::KeyValue().New();
@@ -670,8 +674,7 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +
-                                                     std::max(requiredSpace, maxMessageSizeInBytes));
+        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() + requiredSpace);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;

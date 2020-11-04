@@ -43,6 +43,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -152,7 +153,7 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccess();
         deleteDynamicConfigurationOnZk(configName);
     }
-    
+
     @GET
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
@@ -277,6 +278,20 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
+    @Path("/ready")
+    @ApiOperation(value = "Check if the broker is fully initialized")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Broker is ready"),
+            @ApiResponse(code = 500, message = "Broker is not ready") })
+    public void isReady(@Suspended AsyncResponse asyncResponse) {
+        if (pulsar().getState() == State.Started) {
+            asyncResponse.resume(Response.ok("ok").build());
+        } else {
+            asyncResponse.resume(Response.serverError().build());
+        }
+    }
+
+    @GET
     @Path("/health")
     @ApiOperation(value = "Run a healthcheck against the broker")
     @ApiResponses(value = {
@@ -378,7 +393,7 @@ public class BrokersBase extends AdminResource {
                         });
             });
     }
-    
+
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {
         try {
             if (BrokerService.isDynamicConfiguration(configName)) {

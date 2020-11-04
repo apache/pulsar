@@ -50,7 +50,6 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>${protobuf3.version}</version>
         </dependency>
 
         <dependency>

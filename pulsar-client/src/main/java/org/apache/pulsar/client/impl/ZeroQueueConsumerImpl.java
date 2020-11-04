@@ -76,7 +76,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         CompletableFuture<Message<T>> future = super.internalReceiveAsync();
         if (!future.isDone()) {
             // We expect the message to be not in the queue yet
-            sendFlowPermitsToBroker(cnx(), 1);
+            increaseAvailablePermits(cnx());
         }
 
         return future;
@@ -95,7 +95,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
                 if (isConnected()) {
-                    sendFlowPermitsToBroker(cnx(), 1);
+                    increaseAvailablePermits(cnx());
                 }
             }
             do {
@@ -135,7 +135,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         if (waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
                 || (listener != null && !waitingOnListenerForZeroQueueSize)) {
-            sendFlowPermitsToBroker(cnx, 1);
+            increaseAvailablePermits(cnx);
         }
     }
 

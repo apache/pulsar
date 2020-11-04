@@ -569,8 +569,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             String name = matcher.group(1);
 
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
-
+            String numericValue = matcher.group(3);
+            if (numericValue.equalsIgnoreCase("-Inf")) {
+                m.value = Double.NEGATIVE_INFINITY;
+            } else if (numericValue.equalsIgnoreCase("+Inf")) {
+                m.value = Double.POSITIVE_INFINITY;
+            } else {
+                m.value = Double.valueOf(numericValue);
+            }
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

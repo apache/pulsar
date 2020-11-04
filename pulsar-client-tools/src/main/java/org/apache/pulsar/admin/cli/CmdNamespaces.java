@@ -306,6 +306,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove Message TTL for a namespace")
+    private class RemoveMessageTTL extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeNamespaceMessageTTL(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription expiration time for a namespace")
     private class SetSubscriptionExpirationTime extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -779,6 +791,18 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             admin.namespaces().setPublishRate(namespace,
                 new PublishRate(msgPublishRate, bytePublishRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove publish-rate for all topics of the namespace")
+    private class RemovePublishRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removePublishRate(namespace);
         }
     }
 
@@ -1648,16 +1672,16 @@ public class CmdNamespaces extends CmdBase {
                 Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
                 if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
                         && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
-                    offloadAfterElapsedInMillis = new Long(offloadAfterElapsed);
+                    offloadAfterElapsedInMillis = offloadAfterElapsed;
                 }
             }
 
-            long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            Long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
                 long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
                 if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
                         && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
-                    offloadAfterThresholdInBytes = new Long(offloadAfterThreshold);
+                    offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
 
@@ -1710,6 +1734,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
 
         jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
         jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
@@ -1749,6 +1774,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
+        jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());

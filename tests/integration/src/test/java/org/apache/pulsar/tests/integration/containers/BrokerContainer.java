@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
+
 /**
  * A pulsar container that runs bookkeeper.
  */
@@ -28,5 +30,12 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     public BrokerContainer(String clusterName, String hostName) {
         super(
             clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, BROKER_HTTP_PORT);
+    }
+
+    @Override
+    protected void afterStart() {
+        this.tailContainerLog();
+        DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/var/log/pulsar/broker.log");
     }
 }

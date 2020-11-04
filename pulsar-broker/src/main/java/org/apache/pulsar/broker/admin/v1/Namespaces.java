@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.v1;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
@@ -635,6 +636,29 @@ public class Namespaces extends NamespacesBase {
                                                     @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         return internalGetSubscriptionDispatchRate();
+    }
+
+    @POST
+    @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
+        validateNamespaceName(tenant, cluster, namespace);
+        internalSetReplicatorDispatchRate(dispatchRate);
+    }
+
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Get replicator dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public DispatchRate getReplicatorDispatchRate(@PathParam("tenant") String tenant,
+                                                    @PathParam("cluster") String cluster,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, cluster, namespace);
+        return internalGetReplicatorDispatchRate();
     }
 
     @GET
