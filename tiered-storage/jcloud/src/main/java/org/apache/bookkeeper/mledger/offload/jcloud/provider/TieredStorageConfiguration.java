@@ -65,7 +65,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
     public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
     public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
-    public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
+    public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload";
 
     protected static final int MB = 1024 * 1024;
 
@@ -115,7 +115,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     private String getKeyName(String property) {
         StringBuilder sb = new StringBuilder();
         sb.append(OFFLOADER_PROPERTY_PREFIX)
-          .append(property);
+          .append(StringUtils.capitalize(property));
 
         return sb.toString();
     }
