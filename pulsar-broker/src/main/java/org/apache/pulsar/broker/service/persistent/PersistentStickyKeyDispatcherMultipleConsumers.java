@@ -124,6 +124,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         selector.removeConsumer(consumer);
         if (recentlyJoinedConsumers != null) {
             recentlyJoinedConsumers.remove(consumer);
+            if (consumerList.size() == 1) {
+                recentlyJoinedConsumers.clear();
+            }
         }
     }
 
@@ -200,7 +203,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        transactionReader);
+                        readType == ReadType.Replay);
 
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -229,7 +232,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         stuckConsumers.clear();
 
-        if (totalMessagesSent == 0 && recentlyJoinedConsumers != null && recentlyJoinedConsumers.isEmpty()) {
+        if (totalMessagesSent == 0 && (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:
             //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)

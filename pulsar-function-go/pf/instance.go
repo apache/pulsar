@@ -66,6 +66,15 @@ func newGoInstance() *goInstance {
 		consumers: make(map[string]pulsar.Consumer),
 	}
 	now := time.Now()
+
+	goInstance.context.outputMessage = func(topic string) pulsar.Producer {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return producer
+	}
+
 	goInstance.lastHealthCheckTs = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
@@ -191,28 +200,42 @@ func (gi *goInstance) setupClient() error {
 	return nil
 }
 
-func (gi *goInstance) setupProducer() (err error) {
+func (gi *goInstance) setupProducer() error {
 	if gi.context.instanceConf.funcDetails.Sink.Topic != "" && len(gi.context.instanceConf.funcDetails.Sink.Topic) > 0 {
 		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
-		properties := getProperties(getDefaultSubscriptionName(
-			gi.context.instanceConf.funcDetails.Tenant,
-			gi.context.instanceConf.funcDetails.Namespace,
-			gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
-		gi.producer, err = gi.client.CreateProducer(pulsar.ProducerOptions{
-			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
-			Properties:              properties,
-			CompressionType:         pulsar.LZ4,
-			BatchingMaxPublishDelay: time.Millisecond * 10,
-			// Set send timeout to be infinity to prevent potential deadlock with consumer
-			// that might happen when consumer is blocked due to unacked messages
-		})
+		producer, err := gi.getProducer(gi.context.instanceConf.funcDetails.Sink.Topic)
 		if err != nil {
-			gi.stats.incrTotalSysExceptions(err)
-			log.Errorf("create producer error:%s", err.Error())
-			return err
+			log.Fatal(err)
 		}
+
+		gi.producer = producer
+		return nil
 	}
+
 	return nil
+}
+
+func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
+	properties := getProperties(getDefaultSubscriptionName(
+		gi.context.instanceConf.funcDetails.Tenant,
+		gi.context.instanceConf.funcDetails.Namespace,
+		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
+
+	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
+		Topic:                   topicName,
+		Properties:              properties,
+		CompressionType:         pulsar.LZ4,
+		BatchingMaxPublishDelay: time.Millisecond * 10,
+		// Set send timeout to be infinity to prevent potential deadlock with consumer
+		// that might happen when consumer is blocked due to unacked messages
+	})
+	if err != nil {
+		gi.stats.incrTotalSysExceptions(err)
+		log.Errorf("create producer error:%s", err.Error())
+		return nil, err
+	}
+
+	return producer, err
 }
 
 func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {

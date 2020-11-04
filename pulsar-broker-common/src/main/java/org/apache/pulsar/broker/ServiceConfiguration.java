@@ -205,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -689,6 +692,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new producers until the number of connected producers decrease."
             + " Using a value of 0, is disabling maxProducersPerTopic-limit check.")
     private int maxProducersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enforce producer to publish encrypted messages.(default disable).")
+    private boolean encryptionRequireOnProducer = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1817,7 +1825,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Class name for transaction buffer provider"
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
