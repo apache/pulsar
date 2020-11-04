@@ -162,6 +162,35 @@ public interface Namespaces {
     CompletableFuture<List<String>> getTopicsAsync(String namespace);
 
     /**
+     * Get the list of bundles.
+     * <p/>
+     * Get the list of all the bundles under a certain namespace.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getBundles(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the list of bundles asynchronously.
+     * <p/>
+     * Get the list of all the bundles under a certain namespace.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getBundlesAsync(String namespace);
+
+    /**
      * Get policies for a namespace.
      * <p/>
      * Get the dump all the policies specified for a namespace.

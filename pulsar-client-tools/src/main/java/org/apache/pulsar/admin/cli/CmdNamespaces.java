@@ -96,6 +96,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the list of bundles for a namespace")
+    private class GetBundles extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getTopics(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Get the list of destinations for a namespace", hidden = true)
     private class GetDestinations extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1710,6 +1722,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("list-cluster", new GetNamespacesPerCluster());
 
         jcommander.addCommand("topics", new GetTopics());
+        jcommander.addCommand("bundles", new GetBundles());
         jcommander.addCommand("destinations", new GetDestinations());
         jcommander.addCommand("policies", new GetPolicies());
         jcommander.addCommand("create", new Create());
