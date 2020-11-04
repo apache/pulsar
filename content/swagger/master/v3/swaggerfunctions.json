@@ -1627,21 +1627,6 @@
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
                 },
-                "publishTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
@@ -1652,25 +1637,29 @@
                         "format": "byte"
                     }
                 },
-                "sequenceId": {
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
+                    "format": "int32"
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "replicated": {
                     "type": "boolean"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "producerName": {
                     "type": "string"
                 },
                 "replicatedFrom": {
                     "type": "string"
-                },
-                "keyBytes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
                 },
                 "data": {
                     "type": "array",
@@ -1679,9 +1668,20 @@
                         "format": "byte"
                     }
                 },
-                "redeliveryCount": {
+                "keyBytes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "publishTime": {
                     "type": "integer",
-                    "format": "int32"
+                    "format": "int64"
+                },
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "value": {
                     "type": "object"
