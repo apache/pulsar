@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,11 +32,10 @@ import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
@@ -73,8 +73,7 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
-    private Set<ConsumerBase<?>> cumulativeAckConsumers;
-    private HashMap<ConsumerBase<?>, HashSet<MessageId>> individualAckConsumers;
+    private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> registerPartitionFutureList;
@@ -95,6 +94,7 @@ public class TransactionImpl implements Transaction {
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
         this.tcClient = client.getTcClient();
+
         sendFutureList = new ArrayList<>();
         registerPartitionFutureList = new ArrayList<>();
         ackFutureList = new ArrayList<>();
@@ -133,28 +133,11 @@ public class TransactionImpl implements Transaction {
         }
     }
 
-    public synchronized void registerCumulativeAckConsumer(ConsumerBase<?> consumer) {
+    public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
         if (this.cumulativeAckConsumers == null) {
-            this.cumulativeAckConsumers = new HashSet<>();
+            this.cumulativeAckConsumers = new HashMap<>();
         }
-        cumulativeAckConsumers.add(consumer);
-    }
-
-    public synchronized void registerIndividualAckConsumer(ConsumerBase<?> consumer, MessageId messageId) {
-        if (this.individualAckConsumers == null) {
-            this.individualAckConsumers = new HashMap<>();
-        }
-        Set<MessageId> messageIds = individualAckConsumers.computeIfAbsent(consumer, (v) -> new HashSet<>());
-        messageIds.add(messageId);
-    }
-
-    public synchronized void registerIndividualAckConsumer(ConsumerBase<?> consumer,
-                                                           List<MessageId> messageIds) {
-        if (this.individualAckConsumers == null) {
-            this.individualAckConsumers = new HashMap<>();
-        }
-        Set<MessageId> ackedMessageIds = individualAckConsumers.computeIfAbsent(consumer, (v) -> new HashSet<>());
-        ackedMessageIds.addAll(messageIds);
+        cumulativeAckConsumers.put(consumer, 0);
     }
 
     public synchronized CompletableFuture<Void> registerAckOp(CompletableFuture<Void> ackFuture) {
@@ -196,16 +179,15 @@ public class TransactionImpl implements Transaction {
             for (CompletableFuture<MessageId> future : sendFutureList) {
                 future.thenAccept(sendMessageIdList::add);
             }
+            if (cumulativeAckConsumers != null) {
+                cumulativeAckConsumers.forEach((consumer, integer) ->
+                        cumulativeAckConsumers
+                                .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+            }
             tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList).whenComplete((vx, ex) -> {
                 if (cumulativeAckConsumers != null) {
-                    cumulativeAckConsumers.forEach(Consumer::redeliverUnacknowledgedMessages);
+                    cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
                     cumulativeAckConsumers.clear();
-                }
-                if (individualAckConsumers != null) {
-                    individualAckConsumers.forEach((consumerBase, messageIds) -> {
-                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
-                    });
-                    individualAckConsumers.clear();
                 }
 
                 if (ex != null) {

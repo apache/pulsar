@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.annotations.Test;
 
 import java.util.BitSet;
 
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -42,24 +43,24 @@ public class PendingAckBitSetMethodTest {
 
         thisBitSet.clear(1, 5);
         otherBitSet.clear(1, 6);
-        assertTrue(ManagedCursorImpl.isAckSetOverlap(thisBitSet.toLongArray(), otherBitSet.toLongArray()));
+        assertTrue(isAckSetOverlap(thisBitSet.toLongArray(), otherBitSet.toLongArray()));
         otherBitSet.set(1, 5);
-        assertFalse(ManagedCursorImpl.isAckSetOverlap(thisBitSet.toLongArray(), otherBitSet.toLongArray()));
+        assertFalse(isAckSetOverlap(thisBitSet.toLongArray(), otherBitSet.toLongArray()));
     }
 
     @Test
     public void compareToWithAckSetForCumulativeAckTest() {
         PositionImpl positionOne = PositionImpl.get(1, 1);
         PositionImpl positionTwo = PositionImpl.get(1, 2);
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), -1);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), -1);
         positionTwo = PositionImpl.get(2, 1);
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), -1);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), -1);
         positionTwo = PositionImpl.get(0, 1);
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), 1);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), 1);
         positionTwo = PositionImpl.get(1, 0);
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), 1);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), 1);
         positionTwo = PositionImpl.get(1, 1);
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), 0);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), 0);
 
         BitSet bitSetOne = new BitSet();
         BitSet bitSetTwo = new BitSet();
@@ -69,15 +70,15 @@ public class PendingAckBitSetMethodTest {
         bitSetTwo.clear(0, 10);
         positionOne.setAckSet(bitSetOne.toLongArray());
         positionTwo.setAckSet(bitSetTwo.toLongArray());
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), 0);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), 0);
 
         bitSetOne.clear(10, 12);
         positionOne.setAckSet(bitSetOne.toLongArray());
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), 2);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), 2);
 
         bitSetOne.set(8, 12);
         positionOne.setAckSet(bitSetOne.toLongArray());
-        assertEquals(PendingAckHandleImpl.compareToWithAckSetForCumulativeAck(positionOne, positionTwo), -2);
+        assertEquals(compareToWithAckSet(positionOne, positionTwo), -2);
     }
 
     @Test
@@ -93,7 +94,7 @@ public class PendingAckBitSetMethodTest {
         bitSetOne.set(8);
         positionOne.setAckSet(bitSetOne.toLongArray());
         positionTwo.setAckSet(bitSetTwo.toLongArray());
-        PendingAckHandleImpl.andAckSet(positionOne, positionTwo);
+        andAckSet(positionOne, positionTwo);
         BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(positionOne.getAckSet());
         assertTrue(bitSetRecyclable.isEmpty());
 
@@ -102,7 +103,7 @@ public class PendingAckBitSetMethodTest {
 
         positionOne.setAckSet(bitSetOne.toLongArray());
         positionTwo.setAckSet(bitSetTwo.toLongArray());
-        PendingAckHandleImpl.andAckSet(positionOne, positionTwo);
+        andAckSet(positionOne, positionTwo);
 
         bitSetRecyclable = BitSetRecyclable.valueOf(positionOne.getAckSet());
         BitSetRecyclable bitSetRecyclableTwo = BitSetRecyclable.valueOf(bitSetTwo.toLongArray());

@@ -432,8 +432,7 @@ public class Consumer {
                 }
                 positionsAcked.add(position);
 
-                if (!ack.hasTxnidMostBits() && !ack.hasTxnidLeastBits() &&
-                        Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
+                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
                     removePendingAcks(position);
                 }
 

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
-import com.google.common.collect.ComparisonChain;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -44,7 +43,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.isAckSetOverlap;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 
 @Slf4j
 public class PendingAckHandleImpl implements PendingAckHandle {
@@ -147,7 +148,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
         if (this.cumulativeAckOfTransaction == null) {
             this.cumulativeAckOfTransaction = MutablePair.of(txnID, position);
         } else if (this.cumulativeAckOfTransaction.getKey().equals(txnID)
-                && compareToWithAckSetForCumulativeAck(position, this.cumulativeAckOfTransaction.getValue()) > 0) {
+                && compareToWithAckSet(position, this.cumulativeAckOfTransaction.getValue()) > 0) {
             this.cumulativeAckOfTransaction.setValue(position);
 
         } else {
@@ -182,6 +183,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 individualAckPositions = new HashMap<>();
             }
             PositionImpl position = (PositionImpl) positions.get(i);
+
             // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
             if (((ManagedCursorImpl) persistentSubscription.getCursor()).isMessageDeleted(position)) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
@@ -192,6 +194,15 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             }
 
             if (position.hasAckSet()) {
+
+                if (isAckSetOverlap(position.getAckSet(),
+                        ((ManagedCursorImpl) persistentSubscription.getCursor()).getBatchPositionAckSet(position))) {
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
+                            " try to ack message:" + position + " already acked before.";
+                    log.error(errorMsg);
+                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
+                    break;
+                }
 
                 if (individualAckPositions.containsKey(position)
                         && isAckSetOverlap(individualAckPositions.get(position).getAckSet(), position.getAckSet())) {
@@ -278,11 +289,13 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (this.cumulativeAckOfTransaction.getKey().equals(txnId)) {
                 this.cumulativeAckOfTransaction = null;
             }
+            redeliverUnacknowledgedMessages(consumer);
         } else if (this.individualAckOfTransaction != null){
             HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                     individualAckOfTransaction.remove(txnId);
             if (pendingAckMessageForCurrentTxn != null) {
                 endIndividualAckTxnCommon(pendingAckMessageForCurrentTxn);
+                redeliverUnacknowledgedMessages(consumer, new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
             }
         }
         abortFuture.complete(null);
@@ -380,35 +393,5 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 }
             }
         }
-    }
-
-    public static int compareToWithAckSetForCumulativeAck(PositionImpl currentPosition,PositionImpl otherPosition) {
-        if (currentPosition == null || otherPosition ==null) {
-            return -1;
-        }
-        int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
-                otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
-                .result();
-        if (result == 0) {
-            if (otherPosition.getAckSet() == null && currentPosition.getAckSet() == null) {
-                return result;
-            }
-            BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
-            BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-            return thisAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0);
-        }
-        return result;
-    }
-
-    public static void andAckSet(PositionImpl currentPosition, PositionImpl otherPosition) {
-        if (currentPosition == null || otherPosition == null) {
-            return;
-        }
-        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
-        thisAckSet.and(otherAckSet);
-        currentPosition.setAckSet(thisAckSet.toLongArray());
-        thisAckSet.recycle();
-        otherAckSet.recycle();
     }
 }

@@ -241,6 +241,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
+                .ackTimeout(2, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
@@ -267,6 +268,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}", message.getMessageId());
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
+            Thread.sleep(2000L);
+
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);

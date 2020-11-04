@@ -1554,6 +1554,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    public void increaseAvailablePermits(int delta) {
+        increaseAvailablePermits(cnx(), delta);
+    }
+
     @Override
     public void pause() {
         paused = true;
@@ -1732,6 +1736,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             cnx.ctx().close();
         }
     }
+
+    public int clearIncomingMessagesAndGetMessageNumber() {
+        int messagesNumber = incomingMessages.size();
+        incomingMessages.clear();
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        unAckedMessageTracker.clear();
+        return messagesNumber;
+    }
+
+
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {

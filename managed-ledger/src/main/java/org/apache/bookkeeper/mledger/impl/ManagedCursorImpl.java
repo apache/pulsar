@@ -2768,45 +2768,27 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public boolean isMessageDeleted(Position position) {
-        if (position == null) {
-            return false;
-        }
-        if (!(position instanceof PositionImpl)) {
-            return true;
-        }
-        PositionImpl currentPosition = (PositionImpl) position;
-        if (!currentPosition.hasAckSet() || !config.isDeletionAtBatchIndexLevelEnabled()) {
-            return individualDeletedMessages.contains(currentPosition.getLedgerId(),
-                    currentPosition.getEntryId()) || currentPosition.compareTo(markDeletePosition) <= 0 ;
-        } else {
-            if (batchDeletedIndexes != null && batchDeletedIndexes.containsKey(currentPosition)) {
-                if (batchDeletedIndexes.get(position).isEmpty()) {
-                    return true;
-                } else {
-                    return isAckSetOverlap(batchDeletedIndexes.get(position).toLongArray(),
-                            currentPosition.getAckSet());
-                }
-            } else {
-                return individualDeletedMessages.contains(currentPosition.getLedgerId(),
-                        currentPosition.getEntryId()) || currentPosition.compareTo(markDeletePosition) <= 0 ;
-            }
-        }
+        checkArgument(position instanceof PositionImpl);
+        return individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
+                ((PositionImpl) position).getEntryId()) || ((PositionImpl) position).compareTo(markDeletePosition) <= 0 ;
     }
 
-    public static boolean isAckSetOverlap(long[] currentAckSet, long[] otherAckSet) {
-        if (currentAckSet == null || otherAckSet == null) {
-            return false;
+    //this method will return the a copy of the position's ack set
+    public long[] getBatchPositionAckSet(Position position) {
+        if (!(position instanceof PositionImpl)) {
+            return null;
         }
 
-        BitSetRecyclable currentBitSet = BitSetRecyclable.valueOf(currentAckSet);
-        BitSetRecyclable otherBitSet = BitSetRecyclable.valueOf(otherAckSet);
-        currentBitSet.flip(0, currentBitSet.size());
-        otherBitSet.flip(0, otherBitSet.size());
-        currentBitSet.and(otherBitSet);
-        boolean isAckSetRepeated = !currentBitSet.isEmpty();
-        currentBitSet.recycle();
-        otherBitSet.recycle();
-        return isAckSetRepeated;
+        if (batchDeletedIndexes != null) {
+            BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.get(position);
+            if (bitSetRecyclable == null) {
+                return null;
+            } else {
+                return bitSetRecyclable.toLongArray();
+            }
+        } else {
+            return null;
+        }
     }
 
     /**
