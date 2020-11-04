@@ -34,7 +34,9 @@
     <version>2.7.0-SNAPSHOT</version>
 
     <properties>
+        <jersey.version>2.31</jersey.version>
         <presto.version>332</presto.version>
+        <jersey.version>2.31</jersey.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
         <objectsize.version>0.0.12</objectsize.version>
@@ -46,12 +48,66 @@
         <!--fix Security Vulnerabilities-->
         <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
         <jackson.databind.version>2.11.1</jackson.databind.version>
-        <com.ning.async.http.client.version>1.9.40</com.ning.async.http.client.version>
         <maven.version>3.0.5</maven.version>
         <guava.version>25.1-jre</guava.version>
+        <asynchttpclient.version>2.12.1</asynchttpclient.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-common</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet-core</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+           <groupId>org.glassfish.jersey.containers</groupId>
+           <artifactId>jersey-container-servlet-core</artifactId>
+           <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+           <groupId>org.glassfish.jersey.containers</groupId>
+           <artifactId>jersey-container-servlet</artifactId>
+           <version>${jersey.version}</version>
+       </dependency>
 
         <dependency>
             <groupId>io.prestosql</groupId>
@@ -180,20 +236,20 @@
         </dependency>
 
     </dependencies>
-    
+
     <dependencyManagement>
       <dependencies>
         <dependency>
-          <groupId>com.ning</groupId>
+          <groupId>org.asynchttpclient</groupId>
           <artifactId>async-http-client</artifactId>
-          <version>${com.ning.async.http.client.version}</version>
+          <version>${asynchttpclient.version}</version>
         </dependency>
         <dependency>
           <groupId>io.netty</groupId>
           <artifactId>netty</artifactId>
           <version>3.10.6.Final</version>
         </dependency>
-      
+
         <dependency>
           <groupId>org.apache.maven</groupId>
           <artifactId>maven-core</artifactId>
@@ -235,6 +291,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <attach>true</attach>
@@ -280,7 +337,7 @@
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>3.0.rc1</version>
+                <version>3.0</version>
                 <configuration>
                     <header>../../src/license-header.txt</header>
                 </configuration>

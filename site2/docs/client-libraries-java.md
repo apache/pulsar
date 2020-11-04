@@ -329,7 +329,7 @@ The following is an example.
 
 ```java
 Messages messages = consumer.batchReceive();
-for (message in messages) {
+for (Object message : messages) {
   // do something
 }
 consumer.acknowledge(messages)
@@ -421,7 +421,7 @@ Consumer multiTopicConsumer = consumerBuilder
 
 // Alternatively:
 Consumer multiTopicConsumer = consumerBuilder
-        .topics(
+        .topic(
             "topic-1",
             "topic-2",
             "topic-3"
@@ -438,8 +438,8 @@ consumerBuilder
         .subscribeAsync()
         .thenAccept(this::receiveMessageFromConsumer);
 
-private void receiveMessageFromConsumer(Consumer consumer) {
-    consumer.receiveAsync().thenAccept(message -> {
+private void receiveMessageFromConsumer(Object consumer) {
+    ((Consumer)consumer).receiveAsync().thenAccept(message -> {
                 // Do something with the received message
                 receiveMessageFromConsumer(consumer);
             });

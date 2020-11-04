@@ -502,7 +502,7 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
         }
 
-        if (policies.message_ttl_in_seconds <= 0) {
+        if (policies.message_ttl_in_seconds == null) {
             policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
         }
     }

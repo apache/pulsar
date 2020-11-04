@@ -288,6 +288,38 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
+    public void backlogQuotaCheck() throws PulsarAdminException {
+        try {
+            backlogQuotaCheckAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> backlogQuotaCheckAsync() {
+        WebTarget path = adminBrokers.path("backlogQuotaCheck");
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Void>() {
+            @Override
+            public void completed(Void unused) {
+                future.complete(null);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
+    @Override
     public void healthcheck() throws PulsarAdminException {
         try {
             healthcheckAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

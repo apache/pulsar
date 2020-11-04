@@ -82,6 +82,12 @@ std::string Topic_name_str(const Message& msg) {
     return ss.str();
 }
 
+std::string schema_version_str(const Message& msg) {
+    std::stringstream ss;
+    ss << msg.getSchemaVersion();
+    return ss.str();
+}
+
 const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
@@ -168,6 +174,7 @@ void export_message() {
             .def("__str__", &Message_str)
             .def("topic_name", &Topic_name_str)
             .def("redelivery_count", &Message::getRedeliveryCount)
+            .def("schema_version", &schema_version_str)
             ;
 
     MessageBatch& (MessageBatch::*MessageBatchParseFromString)(const std::string& payload, uint32_t batchSize) = &MessageBatch::parseFrom;

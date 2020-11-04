@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -251,7 +252,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId,
                                                      long sequenceId,
-                                                     long batchSize,
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
@@ -280,24 +280,14 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartition in InMemTransactionBuffer."));
-    }
-
-    @Override
-    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID,
-                                             long committedAtLedgerId,
-                                             long committedAtEntryId) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             synchronized (txnBuffer) {
+                // the committed position should be generated
+                long committedAtLedgerId = -1L;
+                long committedAtEntryId = -1L;
                 txnBuffer.commitAt(committedAtLedgerId, committedAtEntryId);
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }
@@ -317,7 +307,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, List<PulsarApi.MessageIdData> sendMessageIdList) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
         try {

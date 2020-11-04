@@ -678,7 +678,7 @@ public class PulsarFunctionLocalRunTest {
         retryStrategically((test) -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 1)
-                        && (admin.topics().getInternalStats(sinkTopic).numberOfEntries > 4);
+                        && (admin.topics().getInternalStats(sinkTopic, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }

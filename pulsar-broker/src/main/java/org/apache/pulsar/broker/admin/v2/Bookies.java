@@ -116,7 +116,7 @@ public class Bookies extends AdminResource {
 
     @POST
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster")
+    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void updateBookieRackInfo(@PathParam("bookie") String bookieAddress, @QueryParam("group") String group,
             BookieInfo bookieInfo) throws Exception {
@@ -137,6 +137,7 @@ public class Bookies extends AdminResource {
 
             localZk().setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper().writeValueAsBytes(racks),
                     entry.get().getValue().getVersion());
+            localZkCache().invalidate(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
             log.info("Updated rack mapping info for {}", bookieAddress);
         } else {
             // Creates the z-node with racks info

@@ -112,7 +112,7 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Perform initialization for the authorization provider
      *
-     * @param config
+     * @param conf
      *            broker config object
      * @param configCache
      *            pulsar zk configuration cache service

@@ -21,19 +21,27 @@ package pf
 
 import (
 	"context"
+	"encoding/json"
 	"time"
+
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 type FunctionContext struct {
-	instanceConf *instanceConf
-	userConfigs  map[string]interface{}
-	logAppender  *LogAppender
+	instanceConf  *instanceConf
+	userConfigs   map[string]interface{}
+	logAppender   *LogAppender
+	outputMessage func(topic string) pulsar.Producer
+	record        pulsar.Message
 }
 
 func NewFuncContext() *FunctionContext {
+	instanceConf := newInstanceConf()
+	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
+
 	fc := &FunctionContext{
-		instanceConf: newInstanceConf(),
-		userConfigs:  make(map[string]interface{}),
+		instanceConf: instanceConf,
+		userConfigs:  userConfigs,
 	}
 	return fc
 }
@@ -112,12 +120,31 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
 
+// NewOutputMessage send message to the topic
+// @param topicName: The name of the topic for output message
+func (c *FunctionContext) NewOutputMessage(topicName string) pulsar.Producer {
+	return c.outputMessage(topicName)
+}
+
+// SetCurrentRecord sets the current message into the function context
+// called for each message before executing a handler function
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+	c.record = record
+}
+
+// GetCurrentRecord gets the current message from the function context
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+	return c.record
+
+}
+
 // An unexported type to be used as the key for types in this package.
 // This prevents collisions with keys defined in other packages.
 type key struct{}
 
-// contextKey is the key for user.User values in Contexts. It is
-// unexported; clients use user.NewContext and user.FromContext
+// contextKey is the key for FunctionContext values in context.Context.
+// It is unexported;
+// clients should use FunctionContext.NewContext and FunctionContext.FromContext
 // instead of using this key directly.
 var contextKey = &key{}
 
@@ -130,4 +157,12 @@ func NewContext(parent context.Context, fc *FunctionContext) context.Context {
 func FromContext(ctx context.Context) (*FunctionContext, bool) {
 	fc, ok := ctx.Value(contextKey).(*FunctionContext)
 	return fc, ok
+}
+
+func buildUserConfig(data string) map[string]interface{} {
+	m := make(map[string]interface{})
+
+	json.Unmarshal([]byte(data), &m)
+
+	return m
 }

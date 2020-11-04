@@ -141,6 +141,7 @@ class ProducerImpl : public HandlerBase,
 
     int32_t partition_;  // -1 if topic is non-partitioned
     std::string producerName_;
+    bool userProvidedProducerName_;
     std::string producerStr_;
     uint64_t producerId_;
     int64_t msgSequenceGenerator_;

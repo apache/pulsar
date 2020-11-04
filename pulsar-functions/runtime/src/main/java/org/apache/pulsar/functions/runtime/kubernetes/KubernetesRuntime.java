@@ -149,6 +149,7 @@ public class KubernetesRuntime implements Runtime {
     private Integer metricsPort;
     private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
+    private String functionInstanceClassPath;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -182,7 +183,8 @@ public class KubernetesRuntime implements Runtime {
                       Integer grpcPort,
                       Integer metricsPort,
                       String narExtractionDirectory,
-                      Optional<KubernetesManifestCustomizer> manifestCustomizer) throws Exception {
+                      Optional<KubernetesManifestCustomizer> manifestCustomizer,
+                      String functinoInstanceClassPath) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -202,6 +204,7 @@ public class KubernetesRuntime implements Runtime {
         this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
+        this.functionInstanceClassPath = functinoInstanceClassPath;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -253,7 +256,8 @@ public class KubernetesRuntime implements Runtime {
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
                         metricsPort,
-                        narExtractionDirectory));
+                        narExtractionDirectory,
+                        functinoInstanceClassPath));
 
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -422,7 +426,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null, "true", null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -507,7 +511,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, "true", null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -558,7 +562,7 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
-                                jobNamespace, null, "true",
+                                jobNamespace, null, null,
                                 5, null, "Foreground",
                                 null, null)
                                 .execute();
@@ -709,7 +713,7 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = coreClient.deleteNamespacedServiceCall(
                                 serviceName,
-                                jobNamespace, null, "true",
+                                jobNamespace, null, null,
                                 0, null,
                                 "Foreground", null, null).execute();
                     } catch (ApiException e) {

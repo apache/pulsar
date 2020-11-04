@@ -37,11 +37,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -151,7 +153,7 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccess();
         deleteDynamicConfigurationOnZk(configName);
     }
-    
+
     @GET
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
@@ -256,6 +258,40 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
+    @Path("/backlog-quota-check")
+    @ApiOperation(value = "An REST endpoint to trigger backlogQuotaCheck")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccess();
+        pulsar().getBrokerService().executor().execute(()->{
+            try {
+                pulsar().getBrokerService().monitorBacklogQuota();
+                asyncResponse.resume(Response.noContent().build());
+            } catch (Exception e) {
+                LOG.error("trigger backlogQuotaCheck fail", e);
+                asyncResponse.resume(new RestException(e));
+            }
+        });
+    }
+
+    @GET
+    @Path("/ready")
+    @ApiOperation(value = "Check if the broker is fully initialized")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Broker is ready"),
+            @ApiResponse(code = 500, message = "Broker is not ready") })
+    public void isReady(@Suspended AsyncResponse asyncResponse) {
+        if (pulsar().getState() == State.Started) {
+            asyncResponse.resume(Response.ok("ok").build());
+        } else {
+            asyncResponse.resume(Response.serverError().build());
+        }
+    }
+
+    @GET
     @Path("/health")
     @ApiOperation(value = "Run a healthcheck against the broker")
     @ApiResponses(value = {
@@ -357,7 +393,7 @@ public class BrokersBase extends AdminResource {
                         });
             });
     }
-    
+
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {
         try {
             if (BrokerService.isDynamicConfiguration(configName)) {

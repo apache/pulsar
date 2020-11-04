@@ -68,13 +68,20 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf3.version}</version>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -332,13 +339,6 @@
     </dependency>
 
     <!-- transaction related dependencies (end) -->
-
-     <dependency>
-       <groupId>org.bouncycastle</groupId>
-       <artifactId>bc-fips</artifactId>
-       <version>${bouncycastlefips.version}</version>
-       <scope>test</scope>
-     </dependency>
 
   </dependencies>
 

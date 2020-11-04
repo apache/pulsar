@@ -200,6 +200,10 @@ public class PulsarCluster {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
+    public String getCSConnString() {
+        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
+    }
+
     public Network getNetwork() {
         return network;
     }
@@ -417,7 +421,8 @@ public class PulsarCluster {
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
-                .withEnv("PF_threadContainerFactory_threadGroupName", "pf-container-group")
+                .withEnv("PF_functionRuntimeFactoryClassName", "org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory")
+                .withEnv("PF_functionRuntimeFactoryConfigs_threadGroupName", "pf-container-group")
                 // script
                 .withEnv("clusterName", clusterName)
                 .withEnv("zookeeperServers", ZKContainer.NAME)
