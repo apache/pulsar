@@ -1621,10 +1621,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1639,27 +1635,31 @@
                 "replicated": {
                     "type": "boolean"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "producerName": {
                     "type": "string"
                 },
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "schemaVersion": {
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "orderingKey": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "orderingKey": {
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
