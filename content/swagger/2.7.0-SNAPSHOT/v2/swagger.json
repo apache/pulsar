@@ -18014,29 +18014,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
@@ -18049,6 +18026,29 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
@@ -18229,13 +18229,13 @@
                     "type": "number",
                     "format": "double"
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -18538,6 +18538,23 @@
                 },
                 "fileSystemURI": {
                     "type": "string"
+                },
+                "managedLedgerOffloadBucket": {
+                    "type": "string"
+                },
+                "managedLedgerOffloadRegion": {
+                    "type": "string"
+                },
+                "managedLedgerOffloadServiceEndpoint": {
+                    "type": "string"
+                },
+                "managedLedgerOffloadMaxBlockSizeInBytes": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "managedLedgerOffloadReadBufferSizeInBytes": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "s3Driver": {
                     "type": "boolean"
@@ -19135,13 +19152,13 @@
                         "type": "string"
                     }
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -19267,11 +19284,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
