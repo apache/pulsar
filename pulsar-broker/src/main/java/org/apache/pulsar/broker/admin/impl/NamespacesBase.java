@@ -3001,7 +3001,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalUnsetOffloadPolicies(AsyncResponse asyncResponse) {
+    protected void internalRemoveOffloadPolicies(AsyncResponse asyncResponse) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
