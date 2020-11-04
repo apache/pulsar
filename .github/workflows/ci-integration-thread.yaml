@@ -26,6 +26,9 @@ on:
     branches:
       - branch-*
 
+env:
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
 
   thread:
@@ -34,10 +37,15 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache local Maven repository

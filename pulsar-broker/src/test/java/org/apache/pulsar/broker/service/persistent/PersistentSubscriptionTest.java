@@ -46,9 +46,12 @@ import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -87,6 +90,7 @@ public class PersistentSubscriptionTest {
     private PersistentTopic topic;
     private PersistentSubscription persistentSubscription;
     private Consumer consumerMock;
+    private ManagedLedgerConfig managedLedgerConfigMock;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String subName = "subscriptionName";
@@ -138,11 +142,15 @@ public class PersistentSubscriptionTest {
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
 
-        ledgerMock = mock(ManagedLedger.class);
+        ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
-        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+        managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
+        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
         doReturn(new PositionImpl(1, 50)).when(cursorMock).getMarkDeletedPosition();
+        doReturn(ledgerMock).when(cursorMock).getManagedLedger();
+        doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
+        doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 

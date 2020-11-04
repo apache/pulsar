@@ -992,6 +992,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
                         batchDeletedIndexes.values().forEach(BitSetRecyclable::recycle);
                         batchDeletedIndexes.clear();
+                        long[] resetWords = newPosition.ackSet;
+                        if (resetWords != null) {
+                            BitSetRecyclable ackSet = BitSetRecyclable.create().resetWords(resetWords);
+                            batchDeletedIndexes.put(newPosition, ackSet);
+                        }
                     }
 
                     PositionImpl oldReadPosition = readPosition;
@@ -2884,14 +2889,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         return Math.min(maxEntriesBasedOnSize, maxEntries);
-    }
-
-    public void internalInitBatchDeletedIndex(PositionImpl position, int totalNumMessageInBatch) {
-        batchDeletedIndexes.computeIfAbsent(position, key -> {
-            BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
-            bitSetRecyclable.set(0, totalNumMessageInBatch);
-            return bitSetRecyclable;
-        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

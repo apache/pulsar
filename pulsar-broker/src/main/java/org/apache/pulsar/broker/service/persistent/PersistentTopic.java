@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import javax.ws.rs.core.Response;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -44,9 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
-
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -87,10 +85,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.PrecisPublishLimiter;
 import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.broker.service.PublishRateLimiter;
-import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -110,6 +105,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -120,7 +116,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -133,7 +128,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -686,6 +681,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
 
+        if (checkMaxSubscriptionsPerTopicExceed()) {
+            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Exceed the maximum number of subscriptions of the topic: " + topic));
+            return subscriptionFuture;
+        }
+
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
@@ -723,6 +724,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
+        CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+        if (checkMaxSubscriptionsPerTopicExceed()) {
+            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Exceed the maximum number of subscriptions of the topic: " + topic));
+            return subscriptionFuture;
+        }
+
         synchronized (ledger) {
             // Create a new non-durable cursor only for the first consumer that connects
             PersistentSubscription subscription = subscriptions.get(subscriptionName);
@@ -758,7 +766,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (startMessageRollbackDurationSec > 0) {
                 long timestamp = System.currentTimeMillis()
                         - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
-                CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
                 final Subscription finalSubscription = subscription;
                 subscription.resetCursor(timestamp).handle((s, ex) -> {
                     if (ex != null) {
@@ -1397,10 +1404,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
-            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
-            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
-                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
-            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -1416,6 +1419,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replicationMetrics.msgReplBacklog += rStat.replicationBacklog;
                 if (update) {
                     replStats.put(namespaceClusterKey, replicationMetrics);
+                }
+                // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+                if (rStat.replicationDelayInSeconds > replicationMetrics.maxMsgReplDelayInSeconds) {
+                    replicationMetrics.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
                 }
             }
         });
@@ -2313,7 +2320,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext) {
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
@@ -2326,7 +2333,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             case NotDup:
                 getTransactionBuffer(true)
                         .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
-                                txnID, publishContext.getSequenceId(), batchSize, headersAndPayload))
+                                txnID, publishContext.getSequenceId(), headersAndPayload))
                         .thenAccept(position -> {
                             decrementPendingWriteOpsAndCheck();
                             publishContext.completed(null,
@@ -2351,10 +2358,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
-            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                future = tb.commitTxn(txnID, sendMessageList);
+            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                future = tb.abortTxn(txnID, sendMessageList);
+            } else {
+                future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+            }
+
+            future.whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     completableFuture.completeExceptionally(throwable);
                     return;
@@ -2500,5 +2517,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {
         return messageDeduplication;
+    }
+
+    private boolean checkMaxSubscriptionsPerTopicExceed() {
+        final int maxSubscriptionsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
+        if (maxSubscriptionsPerTopic > 0) {
+            if (subscriptions != null && subscriptions.size() >= maxSubscriptionsPerTopic) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

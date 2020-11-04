@@ -46,7 +46,6 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -287,9 +286,6 @@ public class Consumer {
                 }
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                if (entry instanceof TransactionEntryImpl) {
-                    messageIdBuilder.setBatchIndex(((TransactionEntryImpl) entry).getStartBatchIndex());
-                }
                 MessageIdData messageId = messageIdBuilder
                     .setLedgerId(entry.getLedgerId())
                     .setEntryId(entry.getEntryId())

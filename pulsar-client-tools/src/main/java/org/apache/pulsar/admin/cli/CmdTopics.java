@@ -74,6 +74,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
+        jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("unload", new UnloadCmd());
@@ -260,6 +261,18 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             print(admin.lookups().lookupTopic(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
+    private class PartitionedLookup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/partitionedTopic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            print(admin.lookups().lookupPartitionedTopic(topic));
         }
     }
 
@@ -640,12 +653,20 @@ public class CmdTopics extends CmdBase {
                 "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
         private String resetMessageIdStr;
 
+        @Parameter(names = { "-e", "--exclude-reset-position" },
+                description = "Exclude the reset position, start consume messages from the next position.", required = false)
+        private boolean excludeResetPosition = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
-                topics.resetCursor(persistentTopic, subName, messageId);
+                if (excludeResetPosition) {
+                    topics.resetCursor(persistentTopic, subName, messageId, true);
+                } else {
+                    topics.resetCursor(persistentTopic, subName, messageId);
+                }
             } else if (isNotBlank(resetTimeStr)) {
                 long resetTimeInMillis = TimeUnit.SECONDS
                         .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));

@@ -311,6 +311,8 @@ public interface Context {
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }
 ```
 

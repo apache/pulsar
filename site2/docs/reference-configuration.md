@@ -89,7 +89,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |serverSockKeepalive|This setting is used to send keep-alive messages on connection-oriented sockets.|true|
 |serverTcpLinger|The socket linger timeout on close. When enabled, a close or shutdown will not return until all queued messages for the socket have been successfully sent or the linger timeout has been reached. Otherwise, the call returns immediately and the closing is done in the background.|0|
 |byteBufAllocatorSizeMax|The maximum buf size of the received ByteBuf allocator.|1048576|
-|nettyMaxFrameSizeBytes|The maximum netty frame size in bytes. Any message received larger than this will be rejected. The default value is 1G.|5253120|
+|nettyMaxFrameSizeBytes|The maximum netty frame size in bytes. Any message received larger than this will be rejected.|5253120|
 |openFileLimit|Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.|0|
 |pageSize|Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.|8192|
 |pageLimit|How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.|0|
@@ -129,7 +129,6 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |dbStorage_rocksDB_numLevels||-1|
 |dbStorage_rocksDB_numFilesInLevel0||4|
 |dbStorage_rocksDB_maxSizeInLevel1MB||256|
-| nettyMaxFrameSizeBytes | Set the maximum netty frame size in bytes. If the size of a received message is larger than the configured value, the message is rejected. | 1 GB |
 
 
 ## Broker
@@ -306,7 +305,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
-|defaultRetentionTimeInMinutes| Default message retention time  ||
+|defaultRetentionTimeInMinutes| Default message retention time  |0|
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |bootstrapNamespaces| The bootstrap name. | N/A |
