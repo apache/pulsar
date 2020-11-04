@@ -61,7 +61,7 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem"};
+    public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob"};
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
@@ -120,6 +120,19 @@ public class OffloadPolicies implements Serializable {
     @Configuration
     private String fileSystemURI = null;
 
+    // --------- new offload configurations ---------
+    // they are universal configurations and could be used to `aws-s3`, `google-cloud-storage` or `azureblob`.
+    @Configuration
+    private String managedLedgerOffloadBucket;
+    @Configuration
+    private String managedLedgerOffloadRegion;
+    @Configuration
+    private String managedLedgerOffloadServiceEndpoint;
+    @Configuration
+    private Integer managedLedgerOffloadMaxBlockSizeInBytes;
+    @Configuration
+    private Integer managedLedgerOffloadReadBufferSizeInBytes;
+
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
                                          Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                          Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
@@ -127,6 +140,12 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis);
+
+        offloadPolicies.setManagedLedgerOffloadBucket(bucket);
+        offloadPolicies.setManagedLedgerOffloadRegion(region);
+        offloadPolicies.setManagedLedgerOffloadServiceEndpoint(endpoint);
+        offloadPolicies.setManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
+        offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
 
         if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
             offloadPolicies.setS3ManagedLedgerOffloadRegion(region);
@@ -210,6 +229,9 @@ public class OffloadPolicies implements Serializable {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
+        if (StringUtils.isNotEmpty(managedLedgerOffloadBucket)) {
+            return true;
+        }
         if (isS3Driver()) {
             return StringUtils.isNotEmpty(s3ManagedLedgerOffloadBucket);
         } else if (isGcsDriver()) {
@@ -241,7 +263,12 @@ public class OffloadPolicies implements Serializable {
                 gcsManagedLedgerOffloadReadBufferSizeInBytes,
                 gcsManagedLedgerOffloadServiceAccountKeyFile,
                 fileSystemProfilePath,
-                fileSystemURI);
+                fileSystemURI,
+                managedLedgerOffloadBucket,
+                managedLedgerOffloadRegion,
+                managedLedgerOffloadServiceEndpoint,
+                managedLedgerOffloadMaxBlockSizeInBytes,
+                managedLedgerOffloadReadBufferSizeInBytes);
     }
 
     @Override
@@ -280,7 +307,14 @@ public class OffloadPolicies implements Serializable {
                 && Objects.equals(gcsManagedLedgerOffloadServiceAccountKeyFile,
                     other.getGcsManagedLedgerOffloadServiceAccountKeyFile())
                 && Objects.equals(fileSystemProfilePath, other.getFileSystemProfilePath())
-                && Objects.equals(fileSystemURI, other.getFileSystemURI());
+                && Objects.equals(fileSystemURI, other.getFileSystemURI())
+                && Objects.equals(managedLedgerOffloadBucket, other.getManagedLedgerOffloadBucket())
+                && Objects.equals(managedLedgerOffloadRegion, other.getManagedLedgerOffloadRegion())
+                && Objects.equals(managedLedgerOffloadServiceEndpoint, other.getManagedLedgerOffloadServiceEndpoint())
+                && Objects.equals(managedLedgerOffloadMaxBlockSizeInBytes,
+                    other.getManagedLedgerOffloadMaxBlockSizeInBytes())
+                && Objects.equals(managedLedgerOffloadReadBufferSizeInBytes,
+                    other.getManagedLedgerOffloadReadBufferSizeInBytes());
     }
 
     @Override
@@ -306,15 +340,13 @@ public class OffloadPolicies implements Serializable {
                 .add("gcsManagedLedgerOffloadServiceAccountKeyFile", gcsManagedLedgerOffloadServiceAccountKeyFile)
                 .add("fileSystemProfilePath", fileSystemProfilePath)
                 .add("fileSystemURI", fileSystemURI)
+                .add("managedLedgerOffloadBucket", managedLedgerOffloadBucket)
+                .add("managedLedgerOffloadRegion", managedLedgerOffloadRegion)
+                .add("managedLedgerOffloadServiceEndpoint", managedLedgerOffloadServiceEndpoint)
+                .add("managedLedgerOffloadMaxBlockSizeInBytes", managedLedgerOffloadMaxBlockSizeInBytes)
+                .add("managedLedgerOffloadReadBufferSizeInBytes", managedLedgerOffloadReadBufferSizeInBytes)
                 .toString();
     }
-
-    public static final String METADATA_FIELD_BUCKET = "bucket";
-    public static final String METADATA_FIELD_REGION = "region";
-    public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
-    public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
-    public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
-    public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
 
     public Properties toProperties() {
         Properties properties = new Properties();
@@ -360,6 +392,16 @@ public class OffloadPolicies implements Serializable {
             setProperty(properties, "fileSystemProfilePath", this.getFileSystemProfilePath());
             setProperty(properties, "fileSystemURI", this.getFileSystemURI());
         }
+
+        setProperty(properties, "managedLedgerOffloadBucket", this.getManagedLedgerOffloadBucket());
+        setProperty(properties, "managedLedgerOffloadRegion", this.getManagedLedgerOffloadRegion());
+        setProperty(properties, "managedLedgerOffloadServiceEndpoint",
+                this.getManagedLedgerOffloadServiceEndpoint());
+        setProperty(properties, "managedLedgerOffloadMaxBlockSizeInBytes",
+                this.getManagedLedgerOffloadMaxBlockSizeInBytes());
+        setProperty(properties, "managedLedgerOffloadReadBufferSizeInBytes",
+                this.getManagedLedgerOffloadReadBufferSizeInBytes());
+
         return properties;
     }
 
@@ -409,7 +451,7 @@ public class OffloadPolicies implements Serializable {
      * <p>policies level priority: topic > namespace > broker
      *
      * @param topicLevelPolicies topic level offload policies
-     * @param nsLevelPolicies namesapce level offload policies
+     * @param nsLevelPolicies namespace level offload policies
      * @param brokerProperties broker level offload configuration
      * @return offload policies
      */
