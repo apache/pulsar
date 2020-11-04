@@ -146,7 +146,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getBundles(String namespace) throws PulsarAdminException {
+    public BundlesData getBundles(String namespace) throws PulsarAdminException {
         try {
             return getBundlesAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -160,16 +160,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public  CompletableFuture<List<String>> getBundlesAsync(String namespace) {
+    public  CompletableFuture<BundlesData> getBundlesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         String action = "bundles";
         WebTarget path = namespacePath(ns, action);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        final CompletableFuture<BundlesData> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
+                new InvocationCallback<BundlesData>() {
                     @Override
-                    public void completed(List<String> topics) {
-                        future.complete(topics);
+                    public void completed(BundlesData bundles) {
+                        future.complete(bundles);
                     }
 
                     @Override

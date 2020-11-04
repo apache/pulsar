@@ -1286,14 +1286,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testListOfNamespaceBundles() throws Exception {
-        admin.clusters().createCluster("test2", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test2"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz2/ns1", 10);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz2/ns1", Sets.newHashSet("test2"));
-        admin.namespaces().createNamespace("prop-xyz2/test2/ns2", 10);
-        assertEquals(admin.namespaces().getBundles("prop-xyz2/ns1"), 10);
-        assertEquals(admin.namespaces().getBundles("prop-xyz2/test2/ns2"), 10);
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz2/ns1", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("prop-xyz2/test/ns2", 10);
+        assertEquals(admin.namespaces().getBundles("prop-xyz2/ns1").numBundles, 10);
+        assertEquals(admin.namespaces().getBundles("prop-xyz2/test/ns2").numBundles, 10);
     }
 
     @Test

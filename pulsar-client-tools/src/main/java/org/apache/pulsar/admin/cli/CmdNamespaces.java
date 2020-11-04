@@ -104,7 +104,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(admin.namespaces().getTopics(namespace));
+            print(admin.namespaces().getBundles(namespace));
         }
     }
 

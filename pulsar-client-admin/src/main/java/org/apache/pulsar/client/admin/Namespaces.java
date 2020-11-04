@@ -177,7 +177,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getBundles(String namespace) throws PulsarAdminException;
+    BundlesData getBundles(String namespace) throws PulsarAdminException;
 
     /**
      * Get the list of bundles asynchronously.
@@ -188,7 +188,7 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      */
-    CompletableFuture<List<String>> getBundlesAsync(String namespace);
+    CompletableFuture<BundlesData> getBundlesAsync(String namespace);
 
     /**
      * Get policies for a namespace.
