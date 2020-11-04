@@ -124,6 +124,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         selector.removeConsumer(consumer);
         if (recentlyJoinedConsumers != null) {
             recentlyJoinedConsumers.remove(consumer);
+            if (consumerList.size() == 1) {
+                recentlyJoinedConsumers.clear();
+            }
         }
     }
 
