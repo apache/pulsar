@@ -27,6 +27,7 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ import org.apache.pulsar.proxy.stats.ProxyStats;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 
@@ -192,6 +194,18 @@ public class ProxyServiceStarter {
             proxyHolder.setInitParameter("proxyTo", revProxy.getProxyTo());
             proxyHolder.setInitParameter("prefix", "/");
             server.addServlet(revProxy.getPath(), proxyHolder);
+        }
+
+        // add proxy additional servlets
+        if (service != null && service.getProxyAdditionalServlets() != null) {
+            Collection<ProxyAdditionalServletWithClassLoader> additionalServletCollection =
+                    service.getProxyAdditionalServlets().getServlets().values();
+            for (ProxyAdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
+                servletWithClassLoader.loadConfig(config);
+                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
+                        Collections.emptyList(), config.isAuthenticationEnabled());
+                log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+            }
         }
     }
 

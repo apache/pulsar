@@ -113,7 +113,7 @@ public class CmdSources extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
                 return;
             }
             runCmd();

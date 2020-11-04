@@ -90,6 +90,7 @@ bool TopicName::init(const std::string& topicName) {
     } else {
         namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
     }
+    partition_ = TopicName::getPartitionIndex(localName_);
     return true;
 }
 bool TopicName::parse(const std::string& topicName, std::string& domain, std::string& property,
@@ -235,6 +236,23 @@ const std::string TopicName::getTopicPartitionName(unsigned int partition) {
     // make this topic name as well
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;
     return topicPartitionName.str();
+}
+
+int TopicName::getPartitionIndex(const std::string& topic) {
+    const auto& suffix = PartitionedProducerImpl::PARTITION_NAME_SUFFIX;
+    const size_t pos = topic.rfind(suffix);
+    if (pos == std::string::npos) {
+        return -1;
+    }
+
+    try {
+        // TODO: When handling topic name like "xxx-partition-00", it should return -1.
+        // But here it will returns, which is consistent with Java client's behavior
+        // Another corner case:  "xxx-partition--2" => 2 (not -1)
+        return std::stoi(topic.substr(topic.rfind('-') + 1));
+    } catch (const std::exception&) {
+        return -1;
+    }
 }
 
 NamespaceNamePtr TopicName::getNamespaceName() { return namespaceName_; }

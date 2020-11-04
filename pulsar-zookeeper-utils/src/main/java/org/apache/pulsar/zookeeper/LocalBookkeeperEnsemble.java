@@ -55,6 +55,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
@@ -72,6 +73,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxn;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -153,6 +155,7 @@ public class LocalBookkeeperEnsemble {
 
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
+    DatadirCleanupManager zkDataCleanupManager;
     ZooKeeper zkc;
 
     static int zkSessionTimeOut = 5000;
@@ -188,6 +191,9 @@ public class LocalBookkeeperEnsemble {
             serverFactory = new NIOServerCnxnFactory();
             serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
             serverFactory.startup(zks);
+
+            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 0, 1 /* hour */);
+            zkDataCleanupManager.start();
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
 
@@ -293,7 +299,7 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowEphemeralPorts(true);
 
             try {
-                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, BookieServiceInfo.NO_INFO);
             } catch (InvalidCookieException e) {
                 // InvalidCookieException can happen if the machine IP has changed
                 // Since we are running here a local bookie that is always accessed
@@ -306,7 +312,7 @@ public class LocalBookkeeperEnsemble {
                 new File(new File(bkDataDir, "current"), "VERSION").delete();
 
                 // Retry to start the bookie after cleaning the old left cookie
-                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, BookieServiceInfo.NO_INFO);
             }
             bs[i].start();
             LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, bookiePort,
@@ -440,7 +446,7 @@ public class LocalBookkeeperEnsemble {
 
     public void startBK(int i) throws Exception {
         try {
-            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, BookieServiceInfo.NO_INFO);
         } catch (InvalidCookieException e) {
             // InvalidCookieException can happen if the machine IP has changed
             // Since we are running here a local bookie that is always accessed
@@ -453,7 +459,7 @@ public class LocalBookkeeperEnsemble {
             new File(new File(bsConfs[i].getJournalDirNames()[0], "current"), "VERSION").delete();
 
             // Retry to start the bookie after cleaning the old left cookie
-            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, BookieServiceInfo.NO_INFO);
 
         }
         bs[i].start();
@@ -479,6 +485,10 @@ public class LocalBookkeeperEnsemble {
         zkc.close();
         zks.shutdown();
         serverFactory.shutdown();
+
+        if (zkDataCleanupManager != null) {
+            zkDataCleanupManager.shutdown();
+        }
         LOG.debug("Local ZK/BK stopped");
     }
 
