@@ -1335,7 +1335,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/unsetOffloadPolicies")
+    @Path("/{tenant}/{namespace}/removeOffloadPolicies")
     @ApiOperation(value = " Set offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),

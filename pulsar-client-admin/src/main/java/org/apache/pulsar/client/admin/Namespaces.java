@@ -3264,6 +3264,20 @@ public interface Namespaces {
     void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
 
     /**
+     * Remove the offload configuration for all the topics in a namespace.
+     * <p/>
+     * Remove the offload configuration in a namespace. This operation requires pulsar tenant access.
+     * <p/>
+     *
+     * @param namespace Namespace name
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException      Namespace does not exist
+     * @throws ConflictException      Concurrent modification
+     * @throws PulsarAdminException   Unexpected error
+     */
+    void removeOffloadPolicies(String namespace) throws PulsarAdminException;
+
+    /**
      * Set the offload configuration for all the topics in a namespace asynchronously.
      * <p/>
      * Set the offload configuration in a namespace. This operation requires pulsar tenant access.
@@ -3289,6 +3303,20 @@ public interface Namespaces {
      *            Offload configuration
      */
     CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies);
+
+    /**
+     * Remove the offload configuration for all the topics in a namespace asynchronously.
+     * <p/>
+     * Remove the offload configuration in a namespace. This operation requires pulsar tenant access.
+     * <p/>
+     *
+     * @param namespace Namespace name
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException      Namespace does not exist
+     * @throws ConflictException      Concurrent modification
+     * @throws PulsarAdminException   Unexpected error
+     */
+    CompletableFuture<Void> removeOffloadPoliciesAsync(String namespace);
 
     /**
      * Get the offload configuration for a namespace.

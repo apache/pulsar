@@ -546,6 +546,9 @@ public class PulsarAdminToolTest {
                         "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024,
                         10L * 1024 * 1024, 10000L));
 
+        namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
+        verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
+
         namespaces.run(split("get-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
 
