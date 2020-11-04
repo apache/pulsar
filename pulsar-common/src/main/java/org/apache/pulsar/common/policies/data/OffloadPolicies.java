@@ -135,8 +135,8 @@ public class OffloadPolicies implements Serializable {
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
                                          String credentialId, String credentialSecret,
-                                         int maxBlockSizeInBytes, int readBufferSizeInBytes,
-                                         long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
+                                         Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
+                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
