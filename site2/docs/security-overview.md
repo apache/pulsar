@@ -10,6 +10,10 @@ By default, Pulsar configures no encryption, authentication, or authorization. A
 
 Pulsar supports a pluggable authentication mechanism. And Pulsar clients use this mechanism to authenticate with brokers and proxies. You can also configure Pulsar to support multiple authentication sources.
 
+The Pulsar broker validates the authentication credentials when a connection is established. After the initial connection is authenticated, the "principal" token is stored for authorization though the connection is not re-authenticated. The broker periodically checks the expiration status of every `ServerCnx` object. You can set the `authenticationRefreshCheckSeconds` on the broker to control the frequency to check the expiration status. By default, the `authenticationRefreshCheckSeconds` is set to 60s. When the authentication is expired, the broker forces to re-authenticate the connection. If the re-authentication fails, the broker disconnects the client.
+
+The broker supports learning whether a particular client supports authentication refreshing. If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process. If a client does not support authentication refreshing and the credential is expired, the broker disconnects the client.
+
 You had better secure the service components in your Apache Pulsar deployment.
 
 ## Role tokens

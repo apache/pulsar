@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.StringUtils;
@@ -43,6 +44,10 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
+
+    @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
+            + "the pulsar admin client for any request")
+    int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
 
     @Parameter(
         names = { "--auth-params" },
@@ -143,6 +148,7 @@ public class PulsarAdminTool {
         try {
             adminBuilder.serviceHttpUrl(serviceUrl);
             adminBuilder.authentication(authPluginClassName, authParams);
+            adminBuilder.requestTimeout(requestTimeout, TimeUnit.SECONDS);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);

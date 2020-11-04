@@ -34,7 +34,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-api</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
@@ -46,13 +46,22 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-transaction-common</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
+      <!-- bc module should not be included in the followed package, or the signature in jar would be wrong -->
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.parent.version}</version>
       <optional>true</optional>
@@ -98,17 +107,6 @@
       <artifactId>gson</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-         </exclusion>
-      </exclusions>
-    </dependency>
-
     <!--Schema dependencies-->
 
     <dependency>
@@ -138,7 +136,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf3.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -152,21 +149,9 @@
       <artifactId>jcip-annotations</artifactId>
     </dependency>
 
-    <!-- httpclient-hostname-verification depends on below dependencies  -->
-    <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
-      <version>1.1.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <version>4.4.9</version>
-    </dependency>
-
     <!-- Testing dependencies -->
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-proto</artifactId>
       <version>${project.parent.version}</version>
       <scope>test</scope>

@@ -23,13 +23,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.common.validator.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
@@ -349,6 +349,12 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         configs.put("topic", "kafka");
         configs.put("bootstrapServers", "server-1,server-2");
         configs.put("consumerConfigProperties", consumerConfigs);
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        producerConfig.setUseThreadLocalProducers(true);
+        sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);
         return sourceConfig;

@@ -96,7 +96,7 @@ public class SourcesImpl extends ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         sourceName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -223,7 +223,7 @@ public class SourcesImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (sourcePkgUrl == null || !sourcePkgUrl.startsWith(Utils.FILE)) {
@@ -263,7 +263,7 @@ public class SourcesImpl extends ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         sourceName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
 
@@ -414,7 +414,7 @@ public class SourcesImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sourcePkgUrl != null && !sourcePkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {

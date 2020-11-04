@@ -79,6 +79,28 @@ For usage instructions, see the documentation for your preferred client library:
 
 > Support for other schema formats will be added in future releases of Pulsar.
 
+The following example shows how to define an Avro schema using the `GenericSchemaBuilder`, generate a generic Avro schema using `GenericRecordBuilder`, and consume messages into `GenericRecord`.
+
+**Example** 
+
+1. Use the `RecordSchemaBuilder` to build a schema.
+
+    ```java
+    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+    ```
+
+2. Use `RecordBuilder` to build the generic records.
+
+    ```java
+    producer.newMessage().value(schema.newRecordBuilder()
+                .set("intField", 32)
+                .build()).send();
+    ```
+
 ## Managing Schemas
 
 You can use Pulsar's [admin tools](admin-api-schemas.md) for managing schemas for topics.

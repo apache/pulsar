@@ -93,7 +93,8 @@ class Commands {
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
                                     const std::string& producerName, uint64_t requestId,
                                     const std::map<std::string, std::string>& metadata,
-                                    const SchemaInfo& schemaInfo);
+                                    const SchemaInfo& schemaInfo, uint64_t epoch,
+                                    bool userProvidedProducerName);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
@@ -115,8 +116,8 @@ class Commands {
 
     static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static PULSAR_PUBLIC void serializeSingleMessageInBatchWithPayload(
-        const Message& msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
+    static PULSAR_PUBLIC uint64_t serializeSingleMessageInBatchWithPayload(
+        const Message& msg, SharedBuffer& batchPayLoad, unsigned long maxMessageSizeInBytes);
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 

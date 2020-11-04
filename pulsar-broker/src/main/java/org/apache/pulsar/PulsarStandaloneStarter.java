@@ -102,7 +102,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                         bkEnsemble.stop();
                     }
                 } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage());
+                    log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
             }
         });

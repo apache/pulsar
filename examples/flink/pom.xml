@@ -27,14 +27,12 @@
     <version>2.7.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.examples</groupId>
   <artifactId>flink</artifactId>
   <name>Pulsar Examples :: Flink</name>
 
   <properties>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.source>1.8</maven.compiler.source>
-    <log4j2.version>2.10.0</log4j2.version>
   </properties>
 
   <dependencies>
@@ -133,7 +131,7 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>4.1.0</version>
+        <version>4.3.0</version>
         <executions>
           <execution>
             <goals>

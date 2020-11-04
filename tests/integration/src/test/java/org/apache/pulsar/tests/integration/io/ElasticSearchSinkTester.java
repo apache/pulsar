@@ -28,6 +28,7 @@ import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -65,8 +66,8 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
         searchRequest.types("doc");
         
         try {
-            SearchResponse searchResult = elasticClient.search(searchRequest);
-            assertTrue(searchResult.getHits().getTotalHits() > 0, searchResult.toString());
+            SearchResponse searchResult = elasticClient.search(searchRequest, RequestOptions.DEFAULT);
+            assertTrue(searchResult.getHits().getTotalHits().value > 0, searchResult.toString());
         } catch (Exception e) {
             fail("Encountered exception on validating elastic search results", e);
         }

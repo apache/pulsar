@@ -52,7 +52,7 @@ public final class MultipleListenerValidator {
             throw new IllegalArgumentException("`advertisedListeners` and `advertisedAddress` must not appear together");
         }
         if (StringUtils.isBlank(config.getAdvertisedListeners())) {
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
         Optional<String> firstListenerName = Optional.empty();
         Map<String, List<String>> listeners = Maps.newHashMap();
@@ -101,11 +101,7 @@ public final class MultipleListenerValidator {
                     }
                     String hostPort = String.format("%s:%d", uri.getHost(), uri.getPort());
                     reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
-                    Set<String> sets = reverseMappings.get(hostPort);
-                    if (sets == null) {
-                        sets = Sets.newTreeSet();
-                        reverseMappings.put(hostPort, sets);
-                    }
+                    Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
                     sets.add(entry.getKey());
                     if (sets.size() > 1) {
                         throw new IllegalArgumentException("must not specify `" + hostPort + "` to different listener.");

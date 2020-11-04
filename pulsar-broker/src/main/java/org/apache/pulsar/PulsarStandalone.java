@@ -299,14 +299,13 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setTlsHostnameVerificationEnable(false);
-
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+            workerConfig.setTlsEnableHostnameVerification(false);
+            workerConfig.setBrokerClientTrustCertsFilePath(config.getTlsTrustCertsFilePath());
 
             // client in worker will use this config to authenticate with broker
-            workerConfig.setClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
-            workerConfig.setClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
+            workerConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+            workerConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
 
             // inherit super users
             workerConfig.setSuperUserRoles(config.getSuperUserRoles());
@@ -384,7 +383,7 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(config.getClusterName()));
             }
         } catch (PulsarAdminException e) {
-            log.info(e.getMessage());
+            log.info(e.getMessage(), e);
         }
     }
 
@@ -414,7 +413,7 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().createNamespace(namespace);
             }
         } catch (PulsarAdminException e) {
-            log.info(e.getMessage());
+            log.warn(e.getMessage(), e);
         }
     }
 
@@ -448,7 +447,7 @@ public class PulsarStandalone implements AutoCloseable {
                 bkEnsemble.stop();
             }
         } catch (Exception e) {
-            log.error("Shutdown failed: {}", e.getMessage());
+            log.error("Shutdown failed: {}", e.getMessage(), e);
         }
     }
 }

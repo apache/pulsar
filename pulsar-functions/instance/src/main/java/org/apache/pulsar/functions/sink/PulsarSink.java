@@ -103,6 +103,14 @@ public class PulsarSink<T> implements Sink<T> {
             if (producerName != null) {
                 builder.producerName(producerName);
             }
+            if (pulsarSinkConfig.getProducerSpec() != null) {
+                if (pulsarSinkConfig.getProducerSpec().getMaxPendingMessages() != 0) {
+                    builder.maxPendingMessages(pulsarSinkConfig.getProducerSpec().getMaxPendingMessages());
+                }
+                if (pulsarSinkConfig.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
+                    builder.maxPendingMessagesAcrossPartitions(pulsarSinkConfig.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+                }
+            }
 
             return builder.properties(properties).create();
         }

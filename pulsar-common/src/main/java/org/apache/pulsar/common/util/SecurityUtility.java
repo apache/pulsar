@@ -56,6 +56,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -100,14 +102,7 @@ public class SecurityUtility {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
-        }
-
-        // failed to get from class path. try to get from Nar file.
-        try {
-            // User need set the bc nar path in java env.
-            return SearchBcNarUtils.getBcProvider(System.getProperty("BcPath"));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+            throw new RuntimeException(e);
         }
     }
 
@@ -165,8 +160,23 @@ public class SecurityUtility {
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             Certificate[] certificates, PrivateKey privateKey)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates,
+                        privateKey);
+            }
+        } else {
+            return createNettySslContextForClient(allowInsecureConnection, (InputStream) null, certificates,
+                    privateKey);
+        }
+    }
+
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection,
+            InputStream trustCertsStream, Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextBuilder builder = SslContextBuilder.forClient();
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
         setupKeyManager(builder, privateKey, (X509Certificate[]) certificates);
         return builder.build();
     }
@@ -181,7 +191,13 @@ public class SecurityUtility {
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
+            }
+        } else {
+            setupTrustCerts(builder, allowInsecureConnection, null);
+        }
         setupKeyManager(builder, privateKey, certificates);
         setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
         return builder.build();
@@ -320,14 +336,12 @@ public class SecurityUtility {
     }
 
     private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-            String trustCertsFilePath) throws IOException, FileNotFoundException {
+            InputStream trustCertsStream) throws IOException, FileNotFoundException {
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
-            if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
-                    builder.trustManager(input);
-                }
+            if (trustCertsStream != null) {
+                builder.trustManager(trustCertsStream);
             } else {
                 builder.trustManager((File) null);
             }

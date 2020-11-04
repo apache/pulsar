@@ -81,10 +81,6 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.google</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>org.apache.http</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.http</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>org.apache.jute</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.jute</shadedPattern>
                                 </relocation>
@@ -253,10 +249,6 @@
                                 <relocation>
                                     <pattern>jline</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jline</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>commons-logging</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-logging</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.bouncycastle</pattern>

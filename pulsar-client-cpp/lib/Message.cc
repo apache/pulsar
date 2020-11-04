@@ -96,6 +96,13 @@ const MessageId& Message::getMessageId() const {
     }
 }
 
+void Message::setMessageId(const MessageId& messageID) const {
+    if (impl_) {
+        impl_->messageId = messageID;
+    }
+    return;
+}
+
 bool Message::hasPartitionKey() const {
     if (impl_) {
         return impl_->hasPartitionKey();
@@ -136,6 +143,20 @@ const int Message::getRedeliveryCount() const {
         return 0;
     }
     return impl_->getRedeliveryCount();
+}
+
+bool Message::hasSchemaVersion() const {
+    if (impl_) {
+        return impl_->hasSchemaVersion();
+    }
+    return false;
+}
+
+const std::string& Message::getSchemaVersion() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getSchemaVersion();
 }
 
 uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }

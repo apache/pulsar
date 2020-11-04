@@ -27,13 +27,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-            PositionImpl startCursorPosition) {
+                         PositionImpl startCursorPosition, PulsarApi.CommandSubscribe.InitialPosition initialPosition) {
         super(bookkeeper, config, ledger, cursorName);
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
@@ -41,7 +42,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // both ledgerId and entryId to be Long.max()
         if (startCursorPosition == null || startCursorPosition.getLedgerId() == PositionImpl.latest.getLedgerId()) {
             // Start from last entry
-            initializeCursorPosition(ledger.getLastPositionAndCounter());
+            switch (initialPosition) {
+                case Latest:
+                    initializeCursorPosition(ledger.getLastPositionAndCounter());
+                    break;
+                case Earliest:
+                    initializeCursorPosition(ledger.getFirstPositionAndCounter());
+                    break;
+            }
         } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));

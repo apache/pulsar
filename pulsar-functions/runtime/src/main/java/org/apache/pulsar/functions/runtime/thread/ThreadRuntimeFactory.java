@@ -101,6 +101,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
                 clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
+            clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
         }
         return null;

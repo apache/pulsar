@@ -305,4 +305,10 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setProxyProtocol(proxyProtocol);
         return this;
     }
+
+    @Override
+    public ClientBuilder enableTransaction(boolean enableTransaction) {
+        conf.setEnableTransaction(enableTransaction);
+        return this;
+    }
 }

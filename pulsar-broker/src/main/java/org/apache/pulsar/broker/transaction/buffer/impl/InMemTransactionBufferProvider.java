@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
@@ -29,5 +31,10 @@ public class InMemTransactionBufferProvider implements TransactionBufferProvider
     @Override
     public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
         return CompletableFuture.completedFuture(new InMemTransactionBuffer());
+    }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
+        return null;
     }
 }

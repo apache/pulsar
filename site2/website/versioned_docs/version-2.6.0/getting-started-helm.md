@@ -53,11 +53,21 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 
 ## Step 1: Install Pulsar Helm chart
 
+0. Add Pulsar charts repo.
+
+    ```bash
+    helm repo add apache https://pulsar.apache.org/charts
+    ```
+
+    ```bash
+    helm repo update
+    ```
+
 1. Clone the Pulsar Helm chart repository.
 
     ```bash
-    git clone https://github.com/apache/pulsar
-    cd deployment/kubernetes/helm/
+    git clone https://github.com/apache/pulsar-helm-chart
+    cd pulsar-helm-chart
     ```
 
 2. Run the script `prepare_helm_release.sh` to create secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
@@ -66,8 +76,6 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ./scripts/pulsar/prepare_helm_release.sh \
         -n pulsar \
         -k pulsar-mini \
-        --control-center-admin pulsar \
-        --control-center-password pulsar \
         -c
     ```
 
@@ -76,7 +84,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ```bash
     helm install \
         --values examples/values-minikube.yaml \
-        pulsar-mini pulsar
+        pulsar-mini apache/pulsar
     ```
 
 4. Check the status of all pods.
@@ -130,7 +138,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 1. Enter the `toolset` container.
 
     ```bash
-    kubectl exec -it -n pulsar pulsar-mini-toolset-0 /bin/bash
+    kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
     ```
 
 2. In the `toolset` container, create a tenant named `apache`.

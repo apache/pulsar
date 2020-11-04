@@ -128,7 +128,6 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * </pre>
      *
-     * @param topicName
      * @throws Exception
      */
     @Test

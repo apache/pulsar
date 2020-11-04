@@ -44,6 +44,7 @@ import javax.ws.rs.ServerErrorException;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -121,7 +122,8 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        PersistentTopicInternalStats internalStats = topic.getInternalStats();
+        PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
+        assertNotNull(internalStats.ledgers.get(0).metadata);
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0

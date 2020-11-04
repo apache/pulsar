@@ -51,6 +51,38 @@ public class AuthenticationAthenzTest {
     private static final String TENANT_DOMAIN = "test_tenant";
     private static final String TENANT_SERVICE = "test_service";
 
+    class MockZTSClient extends ZTSClient {
+        public MockZTSClient(String ztsUrl) {
+            super(ztsUrl);
+        }
+
+        @Override
+        public RoleToken getRoleToken(String domainName, String roleName, Integer minExpiryTime, Integer maxExpiryTime,
+                boolean ignoreCache) {
+            List<String> roles = new ArrayList<String>() {
+                {
+                    add("test_role");
+                }
+            };
+            com.yahoo.athenz.auth.token.RoleToken roleToken = new com.yahoo.athenz.auth.token.RoleToken.Builder(
+                    "Z1", domainName, roles).principal(String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE))
+                            .build();
+
+            try {
+                String ztsPrivateKey = new String(
+                        Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
+                roleToken.sign(ztsPrivateKey);
+            } catch (IOException e) {
+                return null;
+            }
+
+            RoleToken token = new RoleToken();
+            token.setToken(roleToken.getSignedToken());
+
+            return token;
+        }
+    }
+
     @BeforeClass
     public void setup() throws Exception {
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
@@ -59,36 +91,7 @@ public class AuthenticationAthenzTest {
         // Set mock ztsClient which returns fixed token instead of fetching from ZTS server
         Field field = auth.getClass().getDeclaredField("ztsClient");
         field.setAccessible(true);
-        ZTSClient mockZtsClient = new ZTSClient("dummy") {
-            @Override
-            public RoleToken getRoleToken(String domainName, String roleName, Integer minExpiryTime,
-                    Integer maxExpiryTime, boolean ignoreCache) {
-
-                List<String> roles = new ArrayList<String>() {
-                    {
-                        add("test_role");
-                    }
-                };
-                com.yahoo.athenz.auth.token.RoleToken roleToken = new com.yahoo.athenz.auth.token.RoleToken.Builder(
-                        "Z1", domainName, roles).principal(String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE))
-                                .build();
-
-                try {
-                    String ztsPrivateKey = new String(
-                            Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
-                    roleToken.sign(ztsPrivateKey);
-                } catch (IOException e) {
-                    return null;
-                }
-
-                RoleToken token = new RoleToken();
-                token.setToken(roleToken.getSignedToken());
-
-                return token;
-            }
-
-        };
-        field.set(auth, mockZtsClient);
+        field.set(auth, new MockZTSClient("dummy"));
     }
 
     @Test
@@ -192,6 +195,32 @@ public class AuthenticationAthenzTest {
         AuthenticationAthenz auth2 = new AuthenticationAthenz();
         auth2.configure(jsonMapper.writeValueAsString(authParamsMap));
         assertFalse((boolean) field.get(auth2));
+        auth2.close();
+    }
+
+    @Test
+    public void testRoleHeaderSetting() throws Exception {
+        assertEquals(auth.getAuthData().getHttpHeaders().iterator().next().getKey(), ZTSClient.getHeader());
+
+        Field field = auth.getClass().getDeclaredField("ztsClient");
+        field.setAccessible(true);
+
+        String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+
+        authParamsMap.put("roleHeader", "");
+        AuthenticationAthenz auth1 = new AuthenticationAthenz();
+        auth1.configure(jsonMapper.writeValueAsString(authParamsMap));
+        field.set(auth1, new MockZTSClient("dummy"));
+        assertEquals(auth1.getAuthData().getHttpHeaders().iterator().next().getKey(), ZTSClient.getHeader());
+        auth1.close();
+
+        authParamsMap.put("roleHeader", "Test-Role-Header");
+        AuthenticationAthenz auth2 = new AuthenticationAthenz();
+        auth2.configure(jsonMapper.writeValueAsString(authParamsMap));
+        field.set(auth2, new MockZTSClient("dummy"));
+        assertEquals(auth2.getAuthData().getHttpHeaders().iterator().next().getKey(), "Test-Role-Header");
         auth2.close();
     }
 }

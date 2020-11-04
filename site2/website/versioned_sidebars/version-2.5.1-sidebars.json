@@ -31,7 +31,8 @@
       "version-2.5.1-functions-develop",
       "version-2.5.1-functions-debug",
       "version-2.5.1-functions-deploy",
-      "version-2.5.1-functions-cli"
+      "version-2.5.1-functions-cli",
+      "version-2.5.1-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.5.1-io-overview",

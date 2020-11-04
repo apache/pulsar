@@ -38,6 +38,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -64,7 +65,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
         try {
             validateClusterOwnership(topicName.getCluster());
-            checkConnect(topicName);
+            validateAdminAndClientPermission(topicName);
             validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
         } catch (WebApplicationException we) {
             // Validation checks failed
@@ -79,7 +80,7 @@ public class TopicLookupBase extends PulsarWebResource {
         }
 
         CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
-                .getBrokerServiceUrlAsync(topicName, authoritative);
+                .getBrokerServiceUrlAsync(topicName, LookupOptions.builder().authoritative(authoritative).loadTopicsInBundle(false).build());
 
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
@@ -124,6 +125,14 @@ public class TopicLookupBase extends PulsarWebResource {
             completeLookupResponseExceptionally(asyncResponse, exception);
             return null;
         });
+    }
+
+    private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
+        try {
+            validateAdminAccessForTenant(topic.getTenant());
+        } catch (Exception e) {
+            checkConnect(topic);
+        }
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {
@@ -251,7 +260,12 @@ public class TopicLookupBase extends PulsarWebResource {
             if (validationFailureResponse != null) {
                 lookupfuture.complete(validationFailureResponse);
             } else {
-                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, authoritative, advertisedListenerName)
+                LookupOptions options = LookupOptions.builder()
+                        .authoritative(authoritative)
+                        .advertisedListenerName(advertisedListenerName)
+                        .loadTopicsInBundle(true)
+                        .build();
+                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
                         .thenAccept(lookupResult -> {
 
                             if (log.isDebugEnabled()) {

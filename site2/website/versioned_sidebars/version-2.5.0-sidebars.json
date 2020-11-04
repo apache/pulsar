@@ -16,8 +16,7 @@
       "version-2.5.0-concepts-multi-tenancy",
       "version-2.5.0-concepts-authentication",
       "version-2.5.0-concepts-topic-compaction",
-      "version-2.5.0-concepts-tiered-storage",
-      "version-2.5.0-concepts-schema-registry"
+      "version-2.5.0-concepts-tiered-storage"
     ],
     "Pulsar Schema": [
       "version-2.5.0-schema-get-started",
@@ -32,7 +31,8 @@
       "version-2.5.0-functions-develop",
       "version-2.5.0-functions-debug",
       "version-2.5.0-functions-deploy",
-      "version-2.5.0-functions-cli"
+      "version-2.5.0-functions-cli",
+      "version-2.5.0-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.5.0-io-overview",

@@ -40,6 +40,10 @@ message SchemaInfo {
 		TIME = 14;
 		TIMESTAMP = 15;
 		KEYVALUE = 16;
+		INSTANT = 17;
+		LOCALDATE = 18;
+		LOCALTIME = 19;
+		LOCALDATETIME = 20;
     }
     message KeyValuePair {
         required string key = 1;

@@ -20,11 +20,11 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1ConfigMap;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
 import java.nio.file.Paths;
 
@@ -67,6 +67,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String k8Uri;
     private String jobNamespace;
     private String pulsarDockerImageName;
+    private Map<String, String> functionDockerImages;
     private String imagePullPolicy;
     private String pulsarRootDir;
     private String configAdminCLI;
@@ -94,6 +95,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Integer grpcPort;
     private Integer metricsPort;
     private String narExtractionDirectory;
+    private String functionInstanceClassPath;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -143,6 +145,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.pulsarDockerImageName = "apachepulsar/pulsar";
         }
+        this.functionDockerImages = factoryConfig.getFunctionDockerImages();
         if (!isEmpty(factoryConfig.getImagePullPolicy())) {
             this.imagePullPolicy = factoryConfig.getImagePullPolicy();
         } else {
@@ -231,6 +234,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.grpcPort = factoryConfig.getGrpcPort();
         this.metricsPort = factoryConfig.getMetricsPort();
         this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
+        this.functionInstanceClassPath = factoryConfig.getFunctionInstanceClassPath();
     }
 
     @Override
@@ -272,6 +276,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             pythonDependencyRepository,
             pythonExtraDependencyRepository,
             pulsarDockerImageName,
+            functionDockerImages,
             imagePullPolicy,
             pulsarRootDir,
             instanceConfig,
@@ -295,7 +300,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             grpcPort,
             metricsPort,
             narExtractionDirectory,
-            manifestCustomizer);
+            manifestCustomizer,
+            functionInstanceClassPath);
     }
 
     @Override

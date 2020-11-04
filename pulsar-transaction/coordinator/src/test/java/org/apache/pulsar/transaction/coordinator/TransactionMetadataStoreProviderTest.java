@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
 import org.testng.annotations.BeforeMethod;
@@ -195,10 +195,14 @@ public class TransactionMetadataStoreProviderTest {
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
-        List<String> partitions = new ArrayList<>();
-        partitions.add("ptn-0");
-        partitions.add("ptn-1");
-        partitions.add("ptn-2");
+        String topicPartition1 = "persistent://public/default/txn-ack-partition-0";
+        String topicPartition2 = "persistent://public/default/txn-ack-partition-1";
+        String topicPartition3 = "persistent://public/default/txn-ack-partition-2";
+        List<TransactionSubscription> partitions = new ArrayList<>();
+        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
 
         // add the list of partitions to the transaction
         this.store.addAckedPartitionToTxn(txnID, partitions).get();
@@ -208,29 +212,31 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.ackedPartitions(), partitions);
 
         // add another list of partition. duplicated partitions should be removed
-        List<String> newPartitions = new ArrayList<>();
-        newPartitions.add("ptn-2");
-        newPartitions.add("ptn-3");
-        newPartitions.add("ptn-4");
+        List<TransactionSubscription> newPartitions = new ArrayList<>();
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
         this.store.addAckedPartitionToTxn(txnID, newPartitions);
 
         txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
-        List<String> finalPartitions = new ArrayList<>();
-        finalPartitions.add("ptn-0");
-        finalPartitions.add("ptn-1");
-        finalPartitions.add("ptn-2");
-        finalPartitions.add("ptn-3");
-        finalPartitions.add("ptn-4");
+        List<TransactionSubscription> finalPartitions = new ArrayList<>();
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
         this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // add partitions should fail if it is already committing.
-        List<String> newPartitions2 = new ArrayList<>();
-        newPartitions2.add("ptn-5");
-        newPartitions2.add("ptn-6");
+        List<TransactionSubscription> newPartitions2 = new ArrayList<>();
+        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-7").build());
+        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-8").build());
         try {
             this.store.addAckedPartitionToTxn(txnID, newPartitions2).get();
             fail("Should fail to add acked partitions if the transaction is not in OPEN status");

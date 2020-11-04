@@ -40,6 +40,13 @@
       <artifactId>pulsar-broker</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
 
   <build>
@@ -97,9 +104,6 @@
                   <include>org.hdrhistogram:*</include>
                   <include>com.github.zafarkhaja:java-semver</include>
                   <include>org.aspectj:*</include>
-                  <include>org.apache.httpcomponents:httpclient</include>
-                  <include>commons-logging:commons-logging</include>
-                  <include>org.apache.httpcomponents:httpcore</include>
                   <include>org.apache.avro:avro</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
@@ -117,12 +121,6 @@
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
                 </filter>
               </filters>
               <relocations>
@@ -294,10 +292,6 @@
                 <relocation>
                   <pattern>com.wordnik</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.worknik</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.avro</pattern>

@@ -51,7 +51,7 @@ public class FunctionWorkerStarter {
 
         if (workerArguments.help) {
             commander.usage();
-            System.exit(-1);
+            System.exit(1);
             return;
         }
 
@@ -66,11 +66,12 @@ public class FunctionWorkerStarter {
         try {
             worker.start();
         } catch (Throwable th) {
+            log.error("Encountered error in function worker.", th);
             worker.stop();
-            System.exit(-1);
+            Runtime.getRuntime().halt(1);
         }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("Stopping function worker service ..");
+            log.info("Stopping function worker service...");
             worker.stop();
         }));
     }

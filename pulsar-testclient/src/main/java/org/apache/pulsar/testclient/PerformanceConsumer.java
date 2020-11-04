@@ -119,6 +119,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        String listenerName = null;
+
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChuckedMessage = 0;
 
@@ -141,6 +144,10 @@ public class PerformanceConsumer {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
 
+        @Parameter(names = {
+                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+        public Boolean tlsAllowInsecureConnection = null;
+
         @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
         public String encKeyName = null;
 
@@ -151,6 +158,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -205,6 +216,11 @@ public class PerformanceConsumer {
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                 arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
+
+            if (arguments.tlsAllowInsecureConnection == null) {
+                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
+                        .getProperty("tlsAllowInsecureConnection", ""));
+            }
         }
 
         // Dump config variables
@@ -248,10 +264,18 @@ public class PerformanceConsumer {
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .ioThreads(arguments.ioThreads) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        if (arguments.tlsAllowInsecureConnection != null) {
+            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+        }
+
+        if (isNotBlank(arguments.listenerName)) {
+            clientBuilder.listenerName(arguments.listenerName);
         }
 
         PulsarClient pulsarClient = clientBuilder.build();

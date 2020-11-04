@@ -61,6 +61,8 @@ public class PulsarBrokerStarterTest {
         printWriter.println("bookkeeperClientHealthCheckErrorThresholdPerInterval=5");
         printWriter.println("bookkeeperClientRackawarePolicyEnabled=true");
         printWriter.println("bookkeeperClientRegionawarePolicyEnabled=false");
+        printWriter.println("bookkeeperClientMinNumRacksPerWriteQuorum=5");
+        printWriter.println("bookkeeperClientEnforceMinNumRacksPerWriteQuorum=true");
         printWriter.println("bookkeeperClientReorderReadSequenceEnabled=false");
         printWriter.println("bookkeeperClientIsolationGroups=group1,group2");
         printWriter.println("backlogQuotaDefaultLimitGB=18");
@@ -123,6 +125,8 @@ public class PulsarBrokerStarterTest {
         assertTrue(serviceConfig.isBookkeeperClientHealthCheckEnabled());
         assertEquals(serviceConfig.getBookkeeperClientHealthCheckErrorThresholdPerInterval(), 5);
         assertTrue(serviceConfig.isBookkeeperClientRackawarePolicyEnabled());
+        assertEquals(serviceConfig.getBookkeeperClientMinNumRacksPerWriteQuorum(), 5);
+        assertTrue(serviceConfig.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
         assertFalse(serviceConfig.isBookkeeperClientRegionawarePolicyEnabled());
         assertFalse(serviceConfig.isBookkeeperClientReorderReadSequenceEnabled());
         assertEquals(serviceConfig.getBookkeeperClientIsolationGroups(), "group1,group2");

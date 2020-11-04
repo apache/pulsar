@@ -139,11 +139,15 @@ public class AsyncHttpConnector implements Connector {
                 } else {
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                conf.getTlsTrustCertsFilePath(),
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
+                        sslCtx = authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(
+                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey())
+                                : SecurityUtility.createNettySslContextForClient(
+                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
@@ -240,8 +244,9 @@ public class AsyncHttpConnector implements Connector {
                                             retries - 1);
                                 } else {
                                     resultFuture.completeExceptionally(
-                                            new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted.", throwable));
+                                        new RetryException("Could not complete the operation. Number of retries "
+                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                            throwable));
                                 }
                             }
                         } else {
@@ -309,6 +314,7 @@ public class AsyncHttpConnector implements Connector {
     public void close() {
         try {
             httpClient.close();
+            delayer.shutdownNow();
         } catch (IOException e) {
             log.warn("Failed to close http client", e);
         }

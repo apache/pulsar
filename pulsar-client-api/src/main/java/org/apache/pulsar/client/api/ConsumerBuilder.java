@@ -553,6 +553,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 
     /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
      * Set KeyShared subscription policy for consumer.
      *
      * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
@@ -608,6 +620,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            whether to auto retry message
      */
     ConsumerBuilder<T> enableRetry(boolean retryEnable);
+
+    /**
+     * Enable or disable the batch index acknowledgment. To enable this feature must ensure batch index acknowledgment
+     * feature is enabled at the broker side.
+     */
+    ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
 
     /**
      * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While

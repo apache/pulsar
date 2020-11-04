@@ -26,7 +26,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -36,11 +38,13 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.validator.ConfigValidation;
+import org.apache.pulsar.config.validation.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.io.core.BatchSource;
+import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
@@ -112,7 +116,7 @@ public class SourceConfigUtils {
         if (sourceConfig.getBatchSourceConfig() != null) {
             configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY, new Gson().toJson(sourceConfig.getBatchSourceConfig()));
             configs.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, sourceSpecBuilder.getClassName());
-            sourceSpecBuilder.setClassName("org.apache.pulsar.io.batch.BatchSourceExecutor");
+            sourceSpecBuilder.setClassName("org.apache.pulsar.functions.source.batch.BatchSourceExecutor");
         }
 
         sourceSpecBuilder.setConfigs(new Gson().toJson(configs));
@@ -141,6 +145,20 @@ public class SourceConfigUtils {
 
         if (sourceDetails.getTypeArg() != null) {
             sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
+        }
+
+        if (sourceConfig.getProducerConfig() != null) {
+            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
+            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
+            }
+            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            }
+            if (sourceConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(sourceConfig.getProducerConfig().getUseThreadLocalProducers());
+            }
+            sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -211,6 +229,17 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
+        }
+        if (sinkSpec.getProducerSpec() != null) {
+            ProducerConfig producerConfig = new ProducerConfig();
+            if (sinkSpec.getProducerSpec().getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(sinkSpec.getProducerSpec().getMaxPendingMessages());
+            }
+            if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            }
+            producerConfig.setUseThreadLocalProducers(sinkSpec.getProducerSpec().getUseThreadLocalProducers());
+            sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
@@ -296,7 +325,7 @@ public class SourceConfigUtils {
                 validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
             }
             try {
-                typeArg = getSourceType(sourceClassName, narClassLoader);
+                narClassLoader.loadClass(sourceClassName);
                 classLoader = narClassLoader;
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
@@ -307,13 +336,14 @@ public class SourceConfigUtils {
             // if source class name is provided, we need to try to load it as a JAR and as a NAR.
             if (jarClassLoader != null) {
                 try {
-                    typeArg = getSourceType(sourceClassName, jarClassLoader);
+                    jarClassLoader.loadClass(sourceClassName);
                     classLoader = jarClassLoader;
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // class not found in JAR try loading as a NAR and searching for the class
                     if (narClassLoader != null) {
+
                         try {
-                            typeArg = getSourceType(sourceClassName, narClassLoader);
+                            narClassLoader.loadClass(sourceClassName);
                             classLoader = narClassLoader;
                         } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
@@ -332,7 +362,7 @@ public class SourceConfigUtils {
                     validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
                 }
                 try {
-                    typeArg = getSourceType(sourceClassName, narClassLoader);
+                    narClassLoader.loadClass(sourceClassName);
                     classLoader = narClassLoader;
                 } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
@@ -354,6 +384,34 @@ public class SourceConfigUtils {
             }
         }
 
+        // check if source implements the correct interfaces
+        Class sourceClass;
+        try {
+            sourceClass = classLoader.loadClass(sourceClassName);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+              String.format("Source class %s not found in class loader", sourceClassName, e));
+        }
+
+        if (!Source.class.isAssignableFrom(sourceClass) && !BatchSource.class.isAssignableFrom(sourceClass)) {
+            throw new IllegalArgumentException(
+              String.format("Source class %s does not implement the correct interface",
+                sourceClass.getName()));
+        }
+
+        if (BatchSource.class.isAssignableFrom(sourceClass)) {
+            if (sourceConfig.getBatchSourceConfig() != null) {
+                validateBatchSourceConfig(sourceConfig.getBatchSourceConfig());
+            } else {
+                throw new IllegalArgumentException(
+                  String.format("Source class %s implements %s but batch source source config is not specified",
+                    sourceClass.getName(), BatchSource.class.getName()));
+            }
+        }
+
+        // extract type from source class
+        typeArg = getSourceType(sourceClass);
+
         // Only one of serdeClassName or schemaType should be set
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
             throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
@@ -366,8 +424,9 @@ public class SourceConfigUtils {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
         }
 
-        if (sourceConfig.getBatchSourceConfig() != null) {
-            validateBatchSourceConfig(sourceConfig.getBatchSourceConfig());
+        if (typeArg.equals(TypeResolver.Unknown.class)) {
+            throw new IllegalArgumentException(
+              String.format("Failed to resolve type for Source class %s", sourceClassName));
         }
 
         return new ExtractedSourceDetails(sourceClassName, typeArg.getName());

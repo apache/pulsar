@@ -53,8 +53,13 @@ public class EntryBatchIndexesAcks {
         handle.recycle(this);
     }
 
-    public static EntryBatchIndexesAcks get() {
-        return RECYCLER.get();
+    public static EntryBatchIndexesAcks get(int entriesListSize) {
+        EntryBatchIndexesAcks ebi = RECYCLER.get();
+
+        if (ebi.indexesAcks.length < entriesListSize) {
+            ebi.indexesAcks = new Pair[entriesListSize];
+        }
+        return ebi;
     }
 
     private EntryBatchIndexesAcks(Recycler.Handle<EntryBatchIndexesAcks> handle) {

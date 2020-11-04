@@ -42,6 +42,8 @@ public class ConsumerConfig {
     private boolean isRegexPattern;
     @Builder.Default
     private Map<String, String> schemaProperties = new HashMap<>();
+    @Builder.Default
+    private Map<String, String> consumerProperties = new HashMap<>();
     private Integer receiverQueueSize;
 
     public ConsumerConfig(String schemaType) {

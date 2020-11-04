@@ -22,7 +22,8 @@ import com.google.common.annotations.Beta;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
@@ -78,7 +79,7 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+        TxnID txnid, List<TransactionSubscription> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.

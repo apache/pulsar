@@ -33,8 +33,11 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
@@ -154,9 +157,17 @@ public final class WorkerUtils {
 
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
         String zookeeperServers = internalConf.getZookeeperServers();
-        URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
-        String ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
-        String ledgersRootPath = metadataServiceUri.getPath();
+        String ledgersRootPath;
+        String ledgersStoreServers;
+        // for BC purposes
+        if (internalConf.getBookkeeperMetadataServiceUri() == null) {
+            ledgersRootPath = internalConf.getLedgersRootPath();
+            ledgersStoreServers = zookeeperServers;
+        } else {
+            URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
+            ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
+            ledgersRootPath = metadataServiceUri.getPath();
+        }
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
         URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
@@ -314,5 +325,18 @@ public final class WorkerUtils {
         }
 
         return false;
+    }
+
+    public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
+                                              String readerName,
+                                              String topic,
+                                              MessageId startMessageId) throws PulsarClientException {
+        return readerBuilder
+                .subscriptionRolePrefix(readerName)
+                .readerName(readerName)
+                .topic(topic)
+                .readCompacted(true)
+                .startMessageId(startMessageId)
+                .create();
     }
 }

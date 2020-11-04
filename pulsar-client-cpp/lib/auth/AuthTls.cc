@@ -53,7 +53,7 @@ AuthenticationPtr AuthTls::create(const std::string& certificatePath, const std:
 
 const std::string AuthTls::getAuthMethodName() const { return "tls"; }
 
-Result AuthTls::getAuthData(AuthenticationDataPtr& authDataContent) const {
+Result AuthTls::getAuthData(AuthenticationDataPtr& authDataContent) {
     authDataContent = authDataTls_;
     return ResultOk;
 }

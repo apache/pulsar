@@ -44,6 +44,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -189,14 +190,13 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setTlsHostnameVerificationEnable(false);
-
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-                workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+                workerConfig.setTlsEnableHostnameVerification(false);
+                workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
                 // client in worker will use this config to authenticate with broker
-                workerConfig.setClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
-                workerConfig.setClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+                workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+                workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
 
                 // inherit super users
                 workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
@@ -249,7 +249,7 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
                 checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = new BookieServer(bookieConfig, bookieStatsProvider.getStatsLogger(""));
+                bookieServer = new BookieServer(bookieConfig, bookieStatsProvider.getStatsLogger(""), BookieServiceInfo.NO_INFO);
             } else {
                 bookieServer = null;
             }

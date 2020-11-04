@@ -38,6 +38,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.metastore.InMemoryMetaStore;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
@@ -343,7 +345,7 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @param addr
      *            Socket Address
-     * @param latch
+     * @param l
      *            Latch to wait on
      * @throws InterruptedException
      * @throws IOException
@@ -417,8 +419,6 @@ public abstract class BookKeeperClusterTestCase {
      * Helper method to startup a new bookie server with the indicated port number. Also, starts the auto recovery
      * process, if the isAutoRecoveryEnabled is set true.
      *
-     * @param port
-     *            Port to start the new bookie server on
      * @throws IOException
      */
     public int startNewBookie() throws Exception {
@@ -471,7 +471,7 @@ public abstract class BookKeeperClusterTestCase {
     protected BookieServer startBookie(ServerConfiguration conf, final Bookie b) throws Exception {
         BookieServer server = new BookieServer(conf) {
             @Override
-            protected Bookie newBookie(ServerConfiguration conf, ByteBufAllocator allocator)
+            protected Bookie newBookie(ServerConfiguration conf, ByteBufAllocator allocator, Supplier<BookieServiceInfo> bookieServiceInfoProvider)
                     throws IOException, KeeperException, InterruptedException, BookieException {
                 return b;
             }

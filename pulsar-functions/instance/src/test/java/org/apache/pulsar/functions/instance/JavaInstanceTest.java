@@ -23,8 +23,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
@@ -52,11 +57,12 @@ public class JavaInstanceTest {
     @Test
     public void testAsyncFunction() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
+        ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
             CompletableFuture<String> result  = new CompletableFuture<>();
-            Executors.newCachedThreadPool().submit(() -> {
+            executor.submit(() -> {
                 try {
                     Thread.sleep(500);
                     result.complete(String.format("%s-lambda", input));
@@ -77,18 +83,20 @@ public class JavaInstanceTest {
         assertNotNull(result.get().getResult());
         assertEquals(new String(testString + "-lambda"), result.get().getResult());
         instance.close();
+        executor.shutdownNow();
     }
 
     @Test
     public void testAsyncFunctionMaxPending() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
-        int pendingQueueSize = 2;
+        int pendingQueueSize = 3;
         instanceConfig.setMaxPendingAsyncRequests(pendingQueueSize);
+        ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
             CompletableFuture<String> result  = new CompletableFuture<>();
-            Executors.newCachedThreadPool().submit(() -> {
+            executor.submit(() -> {
                 try {
                     Thread.sleep(500);
                     result.complete(String.format("%s-lambda", input));
@@ -126,5 +134,6 @@ public class JavaInstanceTest {
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
         instance.close();
+        executor.shutdownNow();
     }
 }

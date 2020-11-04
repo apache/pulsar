@@ -404,6 +404,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf.setTlsAllowInsecureConnection(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         stopBroker();
         startBroker();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -539,6 +540,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf.setTlsAllowInsecureConnection(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         stopBroker();
         startBroker();
 

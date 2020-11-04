@@ -328,7 +328,7 @@ The following is an example.
 
 ```java
 Messages messages = consumer.batchReceive();
-for (message in messages) {
+for (Object message : messages) {
   // do something
 }
 consumer.acknowledge(messages)
@@ -405,7 +405,7 @@ Consumer multiTopicConsumer = consumerBuilder
 
 // Alternatively:
 Consumer multiTopicConsumer = consumerBuilder
-        .topics(
+        .topic(
             "topic-1",
             "topic-2",
             "topic-3"
@@ -422,8 +422,8 @@ consumerBuilder
         .subscribeAsync()
         .thenAccept(this::receiveMessageFromConsumer);
 
-private void receiveMessageFromConsumer(Consumer consumer) {
-    consumer.receiveAsync().thenAccept(message -> {
+private void receiveMessageFromConsumer(Object consumer) {
+    ((Consumer)consumer).receiveAsync().thenAccept(message -> {
                 // Do something with the received message
                 receiveMessageFromConsumer(consumer);
             });
@@ -613,12 +613,11 @@ consumer2 receives the follwoing information.
 
 ## Reader 
 
-With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject: javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
 
 The following is an example.
 
 ```java
-ReaderConfiguration conf = new ReaderConfiguration();
 byte[] msgIdBytes = // Some message ID byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.newReader()

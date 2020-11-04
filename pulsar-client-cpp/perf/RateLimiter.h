@@ -26,14 +26,14 @@
 namespace pulsar {
 
 class RateLimiter {
- public:
+   public:
     RateLimiter(double rate);
 
     void acquire();
 
     void acquire(int permits);
 
- private:
+   private:
     RateLimiter(const RateLimiter&);
     RateLimiter& operator=(const RateLimiter&);
     typedef std::chrono::high_resolution_clock Clock;
@@ -47,16 +47,14 @@ class RateLimiter {
 };
 
 RateLimiter::RateLimiter(double rate)
-        : interval_(std::chrono::microseconds((long)(1e6 / rate))),
-          storedPermits_(0.0),
-          maxPermits_(rate),
-          nextFree_(Clock::now()) {
+    : interval_(std::chrono::microseconds((long)(1e6 / rate))),
+      storedPermits_(0.0),
+      maxPermits_(rate),
+      nextFree_(Clock::now()) {
     assert(rate < 1e6 && "Exceeded maximum rate");
 }
 
-void RateLimiter::acquire() {
-    acquire(1);
-}
+void RateLimiter::acquire() { acquire(1); }
 
 void RateLimiter::acquire(int permits) {
     Clock::time_point now = Clock::now();
@@ -64,8 +62,7 @@ void RateLimiter::acquire(int permits) {
     Lock lock(mutex_);
 
     if (now > nextFree_) {
-        storedPermits_ = std::min<long>(maxPermits_,
-                                        storedPermits_ + (now - nextFree_) / interval_);
+        storedPermits_ = std::min<long>(maxPermits_, storedPermits_ + (now - nextFree_) / interval_);
         nextFree_ = now;
     }
 
@@ -88,6 +85,6 @@ void RateLimiter::acquire(int permits) {
     }
 }
 
-}  // pulsar
+}  // namespace pulsar
 
 #endif /* PERF_RATELIMITER_H_ */

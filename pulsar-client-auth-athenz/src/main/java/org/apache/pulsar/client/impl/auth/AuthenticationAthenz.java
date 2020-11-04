@@ -59,6 +59,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String providerDomain;
     private PrivateKey privateKey;
     private String keyId = "0";
+    private String roleHeader = null;
     // If auto prefetching is enabled, application will not complete until the static method
     // ZTSClient.cancelPrefetch() is called.
     // cf. https://github.com/yahoo/athenz/issues/544
@@ -80,7 +81,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     @Override
     synchronized public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         if (cachedRoleTokenIsValid()) {
-            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
+            return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
         }
         try {
             // the following would set up the API call that requests tokens from the server
@@ -89,7 +90,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
-            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
+            return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
         } catch (Throwable t) {
             throw new GettingAuthenticationDataException(t);
         }
@@ -142,16 +143,17 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         this.keyId = authParams.getOrDefault("keyId", "0");
         this.autoPrefetchEnabled = Boolean.valueOf(authParams.getOrDefault("autoPrefetchEnabled", "false"));
 
-        if (authParams.containsKey("athenzConfPath")) {
+        if (isNotBlank(authParams.get("athenzConfPath"))) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
         }
-        if (authParams.containsKey("principalHeader")) {
+        if (isNotBlank(authParams.get("principalHeader"))) {
             System.setProperty("athenz.auth.principal.header", authParams.get("principalHeader"));
         }
-        if (authParams.containsKey("roleHeader")) {
-            System.setProperty("athenz.auth.role.header", authParams.get("roleHeader"));
+        if (isNotBlank(authParams.get("roleHeader"))) {
+            this.roleHeader = authParams.get("roleHeader");
+            System.setProperty("athenz.auth.role.header", this.roleHeader);
         }
-        if (authParams.containsKey("ztsUrl")) {
+        if (isNotBlank(authParams.get("ztsUrl"))) {
             this.ztsUrl = authParams.get("ztsUrl");
         }
     }

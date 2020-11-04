@@ -28,6 +28,7 @@ import static org.testng.Assert.assertFalse;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
@@ -103,6 +104,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
 
         final List<Position> addedEntries = Lists.newArrayList();
 
@@ -196,7 +198,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     // Thread.sleep(5,0);
                     log.info("{} forcing topic GC ", Thread.currentThread());
                     for (int i = 0; i < 2000; i++) {
-                        topic.checkGC(0, InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                        topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
+                        topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                        topic.checkGC();
                     }
                     log.info("GC done..");
                 } catch (Exception e) {
