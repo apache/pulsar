@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.MessageId;
 
 /**
  * The transaction buffer client to commit and abort transactions on topics or subscription.
@@ -36,7 +38,8 @@ public interface TransactionBufferClient {
      */
     CompletableFuture<TxnID> commitTxnOnTopic(String topic,
                                               long txnIdMostBits,
-                                              long txnIdLeastBits);
+                                              long txnIdLeastBits,
+                                              List<MessageId> messageIdList);
 
     /**
      * Abort the transaction associated with the topic.
@@ -48,7 +51,8 @@ public interface TransactionBufferClient {
      */
     CompletableFuture<TxnID> abortTxnOnTopic(String topic,
                                             long txnIdMostBits,
-                                            long txnIdLeastBits);
+                                            long txnIdLeastBits,
+                                             List<MessageId> messageIdList);
 
     /**
      * Commit the transaction associated with the topic subscription.

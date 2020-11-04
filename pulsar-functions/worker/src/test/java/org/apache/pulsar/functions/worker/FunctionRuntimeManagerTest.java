@@ -622,7 +622,7 @@ public class FunctionRuntimeManagerTest {
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
 
-        // verify no errors occured
+        // verify no errors occurred
         verify(errorNotifier, times(0)).triggerError(any());
     }
 

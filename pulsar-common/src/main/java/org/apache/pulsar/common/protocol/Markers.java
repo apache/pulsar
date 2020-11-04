@@ -21,6 +21,7 @@ package org.apache.pulsar.common.protocol;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.SneakyThrows;
@@ -259,15 +260,10 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
     }
 
-    public static ByteBuf newTxnCommittingMarker(long sequenceId, long txnMostBits,
-                                                 long txnLeastBits, MessageIdData messageIdData) {
-        return newTxnMarker(MarkerType.TXN_COMMITTING, sequenceId,
-                txnMostBits, txnLeastBits, Optional.of(messageIdData));
-    }
-
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits, MessageIdData messageIdData) {
-        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdData));
+                                             long txnLeastBits, List<MessageIdData> messageIdDataList) {
+        return newTxnMarker(
+                MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
@@ -277,8 +273,9 @@ public class Markers {
     }
 
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
-                                            long txnLeastBits) {
-        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.empty());
+                                            long txnLeastBits, List<MessageIdData> messageIdDataList) {
+        return newTxnMarker(
+                MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
 
     public static PulsarMarkers.TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
@@ -297,7 +294,7 @@ public class Markers {
 
     @SneakyThrows
     private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
-                                        long txnLeastBits, Optional<MessageIdData> messageIdData) {
+                                        long txnLeastBits, Optional<List<MessageIdData>> messageIdDataList) {
         MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
         msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
         msgMetadataBuilder.setProducerName("pulsar.txn.marker");
@@ -309,17 +306,14 @@ public class Markers {
         MessageMetadata msgMetadata = msgMetadataBuilder.build();
 
         ByteBuf payload;
-        if (messageIdData.isPresent()) {
-            PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker.newBuilder()
-                                                                                      .setMessageId(messageIdData.get())
-                                                                                      .build();
-            int size = commitMarker.getSerializedSize();
-            payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
-            commitMarker.writeTo(outStream);
-        } else {
-            payload = PooledByteBufAllocator.DEFAULT.buffer();
-        }
+        PulsarMarkers.TxnCommitMarker.Builder commitMarkerBuilder = PulsarMarkers.TxnCommitMarker.newBuilder();
+
+        messageIdDataList.ifPresent(commitMarkerBuilder::addAllMessageId);
+        PulsarMarkers.TxnCommitMarker commitMarker = commitMarkerBuilder.build();
+        int size = commitMarker.getSerializedSize();
+        payload = PooledByteBufAllocator.DEFAULT.buffer(size);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
+        commitMarker.writeTo(outStream);
 
         try {
             return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
@@ -327,6 +321,12 @@ public class Markers {
             payload.release();
             msgMetadata.recycle();
             msgMetadataBuilder.recycle();
+            commitMarkerBuilder.recycle();
+            if (messageIdDataList.isPresent()) {
+                for (MessageIdData messageIdData : messageIdDataList.get()) {
+                    messageIdData.recycle();
+                }
+            }
         }
     }
 }

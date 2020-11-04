@@ -162,6 +162,19 @@ const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const
     return impl_->batchingMaxPublishDelayMs;
 }
 
+ProducerConfiguration& ProducerConfiguration::setBatchingType(BatchingType batchingType) {
+    if (batchingType < ProducerConfiguration::DefaultBatching ||
+        batchingType > ProducerConfiguration::KeyBasedBatching) {
+        throw std::invalid_argument("Unsupported batching type: " + std::to_string(batchingType));
+    }
+    impl_->batchingType = batchingType;
+    return *this;
+}
+
+ProducerConfiguration::BatchingType ProducerConfiguration::getBatchingType() const {
+    return impl_->batchingType;
+}
+
 const CryptoKeyReaderPtr ProducerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
 
 ProducerConfiguration& ProducerConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
@@ -178,7 +191,9 @@ ProducerConfiguration& ProducerConfiguration::setCryptoFailureAction(ProducerCry
     return *this;
 }
 
-std::set<std::string>& ProducerConfiguration::getEncryptionKeys() { return impl_->encryptionKeys; }
+const std::set<std::string>& ProducerConfiguration::getEncryptionKeys() const {
+    return impl_->encryptionKeys;
+}
 
 bool ProducerConfiguration::isEncryptionEnabled() const {
     return (!impl_->encryptionKeys.empty() && (impl_->cryptoKeyReader != NULL));

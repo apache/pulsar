@@ -29,6 +29,7 @@
       "functions-worker",
       "functions-runtime",
       "functions-develop",
+      "functions-package",
       "functions-debug",
       "functions-deploy",
       "functions-cli",

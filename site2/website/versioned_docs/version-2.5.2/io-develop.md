@@ -112,7 +112,6 @@ Developing a sink connector **is similar to** developing a source connector, tha
     ```java
         /**
         * Write a message to Sink
-        * @param inputRecordContext Context of input record from the source
         * @param record record to write to sink
         * @throws Exception
         */

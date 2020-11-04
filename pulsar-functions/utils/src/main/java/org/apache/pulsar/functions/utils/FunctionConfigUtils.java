@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -147,9 +148,20 @@ public class FunctionConfigUtils {
         }
         sourceSpecBuilder.setSubscriptionType(subType);
 
+        // Set subscription name
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
         }
+
+        // Set subscription position
+        Function.SubscriptionPosition subPosition;
+        if (functionConfig.getSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
+            subPosition = Function.SubscriptionPosition.EARLIEST;
+        } else {
+            subPosition = Function.SubscriptionPosition.LATEST;
+        }
+
+        sourceSpecBuilder.setSubscriptionPosition(subPosition);
 
         if (typeArgs != null) {
             sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
@@ -177,7 +189,7 @@ public class FunctionConfigUtils {
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
             sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
         }
-        if (functionConfig.getForwardSourceMessageProperty() != null) {
+        if (functionConfig.getForwardSourceMessageProperty() == Boolean.TRUE) {
             sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
         if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
@@ -367,7 +379,9 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
-        functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
+        if (functionDetails.getSink().getForwardSourceMessageProperty()) {
+            functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
+        }
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         if (functionDetails.hasRetryDetails()) {
             functionConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
@@ -421,7 +435,8 @@ public class FunctionConfigUtils {
         return functionConfig;
     }
 
-    public static void inferMissingArguments(FunctionConfig functionConfig) {
+    public static void inferMissingArguments(FunctionConfig functionConfig,
+                                             boolean forwardSourceMessagePropertyEnabled) {
         if (StringUtils.isEmpty(functionConfig.getName())) {
             org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
         }
@@ -440,8 +455,13 @@ public class FunctionConfigUtils {
         	functionConfig.setMaxPendingAsyncRequests(MAX_PENDING_ASYNC_REQUESTS_DEFAULT);
         }
 
-        if (functionConfig.getForwardSourceMessageProperty() == null) {
-        	functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
+        if (forwardSourceMessagePropertyEnabled) {
+            if (functionConfig.getForwardSourceMessageProperty() == null) {
+                functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
+            }
+        } else {
+            // if worker disables forward source message property, we don't need to set the default value.
+            functionConfig.setForwardSourceMessageProperty(null);
         }
 
         if (functionConfig.getJar() != null) {

@@ -4,7 +4,7 @@ title: Develop Pulsar Functions
 sidebar_label: "How-to: Develop"
 ---
 
-This tutorial walks you through how to develop Pulsar Functions.
+You learn how to develop Pulsar Functions with different APIs for Java, Python and Go.
 
 ## Available APIs
 In Java and Python, you have two options to write Pulsar Functions. In Go, you can use Pulsar Functions SDK for Go.
@@ -104,22 +104,14 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
-Pulsar has a built in schema registry and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
+Pulsar has a built-in schema registry and is bundled with popular schema types, such as Avro, JSON and Protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default:
-
-* `String`
-* `Double`
-* `Integer`
-* `Float`
-* `Long`
-* `Short`
-* `Byte`
+When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
 
 To customize Java types, you need to implement the following interface.
 
@@ -129,6 +121,12 @@ public interface SerDe<T> {
     byte[] serialize(T input);
 }
 ```
+SerDe works in the following ways in Java Functions.
+- If the input and output topics have schema, Pulsar Functions use schema for SerDe.
+- If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
+  - If the schema type is specified, Pulsar Functions use the specified schema type.
+  - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
 
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
@@ -310,6 +308,8 @@ public interface Context {
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }
 ```
 
@@ -447,6 +447,18 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
+
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+  c.record = record
+}
+
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+  return c.record
+}
+
+func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
+	return c.outputMessage(topic)
+}
 ```
 
 The following example uses several methods available via the `Context` object.
@@ -570,8 +582,34 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
-<!--Go--> 
-Currently, the feature is not available in Go.
+<!--Go-->
+
+The Go SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --go path/to/go/binary
+  --user-config '{"word-of-the-day":"lackadaisical"}'
+```
+
+To access that value in a Go function:
+
+```go
+func contextFunc(ctx context.Context) {
+  fc, ok := pf.FromContext(ctx)
+  if !ok {
+    logutil.Fatal("Function context is not defined")
+  }
+
+  wotd := fc.GetUserConfValue("word-of-the-day")
+
+  if wotd == nil {
+    logutil.Warn("The word of the day is empty")
+  } else {
+    logutil.Infof("The word of the day is %s", wotd.(string))
+  }
+}
+```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 

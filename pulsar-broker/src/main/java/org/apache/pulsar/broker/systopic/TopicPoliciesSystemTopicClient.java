@@ -102,7 +102,10 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return producer.closeAsync();
+            return producer.closeAsync().thenCompose(v -> {
+                systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
+                return CompletableFuture.completedFuture(null);
+            });
         }
 
         @Override

@@ -200,6 +200,8 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800|
 |bookkeeperClientRackawarePolicyEnabled|  Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble  |true|
 |bookkeeperClientRegionawarePolicyEnabled|  Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored  |false|
+|bookkeeperClientMinNumRacksPerWriteQuorum|  Minimum number of racks per write quorum. BK rack-aware bookie selection policy will try to get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.  |2|
+|bookkeeperClientEnforceMinNumRacksPerWriteQuorum|  Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a writeQuorum. If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.  |false|
 |bookkeeperClientReorderReadSequenceEnabled|  Enable/disable reordering read sequence on reading entries.  |false|
 |bookkeeperClientIsolationGroups| Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker  ||
 |bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||

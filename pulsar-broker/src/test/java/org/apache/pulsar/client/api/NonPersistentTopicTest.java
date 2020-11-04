@@ -680,7 +680,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic
      *
-     * @param loadManagerName
      * @throws Exception
      */
     @Test

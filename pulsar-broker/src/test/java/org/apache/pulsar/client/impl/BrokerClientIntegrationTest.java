@@ -38,7 +38,6 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -767,7 +766,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Field prodField = PulsarClientImpl.class.getDeclaredField("producers");
         prodField.setAccessible(true);
         @SuppressWarnings("unchecked")
-        IdentityHashMap<ProducerBase<byte[]>, Boolean> producers = (IdentityHashMap<ProducerBase<byte[]>, Boolean>) prodField
+        Set<ProducerBase<byte[]>> producers = (Set<ProducerBase<byte[]>>) prodField
                 .get(pulsarClient);
         assertTrue(producers.isEmpty());
         pulsarClient.close();

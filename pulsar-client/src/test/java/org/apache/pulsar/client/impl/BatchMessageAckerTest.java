@@ -22,8 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.BitSet;
 
 public class BatchMessageAckerTest {
 
@@ -66,6 +69,15 @@ public class BatchMessageAckerTest {
 
         assertTrue(acker.ackIndividual(7));
         assertEquals(0, acker.getOutstandingAcks());
+    }
+
+    @Test
+    public void testBitSetAcker() {
+        BitSet bitSet = BitSet.valueOf(acker.getBitSet().toLongArray());
+        BatchMessageAcker bitSetAcker = BatchMessageAcker.newAcker(bitSet);
+
+        Assert.assertEquals(acker.getBitSet(), bitSetAcker.getBitSet());
+        Assert.assertEquals(acker.getOutstandingAcks(), bitSetAcker.getOutstandingAcks());
     }
 
 }

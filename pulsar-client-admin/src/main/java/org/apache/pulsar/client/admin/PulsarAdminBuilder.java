@@ -252,4 +252,10 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit);
 
+    /**
+     *
+     * @return
+     */
+    PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
+
 }

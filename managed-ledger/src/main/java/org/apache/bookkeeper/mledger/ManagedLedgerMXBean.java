@@ -107,4 +107,10 @@ public interface ManagedLedgerMXBean {
     StatsBuckets getInternalEntrySizeBuckets();
 
     PendingBookieOpsStats getPendingBookieOpsStats();
+
+    double getLedgerAddEntryLatencyAverageUsec();
+
+    long[] getLedgerAddEntryLatencyBuckets();
+
+    StatsBuckets getInternalLedgerAddEntryLatencyBuckets();
 }

@@ -69,6 +69,7 @@ public class TransactionMetaStoreTestBase {
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
+            config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             configurations[i] = config;
 
             pulsarServices[i] = Mockito.spy(new PulsarService(config));

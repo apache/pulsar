@@ -42,9 +42,19 @@ class KeySharedConsumerTest : public ::testing::Test {
 
     void addProducer(const std::string& topicName) {
         producers.emplace_back();
-        // NOTE: Current C++ producer doesn't support key based batch, so we need to disable batching
         auto conf = ProducerConfiguration().setBatchingEnabled(false).setPartitionsRoutingMode(
             ProducerConfiguration::RoundRobinDistribution);
+        ASSERT_EQ(ResultOk, client.createProducer(topicName, conf, producers.back()));
+    }
+
+    void addBatchedProducer(const std::string& topicName, int batchingMaxMessages) {
+        producers.emplace_back();
+        auto conf =
+            ProducerConfiguration()                                                //
+                .setBatchingType(ProducerConfiguration::KeyBasedBatching)          //
+                .setBatchingMaxPublishDelayMs(3000)                                //
+                .setBatchingMaxAllowedSizeInBytes(static_cast<unsigned long>(-1))  // no limits on bytes
+                .setBatchingMaxMessages(batchingMaxMessages);
         ASSERT_EQ(ResultOk, client.createProducer(topicName, conf, producers.back()));
     }
 
@@ -82,9 +92,13 @@ class KeySharedConsumerTest : public ::testing::Test {
     void receiveAndCheckDistribution() {
         // key is message's ordering key or partitioned key, value is consumer index
         std::map<std::string, size_t> keyToConsumer;
-        // key is consumer index, value is the number of message received by consumers[key]
+        // key is consumer index, value is the number of message received by
         std::map<size_t, int> messagesPerConsumer;
+        receiveAndCheckDistribution(keyToConsumer, messagesPerConsumer);
+    }
 
+    void receiveAndCheckDistribution(std::map<std::string, size_t>& keyToConsumer,
+                                     std::map<size_t, int>& messagesPerConsumer) {
         int totalMessages = 0;
 
         for (size_t i = 0; i < consumers.size(); i++) {
@@ -189,4 +203,31 @@ TEST_F(KeySharedConsumerTest, testOrderingKeyPriority) {
     ASSERT_EQ(ResultOk, producers[0].flush());
 
     receiveAndCheckDistribution();
+}
+
+TEST_F(KeySharedConsumerTest, testKeyBasedBatching) {
+    const std::string topicName = "KeySharedConsumerTest-key-based-batching" + std::to_string(time(nullptr));
+    constexpr int NUM_KEYS = 2;
+    constexpr int NUM_MESSAGES_PER_KEY = 100;
+    constexpr int BATCHING_MAX_MESSAGES = NUM_KEYS * NUM_MESSAGES_PER_KEY;
+
+    addBatchedProducer(topicName, BATCHING_MAX_MESSAGES);
+    for (int i = 0; i < NUM_KEYS; i++) {
+        // Each consumer is associated with only one key
+        addConsumer(topicName);
+    }
+
+    std::string keys[NUM_KEYS] = {"A", "B"};
+    for (int i = 0; i < BATCHING_MAX_MESSAGES; i++) {
+        const auto& key = keys[i % NUM_KEYS];
+        producers[0].sendAsync(newIntMessage(i, "", key.c_str()), sendCallback);
+    }
+
+    std::map<std::string, size_t> keyToConsumer;
+    std::map<size_t, int> messagesPerConsumer;
+    receiveAndCheckDistribution(keyToConsumer, messagesPerConsumer);
+    // Each consumer should receive 1 batched message for each key
+    for (int i = 0; i < NUM_KEYS; i++) {
+        ASSERT_EQ(messagesPerConsumer[i], NUM_MESSAGES_PER_KEY);
+    }
 }

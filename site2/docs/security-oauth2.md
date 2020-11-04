@@ -50,7 +50,7 @@ The following shows a typical original Oauth2 request, which is used to obtain t
 
 ```bash
 curl --request POST \
-  --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
+  --url https://dev-kt-aa9ne.us.auth0.com \
   --header 'content-type: application/json' \
   --data '{
   "client_id":"Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
@@ -61,7 +61,7 @@ curl --request POST \
 
 In the above example, the mapping relationship is shown as below.
 
-- The `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com/oauth/token`.
+- The `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com`.
 - The `privateKey` file parameter in this plugin should at least contains the `client_id` and `client_secret` fields.
 - The `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`.
 
@@ -74,7 +74,7 @@ You can use the Oauth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
-String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com/oauth/token";
+String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
 String credentialsUrl = "file:///path/to/KeyFile.json";
 String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
@@ -105,7 +105,7 @@ The C++ client is similar to the Java client. You need to provide parameters of 
 
 pulsar::ClientConfiguration config;
 std::string params = R"({
-    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
     "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
     "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
     
@@ -122,7 +122,7 @@ This example shows how to configure OAuth2 authentication in Go client.
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
 		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
 		"privateKey": "/path/to/privateKey",
 		"clientId":   "0Xx...Yyxeny",
@@ -131,4 +131,23 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:              "puslar://my-cluster:6650",
 		Authentication:   oauth,
 })
+```
+
+### Python client
+
+To enable OAuth2 authentication in Python client, you need to configure OAuth2 authentication.
+This example shows how to configure OAuth2 authentication in Python client.
+
+```python
+from pulsar import Client, AuthenticationOauth2
+
+params = '''
+{
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
+    "private_key": "/path/to/privateKey",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
+}
+'''
+
+client = Client("puslar://my-cluster:6650", authentication=AuthenticationOauth2(params))
 ```

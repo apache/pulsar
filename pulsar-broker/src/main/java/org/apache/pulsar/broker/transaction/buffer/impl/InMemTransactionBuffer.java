@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -38,7 +39,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -82,6 +83,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
+        public int numMessageInTxn() throws TransactionStatusException {
+            return -1;
+        }
+
+        @Override
         public long committedAtLedgerId() {
             return committedAtLedgerId;
         }
@@ -102,7 +108,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<Position> appendEntry(long sequenceId, Position position) {
+        public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
@@ -116,7 +122,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
             try {
                 return CompletableFuture.completedFuture(commitAt(committedAtLedgerId, committedAtEntryId));
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
@@ -125,23 +131,23 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> abortTxn() {
             try {
                 return CompletableFuture.completedFuture(abort());
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
 
-        synchronized TxnBuffer abort() throws UnexpectedTxnStatusException {
+        synchronized TxnBuffer abort() throws TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
             this.status = TxnStatus.ABORTED;
             return this;
         }
 
         synchronized TxnBuffer commitAt(long committedAtLedgerId, long committedAtEntryId)
-                throws UnexpectedTxnStatusException {
+                throws TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
 
             this.committedAtLedgerId = committedAtLedgerId;
@@ -274,29 +280,19 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartition in InMemTransactionBuffer."));
-    }
-
-    @Override
-    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID,
-                                             long committedAtLedgerId,
-                                             long committedAtEntryId) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             synchronized (txnBuffer) {
+                // the committed position should be generated
+                long committedAtLedgerId = -1L;
+                long committedAtEntryId = -1L;
                 txnBuffer.commitAt(committedAtLedgerId, committedAtEntryId);
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }
             commitFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionNotFoundException | TransactionStatusException e) {
             commitFuture.completeExceptionally(e);
         }
         return commitFuture;
@@ -311,7 +307,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, List<PulsarApi.MessageIdData> sendMessageIdList) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
         try {
@@ -319,7 +315,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
             txnBuffer.abort();
             buffers.remove(txnID, txnBuffer);
             abortFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionNotFoundException | TransactionStatusException e) {
             abortFuture.completeExceptionally(e);
         }
 
