@@ -230,6 +230,10 @@ public class NamespaceService {
         return bundleFactory.getBundles(namespace).size();
     }
 
+    public NamespaceBundles getBundles(NamespaceName namespace) throws Exception {
+        return bundleFactory.getBundles(namespace);
+    }
+
     private NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundleFactory.getFullBundle(fqnn);
     }

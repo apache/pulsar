@@ -27,6 +27,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -47,6 +48,8 @@ import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -111,6 +114,28 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(ex);
                     return null;
                 });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/bundles")
+    @ApiOperation(value = "Get the list of all the bundles under a certain namespace.", response = String.class, responseContainer = "Set")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public List<String> getBundles(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateSuperUserAccess();
+        // Validate that namespace exists, throws 404 if it doesn't exist
+        getNamespacePolicies(namespaceName);
+        try {
+            NamespaceBundles bundles = pulsar().getNamespaceService().getBundles(NamespaceName.get(tenant, namespace));
+            if(bundles!=null && bundles.getBundles()!=null) {
+                return bundles.getBundles().stream().map(NamespaceBundle::getBundleRange).collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get bundles for {}/{}", tenant, namespace, e);
+            new RestException(e);
+        }
+        return null;
     }
 
     @GET
