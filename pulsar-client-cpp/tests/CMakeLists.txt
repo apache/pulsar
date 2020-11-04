@@ -34,4 +34,4 @@ add_executable(main ${TEST_SOURCES})
 
 target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/lib ${AUTOGEN_DIR}/lib)
 
-target_link_libraries(main ${CLIENT_LIBS} pulsarShared $<$<CONFIG:Debug>:${GMOCKD_LIBRARY_PATH}> $<$<CONFIG:Debug>:${GTESTD_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GMOCK_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GTEST_LIBRARY_PATH}>)
+target_link_libraries(main ${CLIENT_LIBS} pulsarStatic $<$<CONFIG:Debug>:${GMOCKD_LIBRARY_PATH}> $<$<CONFIG:Debug>:${GTESTD_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GMOCK_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GTEST_LIBRARY_PATH}>)

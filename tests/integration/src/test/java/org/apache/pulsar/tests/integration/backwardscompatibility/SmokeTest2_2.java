@@ -33,4 +33,8 @@ public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
         super.testBatchMessagePublishAndConsume(serviceUrl, isPersistent);
     }
 
+    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    public void testBatchIndexAckDisabled(String serviceUrl, boolean isPersistent) throws Exception {
+        super.testBatchIndexAckDisabled(serviceUrl);
+    }
 }

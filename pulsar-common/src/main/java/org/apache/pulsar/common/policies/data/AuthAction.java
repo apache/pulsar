@@ -30,4 +30,10 @@ public enum AuthAction {
 
     /** Permissions for functions ops. **/
     functions,
+
+    /** Permissions for sources ops. **/
+    sources,
+
+    /** Permissions for sinks ops. **/
+    sinks,
 }

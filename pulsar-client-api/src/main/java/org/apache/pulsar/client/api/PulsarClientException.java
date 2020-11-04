@@ -640,6 +640,23 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Not allowed exception thrown by Pulsar client.
+     */
+    public static class NotAllowedException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code NotAllowedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public NotAllowedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Full producer queue error thrown by Pulsar client.
      */
     public static class ProducerQueueIsFullError extends PulsarClientException {
@@ -732,6 +749,72 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class ConsumerAssignException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code ConsumerAssignException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public ConsumerAssignException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class MessageAcknowledgeException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public MessageAcknowledgeException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public MessageAcknowledgeException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class TransactionConflictException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public TransactionConflictException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public TransactionConflictException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -776,6 +859,8 @@ public class PulsarClientException extends IOException {
             return new InvalidTopicNameException(msg);
         } else if (t instanceof NotSupportedException) {
             return new NotSupportedException(msg);
+        } else if (t instanceof NotAllowedException) {
+            return new NotAllowedException(msg);
         } else if (t instanceof ProducerQueueIsFullError) {
             return new ProducerQueueIsFullError(msg);
         } else if (t instanceof ProducerBlockedQuotaExceededError) {
@@ -786,6 +871,12 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (t instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (t instanceof ConsumerAssignException) {
+            return new ConsumerAssignException(msg);
+        } else if (t instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
+        } else if (t instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -857,6 +948,8 @@ public class PulsarClientException extends IOException {
             return new InvalidTopicNameException(msg);
         } else if (cause instanceof NotSupportedException) {
             return new NotSupportedException(msg);
+        } else if (cause instanceof NotAllowedException) {
+            return new NotAllowedException(msg);
         } else if (cause instanceof ProducerQueueIsFullError) {
             return new ProducerQueueIsFullError(msg);
         } else if (cause instanceof ProducerBlockedQuotaExceededError) {
@@ -867,6 +960,12 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (cause instanceof ConsumerAssignException) {
+            return new ConsumerAssignException(msg);
+        } else if (cause instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
+        } else if (cause instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
         } else {
@@ -893,8 +992,12 @@ public class PulsarClientException extends IOException {
                 || t instanceof InvalidMessageException
                 || t instanceof InvalidTopicNameException
                 || t instanceof NotSupportedException
+                || t instanceof NotAllowedException
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
+                || t instanceof ConsumerAssignException
+                || t instanceof MessageAcknowledgeException
+                || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;

@@ -229,6 +229,10 @@ Pulsar provides the [CLI](reference-cli-tools.md) for running and managing Pulsa
 
 We can run following command to sink a sink connector with type `cassandra` and config file `examples/cassandra-sink.yml`.
 
+#### Note
+
+> The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
+
 ```shell
 bin/pulsar-admin sink create \
     --tenant public \

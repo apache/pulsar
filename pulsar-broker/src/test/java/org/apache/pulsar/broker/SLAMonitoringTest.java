@@ -138,7 +138,7 @@ public class SLAMonitoringTest {
                 assertTrue(pulsarServices[0].getNamespaceService().registerSLANamespace());
             } catch (PulsarServerException e) {
                 e.printStackTrace();
-                log.error("Exception occured", e);
+                log.error("Exception occurred", e);
                 fail("SLA Namespace should have been owned by the broker, Exception.", e);
             }
         }

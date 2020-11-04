@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -130,17 +131,13 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
-        Set<T> items = new TreeSet<>();
-        AtomicInteger count = new AtomicInteger(0);
+        NavigableSet<T> items = new TreeSet<>();
         for (Long item1 : longPairSets.navigableKeySet()) {
-            if (count.get() >= numberOfItems) {// already found set of positions
-                break;
-            }
             ConcurrentLongPairSet messagesToReplay = longPairSets.get(item1);
             messagesToReplay.forEach((i1, i2) -> {
-                if (count.get() < numberOfItems) {
-                    items.add(longPairConverter.apply(i1, i2));
-                    count.incrementAndGet();
+                items.add(longPairConverter.apply(i1, i2));
+                if (items.size() > numberOfItems) {
+                    items.pollLast();
                 }
             });
         }

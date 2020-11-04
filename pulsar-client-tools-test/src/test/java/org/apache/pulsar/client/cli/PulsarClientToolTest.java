@@ -101,4 +101,112 @@ public class PulsarClientToolTest extends BrokerTestBase {
         future.get();
         executor.shutdown();
     }
+
+    @Test(timeOut = 20000)
+    public void testNonDurableSubscribe() throws Exception {
+
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+
+        int numberOfMessages = 10;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
+                        Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        while (true) {
+            try {
+                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+                if (subscriptions.size() == 1) {
+                    break;
+                }
+            } catch (Exception e) {
+            }
+            Thread.sleep(200);
+        }
+
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+        Assert.assertFalse(future.isCompletedExceptionally());
+        future.get();
+        executor.shutdown();
+
+        while (true) {
+            try {
+                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+                if (subscriptions.size() == 0) {
+                    break;
+                }
+            } catch (Exception e) {
+            }
+            Thread.sleep(200);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testDurableSubscribe() throws Exception {
+
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+
+        int numberOfMessages = 10;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
+                        Integer.toString(numberOfMessages), "--hex", "-m", "Durable", "-r", "30", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        while (true) {
+            try {
+                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+                if (subscriptions.size() == 1) {
+                    break;
+                }
+            } catch (Exception e) {
+            }
+            Thread.sleep(200);
+        }
+
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+        Assert.assertFalse(future.isCompletedExceptionally());
+        future.get();
+        executor.shutdown();
+        //wait for close
+        Thread.sleep(2000);
+        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+        Assert.assertNotNull(subscriptions);
+        Assert.assertEquals(subscriptions.size(), 1);
+    }
 }

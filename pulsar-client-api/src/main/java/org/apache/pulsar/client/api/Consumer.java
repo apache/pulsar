@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -87,6 +88,12 @@ public interface Consumer<T> extends Closeable {
      * <p>{@code receiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
      * with received message. Else it creates <i> backlog of receive requests </i> in the application.
      *
+     * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
+     * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
+     * choice for ensuring a proper clean up of the returned future is to use the CompletableFuture.orTimeout method
+     * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
+     * the timeout.
+     *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
     CompletableFuture<Message<T>> receiveAsync();
@@ -128,6 +135,14 @@ public interface Consumer<T> extends Closeable {
      * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
      * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
      * </p>
+     *
+     * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
+     * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
+     * choice for ensuring a proper clean up of the returned future is to use the CompletableFuture.orTimeout method
+     * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
+     * the timeout.
+     *
+     *
      * @return messages
      * @since 2.4.1
      * @throws PulsarClientException
@@ -162,6 +177,13 @@ public interface Consumer<T> extends Closeable {
      *              if the consumer was already closed
      */
     void acknowledge(Messages<?> messages) throws PulsarClientException;
+
+    /**
+     * Acknowledge the consumption of a list of message.
+     * @param messageIdList
+     * @throws PulsarClientException
+     */
+    void acknowledge(List<MessageId> messageIdList) throws PulsarClientException;
 
     /**
      * Acknowledge the failure to process a single message.
@@ -364,6 +386,13 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
+
+    /**
+     * Asynchronously acknowledge the consumption of a list of message.
+     * @param messageIdList
+     * @return
+     */
+    CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList);
 
     /**
      * Asynchronously reconsumeLater the consumption of a single message.

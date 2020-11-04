@@ -176,7 +176,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     }
 
     @Test
-    void testIncorrectRoles() throws Exception {
+    public void testIncorrectRoles() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         // Step 1: Create Admin Client
@@ -196,13 +196,13 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
         // Step 2: Try to use proxy Client as a normal Client - expect exception
         PulsarClient proxyClient = createPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams);
-        boolean exceptionOccured = false;
+        boolean exceptionOccurred = false;
         try {
             proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
         } catch (Exception ex) {
-            exceptionOccured = true;
+            exceptionOccurred = true;
         }
-        Assert.assertTrue(exceptionOccured);
+        Assert.assertTrue(exceptionOccurred);
 
         // Step 3: Run Pulsar Proxy and pass proxy params as client params - expect exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -224,14 +224,14 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         proxyService.start();
 
         proxyClient = createPulsarClient(proxyService.getServiceUrl(), proxyAuthParams);
-        exceptionOccured = false;
+        exceptionOccurred = false;
         try {
             proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
         } catch (Exception ex) {
-            exceptionOccured = true;
+            exceptionOccurred = true;
         }
 
-        Assert.assertTrue(exceptionOccured);
+        Assert.assertTrue(exceptionOccurred);
 
         // Step 4: Pass correct client params
         proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams);

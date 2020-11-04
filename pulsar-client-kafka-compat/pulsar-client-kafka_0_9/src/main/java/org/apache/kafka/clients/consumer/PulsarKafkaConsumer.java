@@ -218,7 +218,6 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 consumerBuilder.subscriptionType(SubscriptionType.Failover);
                 consumerBuilder.messageListener(this);
                 consumerBuilder.subscriptionName(groupId);
-                consumerBuilder.topics(topics);
                 if (numberOfPartitions > 1) {
                     // Subscribe to each partition
                     consumerBuilder.consumerName(ConsumerName.generateRandomName());

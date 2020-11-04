@@ -18,22 +18,28 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 /**
  * The default implementation of transaction builder to build transactions.
  */
+@Slf4j
 public class TransactionBuilderImpl implements TransactionBuilder {
 
     private final PulsarClientImpl client;
+    private final TransactionCoordinatorClientImpl transactionCoordinatorClient;
     private long txnTimeoutMs = 60000; // 1 minute
+    private static final long txnRequestTimeoutMs = 1000 * 30; // 30 seconds
 
-    public TransactionBuilderImpl(PulsarClientImpl client) {
+    public TransactionBuilderImpl(PulsarClientImpl client, TransactionCoordinatorClientImpl tcClient) {
         this.client = client;
+        this.transactionCoordinatorClient = tcClient;
     }
 
     @Override
@@ -44,12 +50,26 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public CompletableFuture<Transaction> build() {
-        // TODO: talk to TC to begin a transaction
+        // talk to TC to begin a transaction
         //       the builder is responsible for locating the transaction coorindator (TC)
         //       and start the transaction to get the transaction id.
         //       After getting the transaction id, all the operations are handled by the
         //       `TransactionImpl`
-        return CompletableFuture.completedFuture(
-            new TransactionImpl(client, txnTimeoutMs, -1L, -1L));
+        CompletableFuture<Transaction> future = new CompletableFuture<>();
+        transactionCoordinatorClient
+                .newTransactionAsync(txnRequestTimeoutMs, TimeUnit.MILLISECONDS)
+                .whenComplete((txnID, throwable) -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Success to new txn. txnID: {}", txnID);
+                    }
+                    if (throwable != null) {
+                        log.error("New transaction error.", throwable);
+                        future.completeExceptionally(throwable);
+                        return;
+                    }
+                    future.complete(new TransactionImpl(client, txnTimeoutMs,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                });
+        return future;
     }
 }

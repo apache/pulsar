@@ -110,6 +110,7 @@ Both the [Java](#java-sdk-functions) and [Python](#python-sdk-functions) SDKs pr
 
 * The name and ID of the Pulsar Function
 * The message ID of each message. Each Pulsar message is automatically assigned an ID.
+* The key, event time, properties and partition key of each message
 * The name of the topic on which the message was sent
 * The names of all input topics as well as the output topic associated with the function
 * The name of the class used for [SerDe](#serialization-and-deserialization-serde)
@@ -120,6 +121,8 @@ Both the [Java](#java-sdk-functions) and [Python](#python-sdk-functions) SDKs pr
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
 * An interface for recording [metrics](functions-metrics.md)
 * An interface for storing and retrieving state in [state storage](functions-overview.md#state-storage)
+* A function to publish new messages onto arbitrary topics.
+* A function to acknowledge the message being processed (if auto-acknowledgement is disabled).
 
 ### User config
 
@@ -264,9 +267,13 @@ public interface Context {
     String getFunctionVersion();
     Logger getLogger();
     void incrCounter(String key, long amount);
+    void incrCounterAsync(String key, long amount);
     long getCounter(String key);
+    long getCounterAsync(String key);
     void putState(String key, ByteBuffer value);
+    void putStateAsync(String key, ByteBuffer value);
     ByteBuffer getState(String key);
+    ByteBuffer getStateAsync(String key);
     Map<String, Object> getUserConfigMap();
     Optional<Object> getUserConfigValue(String key);
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
@@ -573,6 +580,9 @@ The [`Context`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/p
 Method | What it provides
 :------|:----------------
 `get_message_id` | The message ID of the message being processed
+`get_message_key` | The key of the message being processed
+`get_message_eventtime` | The event time of the message being processed
+`get_message_properties` | The properties of the message being processed
 `get_current_message_topic_name` | The topic of the message being currently being processed
 `get_function_tenant` | The tenant under which the current Pulsar Function runs under
 `get_function_namespace` | The namespace under which the current Pulsar Function runs under
@@ -583,10 +593,17 @@ Method | What it provides
 `get_logger` | A logger object that can be used for [logging](#python-logging)
 `get_user_config_value` | Returns the value of a [user-defined config](#python-user-config) (or `None` if the config doesn't exist)
 `get_user_config_map` | Returns the entire user-defined config as a dict
+`get_secret` | The secret value associated with the name
+`get_partition_key` | The partition key of the input message
 `record_metric` | Records a per-key [metric](#python-metrics)
 `publish` | Publishes a message to the specified Pulsar topic
 `get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
 `ack` | [Acks](reference-terminology.md#acknowledgment-ack) the message being processed to Pulsar
+`incr_counter` | Increase the counter of a given key in the managed state
+`get_counter` | Get the counter of a given key in the managed state
+`del_counter` | Delete the counter of a given key in the managed state
+`put_state` | Update the value of a given key in the managed state
+`get_state` | Get the value of a given key in the managed state
 
 ### Python SerDe
 

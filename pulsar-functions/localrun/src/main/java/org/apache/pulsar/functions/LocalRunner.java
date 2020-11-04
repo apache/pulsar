@@ -31,6 +31,7 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -38,14 +39,21 @@ import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.NameAndConfigBasedSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.functions.Functions;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,6 +61,7 @@ import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -140,6 +149,10 @@ public class LocalRunner {
     protected int instanceIdOffset = 0;
     @Parameter(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true, converter = RuntimeConverter.class)
     protected RuntimeEnv runtimeEnv;
+    @Parameter(names = "--secretsProviderClassName", description = "Whats the classname of secrets provider", hidden = true)
+    protected String secretsProviderClassName;
+    @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
+    protected String secretsProviderConfig;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
@@ -157,7 +170,8 @@ public class LocalRunner {
     public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig, String
             stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
-                       String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv) {
+                       String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
+                       String secretsProviderClassName, String secretsProviderConfig) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -171,6 +185,8 @@ public class LocalRunner {
         this.tlsTrustCertFilePath = tlsTrustCertFilePath;
         this.instanceIdOffset = instanceIdOffset;
         this.runtimeEnv = runtimeEnv;
+        this.secretsProviderClassName = secretsProviderClassName;
+        this.secretsProviderConfig = secretsProviderConfig;
 
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
@@ -199,7 +215,7 @@ public class LocalRunner {
             String userCodeFile;
             int parallelism;
             if (functionConfig != null) {
-                FunctionConfigUtils.inferMissingArguments(functionConfig);
+                FunctionConfigUtils.inferMissingArguments(functionConfig, true);
                 ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
@@ -212,6 +228,14 @@ public class LocalRunner {
                                 .getProtectionDomain().getCodeSource().getLocation().getFile();
                     }
 
+                    boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+                    if(isBuiltin){
+                        WorkerConfig workerConfig = WorkerConfig.load(System.getenv("PULSAR_HOME") + "/conf/functions_worker.yml");
+                        Functions functions = FunctionUtils.searchForFunctions(System.getenv("PULSAR_HOME") + workerConfig.getFunctionsDirectory().replaceFirst("^.", ""));
+                        String functionType = functionConfig.getJar().replaceFirst("^builtin://", "");
+                        userCodeFile = functions.getFunctions().get(functionType).toString();
+                    }
+                     
                     if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                         File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
                         classLoader = FunctionConfigUtils.validate(functionConfig, file);
@@ -277,7 +301,7 @@ public class LocalRunner {
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
 
-                String builtInSink = isBuiltInSource(userCodeFile);
+                String builtInSink = isBuiltInSink(userCodeFile);
                 if (builtInSink != null) {
                     sinkConfig.setArchive(builtInSink);
                 }
@@ -338,7 +362,7 @@ public class LocalRunner {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
-
+        SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                 serviceUrl,
                 stateStorageServiceUrl,
@@ -348,7 +372,8 @@ public class LocalRunner {
                 null, /* log directory */
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
-                new DefaultSecretsProviderConfigurator(), false, Optional.empty(), Optional.empty())) {
+                secretsProviderConfigurator,
+                false, Optional.empty(), Optional.empty())) {
 
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
@@ -407,11 +432,23 @@ public class LocalRunner {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
+        SecretsProvider secretsProvider;
+        if (secretsProviderClassName != null) {
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+            Map<String, String> config = null;
+            if (secretsProviderConfig != null) {
+                config = (Map<String, String>)new Gson().fromJson(secretsProviderConfig, Map.class);
+            }
+            secretsProvider.init(config);
+        } else {
+            secretsProvider = new ClearTextSecretsProvider();
+        }
         ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                new ClearTextSecretsProvider(), null, narExtractionDirectory, null);
+                secretsProvider,
+                null, narExtractionDirectory, null);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
@@ -440,9 +477,10 @@ public class LocalRunner {
         // Validate the connector source type from the locally available connectors
         Connectors connectors = getConnectors();
 
-        if (connectors.getSources().containsKey(sourceType)) {
+        String source = sourceType.replaceFirst("^builtin://", "");
+        if (connectors.getSources().containsKey(source)) {
             // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSources().get(sourceType).toString();
+            return connectors.getSources().get(source).toString();
         } else {
             return null;
         }
@@ -452,9 +490,10 @@ public class LocalRunner {
         // Validate the connector source type from the locally available connectors
         Connectors connectors = getConnectors();
 
-        if (connectors.getSinks().containsKey(sinkType)) {
+        String sink = sinkType.replaceFirst("^builtin://", "");
+        if (connectors.getSinks().containsKey(sink)) {
             // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSinks().get(sinkType).toString();
+            return connectors.getSinks().get(sink).toString();
         } else {
             return null;
         }
@@ -468,5 +507,19 @@ public class LocalRunner {
         }
         String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory);
+    }
+
+    private SecretsProviderConfigurator getSecretsProviderConfigurator() {
+        SecretsProviderConfigurator secretsProviderConfigurator;
+        if (secretsProviderClassName != null) {
+            Map<String, String> config = null;
+            if (secretsProviderConfig != null) {
+                config = (Map<String, String>)new Gson().fromJson(secretsProviderConfig, Map.class);
+            }
+            secretsProviderConfigurator = new NameAndConfigBasedSecretsProviderConfigurator(secretsProviderClassName, config);
+        } else {
+            secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
+        }
+        return secretsProviderConfigurator;
     }
 }

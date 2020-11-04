@@ -364,6 +364,16 @@ It shows detailed statistics of a topic.
 
       -   **offloaded**: Whether this ledger is offloaded
 
+  -   **compactedLedger**: The ledgers holding un-acked messages after topic compaction.
+ 
+      -   **ledgerId**: Id of this ledger
+     
+      -   **entries**: Total number of entries belong to this ledger
+     
+      -   **size**: Size of messages written to this ledger (in bytes)
+     
+      -   **offloaded**: Will always be false for compacted topic ledger.
+      
   -   **cursors**: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
 
       -   **markDeletePosition**: All of messages before the markDeletePosition are acknowledged by the subscriber.
@@ -403,9 +413,16 @@ It shows detailed statistics of a topic.
         {
             "ledgerId": 324711539,
             "entries": 0,
-            "size": 0
+            "size": 0,
+            "offloaded": true
         }
     ],
+    "compactedLedger": {
+        "ledgerId": 324711540,
+        "entries": 10,
+        "size": 100,
+        "offloaded": false
+    },
     "cursors": {
         "my-subscription": {
             "markDeletePosition": "324711539:3133",

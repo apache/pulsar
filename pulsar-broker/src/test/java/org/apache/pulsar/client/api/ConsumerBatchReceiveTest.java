@@ -214,6 +214,37 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
+    @Test
+    public void verifyBatchSizeIsEqualToPolicyConfiguration() throws Exception {
+        final int muxNumMessages = 100;
+        final int messagesToSend = 500;
+
+        final String topic = "persistent://my-property/my-ns/batch-receive-size" + UUID.randomUUID();
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumMessages(muxNumMessages).build();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s2")
+                .batchReceivePolicy(batchReceivePolicy)
+                .subscribe();
+
+        sendMessagesAsyncAndWait(producer, messagesToSend);
+        receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy, messagesToSend / muxNumMessages);
+    }
+
+
+    private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer, BatchReceivePolicy batchReceivePolicy, int numOfExpectedBatches) throws PulsarClientException {
+        Messages<String> messages;
+        for (int i = 0; i < numOfExpectedBatches; i++) {
+            messages = consumer.batchReceive();
+            log.info("Received {} messages in a single batch receive verifying batch size.", messages.size());
+            Assert.assertEquals(messages.size(), batchReceivePolicy.getMaxNumMessages());
+        }
+    }
+
     private void testBatchReceive(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {

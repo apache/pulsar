@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
@@ -29,6 +30,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
@@ -113,5 +115,32 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return worker.getListOfConnectors(clientAppId());
+    }
+
+    @PUT
+    @ApiOperation(
+            value = "Triggers a rebalance of functions to workers"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/rebalance")
+    public void rebalance() {
+        worker.rebalance(uri.getRequestUri(), clientAppId());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Checks if this node is the leader and is ready to service requests",
+            response = Boolean.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
+    @Path("/cluster/leader/ready")
+    public Boolean isLeaderReady() {
+        return worker.isLeaderReady(clientAppId());
     }
 }

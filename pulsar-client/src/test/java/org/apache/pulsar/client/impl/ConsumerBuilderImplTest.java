@@ -269,4 +269,9 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS);
     }
 
+    @Test
+    public void testConsumerMode() {
+        consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+    }
 }

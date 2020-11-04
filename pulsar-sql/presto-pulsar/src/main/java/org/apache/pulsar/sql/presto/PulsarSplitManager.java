@@ -18,27 +18,27 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorSession;
-import com.facebook.presto.spi.ConnectorSplitSource;
-import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.FixedSplitSource;
-import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.connector.ConnectorSplitManager;
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.facebook.presto.spi.predicate.Domain;
-import com.facebook.presto.spi.predicate.Range;
-import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
+import io.prestosql.spi.PrestoException;
+import io.prestosql.spi.connector.ColumnHandle;
+import io.prestosql.spi.connector.ConnectorSession;
+import io.prestosql.spi.connector.ConnectorSplitManager;
+import io.prestosql.spi.connector.ConnectorSplitSource;
+import io.prestosql.spi.connector.ConnectorTableLayoutHandle;
+import io.prestosql.spi.connector.ConnectorTransactionHandle;
+import io.prestosql.spi.connector.FixedSplitSource;
+import io.prestosql.spi.predicate.Domain;
+import io.prestosql.spi.predicate.Range;
+import io.prestosql.spi.predicate.TupleDomain;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -94,7 +94,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     @Override
     public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
                                           ConnectorTableLayoutHandle layout,
-                                          SplitSchedulingStrategy splitSchedulingStrategy) {
+                                          ConnectorSplitManager.SplitSchedulingStrategy splitSchedulingStrategy) {
 
         int numSplits = this.pulsarConnectorConfig.getTargetNumSplits();
 

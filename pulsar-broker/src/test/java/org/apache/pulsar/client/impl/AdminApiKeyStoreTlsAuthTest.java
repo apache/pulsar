@@ -23,26 +23,30 @@ import static org.testng.Assert.fail;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
+
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
+import org.apache.pulsar.client.impl.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -118,6 +122,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationParameters(mapToString(authParams));
         conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
         conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
     }

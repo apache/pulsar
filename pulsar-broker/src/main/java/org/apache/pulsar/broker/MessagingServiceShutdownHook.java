@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.ILoggerFactory;

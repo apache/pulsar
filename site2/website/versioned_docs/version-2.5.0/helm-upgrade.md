@@ -13,7 +13,7 @@ We also recommend that you need to provide all values using `helm upgrade --set 
 > **NOTE**:
 >
 > You can retrieve your previous `--set` arguments cleanly, with `helm get values <release-name>`. If you direct this into a file (`helm get values <release-name> > pulsar.yml`), you can safely
-pass this file via `-f`. Thus `helm upgrade <release-name> pulsar -f pulsar.yaml`. This safely replaces the behavior of `--reuse-values`.
+pass this file via `-f`. Thus `helm upgrade <release-name> charts/pulsar -f pulsar.yaml`. This safely replaces the behavior of `--reuse-values`.
 
 ## Steps
 
@@ -28,7 +28,7 @@ The following are the steps to upgrade Apache Pulsar to a newer version:
 4. Decide on all the values you need to set
 5. Perform the upgrade, with all `--set` arguments extracted in step 4
     ```bash
-    helm upgrade <release-name> pulsar \
+    helm upgrade <release-name> charts/pulsar \
         --version <new version> \
         -f pulsar.yaml \
         --set ...

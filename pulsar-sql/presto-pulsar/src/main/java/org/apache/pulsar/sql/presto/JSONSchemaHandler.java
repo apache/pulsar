@@ -19,10 +19,10 @@
 package org.apache.pulsar.sql.presto;
 
 import com.dslplatform.json.DslJson;
-import com.facebook.presto.spi.type.Type;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.prestosql.spi.type.Type;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;

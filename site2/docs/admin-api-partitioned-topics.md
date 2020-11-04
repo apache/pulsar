@@ -45,8 +45,8 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 
 > #### Note
 >
-> If there already exists a non partitioned topic with suffix '-partition-' followed by numeric value like
-> 'xyz-topic-partition-10', then you can not create partitioned topic with name 'xyz-topic' as the partitions
+> If there already exists a non-partitioned topic with the suffix '-partition-' followed by numeric value like
+> 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic' as the partitions
 > of the partitioned topic could override the existing non partitioned topic. You have to delete that non
 > partitioned topic first then create the partitioned topic.
 
@@ -64,7 +64,7 @@ admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 
 ### Create missed partitions
 
-Try to create partitions for partitioned topic. The partitions of partition topic has to be created, 
+Try to create partitions for partitioned topic. The partitions of partition topic have to be created, 
 can be used by repair partitions when topic auto creation is disabled
 
 #### pulsar-admin
@@ -201,7 +201,7 @@ admin.persistentTopics().getList(namespace);
 
 ### Stats
 
-It shows current statistics of a given partitioned topic. Here's an example payload:
+It shows the current statistics of a given partitioned topic. Here is an example payload:
 
 ```json
 {

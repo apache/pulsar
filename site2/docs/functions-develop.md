@@ -4,7 +4,7 @@ title: Develop Pulsar Functions
 sidebar_label: "How-to: Develop"
 ---
 
-This tutorial walks you through how to develop Pulsar Functions.
+You learn how to develop Pulsar Functions with different APIs for Java, Python and Go.
 
 ## Available APIs
 In Java and Python, you have two options to write Pulsar Functions. In Go, you can use Pulsar Functions SDK for Go.
@@ -104,22 +104,14 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
-Pulsar has a built in schema registry and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
+Pulsar has a built-in schema registry and is bundled with popular schema types, such as Avro, JSON and Protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default:
-
-* `String`
-* `Double`
-* `Integer`
-* `Float`
-* `Long`
-* `Short`
-* `Byte`
+When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
 
 To customize Java types, you need to implement the following interface.
 
@@ -129,6 +121,12 @@ public interface SerDe<T> {
     byte[] serialize(T input);
 }
 ```
+SerDe works in the following ways in Java Functions.
+- If the input and output topics have schema, Pulsar Functions use schema for SerDe.
+- If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
+  - If the schema type is specified, Pulsar Functions use the specified schema type.
+  - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
 
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
@@ -296,16 +294,22 @@ public interface Context {
     String getFunctionVersion();
     Logger getLogger();
     void incrCounter(String key, long amount);
+    void incrCounterAsync(String key, long amount);
     long getCounter(String key);
+    long getCounterAsync(String key);
     void putState(String key, ByteBuffer value);
+    void putStateAsync(String key, ByteBuffer value);
     void deleteState(String key);
     ByteBuffer getState(String key);
+    ByteBuffer getStateAsync(String key);
     Map<String, Object> getUserConfigMap();
     Optional<Object> getUserConfigValue(String key);
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }
 ```
 
@@ -443,6 +447,18 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
+
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+  c.record = record
+}
+
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+  return c.record
+}
+
+func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
+	return c.outputMessage(topic)
+}
 ```
 
 The following example uses several methods available via the `Context` object.
@@ -566,8 +582,34 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
-<!--Go--> 
-Currently, the feature is not available in Go.
+<!--Go-->
+
+The Go SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --go path/to/go/binary
+  --user-config '{"word-of-the-day":"lackadaisical"}'
+```
+
+To access that value in a Go function:
+
+```go
+func contextFunc(ctx context.Context) {
+  fc, ok := pf.FromContext(ctx)
+  if !ok {
+    logutil.Fatal("Function context is not defined")
+  }
+
+  wotd := fc.GetUserConfValue("word-of-the-day")
+
+  if wotd == nil {
+    logutil.Warn("The word of the day is empty")
+  } else {
+    logutil.Infof("The word of the day is %s", wotd.(string))
+  }
+}
+```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -644,10 +686,11 @@ The following Go Function example shows different log levels based on the functi
 
 ```
 import (
-	"context"
+    "context"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+    "github.com/apache/pulsar/pulsar-function-go/pf"
+
+    log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
 func loggerFunc(ctx context.Context, input []byte) {
@@ -663,7 +706,7 @@ func main() {
 }
 ```
 
-When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/log`, and you do not have to use the `getLogger()` context object. 
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object. 
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -788,7 +831,7 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Java Functions using the `putState`, `putStateAsync`, `getState`, `getStateAsync`, `incrCounter`, `incrCounterAsync`,  `getCounter`, `getCounterAsync` and `deleteState` calls on the context object. You can access states within Pulsar Python Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
 
 > Note  
 > State storage is not available in Go.
@@ -810,7 +853,22 @@ Currently Pulsar Functions expose the following APIs for mutating and accessing 
     void incrCounter(String key, long amount);
 ```
 
-Application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
+The application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
+
+#### incrCounterAsync
+
+```java
+     /**
+     * Increment the builtin distributed counter referred by key
+     * but dont wait for the completion of the increment operation
+     *
+     * @param key The name of the key
+     * @param amount The amount to be incremented
+     */
+    CompletableFuture<Void> incrCounterAsync(String key, long amount);
+```
+
+The application can use `incrCounterAsync` to asynchronously change the counter of a given `key` by the given `amount`.
 
 #### getCounter
 
@@ -824,10 +882,25 @@ Application can use `incrCounter` to change the counter of a given `key` by the 
     long getCounter(String key);
 ```
 
-Application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
+The application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
 
 Except the `counter` API, Pulsar also exposes a general key/value API for functions to store
 general key/value state.
+
+#### getCounterAsync
+
+```java
+     /**
+     * Retrieve the counter value for the key, but don't wait
+     * for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    CompletableFuture<Long> getCounterAsync(String key);
+```
+
+The application can use `getCounterAsync` to asynchronously retrieve the counter of a given `key` mutated by `incrCounterAsync`.
 
 #### putState
 
@@ -841,6 +914,20 @@ general key/value state.
     void putState(String key, ByteBuffer value);
 ```
 
+#### putStateAsync
+
+```java
+    /**
+     * Update the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key name of the key
+     * @param value state value of the key
+     */
+    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
+```
+
+The application can use `putStateAsync` to asynchronously update the state of a given `key`.
+
 #### getState
 
 ```java
@@ -852,6 +939,20 @@ general key/value state.
      */
     ByteBuffer getState(String key);
 ```
+
+#### getStateAsync
+
+```java
+    /**
+     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    CompletableFuture<ByteBuffer> getStateAsync(String key);
+```
+
+The application can use `getStateAsync` to asynchronously retrieve the state of a given `key`.
 
 #### deleteState
 

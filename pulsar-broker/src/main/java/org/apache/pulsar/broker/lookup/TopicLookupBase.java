@@ -38,6 +38,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -79,7 +80,7 @@ public class TopicLookupBase extends PulsarWebResource {
         }
 
         CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
-                .getBrokerServiceUrlAsync(topicName, authoritative);
+                .getBrokerServiceUrlAsync(topicName, LookupOptions.builder().authoritative(authoritative).loadTopicsInBundle(false).build());
 
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
@@ -92,7 +93,7 @@ public class TopicLookupBase extends PulsarWebResource {
             LookupResult result = optionalResult.get();
             // We have found either a broker that owns the topic, or a broker to which we should redirect the client to
             if (result.isRedirect()) {
-                boolean newAuthoritative = this.isLeaderBroker();
+                boolean newAuthoritative = result.isAuthoritativeRedirect();
                 URI redirect;
                 try {
                     String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
@@ -226,7 +227,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
                             // request should be redirect to the peer-cluster
                             if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
-                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())) {
+                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
                                 validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
                                         "Redirected cluster's brokerService url is not configured", requestId));
                                 return;
@@ -251,7 +252,12 @@ public class TopicLookupBase extends PulsarWebResource {
             if (validationFailureResponse != null) {
                 lookupfuture.complete(validationFailureResponse);
             } else {
-                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, authoritative, advertisedListenerName)
+                LookupOptions options = LookupOptions.builder()
+                        .authoritative(authoritative)
+                        .advertisedListenerName(advertisedListenerName)
+                        .loadTopicsInBundle(true)
+                        .build();
+                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
                         .thenAccept(lookupResult -> {
 
                             if (log.isDebugEnabled()) {
@@ -266,7 +272,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
                             LookupData lookupData = lookupResult.get().getLookupData();
                             if (lookupResult.get().isRedirect()) {
-                                boolean newAuthoritative = isLeaderBroker(pulsarService);
+                                boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));

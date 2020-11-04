@@ -449,6 +449,48 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeWithUnloading() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/pause-and-resume-with-unloading";
+        final String subName = "sub";
+        final int receiverQueueSize = 20;
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(receiverQueueSize).messageListener((c1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+        consumer.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        // Paused consumer receives only `receiverQueueSize` messages
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        // Make sure no flow permits are sent when the consumer reconnects to the topic
+        admin.topics().unload(topicName);
+        Thread.sleep(2000);
+        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+        consumer.resume();
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS),
+                "Timed out waiting for message listener acks");
+
+        consumer.unsubscribe();
+        producer.close();
+    }
+
     @Test(dataProvider = "batch")
     public void testBackoffAndReconnect(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -2399,6 +2441,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(groups = "encryption")
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myecdsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2441,36 +2484,46 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Set<String> messageSet = Sets.newHashSet();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").subscriptionName("my-subscriber-name")
+        Consumer<byte[]> cryptoConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name")
                 .cryptoKeyReader(new EncKeyReader()).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").addEncryptionKey("client-ecdsa.pem")
+        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+                .subscribe();
+
+        Producer<byte[]> cryptoProducer = pulsarClient.newProducer()
+                .topic(topicName).addEncryptionKey("client-ecdsa.pem")
                 .cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            cryptoProducer.send(message.getBytes());
         }
 
         Message<byte[]> msg = null;
 
+        msg = normalConsumer.receive(500, TimeUnit.MILLISECONDS);
+        // should not able to read message using normal message.
+        assertNull(msg);
+
         for (int i = 0; i < totalMsg; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = cryptoConsumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
         // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
+        cryptoConsumer.acknowledgeCumulative(msg);
+        cryptoConsumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
     @Test(groups = "encryption")
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2514,6 +2567,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
+        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
@@ -2530,6 +2586,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         MessageImpl<byte[]> msg = null;
+
+        msg = (MessageImpl<byte[]>) normalConsumer.receive(500, TimeUnit.MILLISECONDS);
+        // should not able to read message using normal message.
+        assertNull(msg);
 
         for (int i = 0; i < totalMsg * 2; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
@@ -3351,5 +3411,129 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
         }
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 5000)
+    public void testReceiveAsyncCompletedWhenClosing() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
+        final String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";
+        final String errorMsg = "cleaning and closing the consumers";
+        BatchReceivePolicy batchReceivePolicy
+                = BatchReceivePolicy.builder().maxNumBytes(10 * 1024).maxNumMessages(10).timeout(-1, TimeUnit.SECONDS).build();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("my-subscriber-name")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        // 1) Test receiveAsync is interrupted
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        new Thread(() -> {
+            try {
+                consumer.receiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                consumer.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch.await();
+
+        // 2) Test batchReceiveAsync is interrupted
+        CountDownLatch countDownLatch2 = new CountDownLatch(1);
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("my-subscriber-name")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        new Thread(() -> {
+            try {
+                consumer2.batchReceiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch2.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                consumer2.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch2.await();
+        // 3) Test partitioned topic batchReceiveAsync is interrupted
+        CountDownLatch countDownLatch3 = new CountDownLatch(1);
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+        Consumer<String> partitionedTopicConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(partitionedTopic).subscriptionName("my-subscriber-name-partitionedTopic")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        new Thread(() -> {
+            try {
+                partitionedTopicConsumer.batchReceiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch3.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                partitionedTopicConsumer.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch3.await();
+    }
+
+    @Test(timeOut = 20000)
+    public void testResetPosition() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testResetPosition";
+        final String subName = "my-sub";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        for (int i = 0; i < 50; i++) {
+            producer.send("msg" + i);
+        }
+        Message<String> lastMsg = null;
+        for (int i = 0; i < 10; i++) {
+            lastMsg = consumer.receive();
+            assertNotNull(lastMsg);
+            consumer.acknowledge(lastMsg);
+        }
+        MessageIdImpl lastMessageId = (MessageIdImpl)lastMsg.getMessageId();
+        consumer.close();
+        producer.close();
+
+        admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId());
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        Message<String> message = consumer2.receive(1, TimeUnit.SECONDS);
+        assertEquals(message.getMessageId(), lastMsg.getMessageId());
+        consumer2.close();
+
+        admin.topics().resetCursor(topicName, subName, lastMsg.getMessageId(), true);
+        Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        message = consumer3.receive(1, TimeUnit.SECONDS);
+        assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
+        MessageIdImpl messageId = (MessageIdImpl)message.getMessageId();
+        assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
+        consumer3.close();
+
+        admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId(), true).get(3, TimeUnit.SECONDS);
+        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        message = consumer4.receive(1, TimeUnit.SECONDS);
+        assertNotEquals(message.getMessageId(), lastMsg.getMessageId());
+        messageId = (MessageIdImpl)message.getMessageId();
+        assertEquals(messageId.getEntryId() - 1, lastMessageId.getEntryId());
+        consumer4.close();
+
+        admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId()).get(3, TimeUnit.SECONDS);
+        Consumer<String> consumer5 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
+        message = consumer5.receive(1, TimeUnit.SECONDS);
+        assertEquals(message.getMessageId(), lastMsg.getMessageId());
+        consumer5.close();
     }
 }

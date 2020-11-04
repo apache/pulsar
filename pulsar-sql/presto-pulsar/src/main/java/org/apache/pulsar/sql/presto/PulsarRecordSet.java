@@ -20,10 +20,10 @@ package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
 
-import com.facebook.presto.spi.RecordCursor;
-import com.facebook.presto.spi.RecordSet;
-import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
+import io.prestosql.spi.connector.RecordCursor;
+import io.prestosql.spi.connector.RecordSet;
+import io.prestosql.spi.type.Type;
 import java.util.List;
 
 /**

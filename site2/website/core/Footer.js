@@ -120,6 +120,7 @@ class Footer extends React.Component {
     const twitterUrl = 'https://twitter.com/Apache_Pulsar'
     const wikiUrl = 'https://github.com/apache/pulsar/wiki'
     const issuesUrl = 'https://github.com/apache/pulsar/issues'
+    const summitUrl = 'https://pulsar-summit.org/'
     const resourcesUrl = this.pageUrl('resources', this.props.language)
     const teamUrl = this.pageUrl('team', this.props.language)
     const poweredByUrl = this.pageUrl('powered-by', this.props.language)
@@ -140,6 +141,7 @@ class Footer extends React.Component {
             '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="${issuesUrl}" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="${summitUrl}" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +

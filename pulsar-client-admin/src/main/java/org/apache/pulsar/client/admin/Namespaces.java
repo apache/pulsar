@@ -36,6 +36,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -416,6 +417,27 @@ public interface Namespaces {
     void deleteNamespace(String namespace) throws PulsarAdminException;
 
     /**
+     * Delete an existing namespace.
+     * <p/>
+     * Force flag deletes namespace forcefully by force deleting all topics under it.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param force
+     *            Delete namespace forcefully
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Namespace is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespace(String namespace, boolean force) throws PulsarAdminException;
+
+    /**
      * Delete an existing namespace asynchronously.
      * <p/>
      * The namespace needs to be empty.
@@ -424,6 +446,18 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> deleteNamespaceAsync(String namespace);
+
+    /**
+     * Delete an existing namespace asynchronously.
+     * <p/>
+     * Force flag deletes namespace forcefully by force deleting all topics under it.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param force
+     *            Delete namespace forcefully
+     */
+    CompletableFuture<Void> deleteNamespaceAsync(String namespace, boolean force);
 
     /**
      * Delete an existing bundle in a namespace.
@@ -447,6 +481,29 @@ public interface Namespaces {
     void deleteNamespaceBundle(String namespace, String bundleRange) throws PulsarAdminException;
 
     /**
+     * Delete an existing bundle in a namespace.
+     * <p/>
+     * Force flag deletes bundle forcefully.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundleRange
+     *            range of the bundle
+     * @param force
+     *            Delete bundle forcefully
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace/bundle does not exist
+     * @throws ConflictException
+     *             Bundle is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespaceBundle(String namespace, String bundleRange, boolean force) throws PulsarAdminException;
+
+    /**
      * Delete an existing bundle in a namespace asynchronously.
      * <p/>
      * The bundle needs to be empty.
@@ -459,6 +516,22 @@ public interface Namespaces {
      * @return a future that can be used to track when the bundle is deleted
      */
     CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange);
+
+    /**
+     * Delete an existing bundle in a namespace asynchronously.
+     * <p/>
+     * Force flag deletes bundle forcefully.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundleRange
+     *            range of the bundle
+     * @param force
+     *            Delete bundle forcefully
+     *
+     * @return a future that can be used to track when the bundle is deleted
+     */
+    CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange, boolean force);
 
     /**
      * Get permissions on a namespace.
@@ -774,6 +847,20 @@ public interface Namespaces {
      *            TTL values for all messages for all topics in this namespace
      */
     CompletableFuture<Void> setNamespaceMessageTTLAsync(String namespace, int ttlInSeconds);
+
+    /**
+     * Remove the messages Time to Live for all the topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceMessageTTL(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the messages Time to Live for all the topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceMessageTTLAsync(String namespace);
 
     /**
      * Get the subscription expiration time for a namespace.
@@ -1730,6 +1817,15 @@ public interface Namespaces {
     void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException;
 
     /**
+     * Remove message-publish-rate (topics under this namespace can publish this many messages per second).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removePublishRate(String namespace) throws PulsarAdminException;
+
+    /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
      *
      * @param namespace
@@ -1737,6 +1833,14 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate);
+
+    /**
+     * Remove message-publish-rate asynchronously.
+     * <p/>
+     * topics under this namespace can publish this many messages per second
+     * @param namespace
+     */
+    CompletableFuture<Void> removePublishRateAsync(String namespace);
 
     /**
      * Get message-publish-rate (topics under this namespace can publish this many messages per second).
@@ -2206,6 +2310,53 @@ public interface Namespaces {
     CompletableFuture<Void> setDelayedDeliveryMessagesAsync(
             String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies);
 
+    /**
+     * Get the inactive deletion strategy for all topics within a namespace synchronously.
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String namespace) throws PulsarAdminException;
+
+    /**
+     * remove InactiveTopicPolicies from a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String namespace);
+
+    /**
+     * Remove inactive topic policies from a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeInactiveTopicPolicies(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the inactive deletion strategy for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String namespace);
+
+    /**
+     * As same as setInactiveTopicPoliciesAsync，but it is synchronous.
+     * @param namespace
+     * @param inactiveTopicPolicies
+     */
+    void setInactiveTopicPolicies(
+            String namespace, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+
+    /**
+     * You can set the inactive deletion strategy at the namespace level.
+     * Its priority is higher than the inactive deletion strategy at the broker level.
+     * All topics under this namespace will follow this strategy.
+     * @param namespace
+     * @param inactiveTopicPolicies
+     * @return
+     */
+    CompletableFuture<Void> setInactiveTopicPoliciesAsync(
+            String namespace, InactiveTopicPolicies inactiveTopicPolicies);
     /**
      * Set the given subscription auth mode on all topics on a namespace.
      *

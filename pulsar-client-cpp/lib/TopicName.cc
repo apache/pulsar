@@ -25,6 +25,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/find.hpp>
 #include <memory>
+#include <string>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -33,6 +34,9 @@
 
 DECLARE_LOG_OBJECT()
 namespace pulsar {
+
+const std::string TopicDomain::Persistent = "persistent";
+const std::string TopicDomain::NonPersistent = "non-persistent";
 
 typedef std::unique_lock<std::mutex> Lock;
 // static members
@@ -56,9 +60,10 @@ bool TopicName::init(const std::string& topicName) {
         std::vector<std::string> pathTokens;
         boost::algorithm::split(pathTokens, topicNameCopy_, boost::algorithm::is_any_of("/"));
         if (pathTokens.size() == 3) {
-            topicName_ = "persistent://" + pathTokens[0] + "/" + pathTokens[1] + "/" + pathTokens[2];
+            topicName_ =
+                TopicDomain::Persistent + "://" + pathTokens[0] + "/" + pathTokens[1] + "/" + pathTokens[2];
         } else if (pathTokens.size() == 1) {
-            topicName_ = "persistent://public/default/" + pathTokens[0];
+            topicName_ = TopicDomain::Persistent + "://public/default/" + pathTokens[0];
         } else {
             LOG_ERROR(
                 "Topic name is not valid, short topic name should be in the format of '<topic>' or "
@@ -85,6 +90,7 @@ bool TopicName::init(const std::string& topicName) {
     } else {
         namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
     }
+    partition_ = TopicName::getPartitionIndex(localName_);
     return true;
 }
 bool TopicName::parse(const std::string& topicName, std::string& domain, std::string& property,
@@ -164,8 +170,9 @@ bool TopicName::operator==(const TopicName& other) {
 }
 
 bool TopicName::validate() {
-    // check domain matches to "persistent", in future check "memory" when server is ready
-    if (domain_.compare("persistent") != 0 && domain_.compare("non-persistent") != 0) {
+    // Check if domain matches with TopicDomain::Persistent, in future check "memory" when server is
+    // ready.
+    if (domain_.compare(TopicDomain::Persistent) != 0 && domain_.compare(TopicDomain::NonPersistent) != 0) {
         return false;
     }
     // cluster_ can be empty
@@ -222,11 +229,30 @@ std::string TopicName::toString() {
     return ss.str();
 }
 
+bool TopicName::isPersistent() const { return this->domain_ == TopicDomain::Persistent; }
+
 const std::string TopicName::getTopicPartitionName(unsigned int partition) {
     std::stringstream topicPartitionName;
     // make this topic name as well
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;
     return topicPartitionName.str();
+}
+
+int TopicName::getPartitionIndex(const std::string& topic) {
+    const auto& suffix = PartitionedProducerImpl::PARTITION_NAME_SUFFIX;
+    const size_t pos = topic.rfind(suffix);
+    if (pos == std::string::npos) {
+        return -1;
+    }
+
+    try {
+        // TODO: When handling topic name like "xxx-partition-00", it should return -1.
+        // But here it will returns, which is consistent with Java client's behavior
+        // Another corner case:  "xxx-partition--2" => 2 (not -1)
+        return std::stoi(topic.substr(topic.rfind('-') + 1));
+    } catch (const std::exception&) {
+        return -1;
+    }
 }
 
 NamespaceNamePtr TopicName::getNamespaceName() { return namespaceName_; }

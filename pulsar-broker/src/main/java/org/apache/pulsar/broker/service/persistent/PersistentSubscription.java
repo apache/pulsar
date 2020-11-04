@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,8 +34,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -46,34 +47,34 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,6 +131,8 @@ public class PersistentSubscription implements Subscription {
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
+    private volatile Position lastMarkDeleteForTransactionMarker;
+    private volatile boolean isDeleteTransactionMarkerInProcess = false;
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -149,8 +152,8 @@ public class PersistentSubscription implements Subscription {
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
-        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();;
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
     }
@@ -219,28 +222,10 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
-
-                    switch (ksm.getKeySharedMode()) {
-                        case STICKY:
-                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                    new HashRangeExclusiveStickyKeyConsumerSelector());
-                            break;
-
-                        case AUTO_SPLIT:
-                        default:
-                            StickyKeyConsumerSelector selector;
-                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
-                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-                            } else {
-                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-                            }
-
-                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this, selector);
-                            break;
-                    }
+                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
+                            : KeySharedMeta.getDefaultInstance();
+                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                 }
                 break;
             default:
@@ -383,7 +368,9 @@ public class PersistentSubscription implements Subscription {
                 cursor.asyncDelete(positions, deleteCallback, positions);
             }
 
-            dispatcher.getRedeliveryTracker().removeBatch(positions);
+            if(dispatcher != null){
+                dispatcher.getRedeliveryTracker().removeBatch(positions);
+            }
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
@@ -399,9 +386,55 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
+            if ((lastMarkDeleteForTransactionMarker == null
+                    || ((PositionImpl) lastMarkDeleteForTransactionMarker)
+                    .compareTo((PositionImpl) currentMarkDeletePosition) < 0) && !isDeleteTransactionMarkerInProcess) {
+                isDeleteTransactionMarkerInProcess = true;
+                deleteTransactionMarker((PositionImpl) currentMarkDeletePosition, ackType, properties);
+            }
+        }
+
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
-            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            if(dispatcher != null){
+                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            }
+        }
+
+        // Signal the dispatchers to give chance to take extra actions
+        if(dispatcher != null){
+            dispatcher.acknowledgementWasProcessed();
+        }
+    }
+
+    private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String,Long> properties) {
+        if (position != null) {
+            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
+            managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    isDeleteTransactionMarkerInProcess = false;
+                    if (Markers.isTxnCommitMarker(messageMetadata)) {
+                        lastMarkDeleteForTransactionMarker = position;
+                        messageMetadata.recycle();
+                        acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                    }
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    isDeleteTransactionMarkerInProcess = false;
+                    if (log.isDebugEnabled()) {
+                        log.debug("Fail to read transaction marker! Position : {}", position, exception);
+                    }
+                }
+            }, null);
+        } else {
+            isDeleteTransactionMarkerInProcess = false;
         }
     }
 
@@ -427,7 +460,7 @@ public class PersistentSubscription implements Subscription {
      *  cumulative ack or try to single ack message already acked by any ongoing transaction.
      * @throws IllegalArgumentException if try to cumulative ack but passed in multiple positions.
      */
-    public synchronized void acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType) throws TransactionConflictException {
+    public synchronized CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType) {
         checkArgument(txnId != null, "TransactionID can not be null.");
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
@@ -436,14 +469,14 @@ public class PersistentSubscription implements Subscription {
                                   " try to cumulative ack message while transaction:" + this.pendingCumulativeAckTxnId +
                                   " already cumulative acked messages.";
                 log.error(errorMsg);
-                throw new TransactionConflictException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             if (positions.size() != 1) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                   " invalid cumulative ack received with multiple message ids.";
                 log.error(errorMsg);
-                throw new IllegalArgumentException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             Position position = positions.get(0);
@@ -454,7 +487,7 @@ public class PersistentSubscription implements Subscription {
                         " try to cumulative ack position: " + position + " within range of cursor's " +
                         "markDeletePosition: " + cursor.getMarkDeletedPosition();
                 log.error(errorMsg);
-                throw new TransactionConflictException(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
             }
 
             if (log.isDebugEnabled()) {
@@ -492,7 +525,7 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                       " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
-                    throw new TransactionConflictException(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
 
                 // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
@@ -500,13 +533,14 @@ public class PersistentSubscription implements Subscription {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                             " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
-                    throw new TransactionConflictException(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
 
                 pendingAckMessageForCurrentTxn.add(position);
                 this.pendingAckMessages.add(position);
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -1171,14 +1205,22 @@ public class PersistentSubscription implements Subscription {
         List<Position> positions = pendingAckMessagesMap != null ? this.pendingAckMessagesMap.remove(txnId).values() :
                                                                                              Collections.emptyList();
         // Materialize all single acks.
-        cursor.asyncDelete(positions, deleteCallback, positions);
-        if (pendingAckMessages != null) {
-            positions.forEach(position -> this.pendingAckMessages.remove(position));
+        if (positions != null) {
+            cursor.asyncDelete(positions, deleteCallback, positions);
+            if (pendingAckMessages != null) {
+                positions.forEach(position -> this.pendingAckMessages.remove(position));
+            }
+        } else {
+            deleteFuture.complete(null);
         }
 
         // Materialize cumulative ack.
-        cursor.asyncMarkDelete(this.pendingCumulativeAckMessage, (null == properties)?
-                Collections.emptyMap() : properties, markDeleteCallback, this.pendingCumulativeAckMessage);
+        if (this.pendingCumulativeAckMessage != null) {
+            cursor.asyncMarkDelete(this.pendingCumulativeAckMessage, (null == properties)?
+                    Collections.emptyMap() : properties, markDeleteCallback, this.pendingCumulativeAckMessage);
+        } else {
+            marketDeleteFuture.complete(null);
+        }
 
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
@@ -1249,6 +1291,25 @@ public class PersistentSubscription implements Subscription {
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(snapshot);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
+        TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (TxnAction.COMMIT.getNumber() == txnAction) {
+            completableFuture = commitTxn(txnID, Collections.emptyMap());
+        } else if (TxnAction.ABORT.getNumber() == txnAction) {
+            Consumer redeliverConsumer = null;
+            if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
+                        getDispatcher()).getActiveConsumer();
+            }
+            completableFuture = abortTxn(txnID, redeliverConsumer);
+        } else {
+            completableFuture.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+        }
+        return completableFuture;
     }
 
     @VisibleForTesting

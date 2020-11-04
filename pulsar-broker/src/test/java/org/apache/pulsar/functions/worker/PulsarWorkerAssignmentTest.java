@@ -287,7 +287,7 @@ public class PulsarWorkerAssignmentTest {
         final URI dlUri = functionsWorkerService.getDlogUri();
         functionsWorkerService.stop();
         functionsWorkerService = new WorkerService(workerConfig);
-        functionsWorkerService.start(dlUri, new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null);
+        functionsWorkerService.start(dlUri, new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null, ErrorNotifier.getDefaultImpl());
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
         retryStrategically((test) -> {
             try {

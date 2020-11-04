@@ -111,4 +111,8 @@ public interface Dispatcher {
     default void cursorIsReset() {
         //No-op
     }
+
+    default void acknowledgementWasProcessed() {
+        // No-op
+    }
 }

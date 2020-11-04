@@ -149,7 +149,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
                 location.append('?').append(request.getQueryString());
             }
             if (log.isDebugEnabled()) {
-                log.info("Redirecting to {}", location);
+                log.debug("Redirecting to {}", location);
             }
 
             response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);

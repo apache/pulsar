@@ -31,6 +31,9 @@
             <outputDirectory>/</outputDirectory>
             <useProjectArtifact>false</useProjectArtifact>
             <scope>runtime</scope>
+            <excludes>
+              <exclude>jakarta.ws.rs:jakarta.ws.rs-api</exclude>
+            </excludes>
         </dependencySet>
     </dependencySets>
 </assembly>

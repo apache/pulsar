@@ -44,7 +44,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import javax.ws.rs.core.Response;
@@ -53,9 +52,10 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.pulsar.client.admin.Namespaces;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -74,15 +74,11 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -136,6 +132,7 @@ public class FunctionApiV3ResourceTest {
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
+    private Functions mockedFunctions;
     private TenantInfo mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
@@ -146,6 +143,7 @@ public class FunctionApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
+    private LeaderService mockedLeaderService;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -160,20 +158,26 @@ public class FunctionApiV3ResourceTest {
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
+        this.mockedFunctions = mock(Functions.class);
+        this.mockedLeaderService = mock(LeaderService.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
+        when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
         when(mockedWorkerService.getBrokerAdmin()).thenReturn(mockedPulsarAdmin);
+        when(mockedWorkerService.getFunctionAdmin()).thenReturn(mockedPulsarAdmin);
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
+        when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedLeaderService.isLeader()).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
 
         // worker config
@@ -609,12 +613,6 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(true)
-                .setMessage("function registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
             registerDefaultFunction();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -658,11 +656,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(false)
-                .setMessage("function failed to register");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("function failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -671,7 +666,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -685,9 +680,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                new IOException("Function registeration interrupted"));
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -701,7 +695,7 @@ public class FunctionApiV3ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testUpdateFunctionMissingTenant() {
+    public void testUpdateFunctionMissingTenant() throws Exception {
         try {
             testUpdateFunctionMissingArguments(
                 null,
@@ -722,7 +716,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testUpdateFunctionMissingNamespace() {
+    public void testUpdateFunctionMissingNamespace() throws Exception {
         try {
             testUpdateFunctionMissingArguments(
                 tenant,
@@ -743,7 +737,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
-    public void testUpdateFunctionMissingFunctionName() {
+    public void testUpdateFunctionMissingFunctionName() throws Exception {
         try {
             testUpdateFunctionMissingArguments(
                 tenant,
@@ -926,7 +920,7 @@ public class FunctionApiV3ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String expectedError) {
+            String expectedError) throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -956,12 +950,9 @@ public class FunctionApiV3ResourceTest {
         }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
-        if (expectedError == null) {
-            RequestResult rr = new RequestResult()
-                    .setSuccess(true)
-                    .setMessage("function registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        if (expectedError != null) {
+            doThrow(new IllegalArgumentException(expectedError))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
         }
 
         resource.updateFunction(
@@ -1042,12 +1033,6 @@ public class FunctionApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
         updateDefaultFunction();
     }
 
@@ -1070,11 +1055,6 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
-        RequestResult rr = new RequestResult()
-                .setSuccess(true)
-                .setMessage("function registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         resource.updateFunction(
             tenant,
@@ -1101,11 +1081,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(false)
-                .setMessage("function failed to register");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("function failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultFunction();
         } catch (RestException re) {
@@ -1114,7 +1091,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -1127,9 +1104,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                new IOException("Function registeration interrupted"));
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function registeration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultFunction();
         } catch (RestException re) {
@@ -1220,25 +1196,16 @@ public class FunctionApiV3ResourceTest {
     public void testDeregisterFunctionSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("function deregistered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
-
         deregisterDefaultFunction();
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to deregister")
-    public void testDeregisterFunctionFailure() {
+    public void testDeregisterFunctionFailure() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(false)
-                .setMessage("function failed to deregister");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("function failed to deregister"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultFunction();
         } catch (RestException re) {
@@ -1248,13 +1215,12 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
-    public void testDeregisterFunctionInterrupted() {
+    public void testDeregisterFunctionInterrupted() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                    new IOException("Function deregisteration interrupted"));
-            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function deregisteration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultFunction();
         }
@@ -1520,10 +1486,6 @@ public class FunctionApiV3ResourceTest {
         String filePackageUrl = "file://" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -1553,10 +1515,6 @@ public class FunctionApiV3ResourceTest {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 
-        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -1579,10 +1537,6 @@ public class FunctionApiV3ResourceTest {
         String fileLocation = file.getAbsolutePath();
         String filePackageUrl = "file://" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
-
-        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

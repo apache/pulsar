@@ -354,6 +354,32 @@ class SchemaTest(TestCase):
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
 
+    def test_schema_version(self):
+        class Example(Record):
+            a = Integer()
+            b = Integer()
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                        'my-avro-python-schema-version-topic',
+                        schema=AvroSchema(Example))
+
+        consumer = client.subscribe('my-avro-python-schema-version-topic', 'sub-1',
+                                    schema=AvroSchema(Example))
+        
+        r = Example(a=1, b=2)
+        producer.send(r)
+
+        msg = consumer.receive()
+
+        self.assertIsNotNone(msg.schema_version())
+
+        self.assertEquals(b'\x00\x00\x00\x00\x00\x00\x00\x00', msg.schema_version().encode())
+        
+        self.assertEqual(r, msg.value())
+
+        client.close()
+
     def test_serialize_wrong_types(self):
         class Example(Record):
             a = Integer()
@@ -384,7 +410,7 @@ class SchemaTest(TestCase):
 
         r = Example()
         self.assertEqual(r.a, 5)
-        self.assertEqual(r.b, None)
+        self.assertEqual(r.b, 0)
         self.assertEqual(r.c, 'hello')
 
     ####
@@ -598,6 +624,34 @@ class SchemaTest(TestCase):
         self.assertEqual(MyEnum.C, msg.value().v)
         client.close()
 
+    def test_default_value(self):
+        class MyRecord(Record):
+            A = Integer()
+            B = String()
+            C = Boolean()
+            D = Double(default=6.4)
+
+        topic = "my-default-value-topic"
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                    topic=topic,
+                    schema=JsonSchema(MyRecord))
+
+        consumer = client.subscribe(topic, 'test', schema=JsonSchema(MyRecord))
+
+        r = MyRecord(A=5, B="text")
+        producer.send(r)
+
+        msg = consumer.receive()
+        self.assertEqual(msg.value().A, 5)
+        self.assertEqual(msg.value().B, u'text')
+        self.assertEqual(msg.value().C, False)
+        self.assertEqual(msg.value().D, 6.4)
+
+        producer.close()
+        consumer.close()
+        client.close()
 
 if __name__ == '__main__':
     main()

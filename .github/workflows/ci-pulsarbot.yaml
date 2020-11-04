@@ -22,6 +22,9 @@ on:
   issue_comment:
     types: [created]
 
+env:
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
 
   action-runner:
@@ -33,8 +36,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Execute pulsarbot command
         id:   pulsarbot
         env:

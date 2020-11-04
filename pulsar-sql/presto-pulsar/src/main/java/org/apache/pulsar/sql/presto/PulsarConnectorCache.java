@@ -40,7 +40,6 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -81,9 +80,8 @@ public class PulsarConnectorCache {
 
         this.statsProvider.start(clientConfiguration);
 
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
-        BeanUtils.copyProperties(offloadPolicies, pulsarConnectorConfig);
-        this.defaultOffloader = initManagedLedgerOffloader(offloadPolicies, pulsarConnectorConfig);
+        this.defaultOffloader = initManagedLedgerOffloader(
+                pulsarConnectorConfig.getOffloadPolices(), pulsarConnectorConfig);
     }
 
     public static PulsarConnectorCache getConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {

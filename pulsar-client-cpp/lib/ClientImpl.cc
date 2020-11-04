@@ -97,7 +97,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       requestIdGenerator_(0),
       closingError(ResultOk) {
     std::unique_ptr<LoggerFactory> loggerFactory = clientConfiguration_.impl_->takeLogger();
-    if (!logger) {
+    if (!loggerFactory) {
 #ifdef USE_LOG4CXX
         if (!clientConfiguration_.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
@@ -368,8 +368,10 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
             consumer = std::make_shared<PartitionedConsumerImpl>(shared_from_this(), consumerName, topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
-            consumer =
+            auto consumerImpl =
                 std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(), consumerName, conf);
+            consumerImpl->setPartitionIndex(topicName->getPartitionIndex());
+            consumer = consumerImpl;
         }
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,

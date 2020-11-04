@@ -38,6 +38,10 @@ function archiveUrl(version, type) {
     }
 }
 
+function pularManagerArchiveUrl(version, type) {
+    return `https://archive.apache.org/dist/pulsar/pulsar-manager/pulsar-manager-${version}/apache-pulsar-manager-${version}-${type}.tar.gz`
+}
+
 function connectorDistUrl(name, version) {
     return `https://www.apache.org/dist/pulsar/pulsar-${version}/connectors/pulsar-io-${name}-${version}.nar`
 }
@@ -74,6 +78,15 @@ class Download extends React.Component {
         srcArchiveUrl: archiveUrl(version, 'src')
       }
     });
+
+    const pulsarManagerReleaseInfo = pulsarManagerReleases.map(version => {
+      return {
+        version: version,
+        binArchiveUrl: pularManagerArchiveUrl(version, 'bin'),
+        srcArchiveUrl: pularManagerArchiveUrl(version, 'src')
+      }
+    });
+
 
     return (
       <div className="pageContainer">
@@ -310,6 +323,43 @@ class Download extends React.Component {
                     <a href={`${pulsarManagerLatestSrcArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
+                </tbody>
+              </table>
+              <h2 id="pulsar-manager-archive"><translate>Pulsar Manager older releases</translate></h2>
+              <table className="versions">
+                <thead>
+                  <tr>
+                    <th><translate>Release</translate></th>
+                    <th><translate>Binary</translate></th>
+                    <th><translate>Source</translate></th>
+                    <th><translate>Release notes</translate></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pulsarManagerReleaseInfo.map(
+                    info => {
+                          var sha = "sha512"
+                          return info.version !== latestPulsarManagerVersion && (
+                              <tr key={info.version}>
+                          <th>{info.version}</th>
+                          <td>
+                          <a href={info.binArchiveUrl}>apache-pulsar-manager-{info.version}-bin.tar.gz</a> &nbsp;
+                            (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
+                            <a href={`${info.binArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                            </td>
+                            <td>
+                            <a href={info.srcArchiveUrl}>apache-pulsar-manager-{info.version}-src.tar.gz</a>
+                                &nbsp;
+                            (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>,&nbsp;
+                            <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                            </td>
+                            <td>
+                            <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}><translate>Release Notes</translate></a>
+                            </td>
+                            </tr>
+                        )
+                      }
+                  )}
                 </tbody>
               </table>
           </div>

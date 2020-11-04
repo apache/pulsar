@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -44,27 +44,19 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <!-- bouncy-castle-bc-shaded that contains in pulsar-client-original already contains this-->
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcpkix-jdk15on</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcprov-jdk15on</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcprov-ext-jdk15on</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
     <dependency>
@@ -142,6 +134,11 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_jetty</artifactId>
     </dependency>
 
     <!-- functions related dependencies (end) -->

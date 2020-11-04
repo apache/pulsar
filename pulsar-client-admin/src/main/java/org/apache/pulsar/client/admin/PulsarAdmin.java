@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Client;
@@ -47,13 +48,14 @@ import org.apache.pulsar.client.admin.internal.SourcesImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.WorkerImpl;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.asynchttpclient.AsyncHttpClient;
+import org.apache.pulsar.common.net.ServiceURI;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -86,7 +88,7 @@ public class PulsarAdmin implements Closeable {
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
     private final Client client;
-    private final AsyncHttpClient httpAsyncClient;
+    private final AsyncHttpConnector asyncHttpConnector;
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
@@ -132,7 +134,7 @@ public class PulsarAdmin implements Closeable {
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
                 DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS,
-                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS, null);
 
     }
 
@@ -143,7 +145,8 @@ public class PulsarAdmin implements Closeable {
                        int readTimeout,
                        TimeUnit readTimeoutUnit,
                        int requestTimeout,
-                       TimeUnit requestTimeoutUnit) throws PulsarClientException {
+                       TimeUnit requestTimeoutUnit,
+                       ClassLoader clientBuilderClassLoader) throws PulsarClientException {
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
         this.readTimeout = readTimeout;
@@ -171,6 +174,12 @@ public class PulsarAdmin implements Closeable {
         httpConfig.register(MultiPartFeature.class);
         httpConfig.connectorProvider(asyncConnectorProvider);
 
+        ClassLoader originalCtxLoader = null;
+        if (clientBuilderClassLoader != null) {
+            originalCtxLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(clientBuilderClassLoader);
+        }
+
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
                 .connectTimeout(this.connectTimeout, this.connectTimeoutUnit)
@@ -182,12 +191,16 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        root = client.target(serviceUrl);
+        ServiceURI serviceUri = ServiceURI.create(serviceUrl);
+        root = client.target(String.format("%s://%s"
+                , serviceUri.getServiceScheme()
+                , serviceUri.getServiceHosts()[ThreadLocalRandom.current()
+                        .nextInt(serviceUri.getServiceHosts().length)]));
 
-        this.httpAsyncClient = asyncConnectorProvider.getConnector(
+        this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
                 Math.toIntExact(readTimeoutUnit.toMillis(this.readTimeout)),
-                Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout))).getHttpClient();
+                Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout)));
 
         long readTimeoutMs = readTimeoutUnit.toMillis(this.readTimeout);
         this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
@@ -200,13 +213,17 @@ public class PulsarAdmin implements Closeable {
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs);
-        this.functions = new FunctionsImpl(root, auth, httpAsyncClient, readTimeoutMs);
-        this.sources = new SourcesImpl(root, auth, httpAsyncClient, readTimeoutMs);
-        this.sinks = new SinksImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
+        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
+        this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
+        this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
+
+        if (originalCtxLoader != null) {
+            Thread.currentThread().setContextClassLoader(originalCtxLoader);
+        }
     }
 
     /**
@@ -433,10 +450,6 @@ public class PulsarAdmin implements Closeable {
         }
         client.close();
 
-        try {
-            httpAsyncClient.close();
-        } catch (IOException e) {
-           LOG.error("Failed to close http async client", e);
-        }
+        asyncHttpConnector.close();
     }
 }

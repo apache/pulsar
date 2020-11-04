@@ -34,28 +34,35 @@ public class LookupResult {
 
     private final Type type;
     private final LookupData lookupData;
+    private final boolean authoritativeRedirect;
 
     public LookupResult(NamespaceEphemeralData namespaceEphemeralData) {
         this.type = Type.BrokerUrl;
+        this.authoritativeRedirect = false;
         this.lookupData = new LookupData(namespaceEphemeralData.getNativeUrl(),
                 namespaceEphemeralData.getNativeUrlTls(), namespaceEphemeralData.getHttpUrl(),
                 namespaceEphemeralData.getHttpUrlTls());
     }
 
-    public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
+    public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+            boolean authoritativeRedirect) {
         this.type = Type.RedirectUrl; // type = redirect => as current broker is
                                       // not owner and prepares LookupResult
                                       // with other broker's urls
+        this.authoritativeRedirect = authoritativeRedirect;
         this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);
     }
 
-    public LookupResult(String httpUrl, String httpUrlTls, String nativeUrl, String nativeUrlTls, Type type) {
+    public LookupResult(String httpUrl, String httpUrlTls, String nativeUrl, String nativeUrlTls, Type type,
+            boolean authoritativeRedirect) {
         this.type = type;
+        this.authoritativeRedirect = authoritativeRedirect;
         this.lookupData = new LookupData(nativeUrl, nativeUrlTls, httpUrl, httpUrlTls);
     }
 
     public LookupResult(NamespaceEphemeralData namespaceEphemeralData, String nativeUrl, String nativeUrlTls) {
         this.type = Type.BrokerUrl;
+        this.authoritativeRedirect = false;
         this.lookupData = new LookupData(nativeUrl, nativeUrlTls, namespaceEphemeralData.getHttpUrl(),
                 namespaceEphemeralData.getHttpUrlTls());
     }
@@ -66,6 +73,10 @@ public class LookupResult {
 
     public boolean isRedirect() {
         return type == Type.RedirectUrl;
+    }
+
+    public boolean isAuthoritativeRedirect() {
+        return authoritativeRedirect;
     }
 
     public LookupData getLookupData() {

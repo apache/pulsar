@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.ColumnMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.prestosql.spi.connector.ColumnMetadata;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;

@@ -59,7 +59,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
-    private volatile double[] latencyPctValues;
+    private volatile double[] latencyPctValues = new double[PERCENTILES.length];
 
     private static final double[] PERCENTILES = { 0.5, 0.75, 0.95, 0.99, 0.999, 1.0 };
 
@@ -148,9 +148,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                             producer.getProducerName(), producer.getPendingQueueSize(),
                             THROUGHPUT_FORMAT.format(sendMsgsRate),
                             THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
-                            DEC.format(latencyPctValues[0] / 1000.0), DEC.format(latencyPctValues[2] / 1000.0),
-                            DEC.format(latencyPctValues[3] / 1000.0), DEC.format(latencyPctValues[4] / 1000.0),
-                            DEC.format(latencyPctValues[5] / 1000.0),
+                            DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
+                            DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
+                            DEC.format(latencyPctValues[5]),
                             THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
                 }
 

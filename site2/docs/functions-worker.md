@@ -5,7 +5,7 @@ sidebar_label: "Setup: Pulsar Functions Worker"
 ---
 Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
-Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either of the two options based on your requirements. 
+Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either based on your requirements. 
 - [run with brokers](#run-functions-worker-with-brokers)
 - [run it separately](#run-functions-worker-separately) in a different broker
 
@@ -24,16 +24,16 @@ To enable functions-worker running as part of a broker, you need to set `functio
 functionsWorkerEnabled=true
 ```
 
-When you set `functionsWorkerEnabled` to `true`, it means that you start functions-worker as part of a broker. You need to configure the `conf/functions_worker.yml` file to customize your functions_worker.
+If the `functionsWorkerEnabled` is set to `true`, the functions-worker is started as part of a broker. You need to configure the `conf/functions_worker.yml` file to customize your functions_worker.
 
 Before you run Functions-worker with broker, you have to configure Functions-worker, and then start it with brokers.
 
 ### Configure Functions-Worker to run with brokers
-In this mode, since `functions-worker` is running as part of broker, most of the settings already inherit from your broker configuration (for example, configurationStore settings, authentication settings, and so on).
+In this mode, most of the settings are already inherited from your broker configuration (for example, configurationStore settings, authentication settings, and so on) since `functions-worker` is running as part of the broker.
 
 Pay attention to the following required settings when configuring functions-worker in this mode.
 
-- `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be more than `2` .
+- `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
@@ -52,7 +52,7 @@ And then you can use the following command to verify if `functions-worker` is ru
 curl <broker-ip>:8080/admin/v2/worker/cluster
 ```
 
-After entering the command above, a list of active function workers in the cluster is returned. The output is something similar as follows.
+After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.
 
 ```json
 [{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
@@ -65,7 +65,7 @@ This section illustrates how to run `functions-worker` as a separate process in 
 ![assets/functions-worker-separated.png](assets/functions-worker-separated.png)
 
 > Note    
-In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake.
+> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake.
 
 ### Configure Functions-worker to run separately
 
@@ -73,7 +73,7 @@ To run function-worker separately, you have to configure the following parameter
 
 #### Worker parameters
 
-- `workerId`: The type is string. It is unique across clusters, used to identify a worker machine.
+- `workerId`: The type is string. It is unique across clusters, which is used to identify a worker machine.
 - `workerHostname`: The hostname of the worker machine.
 - `workerPort`: The port that the worker server listens on. Keep it as default if you don't customize it.
 - `workerPortTls`: The TLS port that the worker server listens on. Keep it as default if you don't customize it.
@@ -105,23 +105,42 @@ If you want to enable security on functions workers, you *should*:
 To enable TLS transport encryption, configure the following settings.
 
 ```
+useTLS: true
+pulsarServiceUrl: pulsar+ssl://localhost:6651/
+pulsarWebServiceUrl: https://localhost:8443
+
 tlsEnabled: true
 tlsCertificateFilePath: /path/to/functions-worker.cert.pem
 tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
 tlsTrustCertsFilePath:  /path/to/ca.cert.pem
+
+// The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 ```
 
 For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
 
 ##### Enable Authentication Provider
 
-To enable authentication on Functions Worker, configure the following settings.
+To enable authentication on Functions Worker, you need to configure the following settings.
+
 > Note  
-Substitute the *providers list* with the providers you want to enable.
+> Substitute the *providers list* with the providers you want to enable.
 
 ```
 authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
+```
+
+For *TLS Authentication* provider, follow the example below to add the necessary settings.
+See [TLS Authentication](security-tls-authentication.md) for more details.
+
+```
+brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
+
+authenticationEnabled: true
+authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
 ```
 
 For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
@@ -133,7 +152,7 @@ properties:
   saslJaasBrokerSectionName: Broker
 ```
 
-For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
+For *Token Authentication* provider, add necessary settings for `properties` if needed.
 See [Token Authentication](security-jwt.md) for more details.
 ```
 properties:
@@ -144,10 +163,11 @@ properties:
 
 ##### Enable Authorization Provider
 
-To enable authorization on Functions Worker, you need to configure `authorizationEnabled` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
+To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
 
 ```yaml
 authorizationEnabled: true
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 configurationStoreServers: <configuration-store-servers>
 ```
 
@@ -162,7 +182,7 @@ superUserRoles:
 
 #### BookKeeper Authentication
 
-If authentication is enabled on the BookKeeper cluster, you should configure the BookKeeper authentication settings as follows:
+If authentication is enabled on the BookKeeper cluster, you need configure the BookKeeper authentication settings as follows:
 
 - `bookkeeperClientAuthenticationPlugin`: the plugin name of BookKeeper client authentication.
 - `bookkeeperClientAuthenticationParametersName`: the plugin parameters name of BookKeeper client authentication.

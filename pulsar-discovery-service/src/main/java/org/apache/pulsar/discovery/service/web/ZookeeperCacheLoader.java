@@ -22,10 +22,14 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
@@ -34,6 +38,8 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
+import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,17 +72,34 @@ public class ZookeeperCacheLoader implements Closeable {
             int zookeeperSessionTimeoutMs) throws Exception {
         localZkConnectionSvc = new LocalZooKeeperConnectionService(zkClientFactory, zookeeperServers,
                 zookeeperSessionTimeoutMs);
-        localZkConnectionSvc.start(exitCode -> {
-            log.error("Shutting down ZK sessions: {}", exitCode);
+        localZkConnectionSvc.start(new ZookeeperSessionExpiredHandler() {
+            @Override
+            public void onSessionExpired() {
+                log.error("Shutting down ZK sessions: {}", -1);
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
+            }
         });
 
-        this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(),
-                (int) TimeUnit.MILLISECONDS.toSeconds(zookeeperSessionTimeoutMs), this.orderedExecutor);
-        localZkConnectionSvc.start(exitCode -> {
-            try {
-                localZkCache.getZooKeeper().close();
-            } catch (InterruptedException e) {
-                log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
+        int zkOperationTimeoutSeconds = (int) TimeUnit.MILLISECONDS.toSeconds(zookeeperSessionTimeoutMs);
+        this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), zkOperationTimeoutSeconds,
+                this.orderedExecutor);
+        localZkConnectionSvc.start(new ZookeeperSessionExpiredHandler() {
+            @Override
+            public void onSessionExpired() {
+                try {
+                    localZkCache.getZooKeeper().close();
+                } catch (InterruptedException e) {
+                    log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
+                }
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
             }
         });
 
@@ -89,18 +112,26 @@ public class ZookeeperCacheLoader implements Closeable {
 
         this.availableBrokersCache = new ZooKeeperChildrenCache(getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
         this.availableBrokersCache.registerListener((path, brokerNodes, stat) -> {
-            try {
-                updateBrokerList(brokerNodes);
-            } catch (Exception e) {
-                log.warn("Error updating broker info after broker list changed.", e);
-            }
+            updateBrokerList(brokerNodes).thenRun(() -> {
+                log.info("Successfully updated broker info {}", brokerNodes);
+            }).exceptionally(ex -> {
+                log.warn("Error updating broker info after broker list changed", ex);
+                return null;
+            });
         });
 
         // Do initial fetch of brokers list
-        updateBrokerList(availableBrokersCache.get());
+        updateBrokerList(availableBrokersCache.get()).get(zkOperationTimeoutSeconds, TimeUnit.SECONDS);
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
+        if (CollectionUtils.isEmpty(availableBrokers)) {
+            try {
+                updateBrokerList(availableBrokersCache.get());
+            } catch (Exception e) {
+                log.warn("Error updating broker from zookeeper.", e);
+            }
+        }
         return availableBrokers;
     }
 
@@ -115,13 +146,43 @@ public class ZookeeperCacheLoader implements Closeable {
         orderedExecutor.shutdown();
     }
 
-    private void updateBrokerList(Set<String> brokerNodes) throws Exception {
-        List<LoadManagerReport> availableBrokers = new ArrayList<>(brokerNodes.size());
-        for (String broker : brokerNodes) {
-            availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker).get());
+    private CompletableFuture<Void> updateBrokerList(Set<String> brokerNodes) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        if (brokerNodes.isEmpty()) {
+            availableBrokers = new ArrayList<>();
+            future.complete(null);
+            return future;
         }
 
-        this.availableBrokers = availableBrokers;
+        List<CompletableFuture<Optional<LoadManagerReport>>> loadReportFutureList = new ArrayList<>();
+        for (String broker : brokerNodes) {
+            loadReportFutureList.add(brokerInfo.getAsync(LOADBALANCE_BROKERS_ROOT + '/' + broker));
+        }
+
+        FutureUtil.waitForAll(loadReportFutureList).thenRun(() -> {
+            List<LoadManagerReport> newAvailableBrokers = new ArrayList<>(brokerNodes.size());
+
+            for (CompletableFuture<Optional<LoadManagerReport>> loadReportFuture : loadReportFutureList) {
+                try {
+                    Optional<LoadManagerReport> loadReport = loadReportFuture.get();
+                    if (loadReport.isPresent()) {
+                        newAvailableBrokers.add(loadReport.get());
+                    }
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+            }
+
+            availableBrokers = newAvailableBrokers;
+            future.complete(null);
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
+        });
+
+        return future;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ZookeeperCacheLoader.class);

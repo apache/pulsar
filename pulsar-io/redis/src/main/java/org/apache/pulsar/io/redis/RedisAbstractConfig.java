@@ -105,7 +105,7 @@ public class RedisAbstractConfig implements Serializable {
     }
 
     public List<HostAndPort> getHostAndPorts() {
-        List<HostAndPort> hostAndPorts = Lists.newArrayList();;
+        List<HostAndPort> hostAndPorts = Lists.newArrayList();
         Preconditions.checkNotNull(redisHosts, "redisHosts property not set.");
         String[] hosts = StringUtils.split(redisHosts, ",");
         for (String host : hosts) {
