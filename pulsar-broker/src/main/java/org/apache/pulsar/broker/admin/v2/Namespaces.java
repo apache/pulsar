@@ -1323,11 +1323,31 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid") })
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Offload policies for the specified namespace", required = true) OffloadPolicies offload,
-            @Suspended final AsyncResponse asyncResponse) {
+                                   @ApiParam(value = "Offload policies for the specified namespace", required = true) OffloadPolicies offload,
+                                   @Suspended final AsyncResponse asyncResponse) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSetOffloadPolicies(asyncResponse, offload);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/unsetOffloadPolicies")
+    @ApiOperation(value = " Set offload configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid")})
+    public void unsetOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                     @Suspended final AsyncResponse asyncResponse) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalUnsetOffloadPolicies(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1340,9 +1360,9 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace does not exist") })
+            @ApiResponse(code = 404, message = "Namespace does not exist")})
     public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
-                                        @PathParam("namespace") String namespace) {
+                                              @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetOffloadPolicies();
     }
