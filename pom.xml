@@ -112,7 +112,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
-    <log4j2.version>2.10.0</log4j2.version>
+    <log4j2.version>2.13.3</log4j2.version>
     <bouncycastle.version>1.66</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.11.1</jackson.version>
@@ -187,10 +187,10 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.14.3</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>6.14.3</testng.version>
-    <mockito.version>2.28.2</mockito.version>
-    <powermock.version>2.0.2</powermock.version>
-    <javassist.version>3.25.0-GA</javassist.version>
+    <testng.version>7.3.0</testng.version>
+    <mockito.version>3.0.0</mockito.version>
+    <powermock.version>2.0.9</powermock.version>
+    <javassist.version>3.27.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
     <license-maven-plugin.version>3.0</license-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
-    <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
     <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
     <maven-clean-plugin.version>2.4.1</maven-clean-plugin.version>
