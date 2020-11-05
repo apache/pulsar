@@ -3022,7 +3022,7 @@ public abstract class NamespacesBase extends AdminResource {
                             asyncResponse.resume(Response.noContent().build());
                         } else {
                             String errorMsg = String.format(
-                                    "[%s] Failed to update offload configuration for namespace %s",
+                                    "[%s] Failed to remove offload configuration for namespace %s",
                                     clientAppId(), namespaceName);
                             if (rc == KeeperException.Code.NONODE.intValue()) {
                                 log.warn("{} : does not exist", errorMsg);
