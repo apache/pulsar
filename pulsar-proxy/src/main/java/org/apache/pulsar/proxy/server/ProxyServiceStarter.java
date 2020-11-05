@@ -78,6 +78,7 @@ public class ProxyServiceStarter {
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
+
             // setup handlers
             removeHandlersForRootLogger();
             install();
@@ -169,6 +170,7 @@ public class ProxyServiceStarter {
 
             // start web-service
             server.start();
+
         } catch (Exception e) {
             log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
             throw new PulsarServerException(e);
