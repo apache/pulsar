@@ -2666,7 +2666,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> removeOffloadPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "removeOffloadPolicies");
-        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        return asyncDeleteRequest(path);
     }
 
     @Override
