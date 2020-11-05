@@ -169,7 +169,7 @@ class AdminProxyHandler extends ProxyServlet {
         private final ByteArrayOutputStream bodyBuffer;
         protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, InputStream input) {
             super(request, response, proxyRequest, input);
-            bodyBuffer = new ByteArrayOutputStream(request.getContentLength());
+            bodyBuffer = new ByteArrayOutputStream(Math.max(request.getContentLength(), 0));
         }
 
         @Override
