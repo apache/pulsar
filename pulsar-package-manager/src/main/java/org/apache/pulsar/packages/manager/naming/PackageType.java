@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.packages.manager.naming;
 
+/**
+ * We have three type in the Pulsar, function, sink, and source.
+ */
 public enum PackageType {
     FUNCTION("function"), SINK("sink"), SOURCE("source");
 

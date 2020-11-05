@@ -20,7 +20,10 @@ package org.apache.pulsar.packages.manager;
 
 import lombok.Builder;
 import lombok.Data;
+import org.apache.commons.lang.SerializationUtils;
+import org.apache.pulsar.packages.manager.exceptions.PackageManagerException;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -28,10 +31,19 @@ import java.util.Map;
  */
 @Data
 @Builder
-public class PackageMetadata {
+public class PackageMetadata implements Serializable {
     String description;
     String contact;
     long createTime;
     long modificationTime;
     Map<String, String> properties;
+
+    public byte[] toByteArray() throws PackageManagerException.MetadataSerializationException {
+        return SerializationUtils.serialize(this);
+    }
+
+    public static PackageMetadata fromByteArray(byte[] data) throws PackageManagerException.MetadataSerializationException {
+        return (PackageMetadata) SerializationUtils.deserialize(data);
+    }
+
 }

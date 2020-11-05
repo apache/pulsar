@@ -28,16 +28,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Package provides a way to manage the packages of function, sink, source.
+ * PackageManager provides a way to manage the packages of function, sink, source.
  */
-public interface Package {
+public interface PackageManager {
     /**
      * Get the metadata of a package.
      *
      * @param packageName package name
      * @return
      */
-    CompletableFuture<PackageMetadata> getMeta(PackageName packageName);
+    CompletableFuture<PackageMetadata> getMetadata(PackageName packageName);
 
     /**
      * Update the metadata of a package.
@@ -85,7 +85,7 @@ public interface Package {
      * @param packageName package name without version
      * @return
      */
-    CompletableFuture<List<PackageName>> list(PackageName packageName);
+    CompletableFuture<List<PackageName>> listVersions(PackageName packageName);
 
     /**
      * List all the packages with the type of a namespace.
@@ -94,5 +94,5 @@ public interface Package {
      * @param namespace the namespace name
      * @return
      */
-    CompletableFuture<List<PackageName>> list(PackageType type, NamespaceName namespace);
+    CompletableFuture<List<PackageName>> listPackages(PackageType type, NamespaceName namespace);
 }

@@ -23,9 +23,6 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
-  <modules>
-    <module>pulsar-package-manager</module>
-  </modules>
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
@@ -1624,6 +1621,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
+
+        <!-- package manager related modules -->
+        <module>pulsar-package-manager</module>
       </modules>
     </profile>
 

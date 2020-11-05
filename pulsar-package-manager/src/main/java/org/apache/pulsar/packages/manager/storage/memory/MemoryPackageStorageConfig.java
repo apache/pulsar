@@ -16,18 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.packages.manager.storage.exception;
+package org.apache.pulsar.packages.manager.storage.memory;
 
-public class StorageException extends Exception {
-    public StorageException(String message) {
-        super(message);
-    }
+import lombok.Builder;
+import org.apache.pulsar.packages.manager.PackageStorageConfig;
 
-    public StorageException(String message, Throwable throwable) {
-        super(message, throwable);
-    }
-
-    public StorageException(Throwable throwable) {
-        super(throwable);
-    }
+@Builder
+public class MemoryPackageStorageConfig implements PackageStorageConfig {
+    int dataMaxSize;
 }

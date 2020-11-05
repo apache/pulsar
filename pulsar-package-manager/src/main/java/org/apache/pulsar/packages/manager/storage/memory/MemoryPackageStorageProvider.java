@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.packages.manager.storage.file;
+package org.apache.pulsar.packages.manager.storage.memory;
 
 import org.apache.pulsar.packages.manager.PackageStorage;
 import org.apache.pulsar.packages.manager.PackageStorageConfig;
@@ -24,9 +24,9 @@ import org.apache.pulsar.packages.manager.PackageStorageProvider;
 
 import java.util.concurrent.CompletableFuture;
 
-public class FilePackageStorageProvider implements PackageStorageProvider {
+public class MemoryPackageStorageProvider implements PackageStorageProvider {
     @Override
     public CompletableFuture<PackageStorage> getStorage(PackageStorageConfig config) {
-        return CompletableFuture.completedFuture(new FilePackageStorage());
+        return CompletableFuture.completedFuture(new MemoryPackageStorage(config));
     }
 }
