@@ -82,7 +82,7 @@ public class OffloadIndexTest {
 //        }
 //    }
 
-    private LedgerMetadata createLedgerMetadata() throws Exception {
+    private LedgerMetadata createLedgerMetadata(long id) throws Exception {
 
         Map<String, byte[]> metadataCustom = Maps.newHashMap();
         metadataCustom.put("key1", "value1".getBytes(UTF_8));
@@ -96,7 +96,7 @@ public class OffloadIndexTest {
         return LedgerMetadataBuilder.create().withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
                 .withDigestType(DigestType.CRC32C).withPassword("password".getBytes(UTF_8))
                 .withCustomMetadata(metadataCustom).withClosedState().withLastEntryId(5000).withLength(100)
-                .newEnsembleEntry(0L, bookies).build();
+                .newEnsembleEntry(0L, bookies).withId(id).build();
 
     }
 
@@ -105,7 +105,7 @@ public class OffloadIndexTest {
     @Test
     public void offloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockBuilder blockBuilder = OffloadIndexBlockBuilder.create();
-        LedgerMetadata metadata = createLedgerMetadata();
+        LedgerMetadata metadata = createLedgerMetadata(1); // use dummy ledgerId, from BK 4.12 the ledger is is required
         log.debug("created metadata: {}", metadata.toString());
 
         blockBuilder.withLedgerMetadata(metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);

@@ -66,7 +66,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(digest, passwd), new LongVersion(0L)),
+        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
@@ -254,7 +254,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(DigestType digest, byte[] passwd) {
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
         List<BookieId> ensemble = Lists.newArrayList(
                 new BookieSocketAddress("192.0.2.1", 1234).toBookieId(),
                 new BookieSocketAddress("192.0.2.2", 1234).toBookieId(),
@@ -262,6 +262,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
+            .withId(id)
             .newEnsembleEntry(0L, ensemble)
             .build();
     }

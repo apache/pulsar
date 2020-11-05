@@ -130,12 +130,13 @@ public final class OffloadUtils {
         return builder.build().toByteArray();
     }
 
-    public static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
+    public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
         DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
                 .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
                 .withClosedState()
+                .withId(id)
                 .withMetadataFormatVersion(2)
                 .withLength(ledgerMetadataFormat.getLength())
                 .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
