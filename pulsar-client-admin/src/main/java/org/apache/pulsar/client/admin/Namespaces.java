@@ -3264,7 +3264,7 @@ public interface Namespaces {
     void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
 
     /**
-     * Remove the offload configuration for all the topics in a namespace.
+     * Remove the offload configuration for a namespace.
      * <p/>
      * Remove the offload configuration in a namespace. This operation requires pulsar tenant access.
      * <p/>
@@ -3305,7 +3305,7 @@ public interface Namespaces {
     CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies);
 
     /**
-     * Remove the offload configuration for all the topics in a namespace asynchronously.
+     * Remove the offload configuration for a namespace asynchronously.
      * <p/>
      * Remove the offload configuration in a namespace. This operation requires pulsar tenant access.
      * <p/>
