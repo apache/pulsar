@@ -2040,7 +2040,10 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                    return;
+                }
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 if (batchIndex >= 0) {
                     try {
@@ -2139,11 +2142,7 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (Exception e) {
                 log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), topicName,
                         subName, messageId, e);
-                if (e instanceof NullPointerException) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                } else {
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }
     }
