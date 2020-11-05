@@ -70,7 +70,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 
-import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
