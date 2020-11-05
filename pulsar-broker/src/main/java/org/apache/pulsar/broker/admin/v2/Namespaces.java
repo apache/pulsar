@@ -1334,7 +1334,7 @@ public class Namespaces extends NamespacesBase {
         }
     }
 
-    @POST
+    @DELETE
     @Path("/{tenant}/{namespace}/removeOffloadPolicies")
     @ApiOperation(value = " Set offload configuration on a namespace.")
     @ApiResponses(value = {
