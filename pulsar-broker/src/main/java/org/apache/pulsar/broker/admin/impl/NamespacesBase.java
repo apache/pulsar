@@ -3012,13 +3012,12 @@ public abstract class NamespacesBase extends AdminResource {
             Policies policies = jsonMapper().readValue(content, Policies.class);
 
             policies.offload_policies = null;
-            String updatedOffloadPolicies = jsonMapper().writeValueAsString(policies.offload_policies);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion(),
                     (rc, path1, ctx, stat) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
-                                    namespaceName, updatedOffloadPolicies);
+                            log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(),
+                                    namespaceName);
                             asyncResponse.resume(Response.noContent().build());
                         } else {
                             String errorMsg = String.format(
