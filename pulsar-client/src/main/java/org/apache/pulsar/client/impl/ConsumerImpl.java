@@ -1745,8 +1745,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return messagesNumber;
     }
 
-
-
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
         if (messageIds.isEmpty()) {

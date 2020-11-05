@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+package org.apache.bookkeeper.mledger.util;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -31,7 +31,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-public class PendingAckBitSetMethodTest {
+public class PositionAckSetUtilTest {
 
     @Test
     public void isAckSetRepeatedTest() {
