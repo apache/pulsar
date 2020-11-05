@@ -3036,7 +3036,7 @@ public abstract class NamespacesBase extends AdminResource {
                         }
                     }, null);
         } catch (Exception e) {
-            log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
+            log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName,
                     e);
             asyncResponse.resume(new RestException(e));
         }
