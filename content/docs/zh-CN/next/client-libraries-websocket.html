@@ -201,7 +201,8 @@
   <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
   <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
   <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
-  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
 }
 </code></pre>
 <table>
@@ -212,6 +213,7 @@
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">消息 ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的负载</td></tr>
 <tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">是</td><td style="text-align:left">Number of times this message was already delivered</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Producer 设置的原始路由密钥</td></tr>
 </tbody>
@@ -271,7 +273,8 @@
   <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
   <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
   <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
-  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
 }
 </code></pre>
 <table>
@@ -282,6 +285,7 @@
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">消息 ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的负载</td></tr>
 <tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">是</td><td style="text-align:left">Number of times this message was already delivered</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Producer 设置的原始路由密钥</td></tr>
 </tbody>

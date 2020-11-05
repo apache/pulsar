@@ -202,7 +202,8 @@ even if the client doesn't consume on the WebSocket.</p>
   <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
   <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
   <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
-  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
 }
 </code></pre>
 <table>
@@ -213,6 +214,7 @@ even if the client doesn't consume on the WebSocket.</p>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 encoded payload</td></tr>
 <tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Publish timestamp</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">yes</td><td style="text-align:left">Number of times this message was already delivered</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value pairs</td><td style="text-align:left">no</td><td style="text-align:left">Application-defined properties</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">Original routing key set by producer</td></tr>
 </tbody>
@@ -277,7 +279,8 @@ Pulsar WebSocket service to send more messages.</p>
   <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
   <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
   <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
-  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
 }
 </code></pre>
 <table>
@@ -288,6 +291,7 @@ Pulsar WebSocket service to send more messages.</p>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 encoded payload</td></tr>
 <tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Publish timestamp</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">yes</td><td style="text-align:left">Number of times this message was already delivered</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value pairs</td><td style="text-align:left">no</td><td style="text-align:left">Application-defined properties</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">Original routing key set by producer</td></tr>
 </tbody>
