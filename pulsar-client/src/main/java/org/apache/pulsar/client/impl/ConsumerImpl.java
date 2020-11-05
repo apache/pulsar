@@ -2394,10 +2394,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             entryId = batchMessageId.getEntryId();
             if (ackType == AckType.Cumulative) {
                 batchMessageId.ackCumulative();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
         } else {

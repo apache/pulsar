@@ -255,7 +255,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
             Transaction txn = getTxn();
 
-            int messageCnt = 10;
+            int messageCnt = 1000;
             // produce normal messages
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
@@ -265,7 +265,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++) {
                 Message<byte[]> message = consumer.receive();
                 Assert.assertNotNull(message);
-                log.info("receive msgId: {}", message.getMessageId());
+                log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
             Thread.sleep(2000L);
@@ -283,7 +283,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                log.info("receive msgId: {}", message.getMessageId());
+                log.info("receive msgId: {}, count: {}", message.getMessageId(), i);
             }
 
             // 2) ack committed by a new txn

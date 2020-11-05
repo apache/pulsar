@@ -65,12 +65,31 @@ public class PositionAckSetUtil {
                 otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
                 .result();
         if (result == 0) {
-            if (otherPosition.getAckSet() == null && currentPosition.getAckSet() == null) {
+            if (otherPosition.getAckSet() == null) {
                 return result;
             }
-            BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
+
+            BitSetRecyclable otherAckSet;
+            if (currentPosition.getAckSet() == null) {
+                if (otherPosition.getAckSet() != null) {
+                    otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
+                    if (otherAckSet.isEmpty()) {
+                        otherAckSet.recycle();
+                        return result;
+                    } else {
+                        otherAckSet.recycle();
+                        return 1;
+                    }
+
+                }
+                return result;
+            }
+            otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
             BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-            return thisAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0);
+            result = thisAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0);
+            otherAckSet.recycle();
+            thisAckSet.recycle();
+            return result;
         }
         return result;
     }

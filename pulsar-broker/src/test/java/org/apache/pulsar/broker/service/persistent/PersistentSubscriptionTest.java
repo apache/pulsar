@@ -53,6 +53,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -183,29 +184,30 @@ public class PersistentSubscriptionTest {
             return null;
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
-        List<Position> positions = new ArrayList<>();
-        positions.add(new PositionImpl(1, 1));
-        positions.add(new PositionImpl(1, 3));
-        positions.add(new PositionImpl(1, 5));
+        List<MutablePair<PositionImpl, Long>> positionsPair = new ArrayList<>();
+        positionsPair.add(new MutablePair(new PositionImpl(1, 1), 0));
+        positionsPair.add(new MutablePair(new PositionImpl(1, 3), 0));
+        positionsPair.add(new MutablePair(new PositionImpl(1, 5), 0));
 
         doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(), positions.toArray()));
+            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(),
+                    positionsPair.toArray()));
             ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
                     .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
         // Single ack for txn
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
+        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
 
         // Commit txn
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE).get();
 
-        positions.clear();
+        List<PositionImpl> positions = new ArrayList<>();
         positions.add(new PositionImpl(3, 100));
 
         // Cumulative ack for txn
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
+        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
 
         doAnswer((invocationOnMock) -> {
             assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
@@ -220,10 +222,10 @@ public class PersistentSubscriptionTest {
 
     @Test
     public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
-        List<Position> positions = new ArrayList<>();
-        positions.add(new PositionImpl(2, 1));
-        positions.add(new PositionImpl(2, 3));
-        positions.add(new PositionImpl(2, 5));
+        List<MutablePair<PositionImpl, Long>> positionsPair = new ArrayList<>();
+        positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
+        positionsPair.add(new MutablePair(new PositionImpl(2, 3), 0));
+        positionsPair.add(new MutablePair(new PositionImpl(2, 5), 0));
 
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
@@ -236,20 +238,20 @@ public class PersistentSubscriptionTest {
         persistentSubscription.addConsumer(consumerMock);
 
         // Single ack for txn1
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
+        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
 
-        positions.clear();
+        List<PositionImpl> positions = new ArrayList<>();
         positions.add(new PositionImpl(1, 100));
 
         // Cumulative ack for txn1
-        persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
+        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
 
         positions.clear();
         positions.add(new PositionImpl(2, 1));
 
         // Can not single ack message already acked.
         try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).get();
+            persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
@@ -261,7 +263,7 @@ public class PersistentSubscriptionTest {
 
         // Can not cumulative ack message for another txn.
         try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).get();
+            persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions).get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
@@ -270,16 +272,16 @@ public class PersistentSubscriptionTest {
                     "2:50 within range of current currentPosition: 1:100");
         }
 
-        positions.clear();
-        positions.add(new PositionImpl(1, 1));
-        positions.add(new PositionImpl(1, 3));
-        positions.add(new PositionImpl(1, 5));
-        positions.add(new PositionImpl(3, 1));
-        positions.add(new PositionImpl(3, 3));
-        positions.add(new PositionImpl(3, 5));
+        List<Position> positionList = new ArrayList<>();
+        positionList.add(new PositionImpl(1, 1));
+        positionList.add(new PositionImpl(1, 3));
+        positionList.add(new PositionImpl(1, 5));
+        positionList.add(new PositionImpl(3, 1));
+        positionList.add(new PositionImpl(3, 3));
+        positionList.add(new PositionImpl(3, 5));
 
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
-        persistentSubscription.acknowledgeMessage(positions, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
 
         //Abort txn.
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE);
@@ -288,11 +290,11 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(2, 50));
 
         // Retry above ack, will succeed. As abort has clear pending_ack for those messages.
-        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative);
+        persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions);
 
-        positions.clear();
-        positions.add(new PositionImpl(2, 1));
+        positionsPair.clear();
+        positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
-        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
+        persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
     }
 }

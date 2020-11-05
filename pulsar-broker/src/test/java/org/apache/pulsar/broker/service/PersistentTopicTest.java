@@ -574,7 +574,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
-                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null, true);
         sub.addConsumer(consumer);
         consumer.close();
 
@@ -584,7 +584,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Dispatcher previousDispatcher = sub.getDispatcher();
 
             consumer = new Consumer(sub, subType, topic.getName(), 1, 0, "Cons1", 50000, serverCnx, "myrole-1",
-                    Collections.emptyMap(), false, InitialPosition.Latest, null);
+                    Collections.emptyMap(), false, InitialPosition.Latest, null, true);
             sub.addConsumer(consumer);
 
             assertTrue(sub.getDispatcher().isConsumerConnected());
@@ -607,7 +607,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 1. simple add consumer
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         sub.addConsumer(consumer);
         assertTrue(sub.getDispatcher().isConsumerConnected());
 
@@ -640,7 +640,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
-                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null, true);
 
         sub.addConsumer(consumer);
         assertFalse(sub.getDispatcher().isClosed());
@@ -676,14 +676,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 1. add consumer1
         Consumer consumer = new Consumer(sub, SubType.Shared, topic.getName(), 1 /* consumer id */, 0,
                 "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub, consumer);
         assertEquals(sub.getConsumers().size(), 1);
 
         // 2. add consumer2
         Consumer consumer2 = new Consumer(sub, SubType.Shared, topic.getName(), 2 /* consumer id */, 0,
                 "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub, consumer2);
         assertEquals(sub.getConsumers().size(), 2);
 
@@ -691,7 +691,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         try {
             Consumer consumer3 = new Consumer(sub, SubType.Shared, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest, null);
+                    false /* read compacted */, InitialPosition.Latest, null, true);
             addConsumerToSubscription.invoke(topic, sub, consumer3);
             fail("should have failed");
         } catch (InvocationTargetException e) {
@@ -704,7 +704,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 4. add consumer4 to sub2
         Consumer consumer4 = new Consumer(sub2, SubType.Shared, topic.getName(), 4 /* consumer id */, 0,
                 "Cons4"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub2, consumer4);
         assertEquals(sub2.getConsumers().size(), 1);
 
@@ -715,7 +715,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         try {
             Consumer consumer5 = new Consumer(sub2, SubType.Shared, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest, null);
+                    false /* read compacted */, InitialPosition.Latest, null, true);
             addConsumerToSubscription.invoke(topic, sub2, consumer5);
             fail("should have failed");
         } catch (InvocationTargetException e) {
@@ -771,14 +771,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 1. add consumer1
         Consumer consumer = new Consumer(sub, SubType.Failover, topic.getName(), 1 /* consumer id */, 0,
                 "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub, consumer);
         assertEquals(sub.getConsumers().size(), 1);
 
         // 2. add consumer2
         Consumer consumer2 = new Consumer(sub, SubType.Failover, topic.getName(), 2 /* consumer id */, 0,
                 "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub, consumer2);
         assertEquals(sub.getConsumers().size(), 2);
 
@@ -786,7 +786,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         try {
             Consumer consumer3 = new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest, null);
+                    false /* read compacted */, InitialPosition.Latest, null, true);
             addConsumerToSubscription.invoke(topic, sub, consumer3);
             fail("should have failed");
         } catch (InvocationTargetException e) {
@@ -799,7 +799,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 4. add consumer4 to sub2
         Consumer consumer4 = new Consumer(sub2, SubType.Failover, topic.getName(), 4 /* consumer id */, 0,
                 "Cons4"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest, null);
+                false /* read compacted */, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, sub2, consumer4);
         assertEquals(sub2.getConsumers().size(), 1);
 
@@ -810,7 +810,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         try {
             Consumer consumer5 = new Consumer(sub2, SubType.Failover, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest, null);
+                    false /* read compacted */, InitialPosition.Latest, null, true);
             addConsumerToSubscription.invoke(topic, sub2, consumer5);
             fail("should have failed");
         } catch (InvocationTargetException e) {
@@ -850,7 +850,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         sub.addConsumer(consumer1);
 
         doAnswer(new Answer<Object>() {
@@ -872,7 +872,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         try {
             Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
             new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
         }
@@ -1603,21 +1603,21 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor1 = ledger.openCursor("c1");
         PersistentSubscription sub1 = new PersistentSubscription(topic, "sub-1", cursor1, false);
         Consumer consumer1 = new Consumer(sub1, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
-            50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+            50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         topic.getSubscriptions().put(Codec.decode(cursor1.getName()), sub1);
         sub1.addConsumer(consumer1);
         // Open cursor2, add it into activeCursor-container and add it into subscription consumer list
         ManagedCursor cursor2 = ledger.openCursor("c2");
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursor2, false);
         Consumer consumer2 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-            50000, serverCnx, "myrole-2", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+            50000, serverCnx, "myrole-2", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         topic.getSubscriptions().put(Codec.decode(cursor2.getName()), sub2);
         sub2.addConsumer(consumer2);
         // Open cursor3, add it into activeCursor-container and do not add it into subscription consumer list
         ManagedCursor cursor3 = ledger.openCursor("c3");
         PersistentSubscription sub3 = new PersistentSubscription(topic, "sub-3", cursor3, false);
         Consumer consumer3 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 3 /* consumer id */, 0, "Cons2"/* consumer name */,
-            50000, serverCnx, "myrole-3", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+            50000, serverCnx, "myrole-3", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, true);
         topic.getSubscriptions().put(Codec.decode(cursor3.getName()), sub3);
 
         // Case1: cursors are active as haven't started deactivateBacklogCursor scan
@@ -1727,7 +1727,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         addConsumerToSubscription.setAccessible(true);
 
         Consumer consumer = new Consumer(nonDeletableSubscription1, SubType.Shared, topic.getName(), 1, 0, "consumer1",
-                50000, serverCnx, "app1", Collections.emptyMap(), false, InitialPosition.Latest, null);
+                50000, serverCnx, "app1", Collections.emptyMap(), false, InitialPosition.Latest, null, true);
         addConsumerToSubscription.invoke(topic, nonDeletableSubscription1, consumer);
 
         when(pulsar.getConfigurationCache().policiesCache()

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
@@ -43,8 +41,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -314,6 +314,13 @@ public class PersistentSubscription implements Subscription {
             }
 
             cursor.asyncDelete(positions, deleteCallback, positions);
+            if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+                positions.forEach(position -> {
+                    if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
+                        pendingAckHandle.clearIndividualPosition(position);
+                    }
+                });
+            }
 
             if(dispatcher != null){
                 dispatcher.getRedeliveryTracker().removeBatch(positions);
@@ -385,14 +392,23 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
-    public CompletableFuture<Void> acknowledgeMessage(TxnID txnId, List<Position> positions, AckType ackType) {
-        checkArgument(txnId != null, "TransactionID can not be null.");
+    public CompletableFuture<Void> transactionIndividualAcknowledge(TxnID txnId,
+                                                                    List<MutablePair<PositionImpl, Long>> positions) {
         if (pendingAckHandle == null) {
             return FutureUtil.failedFuture(
                     new TransactionConflictException("Broker does't support Transaction pending ack!"));
         }
 
-        return pendingAckHandle.acknowledgeMessage(txnId, positions, ackType);
+        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
+    }
+
+    public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
+        if (pendingAckHandle == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
+        }
+
+        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -914,24 +930,13 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        if (pendingAckHandle == null) {
-            dispatcher.redeliverUnacknowledgedMessages(consumer);
-        } else {
-            // Only check if message is in pending_ack status when there's ongoing transaction.
-            this.pendingAckHandle.redeliverUnacknowledgedMessages(consumer);
-        }
+    public void redeliverUnacknowledgedMessages(Consumer consumer) {
+        dispatcher.redeliverUnacknowledgedMessages(consumer);
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        // If there's ongoing transaction.
-        trimByMarkDeletePosition(positions);
-        if (pendingAckHandle == null) {
-            dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
-        } else {
-            this.pendingAckHandle.redeliverUnacknowledgedMessages(consumer, positions);
-        }
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
     }
 
     private void trimByMarkDeletePosition(List<PositionImpl> positions) {
@@ -1019,6 +1024,14 @@ public class PersistentSubscription implements Subscription {
     @VisibleForTesting
     public ManagedCursor getCursor() {
         return cursor;
+    }
+
+    public void syncBatchPositionBitSetForPendingAck(MutablePair<PositionImpl, Long> position) {
+        this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
+    }
+
+    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+        return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -79,7 +78,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
      *     <p>
      *         If it does not exits the map, the position will be added to the map.
      */
-    private Map<PositionImpl, PositionImpl> individualAckPositions;
+    private Map<PositionImpl, MutablePair<PositionImpl, Long>> individualAckPositions;
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
@@ -100,22 +99,112 @@ public class PendingAckHandleImpl implements PendingAckHandle {
     }
 
     @Override
-    public synchronized CompletableFuture<Void> acknowledgeMessage(TxnID txnId,
-                                                                   List<Position> positions, AckType ackType) {
-        if (txnId == null) {
+    public synchronized CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
+                                                                List<MutablePair<PositionImpl, Long>> positions) {
+        if (txnID == null) {
             return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
         }
         if (positions == null) {
             return FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
         }
-        if (AckType.Cumulative == ackType) {
-            return acknowledgeMessageCumulative(positions, txnId);
-        } else {
-            return acknowledgeMessageIndividual(positions, txnId);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        for (int i = 0; i < positions.size(); i++) {
+            PositionImpl position = positions.get(i).left;
+
+            // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
+            if (((ManagedCursorImpl) persistentSubscription.getCursor())
+                    .isMessageDeleted(position)) {
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
+                        " try to ack message:" + position + " already acked before.";
+                log.error(errorMsg);
+                return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+            }
+
+            if (position.hasAckSet()) {
+                //in order to jude the bit set is over lap, so set the covering bit to 1,
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
+                if (positions.get(i).right.intValue() > bitSetRecyclable.size()) {
+                    bitSetRecyclable.set(positions.get(i).right.intValue());
+                }
+                bitSetRecyclable.set(positions.get(i).right.intValue(), bitSetRecyclable.size());
+                long[] ackSetOverlap = bitSetRecyclable.toLongArray();
+                bitSetRecyclable.recycle();
+                if (isAckSetOverlap(ackSetOverlap,
+                        ((ManagedCursorImpl) persistentSubscription.getCursor()).getBatchPositionAckSet(position))) {
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
+                            " try to ack message:" + position + " already acked before.";
+                    log.error(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                }
+
+                if (this.individualAckPositions != null && individualAckPositions.containsKey(position)
+                        && isAckSetOverlap(individualAckPositions.get(position).getLeft().getAckSet(), ackSetOverlap)) {
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
+                            " try to ack batch message:" + position + " in pending ack status.";
+                    log.error(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                }
+            } else {
+                if (this.individualAckPositions != null && this.individualAckPositions.containsKey(position)) {
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
+                            " try to ack message:" + position + " in pending ack status.";
+                    log.error(errorMsg);
+                    return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
+                }
+            }
         }
+        for (int i = 0; i < positions.size(); i++) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
+            }
+            if (individualAckOfTransaction == null) {
+                individualAckOfTransaction = new HashMap<>();
+            }
+
+            if (individualAckPositions == null) {
+                individualAckPositions = new HashMap<>();
+            }
+
+            PositionImpl position = positions.get(i).left;
+
+            if (position.hasAckSet()) {
+
+                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
+
+                if (pendingAckMessageForCurrentTxn.containsKey(position)) {
+                    andAckSet(pendingAckMessageForCurrentTxn.get(position), position);
+                } else {
+                    pendingAckMessageForCurrentTxn.put(position, position);
+                }
+
+                if (!individualAckPositions.containsKey(position)) {
+                    this.individualAckPositions.put(position, positions.get(i));
+                } else {
+                    andAckSet(this.individualAckPositions.get(position).getLeft(), position);
+                }
+
+            } else {
+                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
+                pendingAckMessageForCurrentTxn.put(position, position);
+                this.individualAckPositions.putIfAbsent(position, positions.get(i));
+            }
+        }
+        completableFuture.complete(null);
+        return completableFuture;
     }
 
-    private CompletableFuture<Void> acknowledgeMessageCumulative(List<Position> positions, TxnID txnID) {
+    @Override
+    public synchronized CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID,
+                                                                             List<PositionImpl> positions) {
+
+        if (txnID == null) {
+            return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+        }
+        if (positions == null) {
+            return FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+        }
 
         if (positions.size() != 1) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
@@ -124,14 +213,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
         }
 
-        if (!(positions.get(0) instanceof PositionImpl)) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " invalid cumulative ack received with position is not PositionImpl";
-            log.error(errorMsg);
-            return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
-        }
-
-        PositionImpl position = (PositionImpl) positions.get(0);
+        PositionImpl position = positions.get(0);
 
         if (position.compareTo((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition()) <= 0) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
@@ -161,120 +243,25 @@ public class PendingAckHandleImpl implements PendingAckHandle {
         return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<Void> acknowledgeMessageIndividual(List<Position> positions, TxnID txnID) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        List<CompletableFuture<Void>> positionsFuture = new ArrayList<>(positions.size());
-        for (int i = 0; i < positions.size(); i++) {
-            if (!(positions.get(i) instanceof PositionImpl)) {
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " invalid individual ack received with position is not PositionImpl";
-                log.error(errorMsg);
-                positionsFuture.add(FutureUtil.failedFuture(new NotAllowedException(errorMsg)));
-                break;
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
-            }
-            if (individualAckOfTransaction == null) {
-                individualAckOfTransaction = new HashMap<>();
-            }
-
-            if (individualAckPositions == null) {
-                individualAckPositions = new HashMap<>();
-            }
-            PositionImpl position = (PositionImpl) positions.get(i);
-
-            // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
-            if (((ManagedCursorImpl) persistentSubscription.getCursor()).isMessageDeleted(position)) {
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " try to ack message:" + position + " already acked before.";
-                log.error(errorMsg);
-                positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
-                break;
-            }
-
-            if (position.hasAckSet()) {
-
-                if (isAckSetOverlap(position.getAckSet(),
-                        ((ManagedCursorImpl) persistentSubscription.getCursor()).getBatchPositionAckSet(position))) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " already acked before.";
-                    log.error(errorMsg);
-                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
-                    break;
-                }
-
-                if (individualAckPositions.containsKey(position)
-                        && isAckSetOverlap(individualAckPositions.get(position).getAckSet(), position.getAckSet())) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack batch message:" + position + " in pending ack status.";
-                    log.error(errorMsg);
-                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
-                    break;
-                }
-
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
-                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
-
-                if (pendingAckMessageForCurrentTxn.containsKey(position)) {
-                    andAckSet(pendingAckMessageForCurrentTxn.get(position), position);
-                } else {
-                    pendingAckMessageForCurrentTxn.put(position, position);
-                }
-
-                if (!individualAckPositions.containsKey(position)) {
-                    this.individualAckPositions.put(position, position);
-                } else {
-                    andAckSet(this.individualAckPositions.get(position), position);
-                }
-
-                positionsFuture.add(CompletableFuture.completedFuture(null));
-            } else {
-
-                if (this.individualAckPositions.containsKey(position)) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " in pending ack status.";
-                    log.error(errorMsg);
-                    positionsFuture.add(FutureUtil.failedFuture(new TransactionConflictException(errorMsg)));
-                    break;
-                }
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
-                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
-                pendingAckMessageForCurrentTxn.put(position, position);
-                this.individualAckPositions.put(position, position);
-                positionsFuture.add(CompletableFuture.completedFuture(null));
-            }
-        }
-        FutureUtil.waitForAll(positionsFuture).whenComplete((v, e) -> {
-            if (e != null) {
-                completableFuture.completeExceptionally(e);
-            } else {
-                completableFuture.complete(null);
-            }
-        });
-        return completableFuture;
-    }
-
     @Override
-    public synchronized CompletableFuture<Void> commitTxn(TxnID txnId, Map<String, Long> properties) {
+    public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties) {
 
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         // It's valid to create transaction then commit without doing any operation, which will cause
         // pendingAckMessagesMap to be null.
         if (this.cumulativeAckOfTransaction != null) {
-            if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
+            if (cumulativeAckOfTransaction.getKey().equals(txnID)) {
                 persistentSubscription.acknowledgeMessage(Collections
                         .singletonList(this.cumulativeAckOfTransaction.getValue()), AckType.Cumulative, properties);
                 this.cumulativeAckOfTransaction = null;
             }
         } else {
-            if (individualAckOfTransaction != null && individualAckOfTransaction.containsKey(txnId)) {
+            if (individualAckOfTransaction != null && individualAckOfTransaction.containsKey(txnID)) {
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
-                        individualAckOfTransaction.remove(txnId);
+                        individualAckOfTransaction.remove(txnID);
                 if (pendingAckMessageForCurrentTxn != null) {
                     persistentSubscription.acknowledgeMessage(new ArrayList<>(pendingAckMessageForCurrentTxn.values()),
                             AckType.Individual, properties);
-                    endIndividualAckTxnCommon(pendingAckMessageForCurrentTxn);
                 }
             }
         }
@@ -289,109 +276,70 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (this.cumulativeAckOfTransaction.getKey().equals(txnId)) {
                 this.cumulativeAckOfTransaction = null;
             }
-            redeliverUnacknowledgedMessages(consumer);
+            this.persistentSubscription.redeliverUnacknowledgedMessages(consumer);
         } else if (this.individualAckOfTransaction != null){
             HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                     individualAckOfTransaction.remove(txnId);
             if (pendingAckMessageForCurrentTxn != null) {
-                endIndividualAckTxnCommon(pendingAckMessageForCurrentTxn);
-                redeliverUnacknowledgedMessages(consumer, new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
+                for (Entry<PositionImpl, PositionImpl> entry : pendingAckMessageForCurrentTxn.entrySet()) {
+                    if (entry.getValue().hasAckSet() && individualAckPositions.containsKey(entry.getValue())) {
+                        BitSetRecyclable thisBitSet = BitSetRecyclable.valueOf(entry.getValue().getAckSet());
+                        thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right.intValue());
+                        BitSetRecyclable otherBitSet =
+                                BitSetRecyclable.valueOf(individualAckPositions.get(entry.getValue()).left.getAckSet());
+                        otherBitSet.or(thisBitSet);
+                        individualAckPositions.get(entry.getKey()).left.setAckSet(otherBitSet.toLongArray());
+                        otherBitSet.recycle();
+                        thisBitSet.recycle();
+                    } else {
+                        individualAckPositions.remove(entry.getValue());
+                    }
+                }
+                this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
+                        new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
             }
         }
         abortFuture.complete(null);
         return abortFuture;
     }
 
-    private void endIndividualAckTxnCommon(HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn){
-        for (Entry<PositionImpl, PositionImpl> entry : pendingAckMessageForCurrentTxn.entrySet()) {
-            if (entry.getValue().hasAckSet() && individualAckPositions.containsKey(entry.getValue())) {
-                BitSetRecyclable thisBitSet = BitSetRecyclable.valueOf(entry.getKey().getAckSet());
-                thisBitSet.flip(0, thisBitSet.size());
-                BitSetRecyclable otherBitSet =
-                        BitSetRecyclable.valueOf(individualAckPositions.get(entry.getValue()).getAckSet());
-                otherBitSet.or(thisBitSet);
-                long [] orAckSet = otherBitSet.toLongArray();
-                otherBitSet.flip(0, otherBitSet.size());
-                if (otherBitSet.isEmpty()) {
-                    thisBitSet.recycle();
-                    otherBitSet.recycle();
-                    individualAckPositions.remove(entry.getValue());
+    @Override
+    public synchronized void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position) {
+        if (!individualAckPositions.containsKey(position.left)) {
+            this.individualAckPositions.put(position.left, position);
+        } else {
+            andAckSet(this.individualAckPositions.get(position.left).left, position.left);
+        }
+    }
+
+    @Override
+    public synchronized boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+        if (!individualAckPositions.containsKey(position)) {
+            return true;
+        } else {
+            position = individualAckPositions.get(position).left;
+            if (position.hasAckSet()) {
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
+                if (bitSetRecyclable.isEmpty()) {
+                    return true;
                 } else {
-                    individualAckPositions.get(entry.getValue()).setAckSet(orAckSet);
-                    thisBitSet.recycle();
-                    otherBitSet.recycle();
+                    return false;
                 }
             } else {
-                individualAckPositions.remove(entry.getValue());
+                return true;
             }
         }
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
-        ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
-        // Only check if message is in pending_ack status when there's ongoing transaction.
-        if (null != positionMap && ((individualAckPositions != null && individualAckPositions.size() != 0)
-                || this.cumulativeAckOfTransaction != null)) {
-            List<PositionImpl> pendingPositions = new ArrayList<>();
-            PositionImpl cumulativeAckPosition =
-                    (null == this.cumulativeAckOfTransaction) ? null : this.cumulativeAckOfTransaction.getValue();
+    public void clearIndividualPosition(Position position) {
+        if (individualAckPositions == null) {
+            return;
+        }
 
-            positionMap.asMap().forEach((key, value) -> {
-                PositionImpl position = new PositionImpl(key.first, key.second);
-                redeliverUnacknowledgedMessagesCommon(position, pendingPositions, cumulativeAckPosition);
-            });
-
-            persistentSubscription.getDispatcher().redeliverUnacknowledgedMessages(consumer, pendingPositions);
-        } else {
-            persistentSubscription.getDispatcher().redeliverUnacknowledgedMessages(consumer);
+        if (position instanceof PositionImpl) {
+            individualAckPositions.remove(position);
         }
     }
 
-    @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        // If there's ongoing transaction.
-        if ((individualAckPositions != null && individualAckPositions.size() != 0) || this.cumulativeAckOfTransaction != null) {
-            // Check if message is in pending_ack status.
-            List<PositionImpl> pendingPositions = new ArrayList<>();
-            PositionImpl cumulativeAckPosition =
-                    (null == this.cumulativeAckOfTransaction) ? null : this.cumulativeAckOfTransaction.getValue();
-            positions.forEach(position ->
-                    redeliverUnacknowledgedMessagesCommon(position, pendingPositions, cumulativeAckPosition));
-            persistentSubscription.getDispatcher().redeliverUnacknowledgedMessages(consumer, pendingPositions);
-        } else {
-            persistentSubscription.getDispatcher().redeliverUnacknowledgedMessages(consumer, positions);
-        }
-    }
-
-    private void redeliverUnacknowledgedMessagesCommon(PositionImpl position, List<PositionImpl> pendingPositions,
-                                                       PositionImpl cumulativeAckPosition) {
-        if (position.hasAckSet()) {
-            if (this.individualAckPositions != null) {
-                if (this.individualAckPositions.containsKey(position)) {
-                    if (!isAckSetOverlap(individualAckPositions.get(position).getAckSet(), position.getAckSet())) {
-                    pendingPositions.add(position);
-                }
-            } else {
-                pendingPositions.add(position);
-            }
-        } else if (cumulativeAckPosition != null) {
-            int compareNumber = position.compareTo((cumulativeAckPosition));
-            if (compareNumber > 0 || (compareNumber == 0
-                    && !isAckSetOverlap(cumulativeAckPosition.getAckSet(), position.getAckSet()))) {
-                    pendingPositions.add(position);
-                }
-            }
-        } else {
-            if (this.individualAckPositions != null) {
-                if (!this.individualAckPositions.containsKey(position)) {
-                    pendingPositions.add(position);
-                }
-            } else if (cumulativeAckPosition != null ) {
-                if (position.compareTo(cumulativeAckPosition) > 0) {
-                    pendingPositions.add(position);
-                }
-            }
-        }
-    }
 }

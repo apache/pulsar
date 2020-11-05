@@ -621,7 +621,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                        maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta,
+                        brokerService.getPulsar().getConfig().isTransactionCoordinatorEnabled());
                 addConsumerToSubscription(subscription, consumer);
 
                 checkBackloggedCursors();
