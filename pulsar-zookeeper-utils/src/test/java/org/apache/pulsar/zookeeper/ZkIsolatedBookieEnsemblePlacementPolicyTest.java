@@ -266,9 +266,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         Thread.sleep(100);
 
         ensemble = isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
 
