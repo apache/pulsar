@@ -138,6 +138,8 @@ public interface Topic {
      */
     void checkBackloggedCursors();
 
+    void checkDeduplicationSnapshot();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
