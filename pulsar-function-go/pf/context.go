@@ -27,6 +27,7 @@ import (
 	"github.com/apache/pulsar-client-go/pulsar"
 )
 
+// FunctionContext provides contextual information to the executing function. Features like which message id we are handling, whats the topic name of the message, what are our operating constraints, etc can be accessed by the executing function
 type FunctionContext struct {
 	instanceConf  *instanceConf
 	userConfigs   map[string]interface{}
@@ -35,6 +36,7 @@ type FunctionContext struct {
 	record        pulsar.Message
 }
 
+// NewFuncContext returns a new Function context
 func NewFuncContext() *FunctionContext {
 	instanceConf := newInstanceConf()
 	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
@@ -46,10 +48,12 @@ func NewFuncContext() *FunctionContext {
 	return fc
 }
 
+//GetInstanceID returns the id of the instance that invokes the running pulsar function.
 func (c *FunctionContext) GetInstanceID() int {
 	return c.instanceConf.instanceID
 }
 
+//GetInputTopics returns a list of all input topics the pulsar function has been invoked on
 func (c *FunctionContext) GetInputTopics() []string {
 	inputMap := c.instanceConf.funcDetails.GetSource().InputSpecs
 	inputTopics := make([]string, len(inputMap))
@@ -61,45 +65,57 @@ func (c *FunctionContext) GetInputTopics() []string {
 	return inputTopics
 }
 
+//GetOutputTopic returns the output topic the pulsar function was invoked on
 func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
 }
 
+//GetTenantAndNamespace returns the tenant and namespace the pulsar function belongs to in the format of `<tenant>/<namespace>`
 func (c *FunctionContext) GetTenantAndNamespace() string {
 	return c.GetFuncTenant() + "/" + c.GetFuncNamespace()
 }
 
+//GetTenantAndNamespaceAndName returns the full name of the pulsar function in the format of `<tenant>/<namespace>/<function name>`
 func (c *FunctionContext) GetTenantAndNamespaceAndName() string {
 	return c.GetFuncTenant() + "/" + c.GetFuncNamespace() + "/" + c.GetFuncName()
 }
 
+//GetFuncTenant returns the tenant the pulsar function belongs to
 func (c *FunctionContext) GetFuncTenant() string {
 	return c.instanceConf.funcDetails.Tenant
 }
 
+//GetFuncName returns the name given to the pulsar function
 func (c *FunctionContext) GetFuncName() string {
 	return c.instanceConf.funcDetails.Name
 }
 
+//GetFuncNamespace returns the namespace the pulsar function belongs to
 func (c *FunctionContext) GetFuncNamespace() string {
 	return c.instanceConf.funcDetails.Namespace
 }
 
+//GetFuncID returns the id of the pulsar function
 func (c *FunctionContext) GetFuncID() string {
 	return c.instanceConf.funcID
 }
 
+//GetPort returns the port the pulsar function communicates on
 func (c *FunctionContext) GetPort() int {
 	return c.instanceConf.port
 }
 
+//GetClusterName returns the name of the cluster the pulsar function is running in
 func (c *FunctionContext) GetClusterName() string {
 	return c.instanceConf.clusterName
 }
 
+//GetExpectedHealthCheckInterval returns the expected time between health checks in seconds
 func (c *FunctionContext) GetExpectedHealthCheckInterval() int32 {
 	return c.instanceConf.expectedHealthCheckInterval
 }
+
+//GetExpectedHealthCheckIntervalAsDuration returns the expected time between health checks in seconds as a time.Duration
 func (c *FunctionContext) GetExpectedHealthCheckIntervalAsDuration() time.Duration {
 	return time.Duration(c.instanceConf.expectedHealthCheckInterval)
 }
@@ -108,14 +124,17 @@ func (c *FunctionContext) GetMaxIdleTime() int64 {
 	return int64(c.GetExpectedHealthCheckIntervalAsDuration() * 3 * time.Second)
 }
 
+//GetFuncVersion returns the version of the pulsar function
 func (c *FunctionContext) GetFuncVersion() string {
 	return c.instanceConf.funcVersion
 }
 
+//GetUserConfValue returns the value of a key from the pulsar function's user configuration map
 func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 	return c.userConfigs[key]
 }
 
+//GetUserConfMap returns the pulsar function's user configuration map
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
