@@ -93,6 +93,16 @@ public class PackageManagerException extends Exception {
         public MetadataNotFoundException(String message) {
             super(message);
         }
+
+        /**
+         * Constructs an {@code MetadataNotFoundException} with the specified cause.
+         *
+         * @param throwable
+         *          The detail message (which is saved for later retrieval by the {@link #getCause()} method)
+         */
+        public MetadataNotFoundException(Throwable throwable) {
+            super(throwable);
+        }
     }
 
     /**

@@ -50,19 +50,31 @@ public class PackageManagerImpl implements PackageManager {
     public CompletableFuture<PackageMetadata> getMetadata(PackageName packageName) {
         CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        packageStorage.readAsync(getMetadataPath(packageName), outputStream)
-            .whenComplete((ignore, err) -> {
+        packageStorage.existAsync(getMetadataPath(packageName))
+            .whenComplete((exists, err) -> {
                 if (err != null) {
                     future.completeExceptionally(err);
                     return;
                 }
-                CompletableFuture.runAsync(() -> {
-                    try {
-                        future.complete(PackageMetadata.fromByteArray(outputStream.toByteArray()));
-                    } catch (PackageManagerException.MetadataSerializationException e) {
-                        future.completeExceptionally(e);
-                    }
-                });
+                if (!exists) {
+                    future.completeExceptionally(new PackageManagerException.MetadataNotFoundException(
+                        "Package " + packageName.toString() + " metadata does not found"));
+                    return;
+                }
+                packageStorage.readAsync(getMetadataPath(packageName), outputStream)
+                    .whenComplete((ignore, e) -> {
+                        if (e != null) {
+                            future.completeExceptionally(e);
+                            return;
+                        }
+                        CompletableFuture.runAsync(() -> {
+                            try {
+                                future.complete(PackageMetadata.fromByteArray(outputStream.toByteArray()));
+                            } catch (PackageManagerException.MetadataSerializationException mse) {
+                                future.completeExceptionally(mse);
+                            }
+                        });
+                    });
             });
         return future;
     }

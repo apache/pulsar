@@ -47,14 +47,12 @@ public class PackageManagerTests {
         };
     }
 
-    private final String providerClassName;
     private final PackageStorageProvider provider;
     private final PackageStorageConfig storageConfig;
     private PackageManager packageManager;
 
     @Factory(dataProvider = "providers")
     public PackageManagerTests(String providerClassName, PackageStorageConfig storageConfig) throws IOException {
-        this.providerClassName = providerClassName;
         this.storageConfig = storageConfig;
         this.provider = PackageStorageProvider.newProvider(providerClassName);
     }
@@ -70,7 +68,7 @@ public class PackageManagerTests {
             packageManager.getMetadata(PackageName.get("function://public/default/f1@v1")).get();
             fail("should fail to get metadata of a non-existent package");
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof PackageManagerException.MetadataNotFoundException);
+            assertTrue(e.getCause().getCause() instanceof PackageManagerException.MetadataNotFoundException);
         }
     }
 
