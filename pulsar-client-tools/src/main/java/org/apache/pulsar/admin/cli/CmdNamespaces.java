@@ -1570,7 +1570,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(
                 names = {"--driver", "-d"},
                 description = "Driver to use to offload old data to long term storage, " +
-                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                        "(Possible values: S3, aws-s3, google-cloud-storage, filesystem, azureblob)",
                 required = true)
         private String driver;
 
@@ -1630,7 +1630,7 @@ public class CmdNamespaces extends CmdBase {
                 required = false)
         private String offloadAfterThresholdStr;
 
-        private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
+        private final String[] DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
 
         public boolean driverSupported(String driver) {
             return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));

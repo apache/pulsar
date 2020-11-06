@@ -19,9 +19,15 @@
 package org.apache.pulsar.admin.cli;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
+import com.beust.jcommander.ParameterException;
+import com.google.common.base.Strings;
+import lombok.val;
 import org.apache.commons.lang3.StringUtils;
+
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -31,6 +37,8 @@ import org.apache.pulsar.common.policies.data.FailureDomain;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -63,10 +71,10 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
         private String serviceUrlTls;
-        
+
         @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
         private String brokerServiceUrl;
-        
+
         @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
         private String brokerServiceUrlTls;
 
@@ -94,10 +102,10 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
         private String serviceUrlTls;
-        
+
         @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
         private String brokerServiceUrl;
-        
+
         @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
         private String brokerServiceUrlTls;
 
@@ -163,17 +171,17 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get list of peer-clusters")
     private class GetPeerClusters extends CliCommand {
-        
+
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             print(admin.clusters().getPeerClusterNames(cluster));
         }
     }
-    
-    
+
+
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name\n", required = true)
@@ -184,7 +192,7 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--broker-list", description = "Comma separated broker list", required = false)
         private String brokerList;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             FailureDomain domain = new FailureDomain();
@@ -211,7 +219,7 @@ public class CmdClusters extends CmdBase {
             admin.clusters().updateFailureDomain(cluster, domainName, domain);
         }
     }
-    
+
     @Parameters(commandDescription = "Deletes an existing failure-domain")
     private class DeleteFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name\n", required = true)
@@ -228,10 +236,10 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "List the existing failure-domains for a cluster")
     private class ListFailureDomains extends CliCommand {
-        
+
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             print(admin.clusters().getFailureDomains(cluster));
@@ -242,7 +250,7 @@ public class CmdClusters extends CmdBase {
     private class GetFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
-        
+
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
         private String domainName;
 
@@ -251,7 +259,167 @@ public class CmdClusters extends CmdBase {
             print(admin.clusters().getFailureDomain(cluster, domainName));
         }
     }
-    
+
+    @Parameters(commandDescription = "Set the offload policies for a cluster")
+    protected class SetOffloadPolicies extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(
+                names = {"--driver", "-d"},
+                description = "Driver to use to offload old data to long term storage, " +
+                        "(Possible values: S3, aws-s3, google-cloud-storage, filesystem, azureblob)",
+                required = true)
+        private String driver;
+
+        @Parameter(
+                names = {"--region", "-r"},
+                description = "The long term storage region, " +
+                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                required = false)
+        private String region;
+
+        @Parameter(
+                names = {"--bucket", "-b"},
+                description = "Bucket to place offloaded ledger into",
+                required = true)
+        private String bucket;
+
+        @Parameter(
+                names = {"--endpoint", "-e"},
+                description = "Alternative endpoint to connect to, " +
+                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                required = false)
+        private String endpoint;
+
+        @Parameter(
+                names = {"--aws-id", "-i"},
+                description = "AWS Credential Id to use when using driver S3 or aws-s3",
+                required = false)
+        private String awsId;
+
+        @Parameter(
+                names = {"--aws-secret", "-s"},
+                description = "AWS Credential Secret to use when using driver S3 or aws-s3",
+                required = false)
+        private String awsSecret;
+
+        @Parameter(
+                names = {"--maxBlockSize", "-mbs"},
+                description = "Max block size (eg: 32M, 64M), default is 64MB",
+                required = false)
+        private String maxBlockSizeStr;
+
+        @Parameter(
+                names = {"--readBufferSize", "-rbs"},
+                description = "Read buffer size (eg: 1M, 5M), default is 1MB",
+                required = false)
+        private String readBufferSizeStr;
+
+        @Parameter(
+                names = {"--offloadAfterElapsed", "-oae"},
+                description = "Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                required = false)
+        private String offloadAfterElapsedStr;
+
+        @Parameter(
+                names = {"--offloadAfterThreshold", "-oat"},
+                description = "Offload after threshold size (eg: 1M, 5M)",
+                required = false)
+        private String offloadAfterThresholdStr;
+
+        private final String[] DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
+
+        public boolean driverSupported(String driver) {
+            return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        }
+
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " should not be negative or 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " should not bigger than " + maxValue + "!");
+            }
+            return true;
+        }
+
+        public OffloadPolicies checkAndGeneratePolicies() {
+            if (!driverSupported(driver)) {
+                val possibleValues = String.join(",", DRIVER_NAMES);
+                throw new ParameterException(
+                        "The driver " + driver + " is not supported, " +
+                                "(Possible values: " + possibleValues + ").");
+            }
+
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                        "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                                + " if s3 offload enabled");
+            }
+
+            int maxBlockSizeInBytes = OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
+                long maxBlockSize = validateSizeString(maxBlockSizeStr);
+                if (positiveCheck("MaxBlockSize", maxBlockSize)
+                        && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
+                }
+            }
+
+            int readBufferSizeInBytes = OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(readBufferSizeStr)) {
+                long readBufferSize = validateSizeString(readBufferSizeStr);
+                if (positiveCheck("ReadBufferSize", readBufferSize)
+                        && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
+                }
+            }
+
+            Long offloadAfterElapsedInMillis = OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+            if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
+                Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
+                        && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
+                    offloadAfterElapsedInMillis = offloadAfterElapsed;
+                }
+            }
+
+            Long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
+                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
+                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                    offloadAfterThresholdInBytes = offloadAfterThreshold;
+                }
+            }
+
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
+                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
+                    offloadAfterElapsedInMillis);
+
+            return offloadPolicies;
+        }
+
+        @Override
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            val offloadPolicies = checkAndGeneratePolicies();
+            admin.clusters().setOffloadPolicies(cluster, offloadPolicies);
+        }
+    }
+
     public CmdClusters(PulsarAdmin admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
@@ -266,6 +434,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("update-failure-domain", new UpdateFailureDomain());
         jcommander.addCommand("delete-failure-domain", new DeleteFailureDomain());
         jcommander.addCommand("list-failure-domains", new ListFailureDomains());
+        jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
     }
 
 }

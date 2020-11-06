@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 public class ClustersImpl extends BaseResource implements Clusters {
 
@@ -543,8 +544,27 @@ public class ClustersImpl extends BaseResource implements Clusters {
         return future;
     }
 
+    @Override
+    public void setOffloadPolicies(String cluster, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+        try {
+            setOffloadPoliciesAsync(cluster, offloadPolicies).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    private CompletableFuture<Void> setOffloadPoliciesAsync(String cluster, OffloadPolicies offloadPolicies) {
+        WebTarget path = adminClusters.path(cluster).path("setOffloadPolicies");
+        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
+    }
+
     private void setDomain(String cluster, String domainName,
-            FailureDomain domain) throws PulsarAdminException {
+                           FailureDomain domain) throws PulsarAdminException {
         try {
             setDomainAsync(cluster, domainName, domain).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
