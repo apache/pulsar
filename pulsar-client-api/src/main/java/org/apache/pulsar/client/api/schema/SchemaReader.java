@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import org.apache.pulsar.common.schema.SchemaInfo;
-
 import java.io.InputStream;
+
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Deserialize messages from bytes.
