@@ -253,7 +253,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
-                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                    KeySharedPolicy keySharedPolicy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -286,6 +287,19 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         subscribe->mutable_metadata()->AddAllocated(keyValue);
+    }
+
+    if (subType == CommandSubscribe_SubType_Key_Shared) {
+        KeySharedMeta ksm;
+        switch (keySharedPolicy.getKeySharedMode()) {
+            case pulsar::AUTO_SPLIT:
+                ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
+                break;
+            case pulsar::STICKY:
+                ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+        }
+
+        ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
     }
 
     return writeMessageWithSize(cmd);
