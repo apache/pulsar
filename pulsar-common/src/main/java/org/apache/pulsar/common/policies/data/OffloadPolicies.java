@@ -134,6 +134,7 @@ public class OffloadPolicies implements Serializable {
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
+                                         String credentialId, String credentialSecret,
                                          Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                          Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
@@ -148,6 +149,12 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
 
         if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
+            if (credentialId != null) {
+                offloadPolicies.setS3ManagedLedgerOffloadRole(credentialId);
+            }
+            if (credentialSecret != null) {
+                offloadPolicies.setS3ManagedLedgerOffloadRoleSessionName(credentialSecret);
+            }
             offloadPolicies.setS3ManagedLedgerOffloadRegion(region);
             offloadPolicies.setS3ManagedLedgerOffloadBucket(bucket);
             offloadPolicies.setS3ManagedLedgerOffloadServiceEndpoint(endpoint);

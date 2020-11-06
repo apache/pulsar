@@ -41,6 +41,8 @@ public class OffloadPoliciesTest {
         final String driver = "aws-s3";
         final String region = "test-region";
         final String bucket = "test-bucket";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
         final String endPoint = "test-endpoint";
         final Integer maxBlockSizeInBytes = 5 * M;
         final Integer readBufferSizeInBytes = 2 * M;
@@ -52,6 +54,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                credentialId,
+                credentialSecret,
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
@@ -76,6 +80,8 @@ public class OffloadPoliciesTest {
         final String region = "test-region";
         final String bucket = "test-bucket";
         final String endPoint = "test-endpoint";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
         final Integer maxBlockSizeInBytes = 5 * M;
         final Integer readBufferSizeInBytes = 2 * M;
         final Long offloadThresholdInBytes = 0L;
@@ -86,6 +92,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                credentialId,
+                credentialSecret,
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
