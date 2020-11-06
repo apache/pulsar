@@ -31,7 +31,7 @@ $ pulsar-admin topics list \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace|operation/getList}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
 
 <!--Java-->
 ```java
@@ -53,7 +53,7 @@ $ pulsar-admin topics grant-permission \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
 
 <!--Java-->
 ```java
@@ -84,7 +84,7 @@ $ pulsar-admin topics permissions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
 
 <!--Java-->
 ```java
@@ -113,7 +113,7 @@ $ pulsar-admin topics revoke-permission \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
 
 <!--Java-->
 ```java
@@ -136,7 +136,7 @@ $ pulsar-admin topics delete \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic|operation/deleteTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
 
 <!--Java-->
 ```java
@@ -157,7 +157,7 @@ $ pulsar-admin topics unload \
 ```
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/topics/:tenant/:namespace/:topic/unload|operation/unloadTopic}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic}
 
 <!--Java-->
 ```java
@@ -309,7 +309,7 @@ $ pulsar-admin topics stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
 
 <!--Java-->
 ```java
@@ -441,7 +441,7 @@ $ pulsar-admin topics stats-internal \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
 <!--Java-->
 ```java
@@ -467,7 +467,7 @@ msg-payload
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
 
 <!--Java-->
 ```java
@@ -492,7 +492,7 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
 
 <!--Java-->
 ```java
@@ -517,7 +517,7 @@ $ pulsar-admin topics skip \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
 
 <!--Java-->
 ```java
@@ -542,7 +542,7 @@ $ pulsar-admin topics skip-all \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
 
 <!--Java-->
 ```java
@@ -566,7 +566,7 @@ $ pulsar-admin topics reset-cursor \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
 
 <!--Java-->
 ```java
@@ -592,7 +592,7 @@ $ pulsar-admin topics lookup \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/}
+{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/}
 
 <!--Java-->
 ```java
@@ -640,7 +640,7 @@ $ pulsar-admin topics subscriptions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
 
 <!--Java-->
 ```java
@@ -685,7 +685,7 @@ pulsar-admin topics last-message-id topic-name
 ```
 
 <!--REST API-->
-{@inject: endpoint|Get|/admin/v2/topics/:tenant/:namespace/:topic/lastMessageId}
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId}
 
 <!--Java-->
 ```Java
