@@ -42,7 +42,7 @@ public interface PendingAckHandle {
      * If transaction is aborted all messages acked by it will be put back to pending state.
      * <p>
      * Client will not send batch size to server, we get the batch size from consumer pending ack. When we get the Batch
-     * size, we can accurate batch ack this position.
+     * size, we can accurate batch ack of this position.
      *
      * @param txnID                  {@link TxnID}TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.

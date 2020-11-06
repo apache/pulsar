@@ -121,7 +121,8 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             }
 
             if (position.hasAckSet()) {
-                //in order to jude the bit set is over lap, so set the covering bit to 1,
+                //in order to jude the bit set is over lap, so set the covering the batch size bit to 1,
+                // should know the two bit set don't have the same point is 0
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
                 if (positions.get(i).right.intValue() > bitSetRecyclable.size()) {
                     bitSetRecyclable.set(positions.get(i).right.intValue());

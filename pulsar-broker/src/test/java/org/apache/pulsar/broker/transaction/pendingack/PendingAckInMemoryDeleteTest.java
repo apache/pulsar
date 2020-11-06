@@ -18,75 +18,289 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import com.google.common.collect.Sets;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.BitSet;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class PendingAckInMemoryDeleteTest {
+@Slf4j
+public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
+
+    private final static String TENANT = "tnx";
+    private final static String NAMESPACE1 = TENANT + "/ns1";
+
+    @BeforeMethod
+    protected void setup() throws Exception {
+        internalSetup();
+
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.tenants().createTenant(TENANT,
+                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace(NAMESPACE1);
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
+
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
+
+        Thread.sleep(1000 * 3);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
+    }
 
     @Test
-    public void pendingAckInMemoryDeleteTest() throws Exception {
-        PersistentSubscription persistentSubscription = mock(PersistentSubscription.class);
-        PendingAckHandleImpl pendingAckHandle = new PendingAckHandleImpl(persistentSubscription);
-        Map<PositionImpl, PositionImpl> individualAckPositions = new HashMap<>();
-        Field f = pendingAckHandle.getClass().getDeclaredField("individualAckPositions");
-        f.setAccessible(true);
-        f.set(pendingAckHandle, individualAckPositions);
-        PositionImpl position = new PositionImpl(1, 1);
-        BitSet bitSet = new BitSet();
-        bitSet.set(0, 128);
-        for (int i = 0; i < 128; i++) {
-            if (i % 2 == 0) {
-                bitSet.clear(i);
+    private void txnAckTestNoBatchAndSharedSubMemoryDeleteTest() throws Exception {
+        String normalTopic = NAMESPACE1 + "/normal-topic";
+        String subscriptionName = "test";
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(normalTopic)
+                .subscriptionName(subscriptionName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(2, TimeUnit.SECONDS)
+                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(normalTopic)
+                .enableBatching(false)
+                .create();
+
+        for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
+
+            int messageCnt = 1000;
+            // produce normal messages
+            for (int i = 0; i < messageCnt; i++){
+                producer.newMessage().value("hello".getBytes()).sendAsync();
             }
-        }
-        position.setAckSet(bitSet.toLongArray());
-        individualAckPositions.put(position, position);
-        Method method = pendingAckHandle.getClass().getDeclaredMethod("endIndividualAckTxnCommon", HashMap.class);
+            Message<byte[]> message;
 
-        HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn = new HashMap<>();
-        pendingAckMessageForCurrentTxn.put(position, position);
-        method.setAccessible(true);
-        assertTrue(individualAckPositions.containsKey(position));
-        method.invoke(pendingAckHandle, pendingAckMessageForCurrentTxn);
-        assertTrue(individualAckPositions.isEmpty());
-
-        position.setAckSet(bitSet.toLongArray());
-        pendingAckMessageForCurrentTxn.remove(position);
-        individualAckPositions.put(position, position);
-        bitSet.set(0, 128);
-        for (int i = 0; i < 64; i++) {
-            if (i % 2 == 0) {
-                bitSet.clear(i);
+            Transaction commitTxn = getTxn();
+            //send 1000 and ack 999, and test the consumer pending ack has already clear 999 messages
+            for (int i = 0; i < messageCnt - 1; i++) {
+                message = consumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                if (i % 2 == 0) {
+                    consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
+                    log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                } else {
+                    consumer.acknowledge(message.getMessageId());
+                    log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                }
             }
-        }
-        PositionImpl position1 = new PositionImpl(1, 1);
-        position1.setAckSet(bitSet.toLongArray());
-        pendingAckMessageForCurrentTxn.put(position1, position1);
-        assertTrue(individualAckPositions.containsKey(position));
-        method.invoke(pendingAckHandle, pendingAckMessageForCurrentTxn);
-        assertTrue(individualAckPositions.containsKey(position));
 
-        bitSet.set(0, 128);
-        for (int i = 64; i < 128; i++) {
-            if (i % 2 == 0) {
-                bitSet.clear(i);
+            commitTxn.commit().get();
+
+            int count = 0;
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
+                Field field = BrokerService.class.getDeclaredField("topics");
+                field.setAccessible(true);
+                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                                .get(getPulsarServiceList().get(i).getBrokerService());
+                CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + normalTopic);
+                if (completableFuture != null) {
+                    Optional<Topic> topic = completableFuture.get();
+                    if (topic.isPresent()) {
+                        PersistentSubscription persistentSubscription = (PersistentSubscription) topic.get()
+                                .getSubscription(subscriptionName);
+                        field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+                        field.setAccessible(true);
+                        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+                        field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+                        field.setAccessible(true);
+                        HashMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
+                                (HashMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                        assertTrue(individualAckOfTransaction.isEmpty());
+                        if (retryCnt == 0) {
+                            //one message are not ack
+                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                        } else {
+                            //two message are not ack
+                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 2);
+                        }
+                        count++;
+                    }
+                }
             }
+            //make sure the consumer is ownership for a broker server
+            assertEquals(count, 1);
+        }
+    }
+
+    @Test
+    private void txnAckTestBatchAndSharedSubMemoryDeleteTest() throws Exception {
+        String normalTopic = NAMESPACE1 + "/normal-topic";
+        String subscriptionName = "test";
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(normalTopic)
+                .subscriptionName(subscriptionName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(2, TimeUnit.SECONDS)
+                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(normalTopic)
+                .enableBatching(true)
+                .batchingMaxMessages(200)
+                .create();
+
+        PersistentSubscription persistentSubscription = null;
+        PendingAckHandleImpl pendingAckHandle = null;
+
+        HashMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction = null;
+        ManagedCursorImpl managedCursor = null;
+
+        ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes = null;
+
+        for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
+
+            int messageCnt = 1000;
+            // produce normal messages
+            for (int i = 0; i < messageCnt; i++){
+                producer.newMessage().value("hello".getBytes()).sendAsync();
+            }
+            Message<byte[]> message;
+
+            // after transaction abort, the messages could be received
+            Transaction commitTxn = getTxn();
+
+            //send 1000 and ack 999, and test the consumer pending ack has already clear 999 messages
+            for (int i = 0; i < messageCnt - 1; i++) {
+                message = consumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                if (i % 2 == 0) {
+                    consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
+                    log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                } else {
+                    consumer.acknowledge(message.getMessageId());
+                    log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                }
+            }
+
+            commitTxn.commit().get();
+            int count = 0;
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
+                Field field = BrokerService.class.getDeclaredField("topics");
+                field.setAccessible(true);
+                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                                .get(getPulsarServiceList().get(i).getBrokerService());
+                CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + normalTopic);
+                if (completableFuture != null) {
+                    Optional<Topic> topic = completableFuture.get();
+                    if (topic.isPresent()) {
+                        persistentSubscription = (PersistentSubscription) topic.get().getSubscription(subscriptionName);
+                        field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+                        field.setAccessible(true);
+                        pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+                        field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+                        field.setAccessible(true);
+                        individualAckOfTransaction =
+                                (HashMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                        assertTrue(individualAckOfTransaction.isEmpty());
+                        managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
+                        field = ManagedCursorImpl.class.getDeclaredField("batchDeletedIndexes");
+                        field.setAccessible(true);
+                        batchDeletedIndexes =
+                                (ConcurrentSkipListMap<PositionImpl, BitSetRecyclable>) field.get(managedCursor);
+                        if (retryCnt == 0) {
+                            //one message are not ack
+                            assertEquals(batchDeletedIndexes.size(), 1);
+                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                        } else {
+                            //two message are not ack
+                            assertEquals(batchDeletedIndexes.size(), 1);
+                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                        }
+                        count++;
+                    }
+                }
+            }
+            assertEquals(count, 1);
         }
 
-        position1.setAckSet(bitSet.toLongArray());
-        assertTrue(individualAckPositions.containsKey(position));
-        method.invoke(pendingAckHandle, pendingAckMessageForCurrentTxn);
-        assertTrue(individualAckPositions.isEmpty());
+        Transaction commitTwice = getTxn();
+
+        //this message is in one batch point
+        Message<byte[]> message = consumer.receive();
+        consumer.acknowledge(message.getMessageId());
+        assertEquals(batchDeletedIndexes.size(), 1);
+        assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+
+        // this test is for the last message has been cleared in this consumer pending acks
+        // and it won't clear the last message in cursor batch index ack set
+        message = consumer.receive();
+        consumer.acknowledgeAsync(message.getMessageId(), commitTwice).get();
+        assertEquals(batchDeletedIndexes.size(), 1);
+        assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
+
+        // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
+        commitTwice.commit().get();
+        assertEquals(batchDeletedIndexes.size(), 0);
+        assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
+    }
+
+    private Transaction getTxn() throws Exception {
+        return ((PulsarClientImpl) pulsarClient)
+                .newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build()
+                .get();
     }
 }

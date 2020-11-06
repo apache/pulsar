@@ -450,17 +450,23 @@ public class Consumer {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
                         SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 if (isTransactionEnabled) {
+                    //sync the batch position bit set point, in order to delete the position in pending acks
                     checkBatchPositions.add(position);
                     LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
                     if (batchSizePair == null) {
                         String error = "Batch position [" + position + "] could not find " +
                                 "it's batch size from consumer pendingAcks!";
-                        log.error(error);
+                        log.warn(error);
                         return FutureUtil.failedFuture(
                                 new TransactionConflictException(error));
                     }
                     ((PersistentSubscription) subscription)
                             .syncBatchPositionBitSetForPendingAck(new MutablePair<>(position, batchSizePair.first));
+                    //check if the position can remove from the consumer pending acks.
+                    // the bit set is empty in pending ack handle.
+                    if (((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(position)) {
+                        removePendingAcks(position);
+                    }
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
@@ -476,13 +482,6 @@ public class Consumer {
             }
         }
         subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-        if (isTransactionEnabled) {
-            checkBatchPositions.forEach(position -> {
-                if (((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(position)) {
-                    removePendingAcks(position);
-                }
-            });
-        }
         return CompletableFuture.completedFuture(null);
     }
 
