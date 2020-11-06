@@ -1,80 +1,78 @@
 ---
 id: admin-api-persistent-topics
-title: Managing persistent topics
-sidebar_label: Persistent topics
+title: Manage topics
+sidebar_label: Topics
 ---
 
-Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.
-
-In all of the instructions and commands below, the topic name structure is:
-
+Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
 persistent://tenant/namespace/topic
 ```
 
-## Persistent topics resources
+Non-persistent topics are used in applications that only consume real-time published messages and do not need persistent guarantee. In this way, it reduces message-publish latency by removing overhead of persisting messages. The topic name structure for non-persistent topics is:
+
+```shell
+non-persistent://tenant/namespace/topic
+```
+## Manage topic resources
+Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
 ### List of topics
 
-It provides a list of persistent topics exist under a given namespace.
+You can get the list of topics under a given namespace in the following ways.
 
-#### pulsar-admin
-
-List of topics can be fetched using [`list`](../../reference/CliTools#list) command.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 ```shell
-$ pulsar-admin persistent list \
+$ pulsar-admin topics list \
   my-tenant/my-namespace
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList}
-
-#### Java
-
+<!--Java-->
 ```java
 String namespace = "my-tenant/my-namespace";
-admin.persistentTopics().getList(namespace);
+admin.topics().getList(namespace);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Grant permission
 
-It grants permissions on a client role to perform specific actions on a given topic.
+You can grant permissions on a client role to perform specific actions on a given topic in the following ways.
 
-#### pulsar-admin
-
-Permission can be granted using [`grant-permission`](../../reference/CliTools#grant-permission) command.
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent grant-permission \
+$ pulsar-admin topics grant-permission \
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
-
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
-admin.persistentTopics().grantPermission(topic, role, actions);
+admin.topics().grantPermission(topic, role, actions);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get permission
 
-Permission can be fetched using [`permissions`](../../reference/CliTools#permissions) command.
+You can fetch permission in the following ways.
 
-#### pulsar-admin
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent permissions \
+$ pulsar-admin topics permissions \
   persistent://test-tenant/ns1/tp1 \
 
 {
@@ -85,27 +83,24 @@ $ pulsar-admin persistent permissions \
 }
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getPermissions(topic);
+admin.topics().getPermissions(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Revoke permission
 
-It revokes a permission which was granted on a client role.
-
-#### pulsar-admin
-
-Permission can be revoked using [`revoke-permission`](../../reference/CliTools#revoke-permission) command.
-
+You can revoke a permission granted on a client role in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent revoke-permission \
+$ pulsar-admin topics revoke-permission \
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
 
@@ -117,163 +112,160 @@ $ pulsar-admin persistent revoke-permission \
 }
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
-admin.persistentTopics().revokePermissions(topic, role);
+admin.topics().revokePermissions(topic, role);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Delete topic
 
-It deletes a topic. The topic cannot be deleted if there's any active subscription or producers connected to it.
+You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producers is connected to the topic.
 
-#### pulsar-admin
-
-Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent delete \
+$ pulsar-admin topics delete \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().delete(topic);
+admin.topics().delete(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Unload topic
 
-It unloads a topic.
-
-#### pulsar-admin
-
-Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
-
+You can unload a topic in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent unload \
+$ pulsar-admin topics unload \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic}
 
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().unload(topic);
+admin.topics().unload(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get stats
 
-It shows current statistics of a given non-partitioned topic.
+You can check the following statistics of a given non-partitioned topic.
 
-  -   **msgRateIn**: The sum of all local and replication publishers' publish rates in messages per second
+  -   **msgRateIn**: The sum of all local and replication publishers' publish rates (msg/s).
 
-  -   **msgThroughputIn**: Same as above, but in bytes per second instead of messages per second
+  -   **msgThroughputIn**: The sum of all local and replication publishers' publish rates (bytes/s).
 
-  -   **msgRateOut**: The sum of all local and replication consumers' dispatch rates in messages per second
+  -   **msgRateOut**: The sum of all local and replication consumers' dispatch rates(msg/s).
 
-  -   **msgThroughputOut**: Same as above, but in bytes per second instead of messages per second
+  -   **msgThroughputOut**: The sum of all local and replication consumers' dispatch rates (bytes/s).
 
-  -   **averageMsgSize**: The average size in bytes of messages published within the last interval
+  -   **averageMsgSize**: The average size (in bytes) of messages published within the last interval.
 
-  -   **storageSize**: The sum of the ledgers' storage size for this topic. Space used to store the messages for the topic
+  -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
 
-  -   **publishers**: The list of all local publishers into the topic. There can be zero or thousands
+  -   **publishers**: The list of all local publishers into the topic. The list ranges from zero to thousands.
 
-      -   **msgRateIn**: Total rate of messages published by this publisher in messages per second 
+      -   **msgRateIn**: The total rate of messages (msg/s) published by this publisher.
 
-      -   **msgThroughputIn**: Total throughput of the messages published by this publisher in bytes per second
+      -   **msgThroughputIn**: The total throughput (bytes/s) of the messages published by this publisher.
 
-      -   **averageMsgSize**: Average message size in bytes from this publisher within the last interval
+      -   **averageMsgSize**: The average message size in bytes from this publisher within the last interval.
 
-      -   **producerId**: Internal identifier for this producer on this topic
+      -   **producerId**: The internal identifier for this producer on this topic.
 
-      -   **producerName**: Internal identifier for this producer, generated by the client library
+      -   **producerName**: The internal identifier for this producer, generated by the client library.
 
-      -   **address**: IP address and source port for the connection of this producer
+      -   **address**: The IP address and source port for the connection of this producer.
 
-      -   **connectedSince**: Timestamp this producer was created or last reconnected
+      -   **connectedSince**: The timestamp when this producer is created or reconnected last time.
 
-  -   **subscriptions**: The list of all local subscriptions to the topic
+  -   **subscriptions**: The list of all local subscriptions to the topic.
 
-      -   **my-subscription**: The name of this subscription (client defined)
+      -   **my-subscription**: The name of this subscription. It is defined by the client.
 
-          -   **msgRateOut**: Total rate of messages delivered on this subscription (msg/s)
+          -   **msgRateOut**: The total rate of messages (msg/s) delivered on this subscription.
 
-          -   **msgThroughputOut**: Total throughput delivered on this subscription (bytes/s)
+          -   **msgThroughputOut**: The total throughput (bytes/s) delivered on this subscription.
 
-          -   **msgBacklog**: Number of messages in the subscription backlog
+          -   **msgBacklog**: The number of messages in the subscription backlog.
 
-          -   **type**: This subscription type
+          -   **type**: The subscription type.
 
-          -   **msgRateExpired**: The rate at which messages were discarded instead of dispatched from this subscription due to TTL
+          -   **msgRateExpired**: The rate at which messages were discarded instead of dispatched from this subscription due to TTL.
           
-          -   **lastExpireTimestamp**: The last message expire execution timestamp
+          -   **lastExpireTimestamp**: The timestamp of the last message expire execution.
           
-          -   **lastConsumedFlowTimestamp**: The last flow command received timestamp 
+          -   **lastConsumedFlowTimestamp**: The timestamp of the last flow command received. 
           
-          -   **lastConsumedTimestamp**: The latest timestamp of all the consumed timestamp of the consumers
+          -   **lastConsumedTimestamp**: The latest timestamp of all the consumed timestamp of the consumers.
           
-          -   **lastAckedTimestamp**: The latest timestamp of all the acked timestamp of the consumers
+          -   **lastAckedTimestamp**: The latest timestamp of all the acked timestamp of the consumers.
 
-          -   **consumers**: The list of connected consumers for this subscription
+          -   **consumers**: The list of connected consumers for this subscription.
 
-                -   **msgRateOut**: Total rate of messages delivered to the consumer (msg/s)
+                -   **msgRateOut**: The total rate of messages (msg/s) delivered to the consumer.
 
-                -   **msgThroughputOut**: Total throughput delivered to the consumer (bytes/s)
+                -   **msgThroughputOut**: The total throughput (bytes/s) delivered to the consumer.
 
-                -   **consumerName**: Internal identifier for this consumer, generated by the client library
+                -   **consumerName**: The internal identifier for this consumer, generated by the client library.
 
-                -   **availablePermits**: The number of messages this consumer has space for in the client library's listen queue. A value of 0 means the client library's queue is full and receive() isn't being called. A nonzero value means this consumer is ready to be dispatched messages.
+                -   **availablePermits**: The number of messages that the consumer has space for in the client library's listen queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
 
-                -   **unackedMessages**: Number of unacknowledged messages for the consumer
+                -   **unackedMessages**: The number of unacknowledged messages for the consumer.
 
-                -   **blockedConsumerOnUnackedMsgs**: Flag to verify if the consumer is blocked due to reaching threshold of unacked messages
+                -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
                 
-                -   **lastConsumedTimestamp**: The timestamp of the consumer last consume a message
+                -   **lastConsumedTimestamp**: The timestamp when the consumer reads a message the last time. 
           
-                -   **lastAckedTimestamp**: The timestamp of the consumer last ack a message
+                -   **lastAckedTimestamp**: The timestamp when the consumer acknowledges a message the last time.
 
   -   **replication**: This section gives the stats for cross-colo replication of this topic
 
-      -   **msgRateIn**: Total rate of messages received from the remote cluster (msg/s)
+      -   **msgRateIn**: The total rate (msg/s) of messages received from the remote cluster. 
 
-      -   **msgThroughputIn**: Total throughput received from the remote cluster (bytes/s)
+      -   **msgThroughputIn**: The total throughput (bytes/s) received from the remote cluster.
 
-      -   **msgRateOut**: Total rate of messages delivered to the replication-subscriber (msg/s)
+      -   **msgRateOut**: The total rate of messages (msg/s) delivered to the replication-subscriber.
 
-      -   **msgThroughputOut**: Total through delivered to the replication-subscriber (bytes/s)
+      -   **msgThroughputOut**: The total throughput (bytes/s) delivered to the replication-subscriber.
 
-      -   **msgRateExpired**: Total rate of messages expired (msg/s)
+      -   **msgRateExpired**: The total rate of messages (msg/s) expired.
 
-      -   **replicationBacklog**: Number of messages pending to be replicated to remote cluster
+      -   **replicationBacklog**: The number of messages pending to be replicated to remote cluster.
 
-      -   **connected**: Whether the outbound replicator is connected
+      -   **connected**: Whether the outbound replicator is connected.
 
-      -   **replicationDelayInSeconds**: How long the oldest message has been waiting to be sent through the connection, if connected is true
+      -   **replicationDelayInSeconds**: How long the oldest message has been waiting to be sent through the connection, if connected is `true`.
 
-      -   **inboundConnection**: The IP and port of the broker in the remote cluster's publisher connection to this broker
+      -   **inboundConnection**: The IP and port of the broker in the remote cluster's publisher connection to this broker.
 
       -   **inboundConnectedSince**: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.
 
-      -   **outboundConnection**: Address of outbound replication connection
+      -   **outboundConnection**: The address of the outbound replication connection.
 
-      -   **outboundConnectedSince**: Timestamp of establishing outbound connection
+      -   **outboundConnectedSince**: The timestamp of establishing outbound connection.
+
+The following is an example of a topic status.
 
 ```json
 {
@@ -307,94 +299,95 @@ It shows current statistics of a given non-partitioned topic.
   "replication": {}
 }
 ```
+To get the status of a topic, you can use the following ways.
 
-#### pulsar-admin
-
-Topic stats can be fetched using [`stats`](../../reference/CliTools#stats) command.
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent stats \
+$ pulsar-admin topics stats \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/stats|operation/getStats}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getStats(topic);
+admin.topics().getStats(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get internal stats
 
-It shows detailed statistics of a topic.
+You can get the detailed statistics of a topic.
 
-  -   **entriesAddedCounter**: Messages published since this broker loaded this topic
+  -   **entriesAddedCounter**: Messages published since this broker loaded this topic.
 
-  -   **numberOfEntries**: Total number of messages being tracked
+  -   **numberOfEntries**: The total number of messages being tracked.
 
-  -   **totalSize**: Total storage size in bytes of all messages
+  -   **totalSize**: The total storage size in bytes of all messages.
 
-  -   **currentLedgerEntries**: Count of messages written to the ledger currently open for writing
+  -   **currentLedgerEntries**: The count of messages written to the ledger that is currently open for writing.
 
-  -   **currentLedgerSize**: Size in bytes of messages written to ledger currently open for writing
+  -   **currentLedgerSize**: The size in bytes of messages written to the ledger that is currently open for writing.
 
-  -   **lastLedgerCreatedTimestamp**: time when last ledger was created
+  -   **lastLedgerCreatedTimestamp**: The time when the last ledger is created.
 
-  -   **lastLedgerCreationFailureTimestamp:** time when last ledger was failed
+  -   **lastLedgerCreationFailureTimestamp:** The time when the last ledger failed.
 
-  -   **waitingCursorsCount**: How many cursors are "caught up" and waiting for a new message to be published
+  -   **waitingCursorsCount**: The number of cursors that are "caught up" and waiting for a new message to be published.
 
-  -   **pendingAddEntriesCount**: How many messages have (asynchronous) write requests we are waiting on completion
+  -   **pendingAddEntriesCount**: The number of messages that complete (asynchronous) write requests.
 
-  -   **lastConfirmedEntry**: The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.
+  -   **lastConfirmedEntry**: The ledgerid:entryid of the last message that is written successfully. If the entryid is `-1`, then the ledger is open, yet no entries are written.
 
-  -   **state**: The state of this ledger for writing. LedgerOpened means we have a ledger open for saving published messages.
+  -   **state**: The state of this ledger for writing. The state `LedgerOpened` means that a ledger is open for saving published messages.
 
-  -   **ledgers**: The ordered list of all ledgers for this topic holding its messages
+  -   **ledgers**: The ordered list of all ledgers for this topic holding messages.
 
-      -   **ledgerId**: Id of this ledger
+      -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: Total number of entries belong to this ledger
+      -   **entries**: The total number of entries belong to this ledger.
 
-      -   **size**: Size of messages written to this ledger (in bytes)
+      -   **size**: The size of messages written to this ledger (in bytes).
 
-      -   **offloaded**: Whether this ledger is offloaded
+      -   **offloaded**: Whether this ledger is offloaded.
 
   -   **compactedLedger**: The ledgers holding un-acked messages after topic compaction.
  
-      -   **ledgerId**: Id of this ledger
+      -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: Total number of entries belong to this ledger
+      -   **entries**: The total number of entries belong to this ledger.
      
-      -   **size**: Size of messages written to this ledger (in bytes)
+      -   **size**: The size of messages written to this ledger (in bytes).
      
-      -   **offloaded**: Will always be false for compacted topic ledger.
+      -   **offloaded**: Whether this ledger is offloaded. The value is `false` for the compacted topic ledger.
       
-  -   **cursors**: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
+  -   **cursors**: The list of all cursors on this topic. Each subscription in the topic stats has a cursor.
 
-      -   **markDeletePosition**: All of messages before the markDeletePosition are acknowledged by the subscriber.
+      -   **markDeletePosition**: All messages before the markDeletePosition are acknowledged by the subscriber.
 
-      -   **readPosition**: The latest position of subscriber for reading message
+      -   **readPosition**: The latest position of subscriber for reading message.
 
-      -   **waitingReadOp**: This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.
+      -   **waitingReadOp**: This is true when the subscription has read the latest message published to the topic and is waiting for new messages to be published.
 
-      -   **pendingReadOps**: The counter for how many outstanding read requests to the BookKeepers we have in progress
+      -   **pendingReadOps**: The counter for how many outstanding read requests to the BookKeepers in progress.
 
-      -   **messagesConsumedCounter**: Number of messages this cursor has acked since this broker loaded this topic
+      -   **messagesConsumedCounter**: The number of messages this cursor has acked since this broker loaded this topic.
 
-      -   **cursorLedger**: The ledger being used to persistently store the current markDeletePosition
+      -   **cursorLedger**: The ledger being used to persistently store the current markDeletePosition.
 
-      -   **cursorLedgerLastEntry**: The last entryid used to persistently store the current markDeletePosition
+      -   **cursorLedgerLastEntry**: The last entryid used to persistently store the current markDeletePosition.
 
-      -   **individuallyDeletedMessages**: If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position
+      -   **individuallyDeletedMessages**: If acknowledges are being done out of order, the ranges of messages acknowledged between the markDeletePosition and the read-position shows.
 
-      -   **lastLedgerSwitchTimestamp**: The last time the cursor ledger was rolled over
+      -   **lastLedgerSwitchTimestamp**: The last time the cursor ledger is rolled over.
 
-      -   **state**: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.
+      -   **state**: The state of the cursor ledger: `Open` means you have a cursor ledger for saving updates of the markDeletePosition.
+
+The following is an example of the detailed statistics of a topic.
 
 ```json
 {
@@ -439,37 +432,32 @@ It shows detailed statistics of a topic.
     }
 }
 ```
-
-
-#### pulsar-admin
-
-Topic internal-stats can be fetched using [`stats-internal`](../../reference/CliTools#stats-internal) command.
-
+To get the internal status of a topic, you can use the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent stats-internal \
+$ pulsar-admin topics stats-internal \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getInternalStats(topic);
+admin.topics().getInternalStats(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Peek messages
 
-It peeks N messages for a specific subscription of a given topic.
-
-#### pulsar-admin
-
-
+You can peek a number of messages for a specific subscription of a given topic in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent peek-messages \
+$ pulsar-admin topics peek-messages \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 
@@ -478,236 +466,235 @@ Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
 msg-payload
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().peekMessages(topic, subName, numMessages);
+admin.topics().peekMessages(topic, subName, numMessages);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get message by ID
 
-It fetches the message with given ledger id and entry id.
+You can fetch the message with the given ledger ID and entry ID in the following ways.
 
-#### pulsar-admin
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
 $ ./bin/pulsar-admin topics get-message-by-id \
   persistent://public/default/my-topic \
   -l 10 -e 0
 ```
 
-#### REST API
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
 
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long ledgerId = 10;
 long entryId = 10;
-admin.persistentTopics().getMessageById(topic, ledgerId, entryId);
+admin.topics().getMessageById(topic, ledgerId, entryId);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Skip messages
 
-It skips N messages for a specific subscription of a given topic.
+You can skip a number of messages for a specific subscription of a given topic in the following ways.
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent skip \
+$ pulsar-admin topics skip \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().skipMessages(topic, subName, numMessages);
+admin.topics().skipMessages(topic, subName, numMessages);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Skip all messages
 
-It skips all old messages for a specific subscription of a given topic.
+You can skip all the old messages for a specific subscription of a given topic.
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent skip-all \
+$ pulsar-admin topics skip-all \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
-
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all)
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
-admin.persistentTopics().skipAllMessages(topic, subName);
+admin.topics().skipAllMessages(topic, subName);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Reset cursor
 
-It resets a subscription’s cursor position back to the position which was recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position.
+You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent reset-cursor \
+$ pulsar-admin topics reset-cursor \
   --subscription my-subscription --time 10 \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
+admin.topics().skipAllMessages(topic, subName, timestamp);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Lookup of topic
 
-It locates broker url which is serving the given topic.
+You can locate the broker URL which is serving the given topic in the following ways.
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent lookup \
+$ pulsar-admin topics lookup \
   persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/}
 
-{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(topic);
 ```
 
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ### Get bundle
 
-It gives range of the bundle which contains given topic
+You can check the range of the bundle which contains given topic in the following ways.
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent bundle-range \
+$ pulsar-admin topics bundle-range \
   persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
 ```
 
-#### REST API
-
+<!--REST API-->
 {@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/}
 
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().getBundleRange(topic);
 ```
 
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get subscriptions
 
-It shows all subscription names for a given topic.
+You can check all subscription names for a given topic in the following ways.
 
-#### pulsar-admin
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent subscriptions \
+$ pulsar-admin topics subscriptions \
   persistent://test-tenant/ns1/tp1 \
 
  my-subscription
 ```
 
-#### REST API
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
-
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getSubscriptions(topic);
+admin.topics().getSubscriptions(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Unsubscribe
 
-It can also help to unsubscribe a subscription which is no more processing further messages.
+When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
 
-#### pulsar-admin
-
-
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
-$ pulsar-admin persistent unsubscribe \
+$ pulsar-admin topics unsubscribe \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
 
-#### REST API
-
+<!--REST API-->
 {@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription}
 
-#### Java
-
+<!--Java-->
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
-admin.persistentTopics().deleteSubscription(topic, subscriptionName);
+admin.topics().deleteSubscription(topic, subscriptionName);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Last Message Id
 
-It gives the last commited message ID for a persistent topic, and it will be available in 2.3.0.
+You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
 
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 ```shell
 pulsar-admin topics last-message-id topic-name
 ```
 
-#### REST API
-{% endpoint Get /admin/v2/persistent/:tenant/:namespace/:topic/lastMessageId %}
+<!--REST API-->
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId}
 
-#### Java
-
+<!--Java-->
 ```Java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getLastMessage(topic);
+admin.topics().getLastMessage(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+## Manage partitioned topics
+
+## Manage non-partitioned topics
