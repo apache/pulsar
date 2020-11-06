@@ -48,7 +48,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.util.ZkUtils;
@@ -61,6 +64,8 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -953,15 +958,94 @@ public class ClustersBase extends AdminResource {
         }
     }
 
+    @POST
+    @Path("/{cluster}/offloadPolicies")
+    @ApiOperation(value = " Set offload configuration on a cluster.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid")})
+    public void setOffloadPolicies(@PathParam("cluster") String cluster,
+                                   @ApiParam(value = "Offload policies for the specified cluster", required = true) OffloadPolicies offload,
+                                   @Suspended final AsyncResponse asyncResponse) {
+        validateClusterExists(cluster);
+        internalSetOffloadPolicies(asyncResponse, cluster, offload);
+    }
+
+    private void internalSetOffloadPolicies(AsyncResponse asyncResponse, String cluster, OffloadPolicies offload) {
+        validateClusterExists(cluster);
+        validateClusterOwnership(cluster);
+        validatePoliciesReadOnlyAccess();
+        validateOffloadPolicies(offload, cluster);
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, "clusters", cluster);
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+
+            policies.offload_policies = null;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion(),
+                    (rc, path1, ctx, stat) -> {
+                        if (rc == KeeperException.Code.OK.intValue()) {
+                            policiesCache().invalidate(path(POLICIES, "clusters", cluster));
+                            log.info("[{}] Successfully remove offload configuration: cluster={}", clientAppId(),
+                                    cluster);
+                            asyncResponse.resume(Response.noContent().build());
+                        } else {
+                            String errorMsg = String.format(
+                                    "[%s] Failed to remove offload configuration for cluster %s",
+                                    clientAppId(), cluster);
+                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                log.warn("{} : does not exist", errorMsg);
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                log.warn("{} : concurrent modification", errorMsg);
+                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            } else {
+                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                            }
+                        }
+                    }, null);
+        } catch (Exception e) {
+            log.error("[{}] Failed to remove offload configuration for cluster {}", clientAppId(), cluster,
+                    e);
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    private void validateOffloadPolicies(OffloadPolicies offloadPolicies, String cluster) {
+        if (offloadPolicies == null) {
+            log.warn("[{}] Failed to update offload configuration for cluster {}: offloadPolicies is null",
+                    clientAppId(), cluster);
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The offloadPolicies must be specified for cluster offload.");
+        }
+        if (!offloadPolicies.driverSupported()) {
+            log.warn("[{}] Failed to update offload configuration for cluster {}: " +
+                            "driver is not supported, support value: {}",
+                    clientAppId(), cluster, OffloadPolicies.getSupportedDriverNames());
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
+        }
+        if (!offloadPolicies.bucketValid()) {
+            log.warn("[{}] Failed to update offload configuration for cluster {}: bucket must be specified",
+                    clientAppId(), cluster);
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The bucket must be specified for cluster offload.");
+        }
+    }
+
     @DELETE
     @Path("/{cluster}/failureDomains/{domainName}")
     @ApiOperation(
-        value = "Delete the failure domain of the cluster",
-        notes = "This operation requires Pulsar superuser privileges."
+            value = "Delete the failure domain of the cluster",
+            notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
-        @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
+            @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
+            @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")
     })

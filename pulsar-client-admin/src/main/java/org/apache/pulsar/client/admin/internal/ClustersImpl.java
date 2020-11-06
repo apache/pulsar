@@ -559,7 +559,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private CompletableFuture<Void> setOffloadPoliciesAsync(String cluster, OffloadPolicies offloadPolicies) {
-        WebTarget path = adminClusters.path(cluster).path("setOffloadPolicies");
+        WebTarget path = adminClusters.path(cluster).path("offloadPolicies");
         return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
