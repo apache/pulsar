@@ -117,9 +117,6 @@
       "admin-api-namespaces",
       "admin-api-permissions",
       "admin-api-persistent-topics",
-      "admin-api-non-persistent-topics",
-      "admin-api-partitioned-topics",
-      "admin-api-non-partitioned-topics",
       "admin-api-schemas",
       "admin-api-functions"
     ],

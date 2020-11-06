@@ -16,21 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.websocket.data;
+#pragma once
 
-import java.util.Map;
+#include <pulsar/KeySharedPolicy.h>
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
+namespace pulsar {
 
-@JsonInclude(Include.NON_NULL)
-public class ConsumerMessage {
-    public String messageId;
-    public String payload;
-    public Map<String, String> properties;
-    public String publishTime;
-    public int redeliveryCount;
-    public String eventTime;
+struct KeySharedPolicyImpl {
+    bool allowOutOfOrderDelivery;
+    KeySharedMode keySharedMode;
 
-    public String key;
-}
+    KeySharedPolicyImpl() : allowOutOfOrderDelivery(false), keySharedMode(AUTO_SPLIT) {}
+};
+}  // namespace pulsar
