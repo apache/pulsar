@@ -400,7 +400,7 @@ public abstract class ZooKeeperCache implements Watcher {
         if (result != null && result.isDone()) {
             Pair<Entry<Object, Stat>, Long> entryPair = result.getNow(null);
             if (entryPair != null && entryPair.getRight() != null) {
-                if ((System.nanoTime() - entryPair.getRight()) > TimeUnit.SECONDS.toMillis(cacheExpirySeconds)) {
+                if ((System.nanoTime() - entryPair.getRight()) > TimeUnit.SECONDS.toNanos(cacheExpirySeconds)) {
                     this.zkSession.get().getData(path, this, (rc, path1, ctx, content, stat) -> {
                         if (rc != Code.OK.intValue()) {
                             log.warn("Failed to refresh zookeeper-cache for {} due to {}", path, rc);
