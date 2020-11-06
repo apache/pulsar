@@ -177,12 +177,12 @@ configs:
 <p>你可以使用 <strong>Admin CLI</strong> 创建连接器。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-2"></a><a href="#source-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>创建一个源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4729-tab-4730" class="nav-link active" data-group="group_4729" data-tab="tab-group-4729-content-4730">Admin CLI</div><div id="tab-group-4729-tab-4731" class="nav-link" data-group="group_4729" data-tab="tab-group-4729-content-4731">REST API</div><div id="tab-group-4729-tab-4732" class="nav-link" data-group="group_4729" data-tab="tab-group-4729-content-4732">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4729-content-4730" class="tab-pane active" data-group="group_4729" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5161-tab-5162" class="nav-link active" data-group="group_5161" data-tab="tab-group-5161-content-5162">Admin CLI</div><div id="tab-group-5161-tab-5163" class="nav-link" data-group="group_5161" data-tab="tab-group-5161-content-5163">REST API</div><div id="tab-group-5161-tab-5164" class="nav-link" data-group="group_5161" data-tab="tab-group-5161-content-5164">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5161-content-5162" class="tab-pane active" data-group="group_5161" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources create options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#create">here</a>.</p>
-</span></div></div><div id="tab-group-4729-content-4731" class="tab-pane" data-group="group_4729" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-5161-content-5163" class="tab-pane" data-group="group_5161" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
-</span></div></div><div id="tab-group-4729-content-4732" class="tab-pane" data-group="group_4729" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5161-content-5164" class="tab-pane" data-group="group_5161" tabindex="-1"><div><span><ul>
 <li><p>使用 <strong>个本地文件</strong> 创建一个源连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                  String fileName)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
@@ -221,12 +221,12 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-2"></a><a href="#sink-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>创建源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4733-tab-4734" class="nav-link active" data-group="group_4733" data-tab="tab-group-4733-content-4734">Admin CLI</div><div id="tab-group-4733-tab-4735" class="nav-link" data-group="group_4733" data-tab="tab-group-4733-content-4735">REST API</div><div id="tab-group-4733-tab-4736" class="nav-link" data-group="group_4733" data-tab="tab-group-4733-content-4736">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4733-content-4734" class="tab-pane active" data-group="group_4733" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5165-tab-5166" class="nav-link active" data-group="group_5165" data-tab="tab-group-5165-content-5166">Admin CLI</div><div id="tab-group-5165-tab-5167" class="nav-link" data-group="group_5165" data-tab="tab-group-5165-content-5167">REST API</div><div id="tab-group-5165-tab-5168" class="nav-link" data-group="group_5165" data-tab="tab-group-5165-content-5168">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5165-content-5166" class="tab-pane active" data-group="group_5165" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks create options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#create-1">here</a>.</p>
-</span></div></div><div id="tab-group-4733-content-4735" class="tab-pane" data-group="group_4733" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-5165-content-5167" class="tab-pane" data-group="group_5165" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
-</span></div></div><div id="tab-group-4733-content-4736" class="tab-pane" data-group="group_4733" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5165-content-5168" class="tab-pane" data-group="group_5165" tabindex="-1"><div><span><ul>
 <li><p>使用 <strong>个本地文件</strong> 创建一个源连接器。</p>
 <pre><code class="hljs">  java<br />    void createSink(SinkConfig sinkConfig,<br />                    String fileName)<br />             throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -261,10 +261,10 @@ configs:
 <p>你可以使用 <strong>管理员CLI</strong> 或 <strong>REST API</strong> 启动连接器。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-3"></a><a href="#source-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>启动一个源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4737-tab-4738" class="nav-link active" data-group="group_4737" data-tab="tab-group-4737-content-4738">Admin CLI</div><div id="tab-group-4737-tab-4739" class="nav-link" data-group="group_4737" data-tab="tab-group-4737-content-4739">REST API</div></div><div class="tab-content"><div id="tab-group-4737-content-4738" class="tab-pane active" data-group="group_4737" tabindex="-1"><div><span><p>使用 <code>起始</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5169-tab-5170" class="nav-link active" data-group="group_5169" data-tab="tab-group-5169-content-5170">Admin CLI</div><div id="tab-group-5169-tab-5171" class="nav-link" data-group="group_5169" data-tab="tab-group-5169-content-5171">REST API</div></div><div class="tab-content"><div id="tab-group-5169-content-5170" class="tab-pane active" data-group="group_5169" tabindex="-1"><div><span><p>使用 <code>起始</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources start options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#start">here</a>.</p>
-</span></div></div><div id="tab-group-4737-content-4739" class="tab-pane" data-group="group_4737" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5169-content-5171" class="tab-pane" data-group="group_5169" tabindex="-1"><div><span><ul>
 <li><p>启动<strong>所有</strong>源连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/startSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
 </p></li>
@@ -275,10 +275,10 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-3"></a><a href="#sink-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>启动 sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4740-tab-4741" class="nav-link active" data-group="group_4740" data-tab="tab-group-4740-content-4741">Admin CLI</div><div id="tab-group-4740-tab-4742" class="nav-link" data-group="group_4740" data-tab="tab-group-4740-content-4742">REST API</div></div><div class="tab-content"><div id="tab-group-4740-content-4741" class="tab-pane active" data-group="group_4740" tabindex="-1"><div><span><p>使用 <code>起始</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5172-tab-5173" class="nav-link active" data-group="group_5172" data-tab="tab-group-5172-content-5173">Admin CLI</div><div id="tab-group-5172-tab-5174" class="nav-link" data-group="group_5172" data-tab="tab-group-5172-content-5174">REST API</div></div><div class="tab-content"><div id="tab-group-5172-content-5173" class="tab-pane active" data-group="group_5172" tabindex="-1"><div><span><p>使用 <code>起始</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks start options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#start-1">here</a>.</p>
-</span></div></div><div id="tab-group-4740-content-4742" class="tab-pane" data-group="group_4740" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5172-content-5174" class="tab-pane" data-group="group_5172" tabindex="-1"><div><span><ul>
 <li><p>启动 <strong>所有</strong> sink 连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/startSink"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
 </p></li>
@@ -291,13 +291,13 @@ configs:
 <p>你可以在本地运行连接器，而不是使用 <strong>管理员CLI</strong> 在 Pulsar 集群中部署连接器。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-4"></a><a href="#source-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>本地运行一个源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4743-tab-4744" class="nav-link active" data-group="group_4743" data-tab="tab-group-4743-content-4744">Admin CLI</div></div><div class="tab-content"><div id="tab-group-4743-content-4744" class="tab-pane active" data-group="group_4743" tabindex="-1"><div><span><p>使用 <code>localrun</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5175-tab-5176" class="nav-link active" data-group="group_5175" data-tab="tab-group-5175-content-5176">Admin CLI</div></div><div class="tab-content"><div id="tab-group-5175-content-5176" class="tab-pane active" data-group="group_5175" tabindex="-1"><div><span><p>使用 <code>localrun</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources localrun options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#localrun">here</a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-4"></a><a href="#sink-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>本地运行 sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4745-tab-4746" class="nav-link active" data-group="group_4745" data-tab="tab-group-4745-content-4746">Admin CLI</div></div><div class="tab-content"><div id="tab-group-4745-content-4746" class="tab-pane active" data-group="group_4745" tabindex="-1"><div><span><p>使用 <code>localrun</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5177-tab-5178" class="nav-link active" data-group="group_5177" data-tab="tab-group-5177-content-5178">Admin CLI</div></div><div class="tab-content"><div id="tab-group-5177-content-5178" class="tab-pane active" data-group="group_5177" tabindex="-1"><div><span><p>使用 <code>localrun</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks localrun options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#localrun-1">here</a>.</p>
 </span></div></div></div></div>
@@ -312,12 +312,12 @@ configs:
 <p>你可以使用 <strong>Admin CLI</strong> 获取连接器信息。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-5"></a><a href="#source-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>获取源连接器的信息。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4747-tab-4748" class="nav-link active" data-group="group_4747" data-tab="tab-group-4747-content-4748">Admin CLI</div><div id="tab-group-4747-tab-4749" class="nav-link" data-group="group_4747" data-tab="tab-group-4747-content-4749">REST API</div><div id="tab-group-4747-tab-4750" class="nav-link" data-group="group_4747" data-tab="tab-group-4747-content-4750">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4747-content-4748" class="tab-pane active" data-group="group_4747" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5179-tab-5180" class="nav-link active" data-group="group_5179" data-tab="tab-group-5179-content-5180">Admin CLI</div><div id="tab-group-5179-tab-5181" class="nav-link" data-group="group_5179" data-tab="tab-group-5179-content-5181">REST API</div><div id="tab-group-5179-tab-5182" class="nav-link" data-group="group_5179" data-tab="tab-group-5179-content-5182">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5179-content-5180" class="tab-pane active" data-group="group_5179" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources get options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#get">here</a>.</p>
-</span></div></div><div id="tab-group-4747-content-4749" class="tab-pane" data-group="group_4747" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceInfo"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-5179-content-5181" class="tab-pane" data-group="group_5179" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceInfo"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
-</span></div></div><div id="tab-group-4747-content-4750" class="tab-pane" data-group="group_4747" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+</span></div></div><div id="tab-group-5179-content-5182" class="tab-pane" data-group="group_5179" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>示例</strong></p>
 <p>这是一个源配置</p>
 <pre><code class="hljs css language-java">{<br /> <span class="hljs-string">"tenant"</span>: <span class="hljs-string">"tenantName"</span>,<br /> <span class="hljs-string">"namespace"</span>: <span class="hljs-string">"namespaceName"</span>,<br /> <span class="hljs-string">"name"</span>: <span class="hljs-string">"sourceName"</span>,<br /> <span class="hljs-string">"className"</span>: <span class="hljs-string">"className"</span>,<br /> <span class="hljs-string">"topicName"</span>: <span class="hljs-string">"topicName"</span>,<br /> <span class="hljs-string">"configs"</span>: {},<br /> <span class="hljs-string">"parallelism"</span>: <span class="hljs-number">1</span>,<br /> <span class="hljs-string">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,<br /> <span class="hljs-string">"resources"</span>: {<br />   <span class="hljs-string">"cpu"</span>: <span class="hljs-number">1.0</span>,<br />   <span class="hljs-string">"ram"</span>: <span class="hljs-number">1073741824</span>,<br />   <span class="hljs-string">"disk"</span>: <span class="hljs-number">10737418240</span><br /> }<br />}<br /></code></pre>
@@ -329,12 +329,12 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-5"></a><a href="#sink-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>获取 sink 的信息。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4751-tab-4752" class="nav-link active" data-group="group_4751" data-tab="tab-group-4751-content-4752">Admin CLI</div><div id="tab-group-4751-tab-4753" class="nav-link" data-group="group_4751" data-tab="tab-group-4751-content-4753">REST API</div><div id="tab-group-4751-tab-4754" class="nav-link" data-group="group_4751" data-tab="tab-group-4751-content-4754">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4751-content-4752" class="tab-pane active" data-group="group_4751" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5183-tab-5184" class="nav-link active" data-group="group_5183" data-tab="tab-group-5183-content-5184">Admin CLI</div><div id="tab-group-5183-tab-5185" class="nav-link" data-group="group_5183" data-tab="tab-group-5183-content-5185">REST API</div><div id="tab-group-5183-tab-5186" class="nav-link" data-group="group_5183" data-tab="tab-group-5183-content-5186">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5183-content-5184" class="tab-pane active" data-group="group_5183" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks get options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#get-1">here</a>.</p>
-</span></div></div><div id="tab-group-4751-content-4753" class="tab-pane" data-group="group_4751" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInfo"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-5183-content-5185" class="tab-pane" data-group="group_5183" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInfo"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
-</span></div></div><div id="tab-group-4751-content-4754" class="tab-pane" data-group="group_4751" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+</span></div></div><div id="tab-group-5183-content-5186" class="tab-pane" data-group="group_5183" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>示例</strong></p>
 <p>这是一个 sinkConfig。</p>
 <pre><code class="hljs">{<br />&quot;tenant&quot;: &quot;tenantName&quot;,<br />&quot;namespace&quot;: &quot;namespaceName&quot;,<br />&quot;name&quot;: &quot;sinkName&quot;,<br />&quot;className&quot;: &quot;className&quot;,<br />&quot;inputSpecs&quot;: {<br />&quot;topicName&quot;: {<br />    &quot;isRegexPattern&quot;: false<br />}<br />},<br />&quot;configs&quot;: {},<br />&quot;parallelism&quot;: 1,<br />&quot;processingGuarantees&quot;: &quot;ATLEAST_ONCE&quot;,<br />&quot;retainOrdering&quot;: false,<br />&quot;autoAck&quot;: true<br />}<br /></code></pre>
@@ -348,12 +348,12 @@ configs:
 <p>你可以使用 <strong>管理员CLI</strong> 获取所有运行中的连接器列表， <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-6"></a><a href="#source-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>获取所有正在运行的源连接器列表。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4755-tab-4756" class="nav-link active" data-group="group_4755" data-tab="tab-group-4755-content-4756">Admin CLI</div><div id="tab-group-4755-tab-4757" class="nav-link" data-group="group_4755" data-tab="tab-group-4755-content-4757">REST API</div><div id="tab-group-4755-tab-4758" class="nav-link" data-group="group_4755" data-tab="tab-group-4755-content-4758">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4755-content-4756" class="tab-pane active" data-group="group_4755" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5187-tab-5188" class="nav-link active" data-group="group_5187" data-tab="tab-group-5187-content-5188">Admin CLI</div><div id="tab-group-5187-tab-5189" class="nav-link" data-group="group_5187" data-tab="tab-group-5187-content-5189">REST API</div><div id="tab-group-5187-tab-5190" class="nav-link" data-group="group_5187" data-tab="tab-group-5187-content-5190">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5187-content-5188" class="tab-pane active" data-group="group_5187" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources list options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#list">here</a>.</p>
-</span></div></div><div id="tab-group-4755-content-4757" class="tab-pane" data-group="group_4755" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到这个端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSources"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-5187-content-5189" class="tab-pane" data-group="group_5187" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到这个端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSources"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
 </p>
-</span></div></div><div id="tab-group-4755-content-4758" class="tab-pane" data-group="group_4755" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,<br />                         String namespace)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+</span></div></div><div id="tab-group-5187-content-5190" class="tab-pane" data-group="group_5187" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,<br />                         String namespace)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>响应示例</strong></p>
 <pre><code class="hljs css language-java">[<span class="hljs-string">"f1"</span>, <span class="hljs-string">"f2"</span>, <span class="hljs-string">"f3"</span>]<br /></code></pre>
 <p><strong>异常</strong></p>
@@ -362,12 +362,12 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-6"></a><a href="#sink-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>获取所有正在运行的 sink 列表。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4759-tab-4760" class="nav-link active" data-group="group_4759" data-tab="tab-group-4759-content-4760">Admin CLI</div><div id="tab-group-4759-tab-4761" class="nav-link" data-group="group_4759" data-tab="tab-group-4759-content-4761">REST API</div><div id="tab-group-4759-tab-4762" class="nav-link" data-group="group_4759" data-tab="tab-group-4759-content-4762">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4759-content-4760" class="tab-pane active" data-group="group_4759" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5191-tab-5192" class="nav-link active" data-group="group_5191" data-tab="tab-group-5191-content-5192">Admin CLI</div><div id="tab-group-5191-tab-5193" class="nav-link" data-group="group_5191" data-tab="tab-group-5191-content-5193">REST API</div><div id="tab-group-5191-tab-5194" class="nav-link" data-group="group_5191" data-tab="tab-group-5191-content-5194">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5191-content-5192" class="tab-pane active" data-group="group_5191" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks list options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#list-1">here</a>.</p>
-</span></div></div><div id="tab-group-4759-content-4761" class="tab-pane" data-group="group_4759" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSinks"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-5191-content-5193" class="tab-pane" data-group="group_5191" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSinks"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
 </p>
-</span></div></div><div id="tab-group-4759-content-4762" class="tab-pane" data-group="group_4759" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,<br />                       String namespace)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+</span></div></div><div id="tab-group-5191-content-5194" class="tab-pane" data-group="group_5191" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,<br />                       String namespace)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>响应示例</strong></p>
 <pre><code class="hljs css language-java">[<span class="hljs-string">"f1"</span>, <span class="hljs-string">"f2"</span>, <span class="hljs-string">"f3"</span>]<br /></code></pre>
 <p><strong>异常</strong></p>
@@ -378,10 +378,10 @@ configs:
 <p>你可以使用 <strong>管理员CLI</strong> 获取连接器的当前状态 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-7"></a><a href="#source-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>获取源连接器的当前状态。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4763-tab-4764" class="nav-link active" data-group="group_4763" data-tab="tab-group-4763-content-4764">Admin CLI</div><div id="tab-group-4763-tab-4765" class="nav-link" data-group="group_4763" data-tab="tab-group-4763-content-4765">REST API</div><div id="tab-group-4763-tab-4766" class="nav-link" data-group="group_4763" data-tab="tab-group-4763-content-4766">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4763-content-4764" class="tab-pane active" data-group="group_4763" tabindex="-1"><div><span><p>使用 <code>状态</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5195-tab-5196" class="nav-link active" data-group="group_5195" data-tab="tab-group-5195-content-5196">Admin CLI</div><div id="tab-group-5195-tab-5197" class="nav-link" data-group="group_5195" data-tab="tab-group-5195-content-5197">REST API</div><div id="tab-group-5195-tab-5198" class="nav-link" data-group="group_5195" data-tab="tab-group-5195-content-5198">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5195-content-5196" class="tab-pane active" data-group="group_5195" tabindex="-1"><div><span><p>使用 <code>状态</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources status options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#status">here</a>.</p>
-</span></div></div><div id="tab-group-4763-content-4765" class="tab-pane" data-group="group_4763" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5195-content-5197" class="tab-pane" data-group="group_5195" tabindex="-1"><div><span><ul>
 <li><p>获取<strong>所有</strong>源连接器的当前状态。</p>
 <p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceStatus"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
 </p></li>
@@ -389,7 +389,7 @@ configs:
 <p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceStatus"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4763-content-4766" class="tab-pane" data-group="group_4763" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5195-content-5198" class="tab-pane" data-group="group_5195" tabindex="-1"><div><span><ul>
 <li><p>获取<strong>所有</strong>源连接器的当前状态。</p>
 <pre><code class="hljs">  java<br />    SourceStatus getSourceStatus(String tenant,<br />                                String namespace,<br />                                String source)<br />                        throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -408,10 +408,10 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-7"></a><a href="#sink-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>获取 Pulsar sink 连接器的当前状态。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4767-tab-4768" class="nav-link active" data-group="group_4767" data-tab="tab-group-4767-content-4768">Admin CLI</div><div id="tab-group-4767-tab-4769" class="nav-link" data-group="group_4767" data-tab="tab-group-4767-content-4769">REST API</div><div id="tab-group-4767-tab-4770" class="nav-link" data-group="group_4767" data-tab="tab-group-4767-content-4770">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4767-content-4768" class="tab-pane active" data-group="group_4767" tabindex="-1"><div><span><p>使用 <code>状态</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5199-tab-5200" class="nav-link active" data-group="group_5199" data-tab="tab-group-5199-content-5200">Admin CLI</div><div id="tab-group-5199-tab-5201" class="nav-link" data-group="group_5199" data-tab="tab-group-5199-content-5201">REST API</div><div id="tab-group-5199-tab-5202" class="nav-link" data-group="group_5199" data-tab="tab-group-5199-content-5202">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5199-content-5200" class="tab-pane active" data-group="group_5199" tabindex="-1"><div><span><p>使用 <code>状态</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks status options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#status-1">here</a>.</p>
-</span></div></div><div id="tab-group-4767-content-4769" class="tab-pane" data-group="group_4767" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5199-content-5201" class="tab-pane" data-group="group_5199" tabindex="-1"><div><span><ul>
 <li><p>获取 <strong>所有</strong> sink 连接器的当前状态。</p>
 <p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkStatus"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
 </p></li>
@@ -419,7 +419,7 @@ configs:
 <p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInstanceStatus"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4767-content-4770" class="tab-pane" data-group="group_4767" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5199-content-5202" class="tab-pane" data-group="group_5199" tabindex="-1"><div><span><ul>
 <li><p>获取 <strong>所有</strong> sink 连接器的当前状态。</p>
 <pre><code class="hljs">  java<br />    SinkStatus getSinkStatus(String tenant,<br />                             String namespace,<br />                             String sink)<br />                      throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -441,12 +441,12 @@ configs:
 <p>你可以使用 <strong>Admin CLI</strong> 更新正在运行的连接器。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-8"></a><a href="#source-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>更新正在运行的 Pulsar 源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4771-tab-4772" class="nav-link active" data-group="group_4771" data-tab="tab-group-4771-content-4772">Admin CLI</div><div id="tab-group-4771-tab-4773" class="nav-link" data-group="group_4771" data-tab="tab-group-4771-content-4773">REST API</div><div id="tab-group-4771-tab-4774" class="nav-link" data-group="group_4771" data-tab="tab-group-4771-content-4774">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4771-content-4772" class="tab-pane active" data-group="group_4771" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5203-tab-5204" class="nav-link active" data-group="group_5203" data-tab="tab-group-5203-content-5204">Admin CLI</div><div id="tab-group-5203-tab-5205" class="nav-link" data-group="group_5203" data-tab="tab-group-5203-content-5205">REST API</div><div id="tab-group-5203-tab-5206" class="nav-link" data-group="group_5203" data-tab="tab-group-5203-content-5206">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5203-content-5204" class="tab-pane active" data-group="group_5203" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources update options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#update">here</a>.</p>
-</span></div></div><div id="tab-group-4771-content-4773" class="tab-pane" data-group="group_4771" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSource"><b>PUT</b> <i>/admin/v3/sources:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-5203-content-5205" class="tab-pane" data-group="group_5203" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSource"><b>PUT</b> <i>/admin/v3/sources:tenant/:namespace/:sourceName</i></a>
 </p>
-</span></div></div><div id="tab-group-4771-content-4774" class="tab-pane" data-group="group_4771" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5203-content-5206" class="tab-pane" data-group="group_5203" tabindex="-1"><div><span><ul>
 <li><p>使用 <strong>个本地文件</strong> 更新一个运行中的源连接器。</p>
 <pre><code class="hljs">  java<br />    void updateSource(SourceConfig sourceConfig,<br />                    String fileName)<br />            throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -479,12 +479,12 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-8"></a><a href="#sink-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>更新正在运行的 Pulsar sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4775-tab-4776" class="nav-link active" data-group="group_4775" data-tab="tab-group-4775-content-4776">Admin CLI</div><div id="tab-group-4775-tab-4777" class="nav-link" data-group="group_4775" data-tab="tab-group-4775-content-4777">REST API</div><div id="tab-group-4775-tab-4778" class="nav-link" data-group="group_4775" data-tab="tab-group-4775-content-4778">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4775-content-4776" class="tab-pane active" data-group="group_4775" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5207-tab-5208" class="nav-link active" data-group="group_5207" data-tab="tab-group-5207-content-5208">Admin CLI</div><div id="tab-group-5207-tab-5209" class="nav-link" data-group="group_5207" data-tab="tab-group-5207-content-5209">REST API</div><div id="tab-group-5207-tab-5210" class="nav-link" data-group="group_5207" data-tab="tab-group-5207-content-5210">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5207-content-5208" class="tab-pane active" data-group="group_5207" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks update options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#update-1">here</a>.</p>
-</span></div></div><div id="tab-group-4775-content-4777" class="tab-pane" data-group="group_4775" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSink"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-5207-content-5209" class="tab-pane" data-group="group_5207" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSink"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
-</span></div></div><div id="tab-group-4775-content-4778" class="tab-pane" data-group="group_4775" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5207-content-5210" class="tab-pane" data-group="group_5207" tabindex="-1"><div><span><ul>
 <li><p>使用 <strong>个本地文件</strong> 更新一个运行中的 sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />     <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
@@ -526,10 +526,10 @@ configs:
 <p>你可以使用 <strong>管理员CLI</strong> 停止连接器。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-9"></a><a href="#source-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>停止一个源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4779-tab-4780" class="nav-link active" data-group="group_4779" data-tab="tab-group-4779-content-4780">Admin CLI</div><div id="tab-group-4779-tab-4781" class="nav-link" data-group="group_4779" data-tab="tab-group-4779-content-4781">REST API</div><div id="tab-group-4779-tab-4782" class="nav-link" data-group="group_4779" data-tab="tab-group-4779-content-4782">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4779-content-4780" class="tab-pane active" data-group="group_4779" tabindex="-1"><div><span><p>使用 <code>停止</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5211-tab-5212" class="nav-link active" data-group="group_5211" data-tab="tab-group-5211-content-5212">Admin CLI</div><div id="tab-group-5211-tab-5213" class="nav-link" data-group="group_5211" data-tab="tab-group-5211-content-5213">REST API</div><div id="tab-group-5211-tab-5214" class="nav-link" data-group="group_5211" data-tab="tab-group-5211-content-5214">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5211-content-5212" class="tab-pane active" data-group="group_5211" tabindex="-1"><div><span><p>使用 <code>停止</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources stop options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#stop">here</a>.</p>
-</span></div></div><div id="tab-group-4779-content-4781" class="tab-pane" data-group="group_4779" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5211-content-5213" class="tab-pane" data-group="group_5211" tabindex="-1"><div><span><ul>
 <li><p>停止 <strong>所有</strong> 源连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p></li>
@@ -537,7 +537,7 @@ configs:
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4779-content-4782" class="tab-pane" data-group="group_4779" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5211-content-5214" class="tab-pane" data-group="group_5211" tabindex="-1"><div><span><ul>
 <li><p>停止 <strong>所有</strong> 源连接器。</p>
 <pre><code class="hljs">  java<br />    void stopSource(String tenant,<br />                    String namespace,<br />                    String source)<br />            throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -562,10 +562,10 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-9"></a><a href="#sink-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>停止 sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4783-tab-4784" class="nav-link active" data-group="group_4783" data-tab="tab-group-4783-content-4784">Admin CLI</div><div id="tab-group-4783-tab-4785" class="nav-link" data-group="group_4783" data-tab="tab-group-4783-content-4785">REST API</div><div id="tab-group-4783-tab-4786" class="nav-link" data-group="group_4783" data-tab="tab-group-4783-content-4786">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4783-content-4784" class="tab-pane active" data-group="group_4783" tabindex="-1"><div><span><p>使用 <code>停止</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5215-tab-5216" class="nav-link active" data-group="group_5215" data-tab="tab-group-5215-content-5216">Admin CLI</div><div id="tab-group-5215-tab-5217" class="nav-link" data-group="group_5215" data-tab="tab-group-5215-content-5217">REST API</div><div id="tab-group-5215-tab-5218" class="nav-link" data-group="group_5215" data-tab="tab-group-5215-content-5218">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5215-content-5216" class="tab-pane active" data-group="group_5215" tabindex="-1"><div><span><p>使用 <code>停止</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks stop options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#stop-1">here</a>.</p>
-</span></div></div><div id="tab-group-4783-content-4785" class="tab-pane" data-group="group_4783" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5215-content-5217" class="tab-pane" data-group="group_5215" tabindex="-1"><div><span><ul>
 <li><p>停止 <strong>所有</strong> 接收器连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
 </p></li>
@@ -573,7 +573,7 @@ configs:
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSink"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4783-content-4786" class="tab-pane" data-group="group_4783" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5215-content-5218" class="tab-pane" data-group="group_5215" tabindex="-1"><div><span><ul>
 <li><p>停止 <strong>所有</strong> 接收器连接器。</p>
 <pre><code class="hljs">  java<br />    void stopSink(String tenant,<br />                String namespace,<br />                String sink)<br />        throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -601,10 +601,10 @@ configs:
 <p>你可以使用 <strong>Admin CLI</strong> 重新启动连接器。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong>。</p>
 <h4><a class="anchor" aria-hidden="true" id="source-10"></a><a href="#source-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>重新启动一个源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4787-tab-4788" class="nav-link active" data-group="group_4787" data-tab="tab-group-4787-content-4788">Admin CLI</div><div id="tab-group-4787-tab-4789" class="nav-link" data-group="group_4787" data-tab="tab-group-4787-content-4789">REST API</div><div id="tab-group-4787-tab-4790" class="nav-link" data-group="group_4787" data-tab="tab-group-4787-content-4790">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4787-content-4788" class="tab-pane active" data-group="group_4787" tabindex="-1"><div><span><p>使用 <code>重启</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5219-tab-5220" class="nav-link active" data-group="group_5219" data-tab="tab-group-5219-content-5220">Admin CLI</div><div id="tab-group-5219-tab-5221" class="nav-link" data-group="group_5219" data-tab="tab-group-5219-content-5221">REST API</div><div id="tab-group-5219-tab-5222" class="nav-link" data-group="group_5219" data-tab="tab-group-5219-content-5222">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5219-content-5220" class="tab-pane active" data-group="group_5219" tabindex="-1"><div><span><p>使用 <code>重启</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources restart options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#restart">here</a>.</p>
-</span></div></div><div id="tab-group-4787-content-4789" class="tab-pane" data-group="group_4787" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5219-content-5221" class="tab-pane" data-group="group_5219" tabindex="-1"><div><span><ul>
 <li><p>重新启动 <strong>所有</strong> 源连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/rehtSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
 </p></li>
@@ -612,7 +612,7 @@ configs:
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/restartSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4787-content-4790" class="tab-pane" data-group="group_4787" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5219-content-5222" class="tab-pane" data-group="group_5219" tabindex="-1"><div><span><ul>
 <li><p>重新启动 <strong>所有</strong> 源连接器。</p>
 <pre><code class="hljs">  java<br />    void restartSource(String tenant,<br />                       String namespace,<br />                       String source)<br />                throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -637,10 +637,10 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-10"></a><a href="#sink-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>重新启动 sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4791-tab-4792" class="nav-link active" data-group="group_4791" data-tab="tab-group-4791-content-4792">Admin CLI</div><div id="tab-group-4791-tab-4793" class="nav-link" data-group="group_4791" data-tab="tab-group-4791-content-4793">REST API</div><div id="tab-group-4791-tab-4794" class="nav-link" data-group="group_4791" data-tab="tab-group-4791-content-4794">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4791-content-4792" class="tab-pane active" data-group="group_4791" tabindex="-1"><div><span><p>使用 <code>重启</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5223-tab-5224" class="nav-link active" data-group="group_5223" data-tab="tab-group-5223-content-5224">Admin CLI</div><div id="tab-group-5223-tab-5225" class="nav-link" data-group="group_5223" data-tab="tab-group-5223-content-5225">REST API</div><div id="tab-group-5223-tab-5226" class="nav-link" data-group="group_5223" data-tab="tab-group-5223-content-5226">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5223-content-5224" class="tab-pane active" data-group="group_5223" tabindex="-1"><div><span><p>使用 <code>重启</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks restart options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#restart-1">here</a>.</p>
-</span></div></div><div id="tab-group-4791-content-4793" class="tab-pane" data-group="group_4791" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5223-content-5225" class="tab-pane" data-group="group_5223" tabindex="-1"><div><span><ul>
 <li><p>重新启动 <strong>所有</strong> 源连接器。</p>
 <p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/rehtSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
 </p></li>
@@ -648,7 +648,7 @@ configs:
 <p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/restartSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
 </p></li>
 </ul>
-</span></div></div><div id="tab-group-4791-content-4794" class="tab-pane" data-group="group_4791" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-5223-content-5226" class="tab-pane" data-group="group_5223" tabindex="-1"><div><span><ul>
 <li><p>重启所有 Pulsar sink 连接器。</p>
 <pre><code class="hljs">  java<br />    void restartSink(String tenant,<br />                     String namespace,<br />                     String sink)<br />              throws PulsarAdminException<br /></code></pre>
 <p><strong>参数名</strong></p>
@@ -676,13 +676,13 @@ configs:
 <p>你可以使用 <strong>管理员CLI</strong> 删除连接器。 <strong>REST API</strong> 或 <strong>JAVA 管理员 API</strong></p>
 <h4><a class="anchor" aria-hidden="true" id="source-11"></a><a href="#source-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>删除源连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4795-tab-4796" class="nav-link active" data-group="group_4795" data-tab="tab-group-4795-content-4796">Admin CLI</div><div id="tab-group-4795-tab-4797" class="nav-link" data-group="group_4795" data-tab="tab-group-4795-content-4797">REST API</div><div id="tab-group-4795-tab-4798" class="nav-link" data-group="group_4795" data-tab="tab-group-4795-content-4798">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4795-content-4796" class="tab-pane active" data-group="group_4795" tabindex="-1"><div><span><p>使用 <code>删除</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5227-tab-5228" class="nav-link active" data-group="group_5227" data-tab="tab-group-5227-content-5228">Admin CLI</div><div id="tab-group-5227-tab-5229" class="nav-link" data-group="group_5227" data-tab="tab-group-5227-content-5229">REST API</div><div id="tab-group-5227-tab-5230" class="nav-link" data-group="group_5227" data-tab="tab-group-5227-content-5230">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5227-content-5228" class="tab-pane active" data-group="group_5227" tabindex="-1"><div><span><p>使用 <code>删除</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sources delete options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#delete">here</a>.</p>
-</span></div></div><div id="tab-group-4795-content-4797" class="tab-pane" data-group="group_4795" tabindex="-1"><div><span><p>删除 al Pulsar 源连接器。</p>
+</span></div></div><div id="tab-group-5227-content-5229" class="tab-pane" data-group="group_5227" tabindex="-1"><div><span><p>删除 al Pulsar 源连接器。</p>
 <p>发送 <code>DELETE</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/derregisterSource"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
-</span></div></div><div id="tab-group-4795-content-4798" class="tab-pane" data-group="group_4795" tabindex="-1"><div><span><p>删除源连接器。</p>
+</span></div></div><div id="tab-group-5227-content-5230" class="tab-pane" data-group="group_5227" tabindex="-1"><div><span><p>删除源连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,<br />                  String namespace,<br />                  String source)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
@@ -710,13 +710,13 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-11"></a><a href="#sink-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>删除 sink 连接器。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-4799-tab-4800" class="nav-link active" data-group="group_4799" data-tab="tab-group-4799-content-4800">Admin CLI</div><div id="tab-group-4799-tab-4801" class="nav-link" data-group="group_4799" data-tab="tab-group-4799-content-4801">REST API</div><div id="tab-group-4799-tab-4802" class="nav-link" data-group="group_4799" data-tab="tab-group-4799-content-4802">Java Admin API</div></div><div class="tab-content"><div id="tab-group-4799-content-4800" class="tab-pane active" data-group="group_4799" tabindex="-1"><div><span><p>使用 <code>删除</code> 子命令。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-5231-tab-5232" class="nav-link active" data-group="group_5231" data-tab="tab-group-5231-content-5232">Admin CLI</div><div id="tab-group-5231-tab-5233" class="nav-link" data-group="group_5231" data-tab="tab-group-5231-content-5233">REST API</div><div id="tab-group-5231-tab-5234" class="nav-link" data-group="group_5231" data-tab="tab-group-5231-content-5234">Java Admin API</div></div><div class="tab-content"><div id="tab-group-5231-content-5232" class="tab-pane active" data-group="group_5231" tabindex="-1"><div><span><p>使用 <code>删除</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-admin sinks delete options<br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.4.1/reference-connector-admin#delete-1">here</a>.</p>
-</span></div></div><div id="tab-group-4799-content-4801" class="tab-pane" data-group="group_4799" tabindex="-1"><div><span><p>删除 sink 连接器。</p>
+</span></div></div><div id="tab-group-5231-content-5233" class="tab-pane" data-group="group_5231" tabindex="-1"><div><span><p>删除 sink 连接器。</p>
 <p>发送 <code>DELETE</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/delregisterSink"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkname</i></a>
 </p>
-</span></div></div><div id="tab-group-4799-content-4802" class="tab-pane" data-group="group_4799" tabindex="-1"><div><span><p>删除 Pulsar sink 连接器。</p>
+</span></div></div><div id="tab-group-5231-content-5234" class="tab-pane" data-group="group_5231" tabindex="-1"><div><span><p>删除 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>参数名</strong></p>
 <table>
