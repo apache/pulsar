@@ -26,6 +26,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
@@ -45,12 +46,21 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     private ClassLoader pojoClassLoader;
 
+    private boolean isUseUserDefinedReaderAndWriter = false;
+
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
         setReader(new AvroReader<>(schema, pojoClassLoader, jsr310ConversionEnabled));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
+    }
+
+    private AvroSchema(SchemaReader<T> reader, SchemaWriter<T> writer, SchemaInfo schemaInfo) {
+        super(schemaInfo);
+        isUseUserDefinedReaderAndWriter = true;
+        setReader(reader);
+        setWriter(writer);
     }
 
     @Override
@@ -68,6 +78,10 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        if (schemaDefinition.getSchemaReaderOpt().isPresent() && schemaDefinition.getSchemaWriterOpt().isPresent()) {
+            return new AvroSchema<>(schemaDefinition.getSchemaReaderOpt().get(),
+                    schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        }
         ClassLoader pojoClassLoader = null;
         if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
@@ -91,6 +105,9 @@ public class AvroSchema<T> extends StructSchema<T> {
     @Override
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
+        if (isUseUserDefinedReaderAndWriter) {
+            return reader.getSchemaReaderBySchemaInfo(schemaInfo);
+        }
         if (schemaInfo != null) {
             log.info("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),

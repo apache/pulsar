@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import org.apache.pulsar.common.schema.SchemaInfo;
+
 import java.io.InputStream;
 
 /**
@@ -53,4 +55,14 @@ public interface SchemaReader<T> {
      * @return the serialized object
      */
     T read(InputStream inputStream);
+
+    /**
+     * In order to get SchemaReader by user defined SchemaReader.
+     *
+     * @param schemaInfo {@link SchemaInfo} the schema info to get schema reader
+     * @return {@link SchemaReader} the reader from user defined reader
+     */
+    default SchemaReader<T> getSchemaReaderBySchemaInfo(SchemaInfo schemaInfo) {
+        return this;
+    };
 }
