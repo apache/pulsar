@@ -214,6 +214,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
+    private final ScheduledExecutorService messageDeduplicationMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -297,6 +298,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
         this.ledgerFullMonitor =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("ledger-full-monitor"));
+        this.messageDeduplicationMonitor =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("message-deduplication-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -442,6 +445,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
+        this.startMessageDeduplicationMonitor();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -453,6 +457,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         // Ensure the broker starts up with initial stats
         updateRates();
+    }
+
+    protected void startMessageDeduplicationMonitor() {
+        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotIntervalInSeconds();
+        if (interval > 0) {
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkMessageDeduplicationSnapshot))
+                    , interval, interval, TimeUnit.SECONDS);
+        }
     }
 
     protected void startInactivityMonitor() {

@@ -415,6 +415,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "Interval to take deduplication snapshot in seconds.(disable with value 0)"
+            + "It will run simultaneously with `brokerDeduplicationEntriesInterval`"
+    )
+    private int brokerDeduplicationSnapshotIntervalInSeconds = 120;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "Number of entries after which a dedup info snapshot is taken.\n\n"
             + "A bigger interval will lead to less snapshots being taken though it would"
             + " increase the topic recovery time, when the entries published after the"

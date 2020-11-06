@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -37,6 +39,7 @@ import org.testng.annotations.Test;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
 public class TopicDuplicationTest extends ProducerConsumerBase {
@@ -48,6 +51,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        resetConfig();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setBrokerDeduplicationEnabled(true);
@@ -140,6 +144,42 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertEquals(messageDeduplication.highestSequencedPushed.size(), 0);
         }).get();
 
+    }
+
+    @Test(timeOut = 40000)
+    public void testDuplicationSnapshot() throws Exception {
+        testTakeSnapshot(true);
+        testTakeSnapshot(false);
+    }
+
+    private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
+        conf.setBrokerDeduplicationSnapshotIntervalInSeconds(enabledSnapshot ? 1 : 0);
+        conf.setBrokerDeduplicationEntriesInterval(10000);
+        restartBroker();
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String producerName = "my-producer";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .producerName(producerName).create();
+        int msgNum = 50;
+        for (int i = 0; i < msgNum; i++) {
+            producer.newMessage().value("msg" + i).send();
+        }
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        PositionImpl position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        assertEquals(seqId, msgNum - 1);
+        assertEquals(position.getEntryId(), msgNum - 1);
+
+        Thread.sleep(1200);
+        ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
+        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        if (enabledSnapshot) {
+            assertEquals(position, markDeletedPosition);
+        } else {
+            assertNotEquals(position, markDeletedPosition);
+            assertNotEquals(markDeletedPosition.getEntryId(), -1);
+        }
     }
 
     private void waitCacheInit(String topicName) throws Exception {
