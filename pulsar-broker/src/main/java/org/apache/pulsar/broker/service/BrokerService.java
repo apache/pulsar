@@ -214,7 +214,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
-    private final ScheduledExecutorService messageDeduplicationMonitor;
+    private final ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -298,8 +298,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
         this.ledgerFullMonitor =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("ledger-full-monitor"));
-        this.messageDeduplicationMonitor =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("message-deduplication-monitor"));
+        this.deduplicationSnapshotMonitor =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("deduplication-snapshot-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -462,7 +462,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected void startMessageDeduplicationMonitor() {
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotIntervalInSeconds();
         if (interval > 0) {
-            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkMessageDeduplicationSnapshot))
+            deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);
         }
     }

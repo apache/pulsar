@@ -1832,7 +1832,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void checkMessageDeduplicationSnapshot() {
+    public void checkDeduplicationSnapshot() {
         producers.values().forEach(producers -> messageDeduplication.takeSnapshot(producers.getProducerName()));
     }
 

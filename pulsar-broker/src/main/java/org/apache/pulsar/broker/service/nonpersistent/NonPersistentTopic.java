@@ -917,7 +917,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkMessageDeduplicationSnapshot() {
+    public void checkDeduplicationSnapshot() {
         // no-op
     }
 
