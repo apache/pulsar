@@ -118,6 +118,11 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac41eb4911f47a9a7f9ca6735dc813b73"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ac41eb4911f47a9a7f9ca6735dc813b73"></a>
 <a class="el" href="namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40">ConsumerType</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getConsumerType</b> () const </td></tr>
 <tr class="separator:ac41eb4911f47a9a7f9ca6735dc813b73"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a772dc1c4f223fc753ecfa50cc6a42d3f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a772dc1c4f223fc753ecfa50cc6a42d3f">setKeySharedPolicy</a> (<a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a> keySharedPolicy)</td></tr>
+<tr class="separator:a772dc1c4f223fc753ecfa50cc6a42d3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acaad0def412bb4d3bd41f5da4f48e458"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="acaad0def412bb4d3bd41f5da4f48e458"></a>
+<a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getKeySharedPolicy</b> () const </td></tr>
+<tr class="separator:acaad0def412bb4d3bd41f5da4f48e458"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb4301821f8f471c6c542f486df9639d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d">setMessageListener</a> (<a class="el" href="namespacepulsar.html#aaa22f961f023adaa6f675c1fb4f52477">MessageListener</a> messageListener)</td></tr>
 <tr class="separator:aeb4301821f8f471c6c542f486df9639d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abfdc3893ba00931c3ec38a4acc841e7e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abfdc3893ba00931c3ec38a4acc841e7e"></a>
@@ -498,6 +503,30 @@ false if the property is not defined </dd></dl>
       </table>
 </div><div class="memdoc">
 <p>Specify the consumer type. The consumer type enables specifying the type of subscription. In Exclusive subscription, only a single consumer is allowed to attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers will be able to use the same subscription name and the messages will be dispatched in a round robin fashion. In Failover subscription, a primary-failover subscription model allows for multiple consumers to attach to a single subscription, though only one of them will be “master” at a given time. Only the primary consumer will receive messages. When the primary consumer gets disconnected, one among the failover consumers will be promoted to primary and will start getting messages. </p>
+
+</div>
+</div>
+<a class="anchor" id="a772dc1c4f223fc753ecfa50cc6a42d3f"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a>&amp; pulsar::ConsumerConfiguration::setKeySharedPolicy </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a>&#160;</td>
+          <td class="paramname"><em>keySharedPolicy</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set KeyShared subscription policy for consumer.</p>
+<p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to set a different KeyShared policy, you can set by following example:</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">keySharedPolicy</td><td>The <a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a> want to specify </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

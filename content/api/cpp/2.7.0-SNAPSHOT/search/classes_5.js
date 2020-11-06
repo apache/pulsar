@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['logger',['Logger',['../classpulsar_1_1_logger.html',1,'pulsar']]],
-  ['loggerfactory',['LoggerFactory',['../classpulsar_1_1_logger_factory.html',1,'pulsar']]]
+  ['keysharedpolicy',['KeySharedPolicy',['../classpulsar_1_1_key_shared_policy.html',1,'pulsar']]]
 ];

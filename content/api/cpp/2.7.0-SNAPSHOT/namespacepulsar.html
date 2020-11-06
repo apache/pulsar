@@ -124,6 +124,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_encryption_key_info.html">EncryptionKeyInfo</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_logger.html">Logger</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_logger_factory.html">LoggerFactory</a></td></tr>
@@ -266,6 +268,10 @@ Enumerations</h2></td></tr>
 <b>InitialPositionEarliest</b>
  }</td></tr>
 <tr class="separator:a616c9c251b20fa5da07a41c1584d0b55"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a499d1327931169d068b9b353f106dd04"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a499d1327931169d068b9b353f106dd04">KeySharedMode</a> { <a class="el" href="namespacepulsar.html#a499d1327931169d068b9b353f106dd04a1dce3e502d8e018e90f97c07b37cde1f">AUTO_SPLIT</a> = 0, 
+<a class="el" href="namespacepulsar.html#a499d1327931169d068b9b353f106dd04aed98d14aabee0f3bc70a0cc7723e5b16">STICKY</a> = 1
+ }</td></tr>
+<tr class="separator:a499d1327931169d068b9b353f106dd04"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a21fcd03916492b7597c0b59a352a0491"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a21fcd03916492b7597c0b59a352a0491"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><b>ProducerCryptoFailureAction</b> { <b>FAIL</b>, 
 <b>SEND</b>
  }</td></tr>
@@ -387,6 +393,27 @@ PULSAR_PUBLIC const char *&#160;</td><td class="memItemRight" valign="bottom"><b
 </td></tr>
 <tr><td class="fieldname"><a class="anchor" id="ac3e442abe2558a2b257fc7344af61d40acb902cf3781caf307d06e37dc447d5cc"></a>ConsumerKeyShared&#160;</td><td class="fielddoc">
 <p>Multiple consumer will be able to use the same subscription and all messages with the same key will be dispatched to only one consumer </p>
+</td></tr>
+</table>
+
+</div>
+</div>
+<a class="anchor" id="a499d1327931169d068b9b353f106dd04"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="namespacepulsar.html#a499d1327931169d068b9b353f106dd04">pulsar::KeySharedMode</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>KeyShared mode of KeyShared subscription. </p>
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a class="anchor" id="a499d1327931169d068b9b353f106dd04a1dce3e502d8e018e90f97c07b37cde1f"></a>AUTO_SPLIT&#160;</td><td class="fielddoc">
+<p>Auto split while new consumer connected. </p>
+</td></tr>
+<tr><td class="fieldname"><a class="anchor" id="a499d1327931169d068b9b353f106dd04aed98d14aabee0f3bc70a0cc7723e5b16"></a>STICKY&#160;</td><td class="fielddoc">
+<p>New consumer with fixed hash range to attach the topic, if new consumer use conflict hash range with exits consumers, new consumer will be rejected. </p>
 </td></tr>
 </table>
 

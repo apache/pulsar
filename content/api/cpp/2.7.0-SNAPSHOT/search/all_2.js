@@ -4,7 +4,7 @@ var searchData=
   ['client',['Client',['../classpulsar_1_1_client.html',1,'pulsar']]],
   ['client',['Client',['../classpulsar_1_1_client.html#acab90af5d0542803bc1d10e68d27414f',1,'pulsar::Client::Client(const std::string &amp;serviceUrl)'],['../classpulsar_1_1_client.html#a148122b14f22844d359c35c084907962',1,'pulsar::Client::Client(const std::string &amp;serviceUrl, const ClientConfiguration &amp;clientConfiguration)']]],
   ['clientconfiguration',['ClientConfiguration',['../classpulsar_1_1_client_configuration.html',1,'pulsar']]],
-  ['clone',['clone',['../classpulsar_1_1_consumer_configuration.html#a4b02e89cb2995ffa40c4679cb80dd960',1,'pulsar::ConsumerConfiguration']]],
+  ['clone',['clone',['../classpulsar_1_1_consumer_configuration.html#a4b02e89cb2995ffa40c4679cb80dd960',1,'pulsar::ConsumerConfiguration::clone()'],['../classpulsar_1_1_key_shared_policy.html#ae3183f96c854f87996b1101885884483',1,'pulsar::KeySharedPolicy::clone()']]],
   ['close',['close',['../classpulsar_1_1_oauth2_flow.html#ae4815e1adf8cced8553f9e3d6d6717a8',1,'pulsar::Oauth2Flow::close()'],['../classpulsar_1_1_client.html#ac3f0a65b099f88781548d4fad41685ac',1,'pulsar::Client::close()'],['../classpulsar_1_1_producer.html#a0b4a93617a0c0f8d172633a7bf8ba06b',1,'pulsar::Producer::close()']]],
   ['closeasync',['closeAsync',['../classpulsar_1_1_producer.html#a40f5268e6754c9e61e2406d432cffe2f',1,'pulsar::Producer']]],
   ['consumer',['Consumer',['../classpulsar_1_1_consumer.html',1,'pulsar']]],

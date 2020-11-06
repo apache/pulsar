@@ -4276,6 +4276,50 @@
                 }
             }
         },
+        "/namespaces/{tenant}/{namespace}/removeOffloadPolicies": {
+            "delete": {
+                "tags": [
+                    "namespaces"
+                ],
+                "summary": " Set offload configuration on a namespace.",
+                "description": "",
+                "operationId": "removeOffloadPolicies",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Namespace does not exist"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    },
+                    "412": {
+                        "description": "OffloadPolicies is empty or driver is not supported or bucket is not valid"
+                    }
+                }
+            }
+        },
         "/namespaces/{tenant}/{namespace}/replication": {
             "get": {
                 "tags": [
@@ -9764,7 +9808,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/TopicStats"
+                            "$ref": "#/definitions/NonPersistentTopicStats"
                         }
                     },
                     "307": {
@@ -17592,10 +17636,10 @@
                         "type": "string"
                     }
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
                 "address": {
@@ -18014,15 +18058,11 @@
                     "type": "number",
                     "format": "double"
                 },
-                "overLoaded": {
-                    "type": "boolean"
-                },
                 "underLoaded": {
                     "type": "boolean"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
+                "overLoaded": {
+                    "type": "boolean"
                 },
                 "loadReportType": {
                     "type": "string"
@@ -18030,10 +18070,18 @@
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "directMemory": {
+                "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "memory": {
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthIn": {
@@ -18045,10 +18093,6 @@
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -18229,16 +18273,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "producerName": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -18556,13 +18600,13 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "fileSystemDriver": {
-                    "type": "boolean"
-                },
                 "s3Driver": {
                     "type": "boolean"
                 },
                 "gcsDriver": {
+                    "type": "boolean"
+                },
+                "fileSystemDriver": {
                     "type": "boolean"
                 }
             }
@@ -19152,16 +19196,16 @@
                         "type": "string"
                     }
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "producerName": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -19241,15 +19285,15 @@
         "ResourceDescription": {
             "type": "object",
             "properties": {
+                "usagePct": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "resourceUsage": {
                     "type": "object",
                     "additionalProperties": {
                         "$ref": "#/definitions/ResourceUsage"
                     }
-                },
-                "usagePct": {
-                    "type": "integer",
-                    "format": "int32"
                 }
             }
         },
@@ -19284,11 +19328,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },

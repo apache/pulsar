@@ -20,6 +20,7 @@ var searchData=
   ['setdeliverat',['setDeliverAt',['../classpulsar_1_1_message_builder.html#aed86cebe1662c5f917ee87f63b3c375f',1,'pulsar::MessageBuilder']]],
   ['seteventtimestamp',['setEventTimestamp',['../classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338',1,'pulsar::MessageBuilder']]],
   ['setiothreads',['setIOThreads',['../classpulsar_1_1_client_configuration.html#a5081ce72cb0eb615fc209decdea7ca7a',1,'pulsar::ClientConfiguration']]],
+  ['setkeysharedpolicy',['setKeySharedPolicy',['../classpulsar_1_1_consumer_configuration.html#a772dc1c4f223fc753ecfa50cc6a42d3f',1,'pulsar::ConsumerConfiguration']]],
   ['setlogconffilepath',['setLogConfFilePath',['../classpulsar_1_1_client_configuration.html#afffc25fc6be9f26221a206c49154b4cf',1,'pulsar::ClientConfiguration']]],
   ['setlogger',['setLogger',['../classpulsar_1_1_client_configuration.html#a659d381af7aa84fc90189e3d728cf7e0',1,'pulsar::ClientConfiguration']]],
   ['setmaxpendingmessagesacrosspartitions',['setMaxPendingMessagesAcrossPartitions',['../classpulsar_1_1_producer_configuration.html#a158f3061d38b91b3c9ccf81545278a61',1,'pulsar::ProducerConfiguration']]],
