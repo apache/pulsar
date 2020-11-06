@@ -7065,6 +7065,326 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.SingleMessageMetadata)
   }
   
+  public interface RawMessageMetadataOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // optional uint64 broker_timestamp = 1;
+    boolean hasBrokerTimestamp();
+    long getBrokerTimestamp();
+  }
+  public static final class RawMessageMetadata extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements RawMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use RawMessageMetadata.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private RawMessageMetadata(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<RawMessageMetadata> RECYCLER = new io.netty.util.Recycler<RawMessageMetadata>() {
+            protected RawMessageMetadata newObject(Handle handle) {
+              return new RawMessageMetadata(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private RawMessageMetadata(boolean noInit) {}
+    
+    private static final RawMessageMetadata defaultInstance;
+    public static RawMessageMetadata getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public RawMessageMetadata getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // optional uint64 broker_timestamp = 1;
+    public static final int BROKER_TIMESTAMP_FIELD_NUMBER = 1;
+    private long brokerTimestamp_;
+    public boolean hasBrokerTimestamp() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getBrokerTimestamp() {
+      return brokerTimestamp_;
+    }
+    
+    private void initFields() {
+      brokerTimestamp_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, brokerTimestamp_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(1, brokerTimestamp_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        brokerTimestamp_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata result = org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.brokerTimestamp_ = brokerTimestamp_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.RawMessageMetadata.getDefaultInstance()) return this;
+        if (other.hasBrokerTimestamp()) {
+          setBrokerTimestamp(other.getBrokerTimestamp());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              brokerTimestamp_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // optional uint64 broker_timestamp = 1;
+      private long brokerTimestamp_ ;
+      public boolean hasBrokerTimestamp() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getBrokerTimestamp() {
+        return brokerTimestamp_;
+      }
+      public Builder setBrokerTimestamp(long value) {
+        bitField0_ |= 0x00000001;
+        brokerTimestamp_ = value;
+        
+        return this;
+      }
+      public Builder clearBrokerTimestamp() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        brokerTimestamp_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.RawMessageMetadata)
+    }
+    
+    static {
+      defaultInstance = new RawMessageMetadata(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.RawMessageMetadata)
+  }
+  
   public interface CommandConnectOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
@@ -8171,6 +8491,10 @@ public final class PulsarApi {
     // optional bool supports_auth_refresh = 1 [default = false];
     boolean hasSupportsAuthRefresh();
     boolean getSupportsAuthRefresh();
+    
+    // optional bool supports_raw_message_metadata = 2 [default = false];
+    boolean hasSupportsRawMessageMetadata();
+    boolean getSupportsRawMessageMetadata();
   }
   public static final class FeatureFlags extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -8217,8 +8541,19 @@ public final class PulsarApi {
       return supportsAuthRefresh_;
     }
     
+    // optional bool supports_raw_message_metadata = 2 [default = false];
+    public static final int SUPPORTS_RAW_MESSAGE_METADATA_FIELD_NUMBER = 2;
+    private boolean supportsRawMessageMetadata_;
+    public boolean hasSupportsRawMessageMetadata() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public boolean getSupportsRawMessageMetadata() {
+      return supportsRawMessageMetadata_;
+    }
+    
     private void initFields() {
       supportsAuthRefresh_ = false;
+      supportsRawMessageMetadata_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -8240,6 +8575,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeBool(1, supportsAuthRefresh_);
       }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBool(2, supportsRawMessageMetadata_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -8251,6 +8589,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(1, supportsAuthRefresh_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(2, supportsRawMessageMetadata_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -8367,6 +8709,8 @@ public final class PulsarApi {
         super.clear();
         supportsAuthRefresh_ = false;
         bitField0_ = (bitField0_ & ~0x00000001);
+        supportsRawMessageMetadata_ = false;
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -8404,6 +8748,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000001;
         }
         result.supportsAuthRefresh_ = supportsAuthRefresh_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.supportsRawMessageMetadata_ = supportsRawMessageMetadata_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -8412,6 +8760,9 @@ public final class PulsarApi {
         if (other == org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags.getDefaultInstance()) return this;
         if (other.hasSupportsAuthRefresh()) {
           setSupportsAuthRefresh(other.getSupportsAuthRefresh());
+        }
+        if (other.hasSupportsRawMessageMetadata()) {
+          setSupportsRawMessageMetadata(other.getSupportsRawMessageMetadata());
         }
         return this;
       }
@@ -8447,6 +8798,11 @@ public final class PulsarApi {
               supportsAuthRefresh_ = input.readBool();
               break;
             }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              supportsRawMessageMetadata_ = input.readBool();
+              break;
+            }
           }
         }
       }
@@ -8470,6 +8826,27 @@ public final class PulsarApi {
       public Builder clearSupportsAuthRefresh() {
         bitField0_ = (bitField0_ & ~0x00000001);
         supportsAuthRefresh_ = false;
+        
+        return this;
+      }
+      
+      // optional bool supports_raw_message_metadata = 2 [default = false];
+      private boolean supportsRawMessageMetadata_ ;
+      public boolean hasSupportsRawMessageMetadata() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public boolean getSupportsRawMessageMetadata() {
+        return supportsRawMessageMetadata_;
+      }
+      public Builder setSupportsRawMessageMetadata(boolean value) {
+        bitField0_ |= 0x00000002;
+        supportsRawMessageMetadata_ = value;
+        
+        return this;
+      }
+      public Builder clearSupportsRawMessageMetadata() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        supportsRawMessageMetadata_ = false;
         
         return this;
       }

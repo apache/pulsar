@@ -157,6 +157,7 @@ public class Commands {
     public static FeatureFlags getFeatureFlags() {
         FeatureFlags.Builder flags = FeatureFlags.newBuilder();
         flags.setSupportsAuthRefresh(true);
+        flags.setSupportsRawMessageMetadata(true);
         return flags.build();
     }
 
