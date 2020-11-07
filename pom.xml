@@ -190,7 +190,7 @@ flexible messaging model and an intuitive client API.</description>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.0.0</mockito.version>
     <powermock.version>2.0.9</powermock.version>
-    <javassist.version>3.27.0-GA</javassist.version>
+    <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
