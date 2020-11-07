@@ -57,13 +57,13 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersource",
+                "swaggerfunctions",
                 "swaggersink",
-                "swaggerfunctions"
+                "swaggersource"
             ]
         }
     ],
-    "2.4.1": [
+    "2.4.2": [
         {
             "version": "v2",
             "fileName": [
@@ -79,7 +79,7 @@
             ]
         }
     ],
-    "2.4.2": [
+    "2.4.1": [
         {
             "version": "v2",
             "fileName": [
