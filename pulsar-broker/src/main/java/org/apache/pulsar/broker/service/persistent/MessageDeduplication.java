@@ -120,7 +120,7 @@ public class MessageDeduplication {
     private int snapshotCounter;
 
     // The timestamp when the snapshot was taken by the scheduled task last time
-    private long lastSnapshotTimestamp = 0L;
+    private volatile long lastSnapshotTimestamp = 0L;
 
     // Max number of producer for which to persist the sequence id information
     private final int maxNumberOfProducers;
@@ -421,6 +421,7 @@ public class MessageDeduplication {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
                 }
+                lastSnapshotTimestamp = System.currentTimeMillis();
             }
 
             @Override
@@ -496,11 +497,10 @@ public class MessageDeduplication {
     public void takeSnapshot(String producer) {
         Integer interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
         long currentTimeStamp = System.currentTimeMillis();
-        if (interval != null && currentTimeStamp - lastSnapshotTimestamp > interval) {
+        if (interval != null && currentTimeStamp - lastSnapshotTimestamp > TimeUnit.SECONDS.toMillis(interval)) {
             PositionImpl position = lastPositionPersisted.remove(producer);
             if (position != null) {
                 takeSnapshot(position);
-                lastSnapshotTimestamp = currentTimeStamp;
             }
         }
     }

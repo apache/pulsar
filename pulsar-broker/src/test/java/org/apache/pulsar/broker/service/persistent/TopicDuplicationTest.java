@@ -184,6 +184,24 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertNotEquals(position, markDeletedPosition);
             assertNotEquals(markDeletedPosition.getEntryId(), -1);
         }
+
+        producer.newMessage().value("msg").send();
+        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        assertNotEquals(msgNum, markDeletedPosition.getEntryId());
+        assertNotNull(position);
+
+        Thread.sleep(2000);
+        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        if (enabledSnapshot) {
+            assertEquals(msgNum, markDeletedPosition.getEntryId());
+            assertNull(position);
+        } else {
+            assertNotEquals(msgNum, markDeletedPosition.getEntryId());
+            assertNotNull(position);
+        }
+
     }
 
     private void waitCacheInit(String topicName) throws Exception {
