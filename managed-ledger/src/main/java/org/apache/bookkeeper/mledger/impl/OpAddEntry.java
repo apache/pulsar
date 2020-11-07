@@ -27,6 +27,8 @@ import io.netty.util.Recycler.Handle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -35,6 +37,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
+import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +63,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     volatile long lastInitTime;
     @SuppressWarnings("unused")
     ByteBuf data;
+    ByteBuf dataWithRawMetadata;
     private int dataLength;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
@@ -103,8 +107,12 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
-            ByteBuf duplicateBuffer = data.retainedDuplicate();
 
+            ByteBuf duplicateBuffer = data.retainedDuplicate();
+            if (ml.getConfig().isBrokerTimestampForMessageEnable()) {
+                duplicateBuffer = Commands.addRawMessageMetadata(duplicateBuffer);
+                dataWithRawMetadata = duplicateBuffer.retainedDuplicate();
+            }
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
@@ -117,9 +125,12 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            data.release();
+            ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+        }
+        if (dataWithRawMetadata != null) {
+            ReferenceCountUtil.release(dataWithRawMetadata);
         }
     }
 
@@ -168,7 +179,12 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
-            EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
+            EntryImpl entry = null;
+            if (ml.getConfig().isBrokerTimestampForMessageEnable()) {
+                entry =  EntryImpl.create(ledger.getId(), entryId, dataWithRawMetadata);
+            } else {
+                entry = EntryImpl.create(ledger.getId(), entryId, data);
+            }
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
             ml.entryCache.insert(entry);
@@ -176,7 +192,10 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
 
         // We are done using the byte buffer
-        data.release();
+        ReferenceCountUtil.release(data);
+        if (dataWithRawMetadata != null) {
+            ReferenceCountUtil.release(dataWithRawMetadata);
+        }
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
@@ -287,6 +306,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml = null;
         ledger = null;
         data = null;
+        dataWithRawMetadata = null;
         dataLength = -1;
         callback = null;
         ctx = null;

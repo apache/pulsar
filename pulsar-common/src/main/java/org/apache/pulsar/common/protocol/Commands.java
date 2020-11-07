@@ -25,6 +25,7 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.Collections;
@@ -136,6 +137,7 @@ public class Commands {
 
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
+    public static final short magicRawMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
@@ -1919,6 +1921,39 @@ public class Commands {
             headers.resetReaderIndex();
         }
         return command;
+    }
+
+    //
+    //
+
+    /**
+     * Add raw metadata for headerAndPayload, raw metadata format like :
+     * | RAW_METADATA_MAGIC_NUMBER | RAW_METADATA_SIZE |          RAW_METADATA        |
+     * |         2 bytes           |       4 bytes     |    RAW_METADATA_SIZE bytes   |
+     *
+     * @param headerAndPayload origin headerAndPayload
+     * @return headerAndPayload together with raw metadata
+     * */
+    public static ByteBuf addRawMessageMetadata(ByteBuf headerAndPayload) {
+        PulsarApi.RawMessageMetadata rawMessageMetadata = PulsarApi.RawMessageMetadata.newBuilder()
+                .setBrokerTimestamp(System.currentTimeMillis()).build();
+        int rawMetadataSize = rawMessageMetadata.getSerializedSize();
+        ByteBuf rawMetadata =
+                PulsarByteBufAllocator.DEFAULT.buffer(rawMetadataSize + 6, rawMetadataSize + 6);
+        rawMetadata.writeShort(Commands.magicRawMetadata);
+        rawMetadata.writeInt(rawMetadataSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(rawMetadata);
+        try {
+            rawMessageMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, rawMetadata, headerAndPayload);
+        return compositeByteBuf;
     }
 
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,

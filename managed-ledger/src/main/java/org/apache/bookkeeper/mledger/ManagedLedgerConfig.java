@@ -75,6 +75,7 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private boolean brokerTimestampForMessageEnable = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -635,5 +636,13 @@ public class ManagedLedgerConfig {
 
     public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
+    }
+
+    public boolean isBrokerTimestampForMessageEnable() {
+        return brokerTimestampForMessageEnable;
+    }
+
+    public void setBrokerTimestampForMessageEnable(boolean brokerTimestampForMessageEnable) {
+        this.brokerTimestampForMessageEnable = brokerTimestampForMessageEnable;
     }
 }
