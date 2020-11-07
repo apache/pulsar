@@ -1725,9 +1725,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // This topic is not included in GC
             return;
         }
-        if (TopicName.get(topic).isPartitioned() && !isDeletePartitionedTopicWhileInactive()) {
-            return;
-        }
         InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode();
         int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
@@ -1792,6 +1789,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Void> deleteZkNode() {
+        if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
+            return CompletableFuture.completedFuture(null);
+        }
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
         String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
                 , topicName.getDomain().value(), topicName.getEncodedLocalName());

@@ -326,11 +326,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = "Inactive partitioned-topic will not be automatically cleaned up by default.\n"
+            doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
             + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
-            + "it may appear that a partitioned-topic has just been deleted but is automatically created as a non-partitioned topic."
+            + "it may appear that a partitioned topic has just been deleted but is automatically created as a non-partitioned topic."
     )
-    private boolean brokerDeleteInactivePartitionedTopicEnabled = false;
+    private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for inactive topics"

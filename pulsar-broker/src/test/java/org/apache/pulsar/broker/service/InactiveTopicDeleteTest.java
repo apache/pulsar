@@ -95,7 +95,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test
     public void testDeleteAndCleanZkNode() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactivePartitionedTopicEnabled(true);
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
@@ -117,7 +117,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test
     public void testWhenSubPartitionNotDelete() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactivePartitionedTopicEnabled(true);
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
@@ -170,7 +170,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().deleteSubscription(topic2, "sub2");
         Thread.sleep(2000);
         Assert.assertTrue(admin.topics().getPartitionedTopicList(namespace).contains(topic));
-        // BrokerDeleteInactivePartitionedTopicEnabled is not enabled, so only NonPartitionedTopic will be cleaned
+        // BrokerDeleteInactivePartitionedTopicMetaDataEnabled is not enabled, so only NonPartitionedTopic will be cleaned
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic2));
     }
 

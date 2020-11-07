@@ -531,8 +531,8 @@ public abstract class AbstractTopic implements Topic {
         return this.inactiveTopicPolicies.isDeleteWhileInactive();
     }
 
-    public boolean isDeletePartitionedTopicWhileInactive() {
-        return brokerService.pulsar().getConfiguration().isBrokerDeleteInactivePartitionedTopicEnabled();
+    public boolean deletePartitionedTopicMetadataWhileInactive() {
+        return brokerService.pulsar().getConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled();
     }
 
     public void setDeleteWhileInactive(boolean deleteWhileInactive) {
