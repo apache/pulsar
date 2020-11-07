@@ -1017,6 +1017,12 @@ public class ClustersBase extends AdminResource {
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, "clusters", cluster);
+            /**
+             * TODO got org.apache.zookeeper.KeeperException$NoNodeException: KeeperErrorCode = NoNode for /admin/policies/clusters/test
+             * 	at org.apache.zookeeper.MockZooKeeper.getData(MockZooKeeper.java:270)
+             *  How similar code initialize zk node in test?
+             */
+
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
 

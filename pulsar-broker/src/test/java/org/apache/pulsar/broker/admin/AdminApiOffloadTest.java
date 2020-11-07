@@ -31,6 +31,7 @@ import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -157,7 +158,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testOffloadPolicies() throws Exception {
+    public void testNamespaceOffloadPolicies() throws Exception {
         String namespaceName = "prop-xyz/ns1";
         String driver = "aws-s3";
         String region = "test-region";
@@ -176,6 +177,25 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeOffloadPolicies(namespaceName);
         OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertNull(offload3);
+    }
+
+    @Test
+    public void testClusterOffloadPolicies() throws Exception {
+        String clusterName = "test";
+        String driver = "aws-s3";
+        String region = "test-region";
+        String bucket = "test-bucket";
+        String endpoint = "test-endpoint";
+        long offloadThresholdInBytes = 0;
+        long offloadDeletionLagInMillis = 100L;
+
+        OffloadPolicies offload1 = OffloadPolicies.create(
+                driver, region, bucket, endpoint, null, null,
+                100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis);
+
+        admin.clusters().setOffloadPolicies(clusterName, offload1);
+        OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(clusterName);
+        assertEquals(offload1, offload2);
     }
 
     @Test(timeOut = 20000)
