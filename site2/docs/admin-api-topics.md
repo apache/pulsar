@@ -1,5 +1,5 @@
 ---
-id: admin-api-persistent-topics
+id: admin-api-topics
 title: Manage topics
 sidebar_label: Topics
 ---
