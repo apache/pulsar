@@ -507,6 +507,46 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void mergeClusterWithDefaults(Policies policies, String cluster) {
+        final ServiceConfiguration config = pulsar().getConfiguration();
+        if (policies.max_producers_per_topic < 1) {
+            policies.max_producers_per_topic = config.getMaxProducersPerTopic();
+        }
+
+        if (policies.max_consumers_per_topic < 1) {
+            policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
+        }
+
+        if (policies.max_consumers_per_subscription < 1) {
+            policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
+        }
+
+        if (policies.max_unacked_messages_per_consumer == -1) {
+            policies.max_unacked_messages_per_consumer = config.getMaxUnackedMessagesPerConsumer();
+        }
+
+        if (policies.max_unacked_messages_per_subscription == -1) {
+            policies.max_unacked_messages_per_subscription = config.getMaxUnackedMessagesPerSubscription();
+        }
+
+        // attach default dispatch rate polices
+        if (policies.topicDispatchRate.isEmpty()) {
+            policies.topicDispatchRate.put(cluster, dispatchRate());
+        }
+
+        if (policies.subscriptionDispatchRate.isEmpty()) {
+            policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
+        }
+
+        if (policies.clusterSubscribeRate.isEmpty()) {
+            policies.clusterSubscribeRate.put(cluster, subscribeRate());
+        }
+
+        if (policies.message_ttl_in_seconds == null) {
+            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
+        }
+    }
+
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
         return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
     }

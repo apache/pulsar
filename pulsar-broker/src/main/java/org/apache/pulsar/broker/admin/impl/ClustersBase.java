@@ -995,11 +995,12 @@ public class ClustersBase extends AdminResource {
         try {
             final String policyPath = path(POLICIES, "clusters", cluster);
             Policies policies = policiesCache().get(policyPath)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
             //TODO how to implement a cluster version of
             //    org.apache.pulsar.broker.admin.AdminResource.getNamespacePolicies(org.apache.pulsar.common.naming.NamespaceName)
+            mergeClusterWithDefaults(policies, cluster);
 
-            throw new PulsarClientException.NotSupportedException("hzhzhz");
+            return policies;
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
