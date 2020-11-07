@@ -321,7 +321,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable the deletion of inactive topics.\n"
-        + "Enabling this option will only clean up non-partitioned topics by default."
+        + "If only enable this option, will not clean the metadata of partitioned topic."
     )
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     @FieldContext(

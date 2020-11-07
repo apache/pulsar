@@ -875,6 +875,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                            boolean closeIfClientsConnected,
                                            boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+
         lock.writeLock().lock();
         try {
             if (isClosingOrDeleting) {
@@ -931,7 +932,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
                                     brokerService.pulsar().getTopicPoliciesService().unregisterListener(TopicName.get(topic), getPersistentTopic());
-
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
