@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
