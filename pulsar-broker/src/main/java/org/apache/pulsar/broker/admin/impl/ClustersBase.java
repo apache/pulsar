@@ -595,6 +595,9 @@ public class ClustersBase extends AdminResource {
                             brokerIsolationData.namespaceRegex = Lists.newArrayList();
                         }
                         brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                        if (nsPolicyImpl.isPrimaryBroker(broker)) {
+                            brokerIsolationData.isPrimary = true;
+                        }
                     }
                 });
             }
