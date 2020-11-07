@@ -18,6 +18,10 @@ non-persistent://tenant/namespace/topic
 ## Manage topic resources
 Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
+> **Note**    
+> In REST API, `:schema` stands for persistent or non-persistent. `:tenant`, `:namespace`, `:x` are variables, replace them with the real tenant, namespace, and `x` names when using them.     
+> Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList} as an example, to get the list of persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace`. To get the list of non-persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace`.
+
 ### List of topics
 
 You can get the list of topics under a given namespace in the following ways.
