@@ -58,6 +58,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -973,8 +974,41 @@ public class ClustersBase extends AdminResource {
         internalSetOffloadPolicies(asyncResponse, cluster, offload);
     }
 
-    private void internalSetOffloadPolicies(AsyncResponse asyncResponse, String cluster, OffloadPolicies offload) {
+    @GET
+    @Path("/{cluster}/offloadPolicies")
+    @ApiOperation(value = "Get offload configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist")})
+    public OffloadPolicies getOffloadPolicies(@PathParam("cluster") String cluster) {
         validateClusterExists(cluster);
+        return internalGetOffloadPolicies(cluster);
+    }
+
+    private OffloadPolicies internalGetOffloadPolicies(String cluster) {
+        validateClusterOwnership(cluster);
+        Policies policies = getClusterPolicies(cluster);
+        return policies.offload_policies;
+    }
+
+    private Policies getClusterPolicies(String cluster) {
+        try {
+            final String policyPath = path(POLICIES, "clusters", cluster);
+            Policies policies = policiesCache().get(policyPath)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            //TODO how to implement a cluster version of
+            //    org.apache.pulsar.broker.admin.AdminResource.getNamespacePolicies(org.apache.pulsar.common.naming.NamespaceName)
+
+            throw new PulsarClientException.NotSupportedException("hzhzhz");
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    private void internalSetOffloadPolicies(AsyncResponse asyncResponse, String cluster, OffloadPolicies offload) {
         validateClusterOwnership(cluster);
         validatePoliciesReadOnlyAccess();
         validateOffloadPolicies(offload, cluster);
