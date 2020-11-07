@@ -109,10 +109,6 @@ public class MessageDeduplication {
     @VisibleForTesting
     final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted = new ConcurrentOpenHashMap<>(16, 1);
 
-    // Store the last position that have been persistent by each producers.
-    @VisibleForTesting
-    final ConcurrentOpenHashMap<String, PositionImpl> lastPositionPersisted = new ConcurrentOpenHashMap<>(16, 1);
-
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
 
@@ -245,7 +241,6 @@ public class MessageDeduplication {
                                     managedCursor = null;
                                     highestSequencedPushed.clear();
                                     highestSequencedPersisted.clear();
-                                    lastPositionPersisted.clear();
                                     future.complete(null);
                                     log.info("[{}] Disabled deduplication", topic.getName());
                                 }
@@ -258,7 +253,6 @@ public class MessageDeduplication {
                                         managedCursor = null;
                                         highestSequencedPushed.clear();
                                         highestSequencedPersisted.clear();
-                                        lastPositionPersisted.clear();
                                         future.complete(null);
                                     } else {
                                         log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
@@ -386,7 +380,6 @@ public class MessageDeduplication {
         }
 
         highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
-        lastPositionPersisted.put(producerName, position);
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);
@@ -484,7 +477,6 @@ public class MessageDeduplication {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
-                lastPositionPersisted.remove(producerName);
             }
         }
     }
@@ -494,11 +486,11 @@ public class MessageDeduplication {
         return sequenceId != null ? sequenceId : -1;
     }
 
-    public void takeSnapshot(String producer) {
+    public void takeSnapshot() {
         Integer interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
         long currentTimeStamp = System.currentTimeMillis();
         if (interval != null && currentTimeStamp - lastSnapshotTimestamp > TimeUnit.SECONDS.toMillis(interval)) {
-            PositionImpl position = lastPositionPersisted.remove(producer);
+            PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
             if (position != null) {
                 takeSnapshot(position);
             }

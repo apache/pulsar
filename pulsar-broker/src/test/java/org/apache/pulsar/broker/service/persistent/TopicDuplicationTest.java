@@ -171,7 +171,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
-        PositionImpl position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
 
@@ -187,19 +187,19 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         producer.newMessage().value("msg").send();
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertNotEquals(msgNum, markDeletedPosition.getEntryId());
         assertNotNull(position);
 
         Thread.sleep(2000);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = persistentTopic.getMessageDeduplication().lastPositionPersisted.get(producerName);
+        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         if (enabledSnapshot) {
             assertEquals(msgNum, markDeletedPosition.getEntryId());
-            assertNull(position);
+            assertEquals(position, markDeletedPosition);
         } else {
             assertNotEquals(msgNum, markDeletedPosition.getEntryId());
-            assertNotNull(position);
+            assertNotEquals(position, markDeletedPosition);
         }
 
     }
