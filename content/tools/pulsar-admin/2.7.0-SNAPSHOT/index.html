@@ -744,6 +744,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--tls-trust-cert-path</code></td>
 <td>tls trust cert file path</td>
 <td>null</td>
@@ -1077,6 +1082,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--log-topic</code></td>
 <td>The topic to which the logs of a Pulsar Function are produced</td>
 <td>null</td>
@@ -1400,6 +1410,11 @@
 <tr>
 <td><code>--tenant</code></td>
 <td>The tenant of a Pulsar Function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -3871,6 +3886,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--custom-runtime-options</code></td>
 <td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td>
 <td>null</td>
@@ -3989,18 +4009,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--deserialization-classname</code></td>
-<td>The SerDe classname for the source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--cpu</code></td>
-<td>The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--disk</code></td>
 <td>The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -4014,17 +4029,7 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-a, --archive</code></td>
-<td>The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--sourceConfigFile</code></td>
-<td>The path to a YAML config file specifying the source&#39;s configuration</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--source-config-file</code></td>
 <td>The path to a YAML config file specifying the source&#39;s configuration</td>
 <td>null</td>
 </tr>
@@ -4034,18 +4039,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--parallelism</code></td>
-<td>The source&#39;s parallelism factor (i.e. the number of source instances to run)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--ram</code></td>
 <td>The RAM (in bytes) that need to be allocated per source instance (applicable only to the process and Docker runtimes)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--namespace</code></td>
-<td>The source&#39;s namespace</td>
 <td>null</td>
 </tr>
 <tr>
@@ -4054,33 +4049,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--name</code></td>
-<td>The source&#39;s name</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--processingGuarantees</code></td>
 <td>The processing guarantees (aka delivery semantics) applied to the Source</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--destination-topic-name</code></td>
-<td>The Pulsar topic to which data is sent</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--sourceConfig</code></td>
 <td>Source config key/values</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-o, --destinationTopicName</code></td>
-<td>The Pulsar topic to which data is sent</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-t, --source-type</code></td>
-<td>The source&#39;s connector provider</td>
 <td>null</td>
 </tr>
 <tr>
@@ -4091,6 +4066,56 @@
 <tr>
 <td><code>-st, --schema-type</code></td>
 <td>The schema type (either a builtin schema like &#39;avro&#39;, &#39;json&#39;, etc.. or custom Schema class name to be used to encode messages emitted from the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--deserialization-classname</code></td>
+<td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--cpu</code></td>
+<td>The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-a, --archive</code></td>
+<td>The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--source-config-file</code></td>
+<td>The path to a YAML config file specifying the source&#39;s configuration</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--parallelism</code></td>
+<td>The source&#39;s parallelism factor (i.e. the number of source instances to run)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--namespace</code></td>
+<td>The source&#39;s namespace</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>The source&#39;s name</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--destination-topic-name</code></td>
+<td>The Pulsar topic to which data is sent</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-o, --destinationTopicName</code></td>
+<td>The Pulsar topic to which data is sent</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-t, --source-type</code></td>
+<td>The source&#39;s connector provider</td>
 <td>null</td>
 </tr>
 <tr>
@@ -4375,6 +4400,11 @@
 <tr>
 <td><code>--disk</code></td>
 <td>The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--producer-config</code></td>
+<td>The custom producer configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>

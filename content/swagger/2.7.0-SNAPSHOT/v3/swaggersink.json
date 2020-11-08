@@ -992,8 +992,46 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "cryptoConfig": {
+                    "$ref": "#/definitions/CryptoConfig"
+                },
                 "regexPattern": {
                     "type": "boolean"
+                }
+            }
+        },
+        "CryptoConfig": {
+            "type": "object",
+            "properties": {
+                "cryptoKeyReaderClassName": {
+                    "type": "string"
+                },
+                "cryptoKeyReaderConfig": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object"
+                    }
+                },
+                "encryptionKeys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "producerCryptoFailureAction": {
+                    "type": "string",
+                    "enum": [
+                        "FAIL",
+                        "SEND"
+                    ]
+                },
+                "consumerCryptoFailureAction": {
+                    "type": "string",
+                    "enum": [
+                        "FAIL",
+                        "DISCARD",
+                        "CONSUME"
+                    ]
                 }
             }
         },

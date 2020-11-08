@@ -952,8 +952,39 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "cryptoConfig" : {
+          "$ref" : "#/definitions/CryptoConfig"
+        },
         "regexPattern" : {
           "type" : "boolean"
+        }
+      }
+    },
+    "CryptoConfig" : {
+      "type" : "object",
+      "properties" : {
+        "cryptoKeyReaderClassName" : {
+          "type" : "string"
+        },
+        "cryptoKeyReaderConfig" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "encryptionKeys" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "producerCryptoFailureAction" : {
+          "type" : "string",
+          "enum" : [ "FAIL", "SEND" ]
+        },
+        "consumerCryptoFailureAction" : {
+          "type" : "string",
+          "enum" : [ "FAIL", "DISCARD", "CONSUME" ]
         }
       }
     },
@@ -1409,15 +1440,11 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
+        "replicatedFrom" : {
+          "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "producerName" : {
+          "type" : "string"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1426,7 +1453,24 @@
             "format" : "byte"
           }
         },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
         "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "data" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1439,29 +1483,16 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "data" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "value" : {
           "type" : "object"
@@ -1493,6 +1524,9 @@
         },
         "useThreadLocalProducers" : {
           "type" : "boolean"
+        },
+        "cryptoConfig" : {
+          "$ref" : "#/definitions/CryptoConfig"
         }
       }
     },

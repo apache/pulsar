@@ -823,6 +823,34 @@
         }
       }
     },
+    "CryptoConfig" : {
+      "type" : "object",
+      "properties" : {
+        "cryptoKeyReaderClassName" : {
+          "type" : "string"
+        },
+        "cryptoKeyReaderConfig" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "encryptionKeys" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "producerCryptoFailureAction" : {
+          "type" : "string",
+          "enum" : [ "FAIL", "SEND" ]
+        },
+        "consumerCryptoFailureAction" : {
+          "type" : "string",
+          "enum" : [ "FAIL", "DISCARD", "CONSUME" ]
+        }
+      }
+    },
     "ExceptionInformation" : {
       "type" : "object",
       "properties" : {
@@ -848,6 +876,9 @@
         },
         "useThreadLocalProducers" : {
           "type" : "boolean"
+        },
+        "cryptoConfig" : {
+          "$ref" : "#/definitions/CryptoConfig"
         }
       }
     },
