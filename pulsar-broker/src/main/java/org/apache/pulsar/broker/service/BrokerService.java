@@ -214,7 +214,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
-    private final ScheduledExecutorService deduplicationSnapshotMonitor;
+    private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -298,8 +298,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
         this.ledgerFullMonitor =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("ledger-full-monitor"));
-        this.deduplicationSnapshotMonitor =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("deduplication-snapshot-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -462,6 +460,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected void startDeduplicationSnapshotMonitor() {
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
         if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+            this.deduplicationSnapshotMonitor =
+                    Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("deduplication-snapshot-monitor"));
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);
         }
@@ -686,6 +686,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         if (brokerPublishRateLimiterMonitor != null) {
             brokerPublishRateLimiterMonitor.shutdown();
+        }
+        if (deduplicationSnapshotMonitor != null) {
+            deduplicationSnapshotMonitor.shutdown();
         }
 
         log.info("Broker service completely shut down");
