@@ -16,26 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.sink;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.ProducerConfig;
+package org.apache.pulsar.common.functions;
 
 import java.util.Map;
 
-@Getter
-@Setter
-@ToString
-public class PulsarSinkConfig {
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private String topic;
-    private String serdeClassName;
-    private String schemaType;
-    private Map<String, String> schemaProperties;
-    private String typeClassName;
-    private boolean forwardSourceMessageProperty;
-    private ProducerConfig producerConfig;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+
+/**
+ * Configuration of the producer inside the function.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode
+public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
 }
