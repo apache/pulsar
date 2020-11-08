@@ -1579,16 +1579,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-discovery-service</module>
-        <module>pulsar-storm</module>
-        <module>pulsar-flink</module>
-        <module>pulsar-spark</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-client-kafka-compat</module>
         <module>pulsar-zookeeper</module>
-        <module>pulsar-log4j2-appender</module>
         <module>pulsar-sql</module>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
