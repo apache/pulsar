@@ -636,7 +636,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 long elapsedMs = System.currentTimeMillis() - this.lastLedgerCreationInitiationTimestamp;
                 if (elapsedMs > TimeUnit.SECONDS.toMillis(2 * config.getMetadataOperationsTimeoutSeconds())) {
                     log.info("[{}] Ledger creation was initiated {} ms ago but it never completed" +
-                        " and creation timeout task didn't kick in as well. Force to fail the create ledger operation ...");
+                        " and creation timeout task didn't kick in as well. Force to fail the create ledger operation.",
+                            name, elapsedMs);
                     this.createComplete(Code.TimeoutException, null, null);
                 }
             }
