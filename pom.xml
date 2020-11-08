@@ -241,6 +241,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
+        <exclusions>
+            <exclusion>
+                <groupId>org.yaml</groupId>
+                <artifactId>*</artifactId>
+            </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
