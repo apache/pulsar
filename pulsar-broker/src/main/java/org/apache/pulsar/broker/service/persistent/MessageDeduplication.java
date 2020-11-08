@@ -489,12 +489,18 @@ public class MessageDeduplication {
     public void takeSnapshot() {
         Integer interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
         long currentTimeStamp = System.currentTimeMillis();
-        if (interval != null && currentTimeStamp - lastSnapshotTimestamp > TimeUnit.SECONDS.toMillis(interval)) {
-            PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
-            if (position != null) {
-                takeSnapshot(position);
-            }
+        if (interval == null || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
+            return;
         }
+        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        if (position == null) {
+            return;
+        }
+        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
+            return;
+        }
+        takeSnapshot(position);
     }
 
     @VisibleForTesting

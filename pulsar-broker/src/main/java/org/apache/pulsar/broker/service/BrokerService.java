@@ -461,7 +461,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     protected void startDeduplicationSnapshotMonitor() {
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0) {
+        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);
         }

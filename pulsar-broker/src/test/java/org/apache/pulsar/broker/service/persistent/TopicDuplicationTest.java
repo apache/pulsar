@@ -154,10 +154,15 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
+        resetConfig();
+        conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(enabledSnapshot ? 1 : 0);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
-        conf.setBrokerDeduplicationEntriesInterval(10000);
-        restartBroker();
+        conf.setBrokerDeduplicationEntriesInterval(20000);
+        super.internalCleanup();
+        super.internalSetup();
+        super.producerBaseSetup();
+
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
         @Cleanup
