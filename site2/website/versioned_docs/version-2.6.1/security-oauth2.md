@@ -118,7 +118,7 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ### Go client
 
 To enable OAuth2 authentication in Go client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in Go client. 
+This example shows how to configure OAuth2 authentication in Go client.   
 
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
