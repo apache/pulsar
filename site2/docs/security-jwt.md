@@ -217,6 +217,12 @@ authenticationEnabled=true
 authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientTlsEnabled=true
+brokerClientAuthenticationPlugin=
+brokerClientAuthenticationParameters=
+brokerClientTrustCertsFilePath=
+
 # If this flag is set then the broker authenticates the original Auth data
 # else it just accepts the originalPrincipal and authorizes it (if required).
 authenticateOriginalAuthData=true
