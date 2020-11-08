@@ -1432,31 +1432,14 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "publishTime" : {
+        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "schemaVersion" : {
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1470,18 +1453,28 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "data" : {
+        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
         },
-        "topicName" : {
-          "type" : "string"
-        },
         "replicated" : {
           "type" : "boolean"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "data" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "keyBytes" : {
           "type" : "array",
@@ -1490,9 +1483,16 @@
             "format" : "byte"
           }
         },
-        "sequenceId" : {
+        "publishTime" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
         },
         "value" : {
           "type" : "object"
