@@ -120,6 +120,7 @@ func (c *FunctionContext) GetExpectedHealthCheckIntervalAsDuration() time.Durati
 	return time.Duration(c.instanceConf.expectedHealthCheckInterval)
 }
 
+//GetMaxIdleTime returns the amount of time the pulsar function has to respond to the most recent health check before it is considered to be failing.
 func (c *FunctionContext) GetMaxIdleTime() int64 {
 	return int64(c.GetExpectedHealthCheckIntervalAsDuration() * 3 * time.Second)
 }
