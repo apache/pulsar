@@ -190,7 +190,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 > #### Tip
 >
-> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/docs/en/next/pulsar-admin/#set-offload-threshold). 
+> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload#set-offload-threshold). 
 
 ### Configure filesystem offloader to run manually
 
@@ -218,7 +218,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
     > #### Tip
     >
-    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/docs/en/next/pulsar-admin/#offload). 
+    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
 - This example checks filesystem offloader status using pulsar-admin.
 
@@ -261,7 +261,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
     > #### Tip
     >
-    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/docs/en/next/pulsar-admin/#offload-status). 
+    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
 ## Tutorial
 
