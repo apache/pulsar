@@ -207,7 +207,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 - This example triggers the filesystem offloader to run manually using pulsar-admin.
 
     ```bash
-    pulsar-admin topics offload --size-threshold 10M persistent://tmy-tenant/my-namespace/topic1
+    pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
     ``` 
 
     **Output**
