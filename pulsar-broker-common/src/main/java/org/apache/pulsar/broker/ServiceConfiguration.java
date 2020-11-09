@@ -1428,6 +1428,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Of course, this may degrade consumption throughput. Default is 10ms.")
     private int managedLedgerNewEntriesCheckDelayInMillis = 10;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Enable broker side timestamp for message. Default is false.")
+    private boolean brokerTimestampForMessageEnable = false;
+
+
     /*** --- Load balancer --- ****/
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
