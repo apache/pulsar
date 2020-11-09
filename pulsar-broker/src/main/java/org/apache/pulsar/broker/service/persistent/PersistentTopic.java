@@ -1788,7 +1788,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private CompletableFuture<Void> deleteZkNode() {
+    private CompletableFuture<Void> tryToDeletePartitionedMetadata() {
         if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
             return CompletableFuture.completedFuture(null);
         }
