@@ -1659,16 +1659,19 @@
         "Message": {
             "type": "object",
             "properties": {
-                "publishTime": {
+                "replicated": {
+                    "type": "boolean"
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1687,25 +1690,11 @@
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "topicName": {
-                    "type": "string"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "producerName": {
                     "type": "string"
                 },
-                "replicated": {
-                    "type": "boolean"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",
@@ -1720,6 +1709,17 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "publishTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "topicName": {
+                    "type": "string"
                 },
                 "value": {
                     "type": "object"
