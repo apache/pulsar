@@ -31,7 +31,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterClass;
 
 public class TransactionMetaStoreTestBase {
 
@@ -95,5 +95,22 @@ public class TransactionMetaStoreTestBase {
 
     public void afterPulsarStart() throws Exception {
         log.info("[afterPulsarStart]");
+    }
+
+    @AfterClass
+    public void shutdownAll() throws Exception {
+        for (PulsarService service : pulsarServices) {
+            if (service != null) {
+                service.close();
+            }
+        }
+        for (PulsarAdmin admin : pulsarAdmins) {
+            if (admin != null) {
+                admin.close();
+            }
+        }
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
     }
 }
