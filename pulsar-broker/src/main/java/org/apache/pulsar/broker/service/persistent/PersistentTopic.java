@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
+
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -341,6 +343,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
 
         }
+    }
+
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+        if (ledger instanceof ManagedLedgerImpl) {
+            ((ManagedLedgerImpl)ledger).asyncReadEntry(position, callback, ctx);
+        } else {
+            callback.readEntryFailed(new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "direct read entry operation.") ,ctx);
+        }
+    }
+
+    public PositionImpl getPositionAfterN(PositionImpl startPosition, long n) throws ManagedLedgerException {
+        if (ledger instanceof ManagedLedgerImpl) {
+            return ((ManagedLedgerImpl)ledger).getPositionAfterN(startPosition, n, ManagedLedgerImpl.PositionBound.startExcluded);
+        } else {
+            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "getPositionAfterN operation.");
+        }
+    }
+
+    public PositionImpl getFirstPosition() throws ManagedLedgerException {
+        if (ledger instanceof ManagedLedgerImpl) {
+            return ((ManagedLedgerImpl)ledger).getFirstPosition();
+        } else {
+            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "getFirstPosition operation.");
+        }
+    }
+
+    public long getNumberOfEntries() {
+        return ledger.getNumberOfEntries();
     }
 
     private void decrementPendingWriteOpsAndCheck() {
