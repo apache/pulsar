@@ -1659,12 +1659,12 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
+                    "format": "int32"
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1673,13 +1673,6 @@
                         "format": "byte"
                     }
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "schemaVersion": {
                     "type": "array",
                     "items": {
@@ -1687,13 +1680,23 @@
                         "format": "byte"
                     }
                 },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "topicName": {
+                    "type": "string"
+                },
                 "replicated": {
                     "type": "boolean"
                 },
-                "replicatedFrom": {
-                    "type": "string"
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
                     "type": "string"
                 },
                 "data": {
@@ -1717,9 +1720,6 @@
                 "eventTime": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
                 },
                 "value": {
                     "type": "object"
