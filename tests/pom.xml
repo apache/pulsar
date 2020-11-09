@@ -19,7 +19,8 @@
     under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <packaging>pom</packaging>
   <modelVersion>4.0.0</modelVersion>
@@ -31,14 +32,6 @@
   <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>tests-parent</artifactId>
   <name>Apache Pulsar :: Tests</name>
-  <modules>
-    <module>docker-images</module>
-    <module>integration</module>
-    <module>bc_2_0_0</module>
-    <module>bc_2_0_1</module>
-    <module>pulsar-client-all-shade-test</module>
-    <module>pulsar-client-and-admin-shade-test</module>
-  </modules>
   <build>
     <plugins>
       <plugin>
@@ -50,4 +43,26 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>main</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>docker-images</module>
+        <module>integration</module>
+        <module>bc_2_0_0</module>
+        <module>bc_2_0_1</module>
+        <module>pulsar-client-all-shade-test</module>
+        <module>pulsar-client-and-admin-shade-test</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>docker</id>
+      <modules>
+        <module>docker-images</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

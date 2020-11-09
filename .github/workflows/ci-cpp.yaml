@@ -22,12 +22,14 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
+    paths-ignore: ['site2/**', 'deployment/**']
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3 -Dgradle.user.config=.mvn/gradle-enterprise-ci.xml
 
 jobs:
 
@@ -48,47 +50,34 @@ jobs:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+      - name: tune OS
+        uses: ./.github/actions/tune-os
 
-      - name: Cache local Maven repository
-        if: steps.docs.outputs.changed_only == 'no'
+      - name: Cache Maven dependencies
         uses: actions/cache@v2
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           java-version: 1.8
 
       - name: clean disk
-        if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+        uses: ./.github/actions/clean-disk
 
       - name: build package
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
+        run: mvn -B -am -pl distribution/server package -DskipTests
 
       - name: build cpp artifacts
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           echo "Build C++ client library"
           export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
-        if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh pulsar-client-cpp/docker-tests.sh

@@ -25,7 +25,7 @@ on:
     types: [closed]
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3 -Dgradle.user.config=.mvn/gradle-enterprise-ci.xml
 
 jobs:
 

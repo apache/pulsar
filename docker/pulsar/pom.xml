@@ -93,12 +93,11 @@
                   <goal>run</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipCopyPythonClients}</skip>
-                  <tasks>
+                  <target unless="skipCopyPythonClients">
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>
                     <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </tasks>
+                  </target>
                 </configuration>
               </execution>
               <execution>

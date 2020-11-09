@@ -1,0 +1,37 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Tune OS performance
+description: tunes the operation system performance related parameters for maximum performance
+runs:
+  using: composite
+  steps:
+    - run: |
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          sudo mount -o remount,nodiscard,commit=999999 /
+          sudo mount -o remount,nodiscard,commit=999999 /mnt
+          echo 1 | sudo tee /proc/sys/vm/swappiness
+          echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+          # disable any background jobs that run SSD discard/trim
+          sudo systemctl disable fstrim.timer || true
+          sudo systemctl stop fstrim.timer || true
+          sudo systemctl disable fstrim.service || true
+          sudo systemctl stop fstrim.service || true
+        fi
+      shell: bash

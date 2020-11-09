@@ -47,13 +47,6 @@
       </modules>
     </profile>
 
-    <profile>
-      <id>core-modules</id>
-      <modules>
-        <module>server</module>
-      </modules>
-    </profile>
-
   </profiles>
 
   <build>

@@ -94,7 +94,7 @@
               <goal>run</goal>
             </goals>
             <configuration>
-              <tasks>
+              <target>
                 <echo>copy test config files</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy todir="${basedir}/src/test/resources/">
@@ -102,7 +102,7 @@
                     <include name="*.yml"/>
                   </fileset>
                 </copy>
-              </tasks>
+              </target>
             </configuration>
           </execution>
         </executions>

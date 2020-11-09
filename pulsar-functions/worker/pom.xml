@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -165,13 +165,15 @@
               <goal>run</goal>
             </goals>
             <configuration>
-              <tasks>
+              <target>
                 <echo>copy test sink package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
+                <copy file="${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
                 <echo>copy test source package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-twitter.nar"/>
+                <copy file="${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-twitter.nar"/>
                 <echo>copy test config files</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy todir="${basedir}/src/test/resources/">
@@ -179,7 +181,7 @@
                     <include name="*.yml"/>
                   </fileset>
                 </copy>
-              </tasks>
+              </target>
             </configuration>
           </execution>
         </executions>

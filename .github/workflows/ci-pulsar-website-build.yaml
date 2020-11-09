@@ -23,7 +23,7 @@ on:
     - cron: '0 */6 * * *'
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3 -Dgradle.user.config=.mvn/gradle-enterprise-ci.xml
 
 jobs:
   build-website:
@@ -39,16 +39,23 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: tune OS
+        uses: ./.github/actions/tune-os
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+
       - name: build
         run: mvn clean package -DskipTests -Pswagger
 
       - name: clean disk
-        run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+        uses: ./.github/actions/clean-disk
 
       - name: publish
         env:

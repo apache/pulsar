@@ -39,6 +39,7 @@ pulsar-functions/worker/src/test/resources/
 # Maven
 log/
 target/
+target
 
 # Python
 *.pyc

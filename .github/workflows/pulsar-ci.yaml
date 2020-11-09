@@ -1,0 +1,430 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Pulsar CI
+on:
+  pull_request:
+    branches:
+      - master
+    paths-ignore: ['site2/**', 'deployment/**']
+  push:
+    branches:
+      - branch-*
+    paths-ignore: ['site2/**', 'deployment/**']
+
+env:
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3 -Dalt.build.dir=/mnt/pulsar-build -Dgradle.user.config=.mvn/gradle-enterprise-ci.xml
+
+jobs:
+  build-and-license-check:
+    name: Build and License check
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: tune OS
+        uses: ./.github/actions/tune-os
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: setup maven target directory on different disk and directory
+        uses: ./.github/actions/external-build-dir
+
+      - name: check source code file licenses and build Pulsar (skip tests)
+        run: mvn -Pmain -B -ntp -DskipTests license:check install
+
+      - name: license check binaries
+        run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: save maven build results to Github artifact cache so that the results can be reused
+        run: 'brew install pv &>/dev/null; cd / && tar cf - /mnt/pulsar-build $HOME/.m2/repository/org/apache/pulsar | pv -batf -i 5 | curl -s -H "Content-Type: application/octet-stream" -X POST --data-binary @- http://localhost:12321/pulsar-build-${{ github.sha }}'
+
+  unit-tests:
+    name: CI - Unit - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: build-and-license-check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Core
+            commands: |
+              # run unit tests exclude pulsar-broker and pulsar-proxy
+              ./build/retry.sh mvn -PbrokerSkipTest -B -ntp test -Dexclude="org/apache/pulsar/proxy/**/*.java,**/KafkaProducerSimpleConsumerTest.java,**/ManagedLedgerTest.java,**/TestPulsarKeyValueSchemaHandler.java,**/PrimitiveSchemaTest.java,**/BlobStoreManagedLedgerOffloaderTest.java"
+              # run flaky test "**/ManagedLedgerTest.java"
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/TestPulsarKeyValueSchemaHandler.java"
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-sql/presto-pulsar-plugin -Dinclude="**/TestPulsarKeyValueSchemaHandler.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/PrimitiveSchemaTest.java"
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-client -Dinclude="**/PrimitiveSchemaTest.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/BlobStoreManagedLedgerOffloaderTest.java"
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl tiered-storage/jcloud -Dinclude="**/BlobStoreManagedLedgerOffloaderTest.java" -DtestForkCount=1 -DtestReuseFork=true
+
+          - name: Brokers - Broker Group 1
+            commands: |
+              # run flaky test '**/AdminApiOffloadTest.java'
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run unit tests for pulsar-broker
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
+
+          - name: Brokers - Broker Group 2
+            commands: |
+              # run flaky test
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/MessagePublishBufferThrottleTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/ReplicatorTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/TopicOwnerTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/AntiAffinityNamespaceGroupTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run unit tests for pulsar-broker "org/apache/pulsar/broker/"
+              ./build/retry.sh mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java' -Dexclude='**/ReplicatorTest.java,**/MessagePublishBufferThrottleTest.java,**/TopicOwnerTest.java,**/AntiAffinityNamespaceGroupTest.java'
+
+          - name: Brokers - Client Api
+            commands: |
+              # run flaky test '**/DispatcherBlockConsumerTest.java'
+              mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/DispatcherBlockConsumerTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test '**/SimpleProducerConsumerTest.java'
+              mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='**/SimpleProducerConsumerTest.java' -DtestForkCount=1 -DtestReuseFork=true
+              # run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
+              mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='org/apache/pulsar/client/api/**/*.java' -Dexclude='**/DispatcherBlockConsumerTest.java,**/SimpleProducerConsumerTest.java'
+
+          - name: Brokers - Client Impl
+            commands: |
+              # run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
+              mvn -Pmain -B -ntp test -pl pulsar-broker -Dskip.copy.test.examples -Dinclude='org/apache/pulsar/client/impl/**/*.java'
+
+          - name: Brokers - Other
+            commands: |
+              # build test examples
+              mvn -Pmain -B -ntp -pl pulsar-functions/java-examples,pulsar-io/data-generator -DskipTests package
+              # run unit tests for pulsar-broker exclude "org/apache/pulsar/broker", "org/apache/pulsar/client"
+              mvn -Pmain -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'
+
+          - name: Proxy
+            commands: |
+              # run flaky test
+              mvn -Pmain -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dexclude="**/ProxyRolesEnforcementTest.java,**/ProxyAuthenticationTest.java,**/ProxyTest.java,**/MessagePublishBufferThrottleTest.java"
+              # run flaky test "**/ProxyRolesEnforcementTest.java"
+              mvn -Pmain -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyRolesEnforcementTest.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/ProxyAuthenticationTest.java"
+              mvn -Pmain -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyAuthenticationTest.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/ProxyTest.java"
+              mvn -Pmain -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyTest.java" -DtestForkCount=1 -DtestReuseFork=true
+              # run flaky test "**/MessagePublishBufferThrottleTest.java"
+              mvn -Pmain -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/MessagePublishBufferThrottleTest.java" -DtestForkCount=1 -DtestReuseFork=true
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+
+      - name: setup maven target directory on different disk and directory
+        uses: ./.github/actions/external-build-dir
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: restore maven build results from Github artifact cache
+        run: |
+          brew install pv &>/dev/null
+          cd /
+          curl -s http://localhost:12321/pulsar-build-${{ github.sha }} | pv -batf -i 5 | tar xf -
+
+      - name: run unit tests in ${{ matrix.name }}
+        run: |
+          set -xe
+          ${{ matrix.commands }}
+
+      - name: package surefire artifacts
+        if: failure()
+        run: |
+          rm -rf artifacts
+          mkdir artifacts
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
+          zip -r artifacts.zip artifacts
+
+      - uses: actions/upload-artifact@master
+        name: upload surefire-artifacts
+        if: failure()
+        with:
+          name: CI - Unit - ${{ matrix.name }}-surefire-artifacts
+          path: artifacts.zip
+
+  distribution-and-docker-images:
+    name: Build Pulsar docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: unit-tests
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: tune OS
+        uses: ./.github/actions/tune-os
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: clean disk
+        uses: ./.github/actions/clean-disk
+
+      - name: setup maven target directory on different disk and directory
+        uses: ./.github/actions/external-build-dir
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: restore maven build results from Github artifact cache
+        run: |
+          brew install pv &>/dev/null
+          cd /
+          curl -s http://localhost:12321/pulsar-build-${{ github.sha }} | pv -batf -i 5 | tar xf -
+
+      - name: build pulsar image
+        run: mvn -B -pl docker/pulsar package -Pdocker -DskipTests -Ddocker.nocache=true
+      - name: build pulsar-all image
+        run: mvn -B -pl docker/pulsar-all package -Pdocker -DskipTests -Ddocker.nocache=true
+      - name: build pulsar-test-latest-version image
+        run: mvn -B -pl tests/docker-images/latest-version-image package -Pdocker -DskipTests
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
+        run: 'brew install pv &>/dev/null; docker save apachepulsar/pulsar:latest apachepulsar/pulsar-all:latest apachepulsar/pulsar-test-latest-version:latest | pv -batf -i 5 | gzip -c - | curl -s -H "Content-Type: application/octet-stream" -X POST --data-binary @- http://localhost:12321/pulsar-images-${{ github.sha }}'
+
+  integration-tests:
+    name: CI - Integration - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: distribution-and-docker-images
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Shade
+            commands: |
+              # run shade tests
+              mvn -Pmain -B -pl tests test -DShadeTests -DredirectTestOutputToFile=false
+
+          - name: Backwards Compatibility
+            commands: |
+              # run integration tests
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests -DredirectTestOutputToFile=false
+              # bc_2_0_0 and bc_2_0_1 don't seem to be covered?
+              #./build/retry.sh mvn -Pmain -B -pl tests/bc_2_0_0 test -DintegrationTests -DredirectTestOutputToFile=false
+              #./build/retry.sh mvn -Pmain -B -pl tests/bc_2_0_1 test -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Cli
+            commands: |
+              # run integration tests
+              mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-cli.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Function State
+            commands: |
+              # run integration tests
+              mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Messaging
+            commands: |
+              # run integration messaging tests
+              mvn -Pmain -B -ntp -pl tests test -DintegrationTestSuiteFile=pulsar-messaging.xml -DintegrationTests -DredirectTestOutputToFile=false
+              # run integration proxy tests
+              mvn -Pmain -B -ntp -pl tests test -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests -DredirectTestOutputToFile=false
+              # run integration proxy with WebSocket tests
+              mvn -Pmain -B -ntp -pl tests test -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Process
+            commands: |
+              # run integration function
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
+              # run integration source
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
+              # run integraion sink
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
+
+          - name: Schema
+            commands: |
+              # run integration tests
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-schema.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Sql
+            commands: |
+              # run integration tests
+              mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Standalone
+            commands: |
+              # run integration tests
+              mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-standalone.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Thread
+            commands: |
+              # run integration function
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
+              # run integration source
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
+              # run integration sink
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
+
+          - name: Tiered FileSystem
+            commands: |
+              # run integration tests
+              ./build/retry.sh mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=tiered-filesystem-storage.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Tiered JCloud
+            commands: |
+              # run integration tests
+              mvn -Pmain -B -pl tests/integration test -DintegrationTestSuiteFile=tiered-jcloud-storage.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+          - name: Transaction
+            commands: |
+              # run integration tests
+              ./build/retry.sh mvn -Pmain -B -pl tests test -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: tune OS
+        uses: ./.github/actions/tune-os
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/org/apache/pulsar
+            !~/.m2/.gradle-enterprise
+          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: clean disk
+        uses: ./.github/actions/clean-disk
+
+      - name: setup maven target directory on different disk and directory
+        uses: ./.github/actions/external-build-dir
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: restore maven build results from Github artifact cache
+        run: |
+          brew install pv &>/dev/null
+          cd /
+          curl -s http://localhost:12321/pulsar-build-${{ github.sha }} | pv -batf -i 5 | tar xf -
+
+      - name: load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
+        run: |
+          curl -s http://localhost:12321/pulsar-images-${{ github.sha }} | pv -batf -i 5 | gzip -d - | docker load
+
+      - name: run integration tests in ${{ matrix.name }}
+        run: |
+          set -xe
+          ${{ matrix.commands }}
+
+      - name: package surefire artifacts
+        if: failure()
+        run: |
+          rm -rf artifacts
+          mkdir artifacts
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
+          zip -r artifacts.zip artifacts
+
+      - uses: actions/upload-artifact@master
+        name: upload surefire-artifacts
+        if: failure()
+        with:
+          name: CI - Integration - ${{ matrix.name }}-surefire-artifacts
+          path: artifacts.zip
