@@ -187,9 +187,9 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.14.3</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>6.14.3</testng.version>
-    <mockito.version>2.28.2</mockito.version>
-    <powermock.version>2.0.2</powermock.version>
+    <testng.version>7.3.0</testng.version>
+    <mockito.version>3.0.0</mockito.version>
+    <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
@@ -241,6 +241,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
+        <exclusions>
+            <exclusion>
+                <groupId>org.yaml</groupId>
+                <artifactId>*</artifactId>
+            </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
