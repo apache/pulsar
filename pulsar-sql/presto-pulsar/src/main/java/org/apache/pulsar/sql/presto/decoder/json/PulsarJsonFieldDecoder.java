@@ -31,7 +31,7 @@ import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.block.BlockBuilder;
 import io.prestosql.spi.type.*;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Iterator;
 import java.util.List;
@@ -87,16 +87,16 @@ public class PulsarJsonFieldDecoder
 
     private static Pair<Long, Long> getNumRangeByType(Type type) {
         if (type == TINYINT) {
-            return new Pair((long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE);
+            return Pair.of((long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE);
         } else if (type == SMALLINT) {
-            return new Pair((long) Short.MIN_VALUE, (long) Short.MAX_VALUE);
+            return Pair.of((long) Short.MIN_VALUE, (long) Short.MAX_VALUE);
         } else if (type == INTEGER) {
-            return new Pair((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
+            return Pair.of((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
         } else if (type == BIGINT) {
-            return new Pair((long) Long.MIN_VALUE, (long) Long.MAX_VALUE);
+            return Pair.of((long) Long.MIN_VALUE, (long) Long.MAX_VALUE);
         } else {
             // those values will not be used if column type is not one of mentioned above
-            return new Pair(Long.MIN_VALUE, Long.MAX_VALUE);
+            return Pair.of(Long.MIN_VALUE, Long.MAX_VALUE);
         }
     }
 
