@@ -76,7 +76,6 @@ public class TransactionImpl implements Transaction {
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> registerPartitionFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
     private final ArrayList<CompletableFuture<Void>> registerSubscriptionFutureList;
     private final ArrayList<MessageId> sendMessageIdList;
@@ -96,7 +95,6 @@ public class TransactionImpl implements Transaction {
         this.tcClient = client.getTcClient();
 
         sendFutureList = new ArrayList<>();
-        registerPartitionFutureList = new ArrayList<>();
         ackFutureList = new ArrayList<>();
         registerSubscriptionFutureList = new ArrayList<>();
         sendMessageIdList = new ArrayList<>();
@@ -107,14 +105,16 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerProducedTopic(String topic) {
+    public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (producedTopics.add(topic)) {
             // we need to issue the request to TC to register the produced topic
-            registerPartitionFutureList.add(
-                    tcClient.addPublishPartitionToTxnAsync(
-                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
-            );
+            completableFuture = tcClient.addPublishPartitionToTxnAsync(
+                    new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
+        } else {
+            completableFuture.complete(null);
         }
+        return completableFuture;
     }
 
     public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
@@ -204,7 +204,6 @@ public class TransactionImpl implements Transaction {
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(registerPartitionFutureList);
         futureList.addAll(sendFutureList);
         futureList.addAll(registerSubscriptionFutureList);
         futureList.addAll(ackFutureList);
