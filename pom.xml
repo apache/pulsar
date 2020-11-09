@@ -1092,6 +1092,8 @@ flexible messaging model and an intuitive client API.</description>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
           <optimize>true</optimize>
+          <!-- workaround https://issues.apache.org/jira/browse/MCOMPILER-205 -->
+          <useIncrementalCompilation>false</useIncrementalCompilation>
         </configuration>
       </plugin>
       <plugin>
