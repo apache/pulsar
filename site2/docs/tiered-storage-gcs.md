@@ -195,7 +195,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 > #### Tip
 >
-> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/docs/en/next/pulsar-admin/#set-offload-threshold). 
+> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
 ### Configure GCS offloader to run manually
 
