@@ -69,15 +69,10 @@
 
     <!--exclude bouncy castle, then load fips version-->
     <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bc-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bcfips</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
   </dependencies>
