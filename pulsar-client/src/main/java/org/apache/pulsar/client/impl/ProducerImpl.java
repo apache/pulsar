@@ -347,7 +347,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
-        return ((TransactionImpl) txn).registerProducedTopic(topic).thenCompose(ignored -> internalSendAsync(message));
+        if (txn == null) {
+            return internalSendAsync(message);
+        } else {
+            return ((TransactionImpl) txn).registerProducedTopic(topic)
+                        .thenCompose(ignored -> internalSendAsync(message));
+        }
     }
 
     public void sendAsync(Message<?> message, SendCallback callback) {
