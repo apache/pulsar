@@ -193,4 +193,11 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     return *this;
 }
 
+ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
+    impl_->keySharedPolicy = keySharedPolicy.clone();
+    return *this;
+}
+
+KeySharedPolicy ConsumerConfiguration::getKeySharedPolicy() const { return impl_->keySharedPolicy; }
+
 }  // namespace pulsar

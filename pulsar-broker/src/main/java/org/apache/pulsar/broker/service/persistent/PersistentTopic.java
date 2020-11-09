@@ -1831,6 +1831,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    @Override
+    public void checkDeduplicationSnapshot() {
+        messageDeduplication.takeSnapshot();
+    }
+
     /**
      * Check whether the topic should be retained (based on time), even tough there are no producers/consumers and it's
      * marked as inactive.
