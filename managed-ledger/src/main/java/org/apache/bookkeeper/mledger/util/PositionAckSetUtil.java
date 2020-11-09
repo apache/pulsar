@@ -59,38 +59,38 @@ public class PositionAckSetUtil {
     //compare the ack set next bit index is bigger than another one.
     public static int compareToWithAckSet(PositionImpl currentPosition,PositionImpl otherPosition) {
         if (currentPosition == null || otherPosition ==null) {
-            return -1;
+            throw new NullPointerException("Two positions can't be null! " +
+                    "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
         }
         int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
                 otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
                 .result();
         if (result == 0) {
-            if (otherPosition.getAckSet() == null) {
-                return result;
-            }
-
             BitSetRecyclable otherAckSet;
-            if (currentPosition.getAckSet() == null) {
-                if (otherPosition.getAckSet() != null) {
-                    otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
-                    if (otherAckSet.isEmpty()) {
-                        otherAckSet.recycle();
-                        return result;
-                    } else {
-                        otherAckSet.recycle();
-                        return 1;
-                    }
+            BitSetRecyclable currentAckSet;
 
-                }
-                return result;
+            if (otherPosition.getAckSet() == null) {
+                otherAckSet = BitSetRecyclable.create();
+            } else {
+                otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
             }
-            otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
-            BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-            result = thisAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0);
+
+            if (currentPosition.getAckSet() == null) {
+                currentAckSet = BitSetRecyclable.create();
+            } else {
+                currentAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
+            }
+
+            if (currentAckSet.isEmpty() || otherAckSet.isEmpty()) {
+                //when ack set is empty, the nextSetBit will return -1, so we should return the inverse value.
+                result = -(currentAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0));
+            } else {
+                result = currentAckSet.nextSetBit(0) - otherAckSet.nextSetBit(0);
+            }
+            currentAckSet.recycle();
             otherAckSet.recycle();
-            thisAckSet.recycle();
-            return result;
         }
         return result;
     }
+
 }

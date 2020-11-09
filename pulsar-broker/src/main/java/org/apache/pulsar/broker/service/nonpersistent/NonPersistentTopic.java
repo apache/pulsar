@@ -294,7 +294,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta, false);
+                    cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
             addConsumerToSubscription(subscription, consumer);
             if (!cnx.isActive()) {
                 consumer.close();
