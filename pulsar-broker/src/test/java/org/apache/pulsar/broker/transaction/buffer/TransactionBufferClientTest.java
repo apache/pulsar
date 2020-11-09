@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.collect.Sets;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -32,7 +31,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.testng.annotations.AfterClass;
 
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
@@ -66,6 +65,13 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                 .subscriptionName("test").subscribe();
         tbClient = TransactionBufferClientImpl.create(pulsarServices[0].getNamespaceService(),
                 ((PulsarClientImpl) pulsarClient).getCnxPool());
+    }
+
+    @AfterClass
+    public void shutdownClient() {
+        if (tbClient != null) {
+            tbClient.close();
+        }
     }
 
     @Override

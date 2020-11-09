@@ -312,4 +312,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             }
         };
     }
+
+    @Override
+    public void close() {
+        this.timer.stop();
+    }
 }
