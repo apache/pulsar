@@ -18,34 +18,33 @@
  */
 package org.apache.pulsar.sql.presto.decoder.json;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.RowDecoder;
-import io.prestosql.decoder.json.JsonFieldDecoder;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.*;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.sql.presto.PulsarColumnHandle;
 import org.apache.pulsar.sql.presto.PulsarColumnMetadata;
 import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.type.DateType.DATE;
+import static io.prestosql.spi.type.TimeType.TIME;
 import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -60,26 +59,26 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     @Override
-    public RowDecoder createRowDecoder(SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<DecoderColumnHandle, JsonFieldDecoder> fieldDecoders = columns.stream().collect(toImmutableMap(identity(), PulsarJsonFieldDecoder::new));
-        return new PulsarJsonRowDecoder(objectMapper, fieldDecoders);
+    public PulsarJsonRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+        return new PulsarJsonRowDecoder((GenericJsonSchema) GenericJsonSchema.of(schemaInfo), columns);
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + " does not have a valid schema");
+                    + topicName.toString() + " does not have a valid schema");
         }
         Schema schema;
         try {
             schema = GenericJsonSchema.of(schemaInfo).getAvroSchema();
         } catch (SchemaParseException ex) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + " does not have a valid schema");
+                    + topicName.toString() + " does not have a valid schema");
         }
+
+        //TODO : check schema cyclic definitions which may case java.lang.StackOverflowError
 
         return schema.getFields().stream()
                 .map(field ->
@@ -89,16 +88,10 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 ).collect(toList());
     }
 
-    /**
-     * parse JsonPrestoType ,
-     * warnning : Json only support json native primitive type which ignore Schema logicalType.
-     *
-     * @param fieldname
-     * @param schema
-     * @return
-     */
+
     private Type parseJsonPrestoType(String fieldname, Schema schema) {
         Schema.Type type = schema.getType();
+        LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
             case STRING:
             case ENUM:
@@ -109,8 +102,16 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case BYTES:
                 return VarbinaryType.VARBINARY;
             case INT:
+                if (logicalType == LogicalTypes.timeMillis()) {
+                    return TIME;
+                } else if (logicalType == LogicalTypes.date()) {
+                    return DATE;
+                }
                 return IntegerType.INTEGER;
             case LONG:
+                if (logicalType == LogicalTypes.timestampMillis()) {
+                    return TimestampType.TIMESTAMP;
+                }
                 return BigintType.BIGINT;
             case FLOAT:
                 return RealType.REAL;
@@ -121,7 +122,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case ARRAY:
                 return new ArrayType(parseJsonPrestoType(fieldname, schema.getElementType()));
             case MAP:
-                //The key for an Avro map must be a string
+                //The key for an avro map must be a string
                 TypeSignature valueType = parseJsonPrestoType(fieldname, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()), TypeSignatureParameter.typeParameter(valueType)));
             case RECORD:

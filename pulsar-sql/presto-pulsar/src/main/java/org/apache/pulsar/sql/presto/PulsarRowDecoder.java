@@ -18,46 +18,24 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import io.netty.buffer.ByteBuf;
+import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 
+import java.util.Map;
+import java.util.Optional;
+
 /**
- * custom FieldValueProvider for Pulsar
+ * RowDecoder interface for Pulsar
  */
-public class PulsarFieldValueProviders {
-
-    public static FieldValueProvider doubleValueProvider(double value) {
-        return new FieldValueProvider() {
-            @Override
-            public double getDouble() {
-                return value;
-            }
-
-            @Override
-            public boolean isNull() {
-                return false;
-            }
-        };
-    }
+public interface PulsarRowDecoder {
 
     /**
-     * FieldValueProvider for Time (Data,Timstamp etc.) with indicate Null instead of longValueProvider
+     * decode byteBuf to Map<DecoderColumnHandle, FieldValueProvider>
      *
-     * @param value
-     * @param isNull
+     * @param byteBuf
      * @return
      */
-    public static FieldValueProvider timeValueProvider(long value, boolean isNull) {
-        return new FieldValueProvider() {
-            @Override
-            public long getLong() {
-                return value;
-            }
-
-            @Override
-            public boolean isNull() {
-                return isNull;
-            }
-        };
-    }
+    public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf);
 
 }

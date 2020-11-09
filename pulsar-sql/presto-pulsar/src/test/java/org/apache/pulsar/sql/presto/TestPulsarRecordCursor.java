@@ -19,16 +19,10 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.prestosql.spi.type.RowType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +32,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 public class TestPulsarRecordCursor extends TestPulsarConnector {
@@ -53,15 +45,13 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
             log.info("!------ topic %s ------!", entry.getKey());
             setup();
+
+            List<PulsarColumnHandle> fooColumnHandles = topicsToColumnHandles.get(entry.getKey());
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
 
-            SchemaHandler schemaHandler = pulsarRecordCursor.getSchemaHandler();
             PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
-            if (schemaHandler instanceof AvroSchemaHandler) {
-                AvroSchemaHandler avroSchemaHandler = (AvroSchemaHandler) schemaHandler;
-                avroSchemaHandler.getSchema().setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
-                when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(avroSchemaHandler.getSchemaInfo()));
-            }
+            when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(topicsToSchemas.get(entry.getKey().getSchemaName())));
+            pulsarRecordCursor.setPulsarSqlSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
 
             TopicName topicName = entry.getKey();
 
@@ -99,40 +89,10 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         } else if (fooColumnHandles.get(i).getName().equals("date")) {
                             pulsarRecordCursor.getLong(i);
                             columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.field1")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.field1").apply(count)).longValue());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar")) {
+                            assertTrue(fooColumnHandles.get(i).getType() instanceof RowType);
                             columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.field2")) {
-                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("bar.field2").apply(count)).getBytes());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.field3")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("bar.field3").apply(count)).floatValue()));
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field4")) {
-                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test.field4").apply(count)).doubleValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field5")) {
-                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test.field5").apply(count)).booleanValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field6")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test.field6").apply(count)).longValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.foobar.field1")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test.foobar.field1").apply(count)).longValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field4")) {
-                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test2.field4").apply(count)).doubleValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field5")) {
-                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test2.field5").apply(count)).booleanValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field6")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test2.field6").apply(count)).longValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.foobar.field1")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test2.foobar.field1").apply(count)).longValue());
-                            columnsSeen.add(fooColumnHandles.get(i).getName());
-                        } else if (fooColumnHandles.get(i).getName().equals("field7")) {
+                        }else if (fooColumnHandles.get(i).getName().equals("field7")) {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
@@ -150,46 +110,6 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             cleanup();
             pulsarRecordCursor.close();
         }
-    }
-
-    @Test
-    public void testRecordToBytes() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        PulsarRecordCursor pulsarRecordCursor = Mockito.mock(PulsarRecordCursor.class);
-        Method method = PulsarRecordCursor.class.getDeclaredMethod("toBytes", Object.class);
-        method.setAccessible(true);
-
-        final String msg = "Hello!";
-
-        byte[] bytes = msg.getBytes();
-        Object obj = method.invoke(pulsarRecordCursor, bytes);
-        assertNotNull(obj);
-        assertEquals(new String((byte[]) obj), msg);
-
-        ByteBuffer byteBuffer1 = ByteBuffer.wrap(msg.getBytes());
-        assertTrue(byteBuffer1.hasArray());
-        obj = method.invoke(pulsarRecordCursor, byteBuffer1);
-        assertNotNull(obj);
-        assertEquals(new String((byte[]) obj), msg);
-
-        ByteBuffer byteBuffer2 = ByteBuffer.allocateDirect(msg.getBytes().length);
-        byteBuffer2.put(msg.getBytes());
-        assertFalse(byteBuffer2.hasArray());
-        obj = method.invoke(pulsarRecordCursor, byteBuffer2);
-        assertNotNull(obj);
-        assertEquals(new String((byte[]) obj), msg);
-
-        ByteBuf byteBuf1 = Unpooled.wrappedBuffer(msg.getBytes());
-        assertTrue(byteBuf1.hasArray());
-        obj = method.invoke(pulsarRecordCursor, byteBuf1);
-        assertNotNull(obj);
-        assertEquals(new String((byte[]) obj), msg);
-
-        ByteBuf byteBuf2 = Unpooled.directBuffer();
-        byteBuf2.writeBytes(msg.getBytes());
-        assertFalse(byteBuf2.hasArray());
-        obj = method.invoke(pulsarRecordCursor, byteBuf2);
-        assertNotNull(obj);
-        assertEquals(new String((byte[]) obj), msg);
     }
 
 }

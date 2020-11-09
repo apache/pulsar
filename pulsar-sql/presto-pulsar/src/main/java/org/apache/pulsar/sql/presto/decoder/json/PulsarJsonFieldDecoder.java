@@ -19,6 +19,8 @@
 package org.apache.pulsar.sql.presto.decoder.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -29,6 +31,7 @@ import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.block.BlockBuilder;
 import io.prestosql.spi.type.*;
+import javafx.util.Pair;
 
 import java.util.Iterator;
 import java.util.List;
@@ -40,23 +43,30 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.prestosql.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
 import static io.prestosql.spi.type.BigintType.BIGINT;
 import static io.prestosql.spi.type.BooleanType.BOOLEAN;
+import static io.prestosql.spi.type.DateType.DATE;
 import static io.prestosql.spi.type.DoubleType.DOUBLE;
 import static io.prestosql.spi.type.IntegerType.INTEGER;
+import static io.prestosql.spi.type.RealType.REAL;
 import static io.prestosql.spi.type.SmallintType.SMALLINT;
+import static io.prestosql.spi.type.TimeType.TIME;
+import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static io.prestosql.spi.type.TinyintType.TINYINT;
 import static io.prestosql.spi.type.Varchars.isVarcharType;
 import static io.prestosql.spi.type.Varchars.truncateToLength;
 import static java.lang.Double.parseDouble;
 import static java.lang.Float.floatToIntBits;
+import static java.lang.Float.parseFloat;
 import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
- * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345) with some pulsar's extension :
+ * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345) with some pulsar's extensions :
  * 1) support array
  * 2) support map
  * 3) support row
+ * 3) support TIMESTAMP,DATE,TIME
+ * 4) support Real
  */
 public class PulsarJsonFieldDecoder
         implements JsonFieldDecoder {
@@ -69,23 +79,24 @@ public class PulsarJsonFieldDecoder
         if (!isSupportedType(columnHandle.getType())) {
             JsonRowDecoderFactory.throwUnsupportedColumnType(columnHandle);
         }
+        Pair<Long, Long> range = getNumRangeByType(columnHandle.getType());
+        minValue = range.getKey();
+        maxValue = range.getValue();
 
-        if (columnHandle.getType() == TINYINT) {
-            minValue = Byte.MIN_VALUE;
-            maxValue = Byte.MAX_VALUE;
-        } else if (columnHandle.getType() == SMALLINT) {
-            minValue = Short.MIN_VALUE;
-            maxValue = Short.MAX_VALUE;
-        } else if (columnHandle.getType() == INTEGER) {
-            minValue = Integer.MIN_VALUE;
-            maxValue = Integer.MAX_VALUE;
-        } else if (columnHandle.getType() == BIGINT) {
-            minValue = Long.MIN_VALUE;
-            maxValue = Long.MAX_VALUE;
+    }
+
+    private static Pair<Long, Long> getNumRangeByType(Type type) {
+        if (type == TINYINT) {
+            return new Pair((long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE);
+        } else if (type == SMALLINT) {
+            return new Pair((long) Short.MIN_VALUE, (long) Short.MAX_VALUE);
+        } else if (type == INTEGER) {
+            return new Pair((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
+        } else if (type == BIGINT) {
+            return new Pair((long) Long.MIN_VALUE, (long) Long.MAX_VALUE);
         } else {
             // those values will not be used if column type is not one of mentioned above
-            minValue = Long.MAX_VALUE;
-            maxValue = Long.MIN_VALUE;
+            return new Pair(Long.MIN_VALUE, Long.MAX_VALUE);
         }
     }
 
@@ -99,7 +110,11 @@ public class PulsarJsonFieldDecoder
                 SMALLINT,
                 TINYINT,
                 BOOLEAN,
-                DOUBLE
+                DOUBLE,
+                TIMESTAMP,
+                DATE,
+                TIME,
+                REAL
         ).contains(type)) {
             return true;
         }
@@ -152,17 +167,45 @@ public class PulsarJsonFieldDecoder
 
         @Override
         public boolean getBoolean() {
+            return getBoolean(value,columnHandle.getType(),columnHandle.getName());
+        }
+
+        @Override
+        public long getLong() {
+            return getLong(value,columnHandle.getType(),columnHandle.getName(),minValue,maxValue);
+        }
+
+        @Override
+        public double getDouble() {
+            return getDouble(value,columnHandle.getType(),columnHandle.getName());
+        }
+
+        @Override
+        public Slice getSlice() {
+            return getSlice(value,columnHandle.getType(),columnHandle.getName());
+        }
+
+        @Override
+        public Block getBlock() {
+            return serializeObject(null, value, columnHandle.getType(), columnHandle.getName());
+        }
+
+
+        public static boolean getBoolean(JsonNode value, Type type, String columnName) {
             if (value.isValueNode()) {
                 return value.asBoolean();
             }
             throw new PrestoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("could not parse non-value node as '%s' for column '%s'", columnHandle.getType(), columnHandle.getName()));
+                    format("could not parse non-value node as '%s' for column '%s'", type, columnName));
         }
 
-        @Override
-        public long getLong() {
+        public static long getLong(JsonNode value, Type type, String columnName,long minValue,long maxValue) {
             try {
+                if (type instanceof RealType) {
+                    return floatToIntBits((Float) parseFloat(value.asText()));
+                }
+
                 long longValue;
                 if (value.isIntegralNumber() && !value.isBigInteger()) {
                     longValue = value.longValue();
@@ -180,11 +223,10 @@ public class PulsarJsonFieldDecoder
             }
             throw new PrestoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("could not parse value '%s' as '%s' for column '%s'", value.asText(), columnHandle.getType(), columnHandle.getName()));
+                    format("could not parse value '%s' as '%s' for column '%s'", value.asText(), type, columnName));
         }
 
-        @Override
-        public double getDouble() {
+        public static double getDouble(JsonNode value, Type type, String columnName) {
             try {
                 if (value.isNumber()) {
                     return value.doubleValue();
@@ -197,34 +239,12 @@ public class PulsarJsonFieldDecoder
             }
             throw new PrestoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("could not parse value '%s' as '%s' for column '%s'", value.asText(), columnHandle.getType(), columnHandle.getName()));
+                    format("could not parse value '%s' as '%s' for column '%s'", value.asText(), type, columnName));
+
         }
 
-        @Override
-        public Slice getSlice() {
+        private static Slice getSlice(JsonNode value, Type type, String columnName) {
             String textValue = value.isValueNode() ? value.asText() : value.toString();
-            Slice slice = utf8Slice(textValue);
-            if (isVarcharType(columnHandle.getType())) {
-                slice = truncateToLength(slice, columnHandle.getType());
-            }
-            return slice;
-        }
-
-        @Override
-        public Block getBlock() {
-            return serializeObject(null, value, columnHandle.getType(), columnHandle.getName());
-        }
-
-
-        private static Slice getSlice(Object value, Type type, String columnName) {
-            String textValue;
-            if (type instanceof JsonNode) {
-                JsonNode jsonNode = (JsonNode) value;
-                textValue = jsonNode.isValueNode() ? jsonNode.asText() : jsonNode.toString();
-            } else {
-                textValue = value.toString();
-            }
-
             Slice slice = utf8Slice(textValue);
             if (isVarcharType(type)) {
                 slice = truncateToLength(slice, type);
@@ -254,15 +274,14 @@ public class PulsarJsonFieldDecoder
                 return null;
             }
 
-            com.fasterxml.jackson.databind.node.ArrayNode arrayNode = (com.fasterxml.jackson.databind.node.ArrayNode) value;
+            checkState(value instanceof ArrayNode, "Json array node must is ArrayNode type");
 
-            Iterator<JsonNode> jsonNodeIterator = arrayNode.elements();
+            Iterator<JsonNode> jsonNodeIterator = ((ArrayNode)value).elements();
 
-            //  List<?> list = (List<?>) value;
             List<Type> typeParameters = type.getTypeParameters();
             Type elementType = typeParameters.get(0);
 
-            BlockBuilder blockBuilder = elementType.createBlockBuilder(null, arrayNode.size());
+            BlockBuilder blockBuilder = elementType.createBlockBuilder(null, ((ArrayNode) value).size());
 
             while (jsonNodeIterator.hasNext()) {
                 Object element = jsonNodeIterator.next();
@@ -276,8 +295,14 @@ public class PulsarJsonFieldDecoder
             return blockBuilder.build();
         }
 
-        private void serializePrimitive(BlockBuilder blockBuilder, Object value, Type type, String columnName) {
+        private void serializePrimitive(BlockBuilder blockBuilder, Object node, Type type, String columnName) {
             requireNonNull(blockBuilder, "parent blockBuilder is null");
+            JsonNode value;
+            if (node instanceof JsonNode) {
+                value = (JsonNode) node;
+            } else {
+                throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED, format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode", node.getClass(), type, columnName));
+            }
 
             if (value == null) {
                 blockBuilder.appendNull();
@@ -285,22 +310,18 @@ public class PulsarJsonFieldDecoder
             }
 
             if (type instanceof BooleanType) {
-                type.writeBoolean(blockBuilder, (Boolean) value);
+                type.writeBoolean(blockBuilder, getBoolean(value, type, columnName));
                 return;
             }
 
-            if ((value instanceof Integer || value instanceof Long) && (type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType || type instanceof TinyintType)) {
-                type.writeLong(blockBuilder, ((Number) value).longValue());
+            if (type instanceof RealType || type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType || type instanceof TinyintType || type instanceof TimestampType || type instanceof TimeType || type instanceof DateType) {
+                Pair<Long, Long> numRange = getNumRangeByType(type);
+                type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));
                 return;
             }
 
             if (type instanceof DoubleType) {
-                type.writeDouble(blockBuilder, (Double) value);
-                return;
-            }
-
-            if (type instanceof RealType) {
-                type.writeLong(blockBuilder, floatToIntBits((Float) value));
+                type.writeDouble(blockBuilder, getDouble(value, type, columnName));
                 return;
             }
 
@@ -318,8 +339,7 @@ public class PulsarJsonFieldDecoder
                 parentBlockBuilder.appendNull();
                 return null;
             }
-
-            com.fasterxml.jackson.databind.node.ObjectNode objectNode = (com.fasterxml.jackson.databind.node.ObjectNode) value;
+            checkState(value instanceof ObjectNode, "Json map node must  is ObjectNode type");
 
             List<Type> typeParameters = type.getTypeParameters();
             Type keyType = typeParameters.get(0);
@@ -334,7 +354,7 @@ public class PulsarJsonFieldDecoder
 
             BlockBuilder entryBuilder = blockBuilder.beginBlockEntry();
 
-            Iterator<Map.Entry<String, JsonNode>> fields = objectNode.fields();
+            Iterator<Map.Entry<String, JsonNode>> fields = ((ObjectNode)value).fields();
             while (fields.hasNext()) {
                 Map.Entry entry = fields.next();
                 if (entry.getKey() != null) {
@@ -342,7 +362,6 @@ public class PulsarJsonFieldDecoder
                     serializeObject(entryBuilder, entry.getValue(), valueType, columnName);
                 }
             }
-
 
             blockBuilder.closeEntry();
 
@@ -367,14 +386,14 @@ public class PulsarJsonFieldDecoder
                 blockBuilder = type.createBlockBuilder(null, 1);
             }
             BlockBuilder singleRowBuilder = blockBuilder.beginBlockEntry();
-            // GenericRecord record = (GenericRecord) value;
-            com.fasterxml.jackson.databind.node.ObjectNode objectNode = (com.fasterxml.jackson.databind.node.ObjectNode) value;
 
             List<RowType.Field> fields = ((RowType) type).getFields();
 
+            checkState(value instanceof ObjectNode, "Json row node must  is ObjectNode type");
+
             for (RowType.Field field : fields) {
                 checkState(field.getName().isPresent(), "field name not found");
-                serializeObject(singleRowBuilder, objectNode.get(field.getName().get()), field.getType(), columnName);
+                serializeObject(singleRowBuilder, ((ObjectNode) value).get(field.getName().get()), field.getType(), columnName);
             }
             blockBuilder.closeEntry();
             if (parentBlockBuilder == null) {

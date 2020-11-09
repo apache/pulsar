@@ -325,7 +325,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
         ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
 
-         builder.addAll(decoderFactory.extractColumnMetadata(schemaInfo,handleKeyValueType));
+        builder.addAll(decoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType));
 
         if (withInternalColumns) {
             PulsarInternalColumn.getInternalFields()

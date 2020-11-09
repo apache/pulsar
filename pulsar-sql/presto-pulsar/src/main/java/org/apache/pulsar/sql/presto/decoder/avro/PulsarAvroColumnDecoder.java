@@ -49,9 +49,10 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
- * copy from {@link io.prestosql.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345) with A little bit pulsar's extension:
+ * copy from {@link io.prestosql.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345) with A little bit pulsar's extensions:
  *
- * 1) support TimestampType.TIMESTAMP | DateType.DATE | TimeType.TIME
+ * 1) support TIMESTAMP,DATE,TIME
+ * 2) support RealType
  */
 public class PulsarAvroColumnDecoder {
     private static final Set<Type> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(
@@ -76,7 +77,6 @@ public class PulsarAvroColumnDecoder {
             requireNonNull(columnHandle, "columnHandle is null");
             this.columnType = columnHandle.getType();
             this.columnMapping = columnHandle.getMapping();
-
             this.columnName = columnHandle.getName();
             checkArgument(!columnHandle.isInternal(), "unexpected internal column '%s'", columnName);
             checkArgument(columnHandle.getFormatHint() == null, "unexpected format hint '%s' defined for column '%s'", columnHandle.getFormatHint(), columnName);
@@ -176,7 +176,9 @@ public class PulsarAvroColumnDecoder {
                 return ((Number) value).longValue();
             }
 
-            // columnType
+            if (columnType instanceof RealType) {
+                return floatToIntBits((Float) value);
+            }
 
             throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED, format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), columnType, columnName));
         }

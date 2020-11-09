@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
+import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.RowDecoder;
 import io.prestosql.spi.PrestoException;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DecoderFactory;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
-import javax.annotation.Nullable;
-import java.io.ByteArrayInputStream;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,15 +40,15 @@ import static java.util.Objects.requireNonNull;
 /**
  * Refer to {@link io.prestosql.decoder.avro.AvroRowDecoder}
  */
-public class PulsarAvroRowDecoder implements RowDecoder {
+public class PulsarAvroRowDecoder implements PulsarRowDecoder {
 
-    public static final String NAME = "avro";
-    private final DatumReader<GenericRecord> avroRecordReader;
+    private static final Logger log = Logger.get(PulsarAvroRowDecoderFactory.class);
+
+    private final GenericAvroSchema genericAvroSchema;
     private final Map<DecoderColumnHandle, PulsarAvroColumnDecoder> columnDecoders;
 
-    public PulsarAvroRowDecoder(DatumReader<GenericRecord> avroRecordReader, Set<DecoderColumnHandle> columns) {
-        this.avroRecordReader = requireNonNull(avroRecordReader, "avroRecordReader is null");
-        requireNonNull(columns, "columns is null");
+    public PulsarAvroRowDecoder(GenericAvroSchema genericAvroSchema, Set<DecoderColumnHandle> columns) {
+        this.genericAvroSchema = requireNonNull(genericAvroSchema, "genericAvroSchema is null");
         columnDecoders = columns.stream()
                 .collect(toImmutableMap(identity(), this::createColumnDecoder));
     }
@@ -57,11 +57,17 @@ public class PulsarAvroRowDecoder implements RowDecoder {
         return new PulsarAvroColumnDecoder(columnHandle);
     }
 
+    /**
+     * decode ByteBuf by {@link org.apache.pulsar.client.api.schema.GenericSchema}.
+     * @param byteBuf
+     * @return
+     */
     @Override
-    public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(byte[] data, @Nullable Map<String, String> dataMap) {
+    public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
         GenericRecord avroRecord;
         try {
-            avroRecord = avroRecordReader.read(null, DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(data), null));
+            GenericAvroRecord record = (GenericAvroRecord) genericAvroSchema.decode(byteBuf);
+            avroRecord = record.getAvroRecord();
         } catch (Exception e) {
             throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding Avro record failed.", e);
         }
@@ -70,6 +76,4 @@ public class PulsarAvroRowDecoder implements RowDecoder {
                         Map.Entry::getKey,
                         entry -> entry.getValue().decodeField(avroRecord))));
     }
-
-
 }

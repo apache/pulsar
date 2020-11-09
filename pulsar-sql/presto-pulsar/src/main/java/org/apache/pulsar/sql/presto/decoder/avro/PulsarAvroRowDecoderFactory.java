@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto.decoder.avro;
 
 import com.google.common.collect.ImmutableList;
 import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.RowDecoder;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.*;
@@ -28,17 +27,16 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.sql.presto.PulsarColumnHandle;
 import org.apache.pulsar.sql.presto.PulsarColumnMetadata;
+import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -63,29 +61,26 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     @Override
-    public RowDecoder createRowDecoder(SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
-        byte[] dataSchema = schemaInfo.getSchema();
-        Schema parsedSchema = (new Schema.Parser()).parse(new String(dataSchema, StandardCharsets.UTF_8));
-        GenericDatumReader<GenericRecord> datumReader = new ReflectDatumReader<>(parsedSchema);
-        return new PulsarAvroRowDecoder(datumReader, columns);
+    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+        return new PulsarAvroRowDecoder((GenericAvroSchema) GenericAvroSchema.of(schemaInfo), columns);
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + " does not have a valid schema");
+                    + topicName.toString() + " does not have a valid schema");
         }
         Schema schema;
         try {
             schema = GenericJsonSchema.of(schemaInfo).getAvroSchema();
         } catch (SchemaParseException ex) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + " does not have a valid schema");
+                    + topicName.toString() + " does not have a valid schema");
         }
 
-        //TODO : check schema cyclic definitions witch may case java.lang.StackOverflowError
+        //TODO : check schema cyclic definitions which may case java.lang.StackOverflowError
 
         return schema.getFields().stream()
                 .map(field ->

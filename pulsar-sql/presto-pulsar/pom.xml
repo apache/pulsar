@@ -115,6 +115,26 @@
             <version>${presto.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client-original</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-main</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-testing</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

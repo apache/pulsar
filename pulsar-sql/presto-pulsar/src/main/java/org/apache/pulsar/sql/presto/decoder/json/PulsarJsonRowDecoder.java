@@ -19,51 +19,35 @@
 package org.apache.pulsar.sql.presto.decoder.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
+import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.RowDecoder;
 import io.prestosql.decoder.json.JsonFieldDecoder;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
-public class PulsarJsonRowDecoder implements RowDecoder {
+public class PulsarJsonRowDecoder implements PulsarRowDecoder {
 
-    private final ObjectMapper objectMapper;
     private final Map<DecoderColumnHandle, JsonFieldDecoder> fieldDecoders;
 
-    public PulsarJsonRowDecoder(ObjectMapper objectMapper, Map<DecoderColumnHandle, JsonFieldDecoder> fieldDecoders) {
-        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
-        this.fieldDecoders = ImmutableMap.copyOf(fieldDecoders);
-    }
+    private final GenericJsonSchema genericJsonSchema;
 
-    @Override
-    public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(byte[] data,
-                                                                            @Nullable Map<String, String> dataMap) {
-        JsonNode tree;
-        try {
-            tree = objectMapper.readTree(data);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-
-        Map<DecoderColumnHandle, FieldValueProvider> decodedRow = new HashMap<>();
-        for (Map.Entry<DecoderColumnHandle, JsonFieldDecoder> entry : fieldDecoders.entrySet()) {
-            DecoderColumnHandle columnHandle = entry.getKey();
-            JsonFieldDecoder decoder = entry.getValue();
-            JsonNode node = locateNode(tree, columnHandle);
-            decodedRow.put(columnHandle, decoder.decode(node));
-        }
-        return Optional.of(decodedRow);
+    public PulsarJsonRowDecoder(GenericJsonSchema genericJsonSchema, Set<DecoderColumnHandle> columns) {
+        this.genericJsonSchema = requireNonNull(genericJsonSchema, "genericJsonSchema is null");
+        this.fieldDecoders = columns.stream().collect(toImmutableMap(identity(), PulsarJsonFieldDecoder::new));
     }
 
     private static JsonNode locateNode(JsonNode tree, DecoderColumnHandle columnHandle) {
@@ -77,5 +61,24 @@ public class PulsarJsonRowDecoder implements RowDecoder {
             currentNode = currentNode.path(pathElement);
         }
         return currentNode;
+    }
+
+    /**
+     * decode ByteBuf by {@link org.apache.pulsar.client.api.schema.GenericSchema}.
+     * @param byteBuf
+     * @return
+     */
+    @Override
+    public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
+        GenericJsonRecord record = (GenericJsonRecord) genericJsonSchema.decode(byteBuf);
+        JsonNode tree = record.getJsonNode();
+        Map<DecoderColumnHandle, FieldValueProvider> decodedRow = new HashMap<>();
+        for (Map.Entry<DecoderColumnHandle, JsonFieldDecoder> entry : fieldDecoders.entrySet()) {
+            DecoderColumnHandle columnHandle = entry.getKey();
+            JsonFieldDecoder decoder = entry.getValue();
+            JsonNode node = locateNode(tree, columnHandle);
+            decodedRow.put(columnHandle, decoder.decode(node));
+        }
+        return Optional.of(decodedRow);
     }
 }
