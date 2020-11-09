@@ -209,6 +209,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
     <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
+    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <maven-archiver.version>2.5</maven-archiver.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
@@ -1376,6 +1377,10 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>${maven-antrun-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

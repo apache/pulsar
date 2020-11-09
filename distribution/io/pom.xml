@@ -89,9 +89,9 @@
                 <id>create-conf-dir</id>
                 <phase>compile</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <mkdir dir="target/conf"/>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
