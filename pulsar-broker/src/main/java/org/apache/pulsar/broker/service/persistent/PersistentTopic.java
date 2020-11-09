@@ -1772,7 +1772,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, true))
-                    .thenApply((res) -> deleteZkNode())
+                    .thenApply((res) -> tryToDeletePartitionedMetadata())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1799,31 +1799,46 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (topicName.isPartitioned() && !getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
                 return CompletableFuture.completedFuture(null);
             }
-            // make sure all sub partitions were deleted
-            PartitionedTopicMetadata metadata = getBrokerService()
-                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName())).get();
-            String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
-                    , topicName.getDomain().value());
-            Set<String> cache = brokerService.pulsar().getLocalZkCacheService().managedLedgerListCache().get(managedPath);
-            for (int i = 0; i < metadata.partitions; i++) {
-                if (cache.contains(topicName.getPartition(i).getLocalName())) {
-                    return CompletableFuture.completedFuture(null);
-                }
-            }
-
-            CompletableFuture<Void> deleteZkNodeFuture = new CompletableFuture<>();
-            getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
-                    , (rc, s, o) -> {
-                        if (KeeperException.Code.OK.intValue() == rc
-                                || KeeperException.Code.NONODE.intValue() == rc) {
-                            getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
-                            deleteZkNodeFuture.complete(null);
-                        } else {
-                            deleteZkNodeFuture.completeExceptionally(
-                                    KeeperException.create(KeeperException.Code.get(rc)));
+            CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
+            getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                    .thenAccept((metadata -> {
+                        // make sure all sub partitions were deleted
+                        String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
+                                , topicName.getDomain().value());
+                        Set<String> cache = null;
+                        try {
+                            cache = brokerService.pulsar().getLocalZkCacheService().managedLedgerListCache().get(managedPath);
+                        } catch (Exception e) {
+                            deleteMetadataFuture.completeExceptionally(e);
                         }
-                    }, null);
-            return deleteZkNodeFuture;
+                        if (cache == null) {
+                            return;
+                        }
+                        for (int i = 0; i < metadata.partitions; i++) {
+                            if (cache.contains(topicName.getPartition(i).getLocalName())) {
+                                throw new UnsupportedOperationException();
+                            }
+                        }
+                    }))
+                    .thenAccept((res) -> getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
+                            , (rc, s, o) -> {
+                                if (KeeperException.Code.OK.intValue() == rc
+                                        || KeeperException.Code.NONODE.intValue() == rc) {
+                                    getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
+                                    deleteMetadataFuture.complete(null);
+                                } else {
+                                    deleteMetadataFuture.completeExceptionally(
+                                            KeeperException.create(KeeperException.Code.get(rc)));
+                                }
+                            }, null))
+                    .exceptionally((e) -> {
+                        if (!(e.getCause() instanceof UnsupportedOperationException)) {
+                            log.error("delete metadata fail", e);
+                        }
+                        deleteMetadataFuture.complete(null);
+                        return null;
+                    });
+            return deleteMetadataFuture;
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
