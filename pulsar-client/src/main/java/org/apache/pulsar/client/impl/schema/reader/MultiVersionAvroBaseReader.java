@@ -16,27 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.client.impl.schema.reader;
 
-import java.util.List;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.avro.Schema;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 
 /**
- * A schema that serializes and deserializes between {@link GenericRecord} and bytes.
+ * The abstract class of multi version avro base reader.
  */
-public interface GenericSchema<T extends GenericRecord> extends Schema<T> {
+public abstract class MultiVersionAvroBaseReader<T> extends MultiVersionReader<T> {
 
-    /**
-     * Returns the list of fields.
-     *
-     * @return the list of fields of generic record.
-     */
-    List<Field> getFields();
+    protected Schema readerSchema;
 
-    /**
-     * Create a builder to build {@link GenericRecord}.
-     *
-     * @return generic record builder
-     */
-    GenericRecordBuilder newRecordBuilder();
+    public MultiVersionAvroBaseReader(SchemaReader<T> providerSchemaReader, Schema readerSchema) {
+        super(providerSchemaReader);
+        this.readerSchema = readerSchema;
+    }
 }
