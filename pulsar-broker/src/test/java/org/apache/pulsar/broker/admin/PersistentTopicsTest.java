@@ -539,7 +539,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test()
+    @Test
     public void testGetLastMessageId() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
@@ -569,7 +569,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test()
+    @Test
     public void testExamineMessage() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
