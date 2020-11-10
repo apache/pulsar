@@ -503,7 +503,7 @@ public class Consumer {
                         "it's batch size from consumer pendingAcks!";
                 log.error(error);
                 return FutureUtil.failedFuture(
-                        new TransactionConflictException(error));
+                        new BrokerServiceException.NotAllowedException(error));
             }
             positionsAcked.add(new MutablePair<>(position, batchSizePair.first));
 
