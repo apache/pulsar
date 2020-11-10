@@ -155,7 +155,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
     } else {
       discoverInProgress = true;
     }
-    // Run this code asynchronous so it does block processing of the tasks
+    // Run this code asynchronous so it doesn't block processing of the tasks
     CompletableFuture.runAsync(() -> {
       try {
         batchSource.discover(task -> taskEater(discoveredEvent, task));
