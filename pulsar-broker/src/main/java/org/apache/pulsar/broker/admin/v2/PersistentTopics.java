@@ -1260,7 +1260,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/examinemessage")
-    @ApiOperation(value = "Examine specific message on a topic by position relative to the earliest or the latest message.")
+    @ApiOperation(value = "Examine a specific message on a topic by position relative to the earliest or the latest message.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1275,18 +1275,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(name = "startPosition", value = "Relative start position to examine message." +
+            @ApiParam(name = "initialPosition", value = "Relative start position to examine message." +
                     "It can be 'latest' or 'earliest'",
                     defaultValue = "latest",
                     allowableValues = "latest, earliest"
             )
-            @QueryParam("startPosition") String startPosition,
-            @ApiParam(value = "The number of messages (default 1)", defaultValue = "1")
-            @QueryParam("messagePosition") int messagePosition,
+            @QueryParam("initialPosition") String initialPosition,
+            @ApiParam(value = "The position of messages (default 1)", defaultValue = "1")
+            @QueryParam("messagePosition") long messagePosition,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalExamineMessage(startPosition, messagePosition, authoritative);
+        return internalExamineMessage(initialPosition, messagePosition, authoritative);
     }
 
     @GET

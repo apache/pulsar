@@ -1530,6 +1530,7 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+<<<<<<< Updated upstream
      * Get the delayed delivery policy for a specified topic.
      * @param topic
      * @return
@@ -2569,4 +2570,24 @@ public interface Topics {
      *              unexpected error
      */
     CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    Message<byte[]> examineMessage(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    CompletableFuture<Message<byte[]>> examineMessageAsync(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
 }

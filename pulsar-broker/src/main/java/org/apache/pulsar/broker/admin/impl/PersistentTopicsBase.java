@@ -2225,7 +2225,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected Response internalExamineMessage(String initialPosition, int messagePosition, boolean authoritative) {
+    protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -2242,6 +2242,10 @@ public class PersistentTopicsBase extends AdminResource {
 
         if (messagePosition < 1) {
             messagePosition = 1;
+        }
+
+        if (null == initialPosition) {
+            initialPosition = "latest";
         }
 
         try {
@@ -2264,7 +2268,8 @@ public class PersistentTopicsBase extends AdminResource {
             }, null);
             return generateResponseWithEntry(future.get());
         } catch (Exception exception) {
-            log.error("[{}] Failed to examine message at position {} from {} dur to {}", clientAppId(), messagePosition,
+            exception.printStackTrace();
+            log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
                     topicName , exception);
             throw new RestException(exception);
         }
