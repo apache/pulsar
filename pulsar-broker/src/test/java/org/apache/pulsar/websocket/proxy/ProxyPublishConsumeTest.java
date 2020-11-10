@@ -594,7 +594,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         consumeSocket1.setMessageHandler((id, data) -> {
-            log.info(data.toString());
             JsonObject nack = new JsonObject();
             nack.add("messageId", new JsonPrimitive(id));
             nack.add("type", new JsonPrimitive("negativeAcknowledge"));
@@ -617,7 +616,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
-            log.info("SEND");
+            assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+
             produceSocket.sendMessage(1);
 
             Thread.sleep(500);
