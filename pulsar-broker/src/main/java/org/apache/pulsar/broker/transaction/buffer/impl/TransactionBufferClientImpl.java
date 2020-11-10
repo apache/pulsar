@@ -67,4 +67,8 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT);
     }
 
+    @Override
+    public void close() {
+        tbHandler.close();
+    }
 }
