@@ -82,4 +82,5 @@ public interface TransactionBufferClient {
                                                    long txnIdMostBits,
                                                    long txnIdLeastBits);
 
+    void close();
 }

@@ -28,6 +28,7 @@ import lombok.Data;
 
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;

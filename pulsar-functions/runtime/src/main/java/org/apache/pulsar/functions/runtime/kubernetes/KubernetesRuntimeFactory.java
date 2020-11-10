@@ -66,6 +66,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     private String k8Uri;
     private String jobNamespace;
+    private String jobName;
     private String pulsarDockerImageName;
     private Map<String, String> functionDockerImages;
     private String imagePullPolicy;
@@ -139,6 +140,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.jobNamespace = factoryConfig.getJobNamespace();
         } else {
             this.jobNamespace = "default";
+        }
+        if (!isEmpty(factoryConfig.getJobName())) {
+            this.jobName = factoryConfig.getJobName();
+        } else {
+            this.jobName = null;
         }
         if (!isEmpty(factoryConfig.getPulsarDockerImageName())) {
             this.pulsarDockerImageName = factoryConfig.getPulsarDockerImageName();
@@ -265,12 +271,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         String overriddenNamespace = manifestCustomizer.map((customizer) -> customizer.customizeNamespace(instanceConfig.getFunctionDetails(), jobNamespace)).orElse(jobNamespace);
+        String overriddenName = manifestCustomizer.map((customizer) -> customizer.customizeName(instanceConfig.getFunctionDetails(), jobName)).orElse(jobName);
 
         return new KubernetesRuntime(
             appsClient,
             coreClient,
             // get the namespace for this function
             overriddenNamespace,
+            overriddenName,
             customLabels,
             installUserCodeDependencies,
             pythonDependencyRepository,
@@ -310,9 +318,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
-        KubernetesRuntime.doChecks(functionDetails);
+    	final String overriddenJobName = getOverriddenName(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, getOverriddenNamespace(functionDetails), functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, 
+        		getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
 
     @VisibleForTesting
@@ -419,5 +429,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace);
+    }
+    
+    private String getOverriddenName(Function.FunctionDetails funcDetails) {
+        Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
+        return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
     }
 }

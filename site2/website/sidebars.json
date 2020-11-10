@@ -116,7 +116,7 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
-      "admin-api-persistent-topics",
+      "admin-api-topics",
       "admin-api-schemas",
       "admin-api-functions"
     ],
@@ -129,7 +129,6 @@
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",
-      "cookbooks-partitioned",
       "cookbooks-retention-expiry",
       "cookbooks-encryption",
       "cookbooks-message-queue",

@@ -1339,6 +1339,16 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testInvalidBundleErrorResponse() throws Exception {
+        try {
+            admin.namespaces().deleteNamespaceBundle("prop-xyz/ns1", "invalid-bundle");
+            fail("should have failed due to invalid bundle");
+        } catch (PreconditionFailedException e) {
+            assertTrue(e.getMessage().startsWith("Invalid bundle range"));
+        }
+    }
+
+    @Test
     public void testMaxSubscriptionsPerTopic() throws Exception {
         super.internalCleanup();
         conf.setMaxSubscriptionsPerTopic(2);

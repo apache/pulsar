@@ -220,6 +220,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             }
             bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.zkCache.get());
         }
+        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+            bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
+                    ZkBookieRackAffinityMapping.class.getName()));
+        }
     }
 
     public void close() {
