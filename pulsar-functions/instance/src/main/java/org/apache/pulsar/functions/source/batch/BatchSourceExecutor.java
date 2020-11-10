@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.source.batch;
 
 import com.google.gson.Gson;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -41,6 +42,8 @@ import org.apache.pulsar.io.core.SourceContext;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -65,13 +68,15 @@ public class BatchSourceExecutor<T> implements Source<T> {
   private BatchSource<T> batchSource;
   private String intermediateTopicName;
   private volatile Exception currentError = null;
+  private volatile boolean isRunning = false;
+  private ExecutorService discoveryThread = Executors.newSingleThreadExecutor(new DefaultThreadFactory("batch-source-discovery"));
 
   @Override
   public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
     this.config = config;
     this.sourceContext = sourceContext;
     this.intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(sourceContext.getTenant(),
-            sourceContext.getNamespace(), sourceContext.getSourceName()).toString();
+      sourceContext.getNamespace(), sourceContext.getSourceName()).toString();
     this.getBatchSourceConfigs(config);
     this.initializeBatchSource();
     this.start();
@@ -104,7 +109,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
 
   private void getBatchSourceConfigs(Map<String, Object> config) {
     if (!config.containsKey(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY)
-        || !config.containsKey(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY)) {
+      || !config.containsKey(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY)) {
       throw new IllegalArgumentException("Batch Configs cannot be found");
     }
 
@@ -117,18 +122,18 @@ public class BatchSourceExecutor<T> implements Source<T> {
     // First init the batchsource
     ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
     Object userClassObject = Reflections.createInstance(
-            batchSourceClassName,
-            clsLoader);
+      batchSourceClassName,
+      clsLoader);
     if (userClassObject instanceof BatchSource) {
-        batchSource = (BatchSource) userClassObject;
+      batchSource = (BatchSource) userClassObject;
     } else {
       throw new IllegalArgumentException("BatchSource does not implement the correct interface");
     }
 
     // next init the discovery triggerer
     Object discoveryClassObject = Reflections.createInstance(
-            batchSourceConfig.getDiscoveryTriggererClassName(),
-            clsLoader);
+      batchSourceConfig.getDiscoveryTriggererClassName(),
+      clsLoader);
     if (discoveryClassObject instanceof BatchSourceTriggerer) {
       discoveryTriggerer = (BatchSourceTriggerer) discoveryClassObject;
     } else {
@@ -137,11 +142,12 @@ public class BatchSourceExecutor<T> implements Source<T> {
   }
 
   private void start() throws Exception {
+    isRunning = true;
     createIntermediateTopicConsumer();
     batchSource.open(this.config, this.sourceContext);
     if (sourceContext.getInstanceId() == 0) {
       discoveryTriggerer.init(batchSourceConfig.getDiscoveryTriggererConfig(),
-                              this.sourceContext);
+        this.sourceContext);
       discoveryTriggerer.start(this::triggerDiscover);
     }
   }
@@ -156,12 +162,14 @@ public class BatchSourceExecutor<T> implements Source<T> {
       discoverInProgress = true;
     }
     // Run this code asynchronous so it doesn't block processing of the tasks
-    CompletableFuture.runAsync(() -> {
+    discoveryThread.submit(() -> {
       try {
         batchSource.discover(task -> taskEater(discoveredEvent, task));
       } catch (Exception e) {
-        log.error("Encountered error during task discovery", e);
-        setCurrentError(e);
+        if (isRunning || !(e instanceof InterruptedException)) {
+          log.error("Encountered error during task discovery", e);
+          setCurrentError(e);
+        }
       } finally {
         discoverInProgress = false;
       }
@@ -198,6 +206,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
   }
 
   private void stop() throws Exception {
+    isRunning = false;
     Exception ex = null;
     if (discoveryTriggerer != null) {
       try {
@@ -208,6 +217,14 @@ public class BatchSourceExecutor<T> implements Source<T> {
       }
       discoveryTriggerer = null;
     }
+
+    discoveryThread.shutdownNow();
+    try {
+      discoveryThread.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      log.warn("Shutdown of discovery thread was interrupted");
+    }
+
     if (intermediateTopicConsumer != null) {
       try {
         intermediateTopicConsumer.close();
