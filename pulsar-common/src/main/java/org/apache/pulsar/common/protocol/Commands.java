@@ -518,6 +518,8 @@ public class Commands {
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
+            // first, skip raw metadata if exist
+            skipRawMessageMetadataIfExist(buffer);
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
             // to parse metadata
             skipChecksumIfPresent(buffer);
@@ -2264,5 +2266,9 @@ public class Commands {
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
+    }
+
+    public static boolean peerSupportsRawMessageMetadata(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v16.getNumber();
     }
 }
