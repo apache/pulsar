@@ -23,11 +23,10 @@ import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
 import static org.apache.pulsar.sql.presto.PulsarFieldValueProviders.doubleValueProvider;
 
+import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 
@@ -62,7 +61,7 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
     public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
-        Map<DecoderColumnHandle, FieldValueProvider> primitiveColumn = new HashMap<DecoderColumnHandle, FieldValueProvider>();
+        Map<DecoderColumnHandle, FieldValueProvider> primitiveColumn = new HashMap<>();
         Type type = columnHandle.getType();
         if (type instanceof BooleanType) {
             primitiveColumn.put(columnHandle, booleanValueProvider(Boolean.valueOf(new String(data))));
@@ -72,7 +71,8 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
         } else if (type instanceof DoubleType) {
             primitiveColumn.put(columnHandle, doubleValueProvider(Double.valueOf(new String(data))));
         } else if (type instanceof RealType) {
-            primitiveColumn.put(columnHandle, longValueProvider(Float.floatToIntBits((Float.valueOf(new String(data))))));
+            primitiveColumn.put(columnHandle, longValueProvider(
+                    Float.floatToIntBits((Float.valueOf(new String(data))))));
         } else if (type instanceof VarbinaryType || type instanceof VarcharType) {
             primitiveColumn.put(columnHandle, bytesValueProvider(data));
         } else if (type instanceof DateType || type instanceof TimeType || type instanceof TimestampType) {

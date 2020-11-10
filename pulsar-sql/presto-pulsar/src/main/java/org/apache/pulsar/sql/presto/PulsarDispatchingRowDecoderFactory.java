@@ -19,6 +19,10 @@
 package org.apache.pulsar.sql.presto;
 
 import com.google.inject.Inject;
+
+import java.util.List;
+import java.util.Set;
+
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
@@ -30,9 +34,7 @@ import org.apache.pulsar.sql.presto.decoder.avro.PulsarAvroRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.json.PulsarJsonRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.primitive.PulsarPrimitiveRowDecoderFactory;
 
-import java.util.List;
-import java.util.Set;
-
+import static java.lang.String.format;
 
 /**
  * dispatcher RowDecoderFactory for {@link org.apache.pulsar.common.schema.SchemaType}.
@@ -50,12 +52,12 @@ public class PulsarDispatchingRowDecoderFactory {
 
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
-        return rowDecoderFactory.createRowDecoder(topicName,schemaInfo, columns);
+        return rowDecoderFactory.createRowDecoder(topicName, schemaInfo, columns);
     }
 
     public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
-        return rowDecoderFactory.extractColumnMetadata(topicName,schemaInfo, handleKeyValueType);
+        return rowDecoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType);
     }
 
     private PulsarRowDecoderFactory createDecoderFactory(SchemaInfo schemaInfo) {
@@ -66,7 +68,8 @@ public class PulsarDispatchingRowDecoderFactory {
         } else if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveRowDecoderFactory();
         } else {
-            throw new RuntimeException("unsupported typd ...");
+            throw new RuntimeException(format("'%s' is unsupported type '%s'", schemaInfo.getName(),
+                    schemaInfo.getType()));
         }
     }
 

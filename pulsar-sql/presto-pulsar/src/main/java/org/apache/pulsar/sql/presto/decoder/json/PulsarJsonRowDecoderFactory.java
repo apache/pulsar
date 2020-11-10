@@ -26,15 +26,29 @@ import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableList;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.*;
+import io.prestosql.spi.type.ArrayType;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.BooleanType;
+import io.prestosql.spi.type.DoubleType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.RealType;
+import io.prestosql.spi.type.RowType;
+import io.prestosql.spi.type.StandardTypes;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.TypeManager;
+import io.prestosql.spi.type.TypeSignature;
+import io.prestosql.spi.type.TypeSignatureParameter;
+import io.prestosql.spi.type.VarbinaryType;
+import io.prestosql.spi.type.VarcharType;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -87,7 +101,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 .map(field ->
                         new PulsarColumnMetadata(field.name(), parseJsonPrestoType(field.name(), field.schema()),
                                 field.schema().toString(), null, false, false,
-                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.name(), null, null))
+                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
+                                        field.name(), null, null))
 
                 ).collect(toList());
     }
@@ -101,7 +116,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case ENUM:
                 return createUnboundedVarcharType();
             case NULL:
-                throw new UnsupportedOperationException(format("field '%s' NULL Type code should not be reached ，" +
+                throw new UnsupportedOperationException(format(
+                        "field '%s' NULL Type code should not be reached ，" +
                         "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
@@ -130,14 +146,17 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 //The key for an avro map must be a string
                 TypeSignature valueType = parseJsonPrestoType(fieldname, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.
-                        typeParameter(VarcharType.VARCHAR.getTypeSignature()), TypeSignatureParameter.typeParameter(valueType)));
+                        typeParameter(VarcharType.VARCHAR.getTypeSignature()),
+                        TypeSignatureParameter.typeParameter(valueType)));
             case RECORD:
                 if (schema.getFields().size() > 0) {
                     return RowType.from(schema.getFields().stream()
-                            .map(field -> new RowType.Field(Optional.of(field.name()), parseJsonPrestoType(field.name(), field.schema())))
+                            .map(field -> new RowType.Field(Optional.of(field.name()),
+                                    parseJsonPrestoType(field.name(), field.schema())))
                             .collect(toImmutableList()));
                 } else {
-                    throw new UnsupportedOperationException(format("field '%s' of record Type has no fields, " +
+                    throw new UnsupportedOperationException(format(
+                            "field '%s' of record Type has no fields, " +
                             "please check avro schema definition. ", fieldname));
                 }
             case UNION:
@@ -146,9 +165,11 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                         return parseJsonPrestoType(fieldname, nestType);
                     }
                 }
-                throw new UnsupportedOperationException(format("field '%s' of UNION type must contains not null type ", fieldname));
+                throw new UnsupportedOperationException(format(
+                        "field '%s' of UNION type must contains not null type ", fieldname));
             default:
-                throw new UnsupportedOperationException(format("Cannot convert from Schema type '%s' (%s) to " +
+                throw new UnsupportedOperationException(format(
+                        "Cannot convert from Schema type '%s' (%s) to " +
                         "Presto type", schema.getType(), schema.getFullName()));
         }
     }

@@ -23,6 +23,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -34,7 +35,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -164,7 +164,8 @@ public class PulsarRecordCursor implements RecordCursor {
         this.pulsarConnectorConfig = pulsarConnectorConfig;
 
         try {
-            this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName, pulsarConnectorConfig.getPulsarAdmin());
+            this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
+                    pulsarConnectorConfig.getPulsarAdmin());
         } catch (PulsarClientException e) {
             log.error(e, "Failed to init  Pulsar SchemaInfo Provider");
             throw new RuntimeException(e);
@@ -451,14 +452,16 @@ public class PulsarRecordCursor implements RecordCursor {
                     schemaInfo,
                     columnHandles.stream()
                             .filter(col -> !col.isInternal())
-                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.KEY.equals(col.getHandleKeyValueType()))
+                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.KEY
+                                    .equals(col.getHandleKeyValueType()))
                             .collect(toImmutableSet()));
 
             PulsarRowDecoder messageDecoder = decoderFactory.createRowDecoder(topicName,
                     schemaInfo,
                     columnHandles.stream()
                             .filter(col -> !col.isInternal())
-                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.VALUE.equals(col.getHandleKeyValueType()))
+                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.VALUE
+                                    .equals(col.getHandleKeyValueType()))
                             .collect(toImmutableSet()));
 
             Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedKey;
@@ -466,16 +469,19 @@ public class PulsarRecordCursor implements RecordCursor {
                 decodedKey = keyDecoder.decodeRow(this.currentMessage.getKeyBytes().get());
                 decodedKey.ifPresent(currentRowValuesMap::putAll);
             }
-            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue = messageDecoder.decodeRow(this.currentMessage.getData());
+            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
+                    messageDecoder.decodeRow(this.currentMessage.getData());
             decodedValue.ifPresent(currentRowValuesMap::putAll);
-        }else {
+        } else {
             PulsarRowDecoder messageDecoder = decoderFactory.createRowDecoder(topicName,
                     schemaInfo,
                     columnHandles.stream()
                             .filter(col -> !col.isInternal())
-                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.NONE.equals(col.getHandleKeyValueType()))
+                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.NONE
+                                    .equals(col.getHandleKeyValueType()))
                             .collect(toImmutableSet()));
-            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue = messageDecoder.decodeRow(this.currentMessage.getData());
+            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
+                    messageDecoder.decodeRow(this.currentMessage.getData());
             decodedValue.ifPresent(currentRowValuesMap::putAll);
         }
 
@@ -495,7 +501,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 } else if (PulsarInternalColumn.SEQUENCE_ID.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
                 } else if (PulsarInternalColumn.PRODUCER_NAME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
+                    currentRowValuesMap.put(columnHandle,
+                            bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
                 } else if (PulsarInternalColumn.KEY.getName().equals(columnHandle.getName())) {
                     String key = this.currentMessage.getKey().orElse(null);
                     currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));

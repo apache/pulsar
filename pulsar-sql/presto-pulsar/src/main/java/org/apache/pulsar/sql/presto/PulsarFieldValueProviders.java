@@ -21,7 +21,7 @@ package org.apache.pulsar.sql.presto;
 import io.prestosql.decoder.FieldValueProvider;
 
 /**
- * custom FieldValueProvider for Pulsar
+ * custom FieldValueProvider for Pulsar.
  */
 public class PulsarFieldValueProviders {
 
@@ -40,8 +40,7 @@ public class PulsarFieldValueProviders {
     }
 
     /**
-     * FieldValueProvider for Time (Data,Timstamp etc.) with indicate Null instead of longValueProvider
-     *
+     * FieldValueProvider for Time (Data,Timstamp etc.) with indicate Null instead of longValueProvider.
      * @param value
      * @param isNull
      * @return
@@ -49,9 +48,9 @@ public class PulsarFieldValueProviders {
     public static FieldValueProvider timeValueProvider(long value, boolean isNull) {
         return new FieldValueProvider() {
             @Override
-            public long getLong() {
-                return value;
-            }
+                public long getLong() {
+                    return value;
+                }
 
             @Override
             public boolean isNull() {

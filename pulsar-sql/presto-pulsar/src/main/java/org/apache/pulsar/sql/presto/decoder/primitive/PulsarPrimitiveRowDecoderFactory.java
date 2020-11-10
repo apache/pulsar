@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
+import io.airlift.log.Logger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.BigintType;

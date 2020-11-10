@@ -38,7 +38,8 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
-                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType, DecoderExtraInfo decoderExtraInfo) {
+                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
+                                DecoderExtraInfo decoderExtraInfo) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;

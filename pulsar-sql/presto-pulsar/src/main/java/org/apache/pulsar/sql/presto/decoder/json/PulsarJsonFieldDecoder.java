@@ -41,6 +41,7 @@ import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,6 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -320,10 +320,10 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            if (type instanceof RealType || type instanceof BigintType || type instanceof
-                    IntegerType || type instanceof SmallintType || type instanceof
-                    TinyintType || type instanceof TimestampType || type instanceof TimeType
-                    || type instanceof DateType) {
+            if (type instanceof RealType || type instanceof BigintType ||
+                    type instanceof IntegerType || type instanceof SmallintType ||
+                    type instanceof TinyintType || type instanceof TimestampType ||
+                    type instanceof TimeType || type instanceof DateType) {
                 Pair<Long, Long> numRange = getNumRangeByType(type);
                 type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));
                 return;

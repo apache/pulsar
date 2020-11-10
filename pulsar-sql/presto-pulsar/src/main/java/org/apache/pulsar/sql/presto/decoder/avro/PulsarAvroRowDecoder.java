@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
+import static com.google.common.base.Functions.identity;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static java.util.Objects.requireNonNull;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -28,17 +36,8 @@ import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
-import static com.google.common.base.Functions.identity;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
-import static java.util.Objects.requireNonNull;
-
 /**
- * Refer to {@link io.prestosql.decoder.avro.AvroRowDecoder}
+ * Refer to {@link io.prestosql.decoder.avro.AvroRowDecoder}.
  */
 public class PulsarAvroRowDecoder implements PulsarRowDecoder {
 
