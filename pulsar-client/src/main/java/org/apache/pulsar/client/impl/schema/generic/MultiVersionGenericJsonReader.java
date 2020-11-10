@@ -36,7 +36,7 @@ import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSche
 /**
  * A multi version generic json reader.
  */
-public class MultiVersionGenericJsonReader extends MultiVersionGenericReader {
+public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericReader {
 
     public MultiVersionGenericJsonReader(boolean useProvidedSchemaAsReaderSchema, Schema readerSchema,
                                          SchemaInfo schemaInfo, List<Field> fields) {

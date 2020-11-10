@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * The multi version reader abstract class, implement it will handle the multi version schema.
  */
-public abstract class MultiVersionReader<T> implements SchemaReader<T> {
+public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
 
     protected final SchemaReader<T> providerSchemaReader;
     protected SchemaInfoProvider schemaInfoProvider;
@@ -53,7 +53,7 @@ public abstract class MultiVersionReader<T> implements SchemaReader<T> {
                 }
             });
 
-    MultiVersionReader(SchemaReader<T> providerSchemaReader) {
+    AbstractMultiVersionReader(SchemaReader<T> providerSchemaReader) {
         this.providerSchemaReader = providerSchemaReader;
     }
 
@@ -127,5 +127,5 @@ public abstract class MultiVersionReader<T> implements SchemaReader<T> {
         }
     }
 
-    protected static final Logger LOG = LoggerFactory.getLogger(MultiVersionReader.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(AbstractMultiVersionReader.class);
 }

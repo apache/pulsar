@@ -32,7 +32,7 @@ import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSche
 /**
  * A multi version generic avro reader.
  */
-public class MultiVersionGenericAvroReader extends MultiVersionGenericReader {
+public class MultiVersionGenericAvroReader extends AbstractMultiVersionGenericReader {
 
     public MultiVersionGenericAvroReader(boolean useProvidedSchemaAsReaderSchema, Schema readerSchema) {
         super(useProvidedSchemaAsReaderSchema, new GenericAvroReader(readerSchema), readerSchema);

@@ -24,11 +24,11 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 /**
  * The abstract class of multi version avro base reader.
  */
-public abstract class MultiVersionAvroBaseReader<T> extends MultiVersionReader<T> {
+public abstract class AbstractMultiVersionAvroBaseReader<T> extends AbstractMultiVersionReader<T> {
 
     protected Schema readerSchema;
 
-    public MultiVersionAvroBaseReader(SchemaReader<T> providerSchemaReader, Schema readerSchema) {
+    public AbstractMultiVersionAvroBaseReader(SchemaReader<T> providerSchemaReader, Schema readerSchema) {
         super(providerSchemaReader);
         this.readerSchema = readerSchema;
     }

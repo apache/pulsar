@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api.schema;
 
 import java.io.InputStream;
 
-
 /**
  * Deserialize messages from bytes.
  */

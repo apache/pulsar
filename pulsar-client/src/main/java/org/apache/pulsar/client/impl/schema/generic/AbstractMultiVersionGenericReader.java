@@ -21,21 +21,21 @@ package org.apache.pulsar.client.impl.schema.generic;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.reader.MultiVersionAvroBaseReader;
+import org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionAvroBaseReader;
 
 /**
  * The abstract class of multi version generic reader.
  */
-public abstract class MultiVersionGenericReader extends MultiVersionAvroBaseReader<GenericRecord> {
+public abstract class AbstractMultiVersionGenericReader extends AbstractMultiVersionAvroBaseReader<GenericRecord> {
 
     // the flag controls whether to use the provided schema as reader schema
     // to decode the messages. In `AUTO_CONSUME` mode, setting this flag to `false`
     // allows decoding the messages using the schema associated with the messages.
     protected final boolean useProvidedSchemaAsReaderSchema;
 
-    protected MultiVersionGenericReader(boolean useProvidedSchemaAsReaderSchema,
-                                        SchemaReader<GenericRecord> providerSchemaReader,
-                                        Schema readerSchema) {
+    protected AbstractMultiVersionGenericReader(boolean useProvidedSchemaAsReaderSchema,
+                                                SchemaReader<GenericRecord> providerSchemaReader,
+                                                Schema readerSchema) {
         super(providerSchemaReader, readerSchema);
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
     }

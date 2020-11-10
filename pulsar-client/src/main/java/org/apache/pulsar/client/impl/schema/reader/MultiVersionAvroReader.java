@@ -33,7 +33,7 @@ import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSche
 /**
  * A multi version avro reader.
  */
-public class MultiVersionAvroReader<T> extends MultiVersionAvroBaseReader<T> {
+public class MultiVersionAvroReader<T> extends AbstractMultiVersionAvroBaseReader<T> {
 
     private final ClassLoader pojoClassLoader;
 
