@@ -305,7 +305,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
-|defaultRetentionTimeInMinutes| Default message retention time  ||
+|defaultRetentionTimeInMinutes| Default message retention time  |0|
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |bootstrapNamespaces| The bootstrap name. | N/A |

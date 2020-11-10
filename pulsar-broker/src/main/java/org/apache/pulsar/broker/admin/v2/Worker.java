@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;

@@ -57,7 +57,9 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
@@ -73,6 +75,7 @@ import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
+import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
@@ -690,6 +693,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
+                if (conf.hasCryptoSpec()) {
+                    consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                }
+
                 pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
             });
 
@@ -815,7 +822,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
 
                 if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
-                    pulsarSinkConfig.setProducerSpec(this.instanceConfig.getFunctionDetails().getSink().getProducerSpec());
+                    org.apache.pulsar.functions.proto.Function.ProducerSpec conf = this.instanceConfig.getFunctionDetails().getSink().getProducerSpec();
+                    ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
+                            .maxPendingMessages(conf.getMaxPendingMessages())
+                            .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
+                            .useThreadLocalProducers(conf.getUseThreadLocalProducers())
+                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                    pulsarSinkConfig.setProducerConfig(builder.build());
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);

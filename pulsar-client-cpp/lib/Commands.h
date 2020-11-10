@@ -23,6 +23,7 @@
 #include <pulsar/defines.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
+#include <pulsar/KeySharedPolicy.h>
 
 #include "PulsarApi.pb.h"
 #include "SharedBuffer.h"
@@ -86,7 +87,8 @@ class Commands {
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
                                      const SchemaInfo& schemaInfo,
-                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition);
+                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                     KeySharedPolicy keySharedPolicy);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 

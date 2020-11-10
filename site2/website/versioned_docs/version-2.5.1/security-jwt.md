@@ -211,6 +211,14 @@ authenticationEnabled=true
 authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientTlsEnabled=true
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+# Or, alternatively, read token from file
+# brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
+brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
+
 # If using secret key
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:

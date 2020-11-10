@@ -39,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
+import org.jclouds.azureblob.AzureBlobProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.TransientApiMetadata;
@@ -114,6 +115,31 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                     throw new IllegalArgumentException(ioe);
                 }
             }
+        }
+    },
+
+    AZURE_BLOB("azureblob", new AzureBlobProviderMetadata()) {
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            VALIDATION.validate(config);
+        }
+
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+            return BLOB_STORE_BUILDER.getBlobStore(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            String accountName = System.getenv("AZURE_STORAGE_ACCOUNT");
+            if (StringUtils.isEmpty(accountName)) {
+                throw new IllegalArgumentException("Couldn't get the azure storage account.");
+            }
+            String accountKey = System.getenv("AZURE_STORAGE_ACCESS_KEY");
+            if (StringUtils.isEmpty(accountKey)) {
+                throw new IllegalArgumentException("Couldn't get the azure storage access key.");
+            }
+            config.setProviderCredentials(new Credentials(accountName, accountKey));
         }
     },
 
