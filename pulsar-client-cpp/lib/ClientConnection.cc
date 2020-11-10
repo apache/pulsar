@@ -337,9 +337,15 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
                                           tcp::resolver::iterator endpointIterator) {
     if (!err) {
         std::stringstream cnxStringStream;
-        cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint() << "] ";
-        cnxString_ = cnxStringStream.str();
-
+        try {
+            cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint()
+                            << "] ";
+            cnxString_ = cnxStringStream.str();
+        } catch (const boost::system::system_error& e) {
+            LOG_ERROR("Failed to get endpoint: " << e.what());
+            close();
+            return;
+        }
         if (logicalAddress_ == physicalAddress_) {
             LOG_INFO(cnxString_ << "Connected to broker");
         } else {
