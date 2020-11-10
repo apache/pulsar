@@ -44,6 +44,7 @@ public class HdfsSinkConfigTests {
 		assertEquals("/foo/bar", config.getDirectory());
 		assertEquals("prefix", config.getFilenamePrefix());
 		assertEquals(Compression.SNAPPY, config.getCompression());
+		assertEquals("yyyy-MM-dd", config.getSubdirectoryPattern());
 	}
 	
 	@Test
@@ -53,6 +54,7 @@ public class HdfsSinkConfigTests {
 		map.put("directory", "/foo/bar");
 		map.put("filenamePrefix", "prefix");
 		map.put("compression", "SNAPPY");
+		map.put("subdirectoryPattern", "yy-MM-dd");
 		
 		HdfsSinkConfig config = HdfsSinkConfig.load(map);
 		assertNotNull(config);
@@ -60,6 +62,7 @@ public class HdfsSinkConfigTests {
 		assertEquals("/foo/bar", config.getDirectory());
 		assertEquals("prefix", config.getFilenamePrefix());
 		assertEquals(Compression.SNAPPY, config.getCompression());
+		assertEquals("yy-MM-dd", config.getSubdirectoryPattern());
 	}
 	
 	@Test

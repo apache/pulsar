@@ -49,8 +49,10 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -92,7 +94,7 @@ public class CmdFunctions extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -218,6 +220,8 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)" )
+        protected String producerConfig;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -266,6 +270,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        protected SubscriptionInitialPosition subsPosition;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -388,6 +394,10 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
+            }
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -415,6 +425,10 @@ public class CmdFunctions extends CmdBase {
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
+            }
+
+            if (null != subsPosition) {
+                functionConfig.setSubscriptionPosition(subsPosition);
             }
 
             if (null != userConfigString) {
@@ -620,6 +634,10 @@ public class CmdFunctions extends CmdBase {
         protected Integer instanceIdOffset = 0;
         @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions")
         protected String runtime;
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;

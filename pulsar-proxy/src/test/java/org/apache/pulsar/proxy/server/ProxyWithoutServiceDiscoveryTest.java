@@ -91,6 +91,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("without-service-discovery");
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
 

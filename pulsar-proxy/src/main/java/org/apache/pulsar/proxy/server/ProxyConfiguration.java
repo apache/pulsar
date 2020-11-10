@@ -38,6 +38,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Getter
@@ -67,6 +68,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
+    @Category
+    private static final String CATEGORY_PLUGIN = "proxy plugin";
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -164,6 +167,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "The port for serving https requests"
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory where nar Extraction happens"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -470,6 +479,30 @@ public class ProxyConfiguration implements PulsarConfiguration {
            doc = "Number of threads to use for HTTP requests processing"
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy additional servlet"
+    )
+    private String proxyAdditionalServletDirectory = "./proxyAdditionalServlet";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
+    )
+    private Set<String> proxyAdditionalServlets = Sets.newTreeSet();
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
 
     @PropertiesContext(
         properties = {

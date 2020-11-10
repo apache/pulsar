@@ -126,6 +126,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     protected void beforeStart() {}
 
+    protected void afterStart() {}
+
     @Override
     public void start() {
         if (httpPort > 0 && servicePort < 0) {
@@ -146,6 +148,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
         beforeStart();
         super.start();
+        afterStart();
         log.info("Start pulsar service {} at container {}", serviceName, containerName);
     }
 

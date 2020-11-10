@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.pulsar.functions.proto.Function;
 
 import java.lang.reflect.Type;
@@ -69,6 +69,6 @@ public interface SecretsProviderConfigurator {
     /**
      * Do config checks to see whether the secrets provided are conforming.
      */
-    default void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, Function.FunctionDetails functionDetails) {}
+    default void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, Function.FunctionDetails functionDetails) {}
 
 }

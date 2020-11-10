@@ -92,6 +92,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
 
@@ -230,7 +231,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     }
 
     /**
-     * This test verifies {@link DefaultHostnameVerifier} behavior and gives fair idea about host matching result
+     * This test verifies {@link TlsHostnameVerifier} behavior and gives fair idea about host matching result
      *
      * @throws Exception
      */

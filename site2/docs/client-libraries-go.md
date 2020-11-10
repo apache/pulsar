@@ -667,7 +667,7 @@ This example shows how to configure OAuth2 authentication.
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
 		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
 		"privateKey": "/path/to/privateKey",
 		"clientId":   "0Xx...Yyxeny",

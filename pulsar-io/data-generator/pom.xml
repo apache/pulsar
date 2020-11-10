@@ -39,10 +39,17 @@
         </dependency>
 
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-config-validation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>io.codearte.jfairy</groupId>
             <artifactId>jfairy</artifactId>
             <version>0.5.9</version>
         </dependency>
+
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>

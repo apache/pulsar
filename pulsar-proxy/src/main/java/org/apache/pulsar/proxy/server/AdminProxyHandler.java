@@ -62,7 +62,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class AdminProxyHandler extends ProxyServlet {
+
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
+
+    private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
+
     private static final Set<String> functionRoutes = new HashSet<>(Arrays.asList(
         "/admin/v3/function",
         "/admin/v2/function",
@@ -165,7 +169,7 @@ class AdminProxyHandler extends ProxyServlet {
         private final ByteArrayOutputStream bodyBuffer;
         protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, InputStream input) {
             super(request, response, proxyRequest, input);
-            bodyBuffer = new ByteArrayOutputStream(request.getContentLength());
+            bodyBuffer = new ByteArrayOutputStream(Math.max(request.getContentLength(), 0));
         }
 
         @Override
@@ -334,7 +338,7 @@ class AdminProxyHandler extends ProxyServlet {
         super.addProxyHeaders(clientRequest, proxyRequest);
         String user = (String) clientRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
         if (user != null) {
-            proxyRequest.header("X-Original-Principal", user);
+            proxyRequest.header(ORIGINAL_PRINCIPAL_HEADER, user);
         }
     }
 }

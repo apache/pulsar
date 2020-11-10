@@ -23,6 +23,8 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
+import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -57,6 +59,8 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(bkConf.getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY));
         assertNull(bkConf.getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE));
         assertNull(bkConf.getProperty(REPP_DNS_RESOLVER_CLASS));
+        assertNull(bkConf.getProperty(MIN_NUM_RACKS_PER_WRITE_QUORUM));
+        assertNull(bkConf.getProperty(ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM));
 
         BookKeeperClientFactoryImpl.setDefaultEnsemblePlacementPolicy(
             rackawarePolicyZkCache,
@@ -73,6 +77,8 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             ZkBookieRackAffinityMapping.class.getName());
+        assertFalse(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+        assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
 
         ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
@@ -90,6 +96,8 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(bkConf.getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY));
         assertNull(bkConf.getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE));
         assertNull(bkConf.getProperty(REPP_DNS_RESOLVER_CLASS));
+        assertNull(bkConf.getProperty(MIN_NUM_RACKS_PER_WRITE_QUORUM));
+        assertNull(bkConf.getProperty(ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM));
 
         conf.setBookkeeperClientRegionawarePolicyEnabled(true);
 
@@ -108,6 +116,8 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             ZkBookieRackAffinityMapping.class.getName());
+        assertFalse(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+        assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
 
         ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
@@ -125,6 +135,8 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(bkConf.getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY));
         assertNull(bkConf.getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE));
         assertNull(bkConf.getProperty(REPP_DNS_RESOLVER_CLASS));
+        assertNull(bkConf.getProperty(MIN_NUM_RACKS_PER_WRITE_QUORUM));
+        assertNull(bkConf.getProperty(ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM));
 
         conf.setBookkeeperClientRegionawarePolicyEnabled(true);
         conf.getProperties().setProperty(REPP_ENABLE_VALIDATION, "false");
@@ -132,6 +144,8 @@ public class BookKeeperClientFactoryImplTest {
         conf.getProperties().setProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "4");
         conf.getProperties().setProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "false");
         conf.getProperties().setProperty(REPP_DNS_RESOLVER_CLASS, CachedDNSToSwitchMapping.class.getName());
+        conf.setBookkeeperClientMinNumRacksPerWriteQuorum(20);
+        conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
 
         BookKeeperClientFactoryImpl.setDefaultEnsemblePlacementPolicy(
             rackawarePolicyZkCache,
@@ -148,6 +162,8 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             CachedDNSToSwitchMapping.class.getName());
+        assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+        assertEquals(20, bkConf.getMinNumRacksPerWriteQuorum());
 
         ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }

@@ -88,6 +88,11 @@ class Contact extends React.Component {
 
             <p><translate>You can self-register at </translate> <a href="https://apache-pulsar.herokuapp.com/" target="_blank">
                     https://apache-pulsar.herokuapp.com/</a></p>
+
+            <h2><translate>WeChat</translate></h2>
+            <p><translate>There are several WeChat groups that are used for informal discussions for devs and users.</translate></p>
+
+            <p><translate>To join these WeChat tech groups, you can add Bot with the WeChat ID: StreamNative_BJ</translate></p>
           </div>
         </Container>
       </div>

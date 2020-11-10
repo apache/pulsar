@@ -622,7 +622,7 @@ public class FunctionRuntimeManagerTest {
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
 
-        // verify no errors occured
+        // verify no errors occurred
         verify(errorNotifier, times(0)).triggerError(any());
     }
 
@@ -871,6 +871,7 @@ public class FunctionRuntimeManagerTest {
                 = new WorkerConfig.KubernetesContainerFactory();
         kubernetesContainerFactory.setK8Uri("k8Uri");
         kubernetesContainerFactory.setJobNamespace("jobNamespace");
+        kubernetesContainerFactory.setJobName("jobName");
         kubernetesContainerFactory.setPulsarDockerImageName("pulsarDockerImageName");
         kubernetesContainerFactory.setImagePullPolicy("imagePullPolicy");
         kubernetesContainerFactory.setPulsarRootDir("pulsarRootDir");

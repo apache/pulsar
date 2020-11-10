@@ -127,6 +127,7 @@ public class JavaInstance implements AutoCloseable {
 
     @Override
     public void close() {
+        context.close();
     }
 
     public Map<String, Double> getAndResetMetrics() {

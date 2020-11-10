@@ -553,6 +553,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 
     /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
      * Set KeyShared subscription policy for consumer.
      *
      * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to

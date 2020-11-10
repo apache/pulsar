@@ -27,6 +27,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 /**
  * Configuration of Pulsar Function.
@@ -77,6 +78,9 @@ public class FunctionConfig {
 
     private String output;
 
+    // Any configuration that need to be applied for producers
+    private ProducerConfig producerConfig;
+
     /**
      * Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema
      * implementation.
@@ -121,4 +125,6 @@ public class FunctionConfig {
     // Max pending async requests per instance to avoid large number of concurrent requests.
     // Only used in AsyncFunction. Default: 1000.
     private Integer maxPendingAsyncRequests;
+
+    private SubscriptionInitialPosition subscriptionPosition;
 }

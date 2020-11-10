@@ -82,5 +82,9 @@ public class ZookeeperServerTest implements Closeable {
         return serverFactory.getLocalPort();
     }
 
+    public String getHostPort() {
+        return hostPort;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ZookeeperServerTest.class);
 }

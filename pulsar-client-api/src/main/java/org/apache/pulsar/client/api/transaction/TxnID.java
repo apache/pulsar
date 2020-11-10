@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
+import java.util.Objects;
+
 import lombok.Data;
 
 /**
@@ -46,5 +48,21 @@ public class TxnID implements Serializable {
     @Override
     public String toString() {
         return "(" + mostSigBits + "," + leastSigBits + ")";
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mostSigBits, leastSigBits);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof TxnID) {
+            TxnID other = (TxnID) obj;
+            return Objects.equals(mostSigBits, other.mostSigBits)
+                    && Objects.equals(leastSigBits, other.leastSigBits);
+        }
+
+        return false;
     }
 }

@@ -18,6 +18,8 @@
  */
 #include <lib/ConsumerConfigurationImpl.h>
 
+#include <stdexcept>
+
 namespace pulsar {
 
 const static std::string emptyString;
@@ -93,7 +95,8 @@ long ConsumerConfiguration::getUnAckedMessagesTimeoutMs() const { return impl_->
 
 void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds) {
     if (milliSeconds < 10000 && milliSeconds != 0) {
-        throw "Consumer Config Exception: Unacknowledged message timeout should be greater than 10 seconds.";
+        throw std::invalid_argument(
+            "Consumer Config Exception: Unacknowledged message timeout should be greater than 10 seconds.");
     }
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
@@ -189,5 +192,12 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     }
     return *this;
 }
+
+ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
+    impl_->keySharedPolicy = keySharedPolicy.clone();
+    return *this;
+}
+
+KeySharedPolicy ConsumerConfiguration::getKeySharedPolicy() const { return impl_->keySharedPolicy; }
 
 }  // namespace pulsar

@@ -127,7 +127,7 @@ admin.namespaces().deleteNamespace(namespace);
 ```
 
 
-#### set replication cluster
+#### Set replication cluster
 
 It sets replication clusters for a namespace, so Pulsar can internally replicate publish message from one colo to another colo.
 
@@ -150,7 +150,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
 ```
 
-#### get replication cluster
+#### Get replication cluster
 
 It gives a list of replication clusters for a given namespace.
 
@@ -176,13 +176,13 @@ cl2
 admin.namespaces().getNamespaceReplicationClusters(namespace)
 ```
 
-#### set backlog quota policies
+#### Set backlog quota policies
 
-Backlog quota helps broker to restrict bandwidth/storage of a namespace once it reach certain threshold limit . Admin can set this limit and one of the following action after the limit is reached.
+Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take corresponding action after the limit is reached.
 
   1.  producer_request_hold: broker will hold and not persist produce request payload
 
-  2.  producer_exception: broker will disconnects with client by giving exception
+  2.  producer_exception: broker disconnects with the client by giving an exception.
 
   3.  consumer_backlog_eviction: broker will start discarding backlog messages
 
@@ -210,7 +210,7 @@ N/A
 admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, policy))
 ```
 
-#### get backlog quota policies
+#### Get backlog quota policies
 
 It shows a configured backlog quota for a given namespace.
 
@@ -241,7 +241,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 admin.namespaces().getBacklogQuotaMap(namespace);
 ```
 
-#### remove backlog quota policies
+#### Remove backlog quota policies
 
 It removes backlog quota policies for a given namespace
 
@@ -267,7 +267,7 @@ N/A
 admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 ```
 
-#### set persistence policies
+#### Set persistence policies
 
 Persistence policies allow to configure persistency-level for all topic messages under a given namespace.
 
@@ -302,9 +302,9 @@ admin.namespaces().setPersistence(namespace,new PersistencePolicies(bookkeeperEn
 ```
 
 
-#### get persistence policies
+#### Get persistence policies
 
-It shows configured persistence policies of a given namespace.
+It shows the configured persistence policies of a given namespace.
 
 ###### CLI
 
@@ -334,9 +334,9 @@ admin.namespaces().getPersistence(namespace)
 ```
 
 
-#### unload namespace bundle
+#### Unload namespace bundle
 
-Namespace bundle is a virtual group of topics which belong to same namespace. If broker gets overloaded with number of bundles then this command can help to unload heavy bundle from that broker, so it can be served by some other less loaded broker. Namespace bundle is defined with it’s start and end range such as 0x00000000 and 0xffffffff.
+The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload a bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
 
 ###### CLI
 
@@ -361,7 +361,7 @@ admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 ```
 
 
-#### set message-ttl
+#### Set message-ttl
 
 It configures message’s time to live (in seconds) duration.
 
@@ -387,7 +387,7 @@ N/A
 admin.namespaces().setNamespaceMessageTTL(namespace, messageTTL)
 ```
 
-#### get message-ttl
+#### Get message-ttl
 
 It gives a message ttl of configured namespace.
 
@@ -415,9 +415,10 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
 
-#### split bundle
+#### Split bundle
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. If bundle gets heavy with multiple live topics in it then it creates load on that broker and in order to resolve this issue, admin can split bundle using this command.
+Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
+If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
 
 ###### CLI
 
@@ -442,9 +443,9 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 ```
 
 
-#### clear backlog
+#### Clear backlog
 
-It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.
+It clears all message backlog for all the topics that belong to a specific namespace. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -469,9 +470,9 @@ admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 ```
 
 
-#### clear bundle backlog
+#### Clear bundle backlog
 
-It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
+It clears all message backlog for all the topics that belong to a specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -496,9 +497,9 @@ admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle,
 ```
 
 
-#### set retention
+#### Set retention
 
-Each namespace contains multiple topics and each topic’s retention size (storage size) should not exceed to a specific threshold or it should be stored till certain time duration. This command helps to configure retention size and time of topics in a given namespace.
+Each namespace contains multiple topics and the retention size (storage size) of each topic should not exceed a specific threshold or it should be stored for a certain period. This command helps configure the retention size and time of topics in a given namespace.
 
 ###### CLI
 
@@ -523,7 +524,7 @@ admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeIn
 ```
 
 
-#### get retention
+#### Get retention
 
 It shows retention information of a given namespace.
 
@@ -552,10 +553,10 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 admin.namespaces().getRetention(namespace)
 ```
 
-#### set dispatch throttling
+#### Set dispatch throttling
 
 It sets message dispatch rate for all the topics under a given namespace. 
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
@@ -587,7 +588,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
 ```
 
-#### get configured message-rate
+#### Get configured message-rate
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -618,10 +619,10 @@ admin.namespaces().getDispatchRate(namespace)
 ```
 
 
-#### set dispatch throttling for subscription
+#### Set dispatch throttling for subscription
 
 It sets message dispatch rate for all the subscription of topics under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
@@ -646,7 +647,7 @@ $ pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
 admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
 ```
 
-#### get configured message-rate
+#### Get configured message-rate
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -676,10 +677,10 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 admin.namespaces().getSubscriptionDispatchRate(namespace)
 ```
 
-#### set dispatch throttling for replicator
+#### Set dispatch throttling for replicator
 
 It sets message dispatch rate for all the replicator between replication clusters under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
@@ -704,7 +705,7 @@ $ pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
 admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
 ```
 
-#### get configured message-rate
+#### Get configured message-rate
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 

@@ -50,7 +50,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private Authentication authentication = AuthenticationDisabled.INSTANCE;
     private String authPluginClassName;
+
+    @JsonIgnore
     private String authParams;
+    @JsonIgnore
     private Map<String, String> authParamMap;
 
     private long operationTimeoutMs = 30000;
@@ -91,7 +94,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
     private String proxyServiceUrl;
     private ProxyProtocol proxyProtocol;
-    
+
+    // transaction
+    private boolean enableTransaction = false;
+
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 

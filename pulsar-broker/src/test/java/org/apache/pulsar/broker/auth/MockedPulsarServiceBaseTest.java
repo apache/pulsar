@@ -63,12 +63,14 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster
  */
+@PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
 public abstract class MockedPulsarServiceBaseTest {
 
     protected ServiceConfiguration conf;
@@ -108,6 +110,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
         this.conf.setBookkeeperClientExposeStatsToPrometheus(true);
+        this.conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected final void internalSetup() throws Exception {
@@ -147,6 +150,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected final void init() throws Exception {
@@ -170,6 +174,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
         this.conf.setPreciseDispatcherFlowControl(isPreciseDispatcherFlowControl);
+        this.conf.setNumExecutorThreadPoolSize(5);
 
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(

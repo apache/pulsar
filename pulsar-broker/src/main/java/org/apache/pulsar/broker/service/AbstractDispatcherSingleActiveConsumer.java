@@ -71,8 +71,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected abstract void cancelPendingRead();
 
-    protected abstract boolean isConsumersExceededOnTopic();
-
     protected abstract boolean isConsumersExceededOnSubscription();
 
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
@@ -143,11 +141,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             throw new ConsumerBusyException("Exclusive consumer is already connected");
-        }
-
-        if (isConsumersExceededOnTopic()) {
-            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", this.topicName);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {

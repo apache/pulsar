@@ -49,6 +49,7 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -113,7 +114,7 @@ public class CmdSources extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -128,6 +129,8 @@ public class CmdSources extends CmdBase {
     @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
     protected class LocalSourceRunner extends CreateSource {
 
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        protected String stateStorageServiceUrl;
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
         protected String DEPRECATED_brokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
@@ -162,6 +165,11 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_tlsTrustCertFilePath;
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
+
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
 
         private void mergeArgs() {
             if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
@@ -263,6 +271,8 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_destinationTopicName;
         @Parameter(names = "--destination-topic-name", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
+        protected String producerConfig;
 
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
         protected String DEPRECATED_deserializationClassName;
@@ -338,6 +348,10 @@ public class CmdSources extends CmdBase {
             }
             if (null != destinationTopicName) {
                 sourceConfig.setTopicName(destinationTopicName);
+            }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                sourceConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
             }
             if (null != deserializationClassName) {
                 sourceConfig.setSerdeClassName(deserializationClassName);

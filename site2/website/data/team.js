@@ -38,10 +38,22 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Hang Chen',
+      apacheId: 'chenhang',
+      org: 'BIGO Technology',
+      roles: 'Committer'
+    },
+    {
       name: 'Hiroyuki Sakai',
       apacheId: 'hrsakai',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Huanli Meng',
+      apacheId: 'huanlimeng',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Ivan Brendan Kelly',

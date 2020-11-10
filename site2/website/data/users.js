@@ -61,7 +61,7 @@ module.exports = [
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
-        logo: 'https://s3-eu-west-1.amazonaws.com/thehutgroup-uploads-test/app/uploads/2016/10/THG.jpg'
+        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQFTQW37dNzMJQ/company-logo_200_200/0?e=1608768000&v=beta&t=jX_8bxciHMwoiJcGbxlPW-FBlF6YYjGVBOOKm-N2gls'
     },
     {
         name: 'Turtlequeue',
@@ -84,9 +84,10 @@ module.exports = [
         logo: 'https://quantel.ai/wp-content/uploads/2019/09/Quantel-AI-Black-Font-Trans-1024x1024.png'
     },
     {
-        name: 'Streamlio',
-        url: 'https://streaml.io/',
-        logo: 'https://streaml.io/media/logo/Streamlio-Logo.svg'
+        name: 'Splunk',
+        url: 'https://splunk.com/',
+        logo: 'https://www.splunk.com/content/dam/splunk-blogs/images/2017/02/splunk-logo.png',
+        featured: 5
     },
     {
         name: 'Stream Native',
@@ -148,8 +149,7 @@ module.exports = [
     {
         name: 'OKCoin',
         url: 'https://www.okcoin.com/',
-        logo: 'http://img.bafang.com/cdn/assets/imgs/MjAxOTM/784CCB28D9026D43DA6A5F257DA74BF2.png',
-        logo_white: true
+        logo: 'https://static.bafang.com/cdn/assets/imgs/206/BC3E3ADD7E55C085.png',
     },
     {
         name: 'BestPay',
@@ -237,5 +237,25 @@ module.exports = [
         name: 'BIGO',
         url: 'https://www.bigo.sg/',
         logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
+    },
+    {
+        name: 'Keytop',
+        url: 'https://www.ikeytop.com/',
+        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,q_85,usm_0.66_1.00_0.01/Keytop_logo.webp',
+    },
+    {
+        name: 'Zhihu',
+        url: 'https://www.zhihu.com/',
+        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQEoQxITTypd9g/company-logo_200_200/0?e=1608768000&v=beta&t=AbpUaraLUWyqUQcBiF3qYel_T0k-5W1JSEUw5qAqGj8',
+    },
+    {
+        name: 'Newland',
+        url: 'http://www.nlsoft.com.cn/',
+        logo: 'http://www.nlsoft.com.cn/images/common/logo.png',
+    },
+    {
+        name: 'Appen',
+        url: 'https://www.appen.com.cn/',
+        logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

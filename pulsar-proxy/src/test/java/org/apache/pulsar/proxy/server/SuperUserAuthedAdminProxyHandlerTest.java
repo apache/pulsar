@@ -68,6 +68,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         conf.setSuperUserRoles(ImmutableSet.of("admin", "superproxy"));
         conf.setProxyRoles(ImmutableSet.of("superproxy"));
         conf.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.internalSetup();
 

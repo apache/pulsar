@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -27,8 +28,11 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -134,6 +138,8 @@ public interface Topic {
      */
     void checkBackloggedCursors();
 
+    void checkDeduplicationSnapshot();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
@@ -178,7 +184,7 @@ public interface Topic {
 
     TopicStats getStats(boolean getPreciseBacklog);
 
-    PersistentTopicInternalStats getInternalStats();
+    CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
 
@@ -221,4 +227,33 @@ public interface Topic {
     default boolean isSystemTopic() {
         return false;
     }
+
+    /* ------ Transaction related ------ */
+
+    /**
+     * Get the ${@link TransactionBuffer} of this Topic.
+     *
+     * @param createIfMissing Create the TransactionBuffer if missing.
+     * @return TransactionBuffer CompletableFuture
+     */
+    CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
+
+    /**
+     * Publish Transaction message to this Topic's TransactionBuffer
+     *
+     * @param txnID Transaction Id
+     * @param headersAndPayload Message data
+     * @param publishContext Publish context
+     */
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
+
+    /**
+     * End the transaction in this topic.
+     *
+     * @param txnID Transaction id
+     * @param txnAction Transaction action.
+     * @return
+     */
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList);
+
 }

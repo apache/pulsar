@@ -28,8 +28,11 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
+import lombok.Getter;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -250,7 +253,8 @@ public class CompactedTopicImpl implements CompactedTopic {
                 });
     }
 
-    static class CompactedTopicContext {
+    @Getter
+    public static class CompactedTopicContext {
         final LedgerHandle ledger;
         final AsyncLoadingCache<Long,MessageIdData> cache;
 
@@ -258,6 +262,14 @@ public class CompactedTopicImpl implements CompactedTopic {
             this.ledger = ledger;
             this.cache = cache;
         }
+    }
+
+    /**
+     * Getter for CompactedTopicContext.
+     * @return CompactedTopicContext
+     */
+    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
+        return compactedTopicContext == null? Optional.empty() : Optional.of(compactedTopicContext.get());
     }
 
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {

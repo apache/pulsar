@@ -63,4 +63,6 @@ std::string LogUtils::getLoggerName(const std::string& path) {
     return path.substr(startIdx + 1, endIdx - startIdx - 1);
 }
 
+void LogUtils::resetLoggerFactory() { s_loggerFactory.exchange(nullptr, std::memory_order_release); }
+
 }  // namespace pulsar

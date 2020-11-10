@@ -101,6 +101,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuth extends ProducerConsumer
         conf.setTlsRequireTrustedClientCertOnConnect(true);
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
+        conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {

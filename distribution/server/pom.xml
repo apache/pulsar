@@ -42,6 +42,14 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-discovery-service</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -146,7 +154,7 @@
           <groupId>io.grpc</groupId>
           <artifactId>*</artifactId>
         </exclusion>
-        <!-- bouncy-castle-bc-shaded already contains this-->
+        <!-- bouncy-castle-bc already contains this-->
         <exclusion>
           <groupId>org.bouncycastle</groupId>
           <artifactId>*</artifactId>
@@ -192,14 +200,48 @@
           <groupId>io.netty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
+        <!--      the next bk version, please remove the following content.-->
+        <exclusion>
+          <groupId>io.vertx</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
+    <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
+    <!--      the next bk version, please remove the following content.-->
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-core</artifactId>
+      <version>${vertx.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-web</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
         <executions>
           <execution>
             <id>distro-assembly</id>
