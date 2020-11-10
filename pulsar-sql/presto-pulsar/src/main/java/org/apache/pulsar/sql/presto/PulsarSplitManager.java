@@ -54,10 +54,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -429,17 +431,24 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         return (PositionImpl) readOnlyCursor.findNewestMatching(SearchAllAvailableEntries, new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
-                MessageImpl msg = null;
-                try {
-                    msg = MessageImpl.deserialize(entry.getDataBuffer());
 
-                    return msg.getPublishTime() <= timestamp;
+                Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
+                try {
+                    pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                    MessageImpl msg = pair.getLeft();
+                    PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
+                    if (rawMessageMetadata != null) {
+                        return rawMessageMetadata.getBrokerTimestamp() < timestamp;
+                    } else {
+                        return msg.getPublishTime() <= timestamp;
+                    }
+
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
+                    if (pair.getLeft() != null) {
+                        pair.getLeft().recycle();
                     }
                 }
                 return false;

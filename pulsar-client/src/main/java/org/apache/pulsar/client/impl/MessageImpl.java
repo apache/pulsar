@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -205,6 +206,43 @@ public class MessageImpl<T> implements Message<T> {
         msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         msgMetadata.recycle();
         msg.payload = headersAndPayload;
+        msg.messageId = null;
+        msg.topic = null;
+        msg.cnx = null;
+        msg.properties = Collections.emptyMap();
+        return msg;
+    }
+
+    public static Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> deserializeWithRawMetaData(
+            ByteBuf headersAndPayloadWithRawMetadata) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
+
+        PulsarApi.RawMessageMetadata rawMessageMetadata =
+                Commands.parseRawMetadataIfExist(headersAndPayloadWithRawMetadata);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithRawMetadata);
+        msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        msgMetadata.recycle();
+        msg.payload = headersAndPayloadWithRawMetadata;
+        msg.messageId = null;
+        msg.topic = null;
+        msg.cnx = null;
+        msg.properties = Collections.emptyMap();
+        return Pair.of(msg, rawMessageMetadata);
+    }
+
+    public static MessageImpl<byte[]> deserializeSkipRawMetaData(
+            ByteBuf headersAndPayloadWithRawMetadata) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
+
+        Commands.skipRawMessageMetadataIfExist(headersAndPayloadWithRawMetadata);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithRawMetadata);
+        msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        msgMetadata.recycle();
+        msg.payload = headersAndPayloadWithRawMetadata;
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;

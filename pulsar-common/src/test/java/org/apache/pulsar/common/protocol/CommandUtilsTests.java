@@ -18,13 +18,21 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.testng.annotations.Test;
+
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class CommandUtilsTests {
 
@@ -106,5 +114,83 @@ public class CommandUtilsTests {
         }
 
         return cmd.build();
+    }
+
+    @Test
+    public void testByteBufComposite() throws Exception {
+        String HEAD = "head-";
+        String TAIL = "tail";
+        ByteBuf b1 = PulsarByteBufAllocator.DEFAULT.buffer();
+        b1.writeBytes(HEAD.getBytes(StandardCharsets.UTF_8));
+
+        ByteBuf b2 = PulsarByteBufAllocator.DEFAULT.buffer();
+        b2.writeBytes(TAIL.getBytes(StandardCharsets.UTF_8));
+
+        CompositeByteBuf b3 = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        b3.addComponents(true, b1, b2);
+
+        assertEquals(0, b3.readerIndex());
+        assertEquals(b1.readableBytes() + b2.readableBytes(), b3.writerIndex());
+        assertEquals(b1.readableBytes() + b2.readableBytes(), b3.readableBytes());
+
+        byte[] content = new byte[b1.readableBytes() + b2.readableBytes()];
+        b3.readBytes(content);
+        assertEquals(HEAD + TAIL, new String(content, StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void testAddRawMetadata() throws Exception {
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+
+        PulsarApi.RawMessageMetadata rawMessageMetadata =
+                PulsarApi.RawMessageMetadata.newBuilder().setBrokerTimestamp(System.currentTimeMillis()).build();
+        ByteBuf dataWithRawMetadata = Commands.addRawMessageMetadata(byteBuf);
+        assertEquals(rawMessageMetadata.getSerializedSize() + data.length() + 6, dataWithRawMetadata.readableBytes());
+
+        byte [] content = new byte[dataWithRawMetadata.readableBytes()];
+        dataWithRawMetadata.readBytes(content);
+        assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
+    }
+
+    @Test
+    public void testSkipMetadata() throws Exception {
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+        ByteBuf dataWithRawMetadata = Commands.addRawMessageMetadata(byteBuf);
+
+        Commands.skipRawMessageMetadataIfExist(dataWithRawMetadata);
+        assertEquals(data.length(), dataWithRawMetadata.readableBytes());
+
+        byte [] content = new byte[dataWithRawMetadata.readableBytes()];
+        dataWithRawMetadata.readBytes(content);
+        assertEquals(new String(content, StandardCharsets.UTF_8), data);
+    }
+
+    @Test
+    public void testParseMetadata() throws Exception {
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+        ByteBuf dataWithRawMetadata = Commands.addRawMessageMetadata(byteBuf);
+        PulsarApi.RawMessageMetadata rawMessageMetadata = Commands.parseRawMetadataIfExist(dataWithRawMetadata);
+
+        assertTrue(rawMessageMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
+        assertEquals(data.length(), dataWithRawMetadata.readableBytes());
+
+        byte [] content = new byte[dataWithRawMetadata.readableBytes()];
+        dataWithRawMetadata.readBytes(content);
+        assertEquals(new String(content, StandardCharsets.UTF_8), data);
+    }
+
+    public ByteBuf getMessage(String producerName, long seqId) {
+        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+                .setProducerName(producerName).setSequenceId(seqId)
+                .setPublishTime(System.currentTimeMillis()).build();
+
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));
     }
 }

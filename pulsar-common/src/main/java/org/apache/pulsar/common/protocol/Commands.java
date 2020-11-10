@@ -1956,6 +1956,40 @@ public class Commands {
         return compositeByteBuf;
     }
 
+    public static ByteBuf skipRawMessageMetadataIfExist(ByteBuf headerAndPayloadWithRawMetadata) {
+        int readerIndex = headerAndPayloadWithRawMetadata.readerIndex();
+        if (headerAndPayloadWithRawMetadata.readShort() == magicRawMetadata) {
+            int rawMetadataSize = headerAndPayloadWithRawMetadata.readInt();
+            headerAndPayloadWithRawMetadata.readerIndex(headerAndPayloadWithRawMetadata.readerIndex()
+                    + rawMetadataSize);
+        } else {
+            headerAndPayloadWithRawMetadata.readerIndex(readerIndex);
+        }
+        return headerAndPayloadWithRawMetadata;
+    }
+
+    public static PulsarApi.RawMessageMetadata parseRawMetadataIfExist(ByteBuf headerAndPayloadWithRawMetadata) {
+        int readerIndex = headerAndPayloadWithRawMetadata.readerIndex();
+        if (headerAndPayloadWithRawMetadata.readShort() == magicRawMetadata) {
+            int rawMetadataSize = headerAndPayloadWithRawMetadata.readInt();
+            int writerIndex = headerAndPayloadWithRawMetadata.writerIndex();
+            headerAndPayloadWithRawMetadata.writerIndex(headerAndPayloadWithRawMetadata.readerIndex() + rawMetadataSize);
+            ByteBufCodedInputStream rawMetadataInputStream = ByteBufCodedInputStream.get(headerAndPayloadWithRawMetadata);
+            PulsarApi.RawMessageMetadata.Builder builder =  PulsarApi.RawMessageMetadata.newBuilder();
+            try {
+                builder.mergeFrom(rawMetadataInputStream, null).build();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            headerAndPayloadWithRawMetadata.writerIndex(writerIndex);
+            rawMetadataInputStream.recycle();
+            return builder.build();
+        } else {
+            headerAndPayloadWithRawMetadata.readerIndex(readerIndex);
+            return null;
+        }
+    }
+
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
                                                       MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format

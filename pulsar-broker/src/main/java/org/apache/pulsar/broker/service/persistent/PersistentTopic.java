@@ -63,6 +63,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -2145,15 +2146,24 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
-        MessageImpl msg = null;
+        Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                msg = MessageImpl.deserialize(entry.getDataBuffer());
-                isOldestMessageExpired = messageTTLInSeconds != 0 && System.currentTimeMillis() > (msg.getPublishTime()
-                        + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
+                pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                MessageImpl msg = pair.getLeft();
+                PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
+                if (messageTTLInSeconds != 0) {
+                    if (rawMessageMetadata != null) {
+                        isOldestMessageExpired = System.currentTimeMillis() > (rawMessageMetadata.getBrokerTimestamp()
+                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
+                    } else {
+                        isOldestMessageExpired = System.currentTimeMillis() > (msg.getPublishTime()
+                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
+                    }
+                }
             }
         } catch (Exception e) {
             log.warn("[{}] Error while getting the oldest message", topic, e);
@@ -2161,8 +2171,8 @@ public class PersistentTopic extends AbstractTopic
             if (entry != null) {
                 entry.release();
             }
-            if (msg != null) {
-                msg.recycle();
+            if (pair.getLeft() != null) {
+                pair.getLeft().recycle();
             }
         }
 

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -26,6 +27,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.stats.Rate;
@@ -68,16 +70,22 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                     messageTTLInSeconds);
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                MessageImpl<?> msg = null;
+                Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
                 try {
-                    msg = MessageImpl.deserialize(entry.getDataBuffer());
-                    return msg.isExpired(messageTTLInSeconds);
+                    pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                    MessageImpl msg = pair.getLeft();
+                    PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
+                    if (rawMessageMetadata != null) {
+                        return isExpired(messageTTLInSeconds, rawMessageMetadata.getBrokerTimestamp());
+                    } else {
+                        return msg.isExpired(messageTTLInSeconds);
+                    }
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
+                    if (pair.getLeft() != null) {
+                        pair.getLeft().recycle();
                     }
                 }
                 return false;
@@ -88,6 +96,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                         subName);
             }
         }
+    }
+
+    public boolean isExpired(int messageTTLInSeconds, long brokerTimestampForMessage) {
+        return messageTTLInSeconds != 0
+                && System.currentTimeMillis() > (brokerTimestampForMessage + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
     public void updateRates() {

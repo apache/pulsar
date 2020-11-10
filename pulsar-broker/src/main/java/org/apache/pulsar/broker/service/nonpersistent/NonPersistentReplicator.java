@@ -81,7 +81,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             ByteBuf headersAndPayload = entry.getDataBuffer();
             MessageImpl msg;
             try {
-                msg = MessageImpl.deserialize(headersAndPayload);
+                msg = MessageImpl.deserializeSkipRawMetaData(headersAndPayload);
             } catch (Throwable t) {
                 log.error("[{}][{} -> {}] Failed to deserialize message at {} (buffer size: {}): {}", topicName,
                         localCluster, remoteCluster, entry.getPosition(), length, t.getMessage(), t);

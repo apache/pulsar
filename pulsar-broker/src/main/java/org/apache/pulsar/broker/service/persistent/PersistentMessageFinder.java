@@ -25,7 +25,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,16 +63,22 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             }
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
-                MessageImpl msg = null;
+                Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
                 try {
-                    msg = MessageImpl.deserialize(entry.getDataBuffer());
-                    return msg.getPublishTime() < timestamp;
+                    pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                    MessageImpl msg = pair.getLeft();
+                    PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
+                    if (rawMessageMetadata != null) {
+                        return rawMessageMetadata.getBrokerTimestamp() < timestamp;
+                    } else {
+                        return msg.getPublishTime() < timestamp;
+                    }
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
+                    if (pair.getLeft() != null) {
+                        pair.getLeft().recycle();
                     }
                 }
                 return false;
