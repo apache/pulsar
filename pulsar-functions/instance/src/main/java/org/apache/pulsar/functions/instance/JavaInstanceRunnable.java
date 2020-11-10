@@ -460,7 +460,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Record readInput() {
+    private Record readInput() throws Exception {
         Record record;
         if (!(this.source instanceof PulsarSource)) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -469,8 +469,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             record = this.source.read();
         } catch (Exception e) {
             stats.incrSourceExceptions(e);
-            log.info("Encountered exception in source read: ", e);
-            throw new RuntimeException(e);
+            log.error("Encountered exception in source read", e);
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }

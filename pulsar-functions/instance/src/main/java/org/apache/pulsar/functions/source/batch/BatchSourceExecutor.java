@@ -41,6 +41,7 @@ import org.apache.pulsar.io.core.SourceContext;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * BatchSourceExecutor wraps BatchSource as Source. Thus from Pulsar IO perspective, it is running a regular
@@ -63,6 +64,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
   private String batchSourceClassName;
   private BatchSource<T> batchSource;
   private String intermediateTopicName;
+  private volatile Exception currentError = null;
 
   @Override
   public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -78,14 +80,21 @@ public class BatchSourceExecutor<T> implements Source<T> {
   @Override
   public Record<T> read() throws Exception {
     while (true) {
+      if (currentError != null) {
+        throw currentError;
+      }
       if (currentTask == null) {
-        retrieveNextTask();
-        prepareInternal();
+        currentTask = retrieveNextTask();
+        prepareInternal(currentTask);
       }
       Record<T> retval = batchSource.readNext();
       if (retval == null) {
         // signals end if this batch
-        intermediateTopicConsumer.acknowledge(currentTask.getMessageId());
+        intermediateTopicConsumer.acknowledgeAsync(currentTask.getMessageId()).exceptionally(throwable -> {
+          log.error("Encountered error when acknowledging completed task with id {}", currentTask.getMessageId(), throwable);
+          setCurrentError(throwable);
+          return null;
+        });
         currentTask = null;
       } else {
         return retval;
@@ -137,13 +146,26 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-  private void triggerDiscover(String discoveredEvent) {
-    try {
-      batchSource.discover((task) -> this.taskEater(discoveredEvent, task));
-    } catch (Exception e) {
-      log.error("Error on discover", e);
-      throw new RuntimeException(e);
+  volatile boolean discoverInProgress = false;
+  private synchronized void triggerDiscover(String discoveredEvent) {
+
+    if (discoverInProgress) {
+      log.info("Discovery is already in progress");
+      return;
+    } else {
+      discoverInProgress = true;
     }
+    // Run this code asynchronous so it does block processing of the tasks
+    CompletableFuture.runAsync(() -> {
+      try {
+        batchSource.discover(task -> taskEater(discoveredEvent, task));
+      } catch (Exception e) {
+        log.error("Encountered error during task discovery", e);
+        setCurrentError(e);
+      } finally {
+        discoverInProgress = false;
+      }
+    });
   }
 
   private void taskEater(String discoveredEvent, byte[] task) {
@@ -153,6 +175,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       properties.put("produceTime", String.valueOf(System.currentTimeMillis()));
       TypedMessageBuilder<byte[]> message = sourceContext.newOutputMessage(intermediateTopicName, Schema.BYTES);
       message.value(task).properties(properties);
+      // Note: we can only make this send async if the api returns a future to the connector so that errors can be handled by the connector
       message.send();
     } catch (Exception e) {
       log.error("error writing discovered task to intermediate topic", e);
@@ -160,9 +183,9 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-  private void prepareInternal() {
+  private void prepareInternal(Message<byte[]> task) {
     try {
-      batchSource.prepare(currentTask.getValue());
+      batchSource.prepare(task.getValue());
     } catch (Exception e) {
       log.error("Error on prepare", e);
       throw new RuntimeException(e);
@@ -255,11 +278,24 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-
-  private void retrieveNextTask() throws Exception {
-    currentTask = intermediateTopicConsumer.receive();
-    return;
+  private Message<byte[]> retrieveNextTask() throws Exception {
+    while(true) {
+      if (currentError != null) {
+        throw currentError;
+      }
+      Message<byte[]> taskMessage = intermediateTopicConsumer.receive(5, TimeUnit.SECONDS);
+      if (taskMessage != null) {
+        return taskMessage;
+      }
+    }
   }
 
+  private void setCurrentError(Throwable error) {
+    if (error instanceof Exception) {
+      currentError = (Exception) error;
+    } else {
+      currentError = new RuntimeException(error.getCause());
+    }
+  }
 }
 
