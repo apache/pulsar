@@ -28,7 +28,7 @@ what the following rules do, please see the checkstyle configuration
 page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
-    <!--    TODO: generally make this file same as checkstyle.xml then remove it -->
+    <!--    TODO: gradually make this file same as checkstyle.xml then remove it -->
 
     <module name="SuppressWarningsFilter"/>
 
