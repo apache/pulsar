@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.api.transaction.Transaction;
+
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -347,6 +349,42 @@ public interface Consumer<T> extends Closeable {
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Acknowledge the reception of all the messages in the stream up to (and including) the provided message with this
+     * transaction, it will store in transaction pending ack.
+     *
+     * <p>After the transaction commit, the end of previous transaction acked message until this transaction
+     * acked message will actually ack.
+     *
+     * <p>After the transaction abort, the end of previous transaction acked message until this transaction
+     * acked message will be redelivered to this consumer.
+     *
+     * <p>Cumulative acknowledge with transaction only support cumulative ack and now have not support individual and
+     * cumulative ack sharing.
+     *
+     * <p>If cumulative ack with a transaction success, we can cumulative ack messageId with the same transaction
+     * more than previous messageId.
+     *
+     * <p>It will not be allowed to cumulative ack with a transaction different from the previous one when the previous
+     * transaction haven't commit or abort.
+     *
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * @param messageId
+     *            The {@code MessageId} to be cumulatively acknowledged
+     * @param txn {@link Transaction} the transaction to cumulative ack
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     * @throws org.apache.pulsar.client.api.PulsarClientException.TransactionConflictException
+     *             if the ack with messageId is less than the messageId in pending ack state or ack with transaction is
+     *             different from the transaction in pending ack.
+     * @throws org.apache.pulsar.client.api.PulsarClientException.NotAllowedException
+     *             broker don't support transaction
+     * @return {@link CompletableFuture} the future of the ack result
+     */
+    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId,
+                                                       Transaction txn);
+
+    /**
      * reconsumeLater the reception of all the messages in the stream up to (and including) the provided message.
      *
      * @param message
@@ -377,6 +415,26 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeAsync(MessageId messageId);
+
+    /**
+     * Asynchronously acknowledge the consumption of a single message, it will store in pending ack.
+     *
+     * <p>After the transaction commit, the message will actually ack.
+     *
+     * <p>After the transaction abort, the message will be redelivered.
+     *
+     * @param messageId {@link MessageId} to be individual acknowledged
+     * @param txn {@link Transaction} the transaction to cumulative ack
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     * @throws org.apache.pulsar.client.api.PulsarClientException.TransactionConflictException
+     *             if the ack with messageId has been acked by another transaction
+     * @throws org.apache.pulsar.client.api.PulsarClientException.NotAllowedException
+     *             broker don't support transaction
+     *             don't find batch size in consumer pending ack
+     * @return {@link CompletableFuture} the future of the ack result
+     */
+    CompletableFuture<Void> acknowledgeAsync(MessageId messageId, Transaction txn);
 
     /**
      * Asynchronously acknowledge the consumption of {@link Messages}.
