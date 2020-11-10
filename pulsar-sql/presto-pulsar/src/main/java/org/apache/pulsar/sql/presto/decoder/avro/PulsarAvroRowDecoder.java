@@ -41,8 +41,6 @@ import org.apache.pulsar.sql.presto.PulsarRowDecoder;
  */
 public class PulsarAvroRowDecoder implements PulsarRowDecoder {
 
-    private static final Logger log = Logger.get(PulsarAvroRowDecoderFactory.class);
-
     private final GenericAvroSchema genericAvroSchema;
     private final Map<DecoderColumnHandle, PulsarAvroColumnDecoder> columnDecoders;
 
