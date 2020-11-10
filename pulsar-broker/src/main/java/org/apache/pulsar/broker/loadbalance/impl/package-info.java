@@ -16,18 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance;
-
-public class BrokerFilterException extends Exception {
-    public BrokerFilterException(String msg) {
-        super(msg);
-    }
-
-    public BrokerFilterException(Throwable t) {
-        super(t);
-    }
-
-    public BrokerFilterException(String msg, Throwable t) {
-        super(msg, t);
-    }
-}
+package org.apache.pulsar.broker.loadbalance.impl;

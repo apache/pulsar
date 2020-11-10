@@ -58,7 +58,7 @@ public class ResponseHandlerFilter implements Filter {
         chain.doFilter(request, response);
         ((HttpServletResponse) response).addHeader("broker-address", brokerAddress);
         if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
-            // invalidate current session from servlet-container if it received internal-server-error 
+            // invalidate current session from servlet-container if it received internal-server-error
             try {
                 ((HttpServletRequest) request).getSession(false).invalidate();
             } catch (Exception ignoreException) {

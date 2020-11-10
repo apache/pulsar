@@ -28,7 +28,51 @@ what the following rules do, please see the checkstyle configuration
 page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
-    <!--    TODO: generally make this file same as checkstyle.xml then remove it -->
+    <!--    TODO: gradually make this file same as checkstyle.xml then remove it -->
+
+    <module name="SuppressWarningsFilter"/>
+
+    <module name="FileTabCharacter">
+        <!-- Checks that there are no tab characters in the file. -->
+    </module>
+
+    <module name="RegexpSingleline">
+        <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
+        <property name="format" value="((//.*)|(\*.*))TODO\("/>
+        <property name="message" value="TODO comments must not include usernames."/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="\s+$"/>
+        <property name="message" value="Trailing whitespace"/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="Throwables.propagate\("/>
+        <property name="message" value="Throwables.propagate is deprecated"/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <!-- Prevent *Tests.java as tools may not pick them up -->
+    <module name="RegexpOnFilename">
+        <property name="fileNamePattern" value=".*Tests\.java$"/>
+    </module>
+
+    <!-- Allow use of comment to suppress javadocstyle -->
+    <module name="SuppressionCommentFilter">
+        <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+        <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+        <property name="checkFormat" value="$1"/>
+    </module>
+    <module name="SuppressionFilter">
+        <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
+    </module>
+
+    <!-- Check that every module has a package-info.java -->
+    <module name="JavadocPackage"/>
+
     <!-- All Java AST specific tests live under TreeWalker module. -->
     <module name="TreeWalker">
         <module name="UnusedImports">
