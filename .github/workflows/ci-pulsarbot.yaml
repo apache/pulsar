@@ -46,6 +46,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master
 
+      # Just use a github user who has permission to create a branch on the apache/pulsar repo.
+      # We can consider creating a bot user to do this.
       - name: Cherry-pick prompt
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         uses: apache/pulsar-test-infra/cherry-pick@master
