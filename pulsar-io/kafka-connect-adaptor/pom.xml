@@ -70,13 +70,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc</artifactId>
-      <version>${project.version}</version>
-      <classifier>pkg</classifier>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>kafka-connect-avro-converter-shaded</artifactId>
       <version>${project.version}</version>
       <exclusions>

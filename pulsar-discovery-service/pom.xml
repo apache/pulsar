@@ -67,7 +67,6 @@
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.version}</version>
       <classifier>pkg</classifier>
-      <optional>true</optional>
     </dependency>
 
     <dependency>
