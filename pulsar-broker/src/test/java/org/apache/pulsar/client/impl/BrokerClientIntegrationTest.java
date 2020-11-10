@@ -612,8 +612,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         try {
             pulsar.getConfiguration().setAuthorizationEnabled(false);
             stopBroker();
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             startBroker();
+            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             String lookupUrl = pulsar.getBrokerServiceUrl();
 
             pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)

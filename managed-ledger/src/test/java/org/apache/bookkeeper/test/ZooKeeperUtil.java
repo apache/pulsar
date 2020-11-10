@@ -71,6 +71,7 @@ public class ZooKeeperUtil {
         // ServerStats.registerAsConcrete();
         ClientBase.setupTestEnv();
         ZkTmpDir = File.createTempFile("zookeeper", "test");
+        new Exception("ZKSERVER created "+ZkTmpDir).printStackTrace(System.out);
         ZkTmpDir.delete();
         ZkTmpDir.mkdir();
 
@@ -100,6 +101,7 @@ public class ZooKeeperUtil {
         // ServerStats.registerAsConcrete();
         ClientBase.setupTestEnv();
         ZkTmpDir = File.createTempFile("zookeeper", "test");
+        new Exception("ZKSERVER created "+ZkTmpDir).printStackTrace(System.out);
         ZkTmpDir.delete();
         ZkTmpDir.mkdir();
 
@@ -150,6 +152,7 @@ public class ZooKeeperUtil {
     }
 
     public void killServer() throws Exception {
+        new Exception("ZKSERVER delete "+ZkTmpDir).printStackTrace(System.out);
         if (zkc != null) {
             zkc.close();
         }

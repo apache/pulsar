@@ -123,6 +123,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testTopicPolicyDisabled() throws Exception {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
+        stopBroker();
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));

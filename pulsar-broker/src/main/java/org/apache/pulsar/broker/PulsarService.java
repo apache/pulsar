@@ -48,6 +48,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -212,6 +213,11 @@ public class PulsarService implements AutoCloseable {
     private TransactionBufferClient transactionBufferClient;
 
     private BrokerInterceptor brokerInterceptor;
+    private final static AtomicInteger currentCount = new AtomicInteger();
+    private final Throwable creationStackTrace = new Throwable("PCLIENT created-"+System.identityHashCode(this)+" #"+currentCount.incrementAndGet()).fillInStackTrace();
+    private final String description = ""+System.identityHashCode(this);
+    private static long startupTime = System.currentTimeMillis();
+    private volatile ScheduledFuture<?> dieTests;
 
     public enum State {
         Init, Started, Closed
@@ -260,6 +266,15 @@ public class PulsarService implements AutoCloseable {
                 new DefaultThreadFactory("pulsar"));
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
                 new DefaultThreadFactory("zk-cache-callback"));
+        dieTests = this.executor.schedule(() -> {
+            System.out.println();
+            System.out.println("PCLIENT Found a PulsarService "+System.identityHashCode(PulsarService.this)+" created as "+description+" not closed within 2 MINUTES, failing after " + (System.currentTimeMillis() - startupTime) / 60000 + " minutes");
+            creationStackTrace.printStackTrace(System.out);
+            System.out.flush();
+        }, 2, TimeUnit.MINUTES);
+        System.out.println();
+        creationStackTrace.printStackTrace(System.out);
+        System.out.flush();
     }
 
     /**
@@ -267,6 +282,17 @@ public class PulsarService implements AutoCloseable {
      */
     @Override
     public void close() throws PulsarServerException {
+        int nowCount = currentCount.decrementAndGet();
+        boolean already = false;
+        if (dieTests != null) {
+            dieTests.cancel(false);
+            dieTests = null;
+        } else {
+            already = true;
+        }
+        System.out.println();
+        new Throwable("PCLIENT  closed-"+description+" ("+System.identityHashCode(this)+")  "+this.getClass().getName()+" #"+nowCount+" already:"+already).printStackTrace(System.out);
+        System.out.flush();
         mutex.lock();
 
         try {
@@ -344,6 +370,7 @@ public class PulsarService implements AutoCloseable {
             // guard against null executors
             if (executor != null) {
                 executor.shutdown();
+                executor.awaitTermination(10, TimeUnit.SECONDS);
             }
 
             if (orderedExecutor != null) {

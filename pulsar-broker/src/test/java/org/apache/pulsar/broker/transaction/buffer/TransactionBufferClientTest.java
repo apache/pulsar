@@ -52,6 +52,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     private TransactionBufferClient tbClient;
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
+    BrokerService[] brokerServices;
 
     @BeforeClass
     void init() throws Exception {
@@ -68,15 +69,22 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     }
 
     @AfterClass
-    public void shutdownClient() {
+    public void shutdownClient() throws Exception {
         if (tbClient != null) {
             tbClient.close();
+        }
+        if (brokerServices != null) {
+            for (BrokerService bs : brokerServices) {
+                bs.close();
+            }
+            brokerServices = null;
         }
     }
 
     @Override
     public void afterPulsarStart() throws Exception {
         super.afterPulsarStart();
+        brokerServices = new BrokerService[pulsarServices.length];
         for (int i = 0; i < pulsarServices.length; i++) {
             Subscription mockSubscription = Mockito.mock(Subscription.class);
             Mockito.when(mockSubscription.endTxn(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt()))
@@ -93,6 +101,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
             BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i]));
+            brokerServices[i] = brokerService;
             Mockito.when(brokerService.getTopics()).thenReturn(topicMap);
             Mockito.when(pulsarServices[i].getBrokerService()).thenReturn(brokerService);
         }

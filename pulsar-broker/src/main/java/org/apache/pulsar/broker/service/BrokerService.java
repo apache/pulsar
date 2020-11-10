@@ -64,6 +64,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -350,6 +351,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .supplier(() -> pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
                         - topicLoadRequestSemaphore.get().availablePermits())
                 .register();
+        dieTests = this.backlogQuotaChecker.schedule(() -> {
+            System.out.println();
+            System.out.println("BSERVICE Found a PulsarService "+System.identityHashCode(BrokerService.this)+" created as "+description+" not closed within 2 MINUTES, failing after " + (System.currentTimeMillis() - startupTime) / 60000 + " minutes");
+            creationStackTrace.printStackTrace(System.out); 
+            System.out.flush();
+        }, 2, TimeUnit.MINUTES);
+        System.out.println();
+        creationStackTrace.printStackTrace(System.out);
+        System.out.flush();
     }
 
     // This call is used for starting additional protocol handlers
@@ -622,8 +632,25 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+    private final static AtomicInteger currentCount = new AtomicInteger();
+    private final Throwable creationStackTrace = new Throwable("BSERVICE created-"+System.identityHashCode(this)+" #"+currentCount.incrementAndGet()).fillInStackTrace();
+    private final String description = ""+System.identityHashCode(this);
+    private static long startupTime = System.currentTimeMillis();
+    private volatile ScheduledFuture<?> dieTests;
+    
     @Override
     public void close() throws IOException {
+        int nowCount = currentCount.decrementAndGet();
+        boolean already = false;
+        if (dieTests != null) {
+            dieTests.cancel(false);
+            dieTests = null;
+        } else {
+            already = true;
+        }
+        System.out.println();
+        new Throwable("BSERVICE  closed-"+description+" ("+System.identityHashCode(this)+")  "+this.getClass().getName()+" #"+nowCount+" already:"+already).printStackTrace(System.out);
+        System.out.flush();
         log.info("Shutting down Pulsar Broker service");
 
         if (pulsar.getConfigurationCache() != null) {

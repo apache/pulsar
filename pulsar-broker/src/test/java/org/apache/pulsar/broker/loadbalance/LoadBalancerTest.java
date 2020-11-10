@@ -167,7 +167,9 @@ public class LoadBalancerTest {
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();
-            pulsarServices[i].close();
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+            }
         }
 
         bkEnsemble.stop();
@@ -709,14 +711,14 @@ public class LoadBalancerTest {
             LeaderBroker oldLeader = null;
             PulsarService leaderPulsar = null;
             PulsarService followerPulsar = null;
-
             for (int j = 0; j < BROKER_COUNT; j++) {
-                if (pulsarServices[j].getState() != PulsarService.State.Closed) {
+                if (pulsarServices[j] != null && pulsarServices[j].getState() != PulsarService.State.Closed) {
                     activePulsar.add(pulsarServices[j]);
                     LeaderElectionService les = pulsarServices[j].getLeaderElectionService();
                     if (les.isLeader()) {
                         oldLeader = les.getCurrentLeader();
                         leaderPulsar = pulsarServices[j];
+                        pulsarServices[i] = null;
                     } else {
                         followerPulsar = pulsarServices[j];
                     }
