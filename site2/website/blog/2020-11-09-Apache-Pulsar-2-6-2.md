@@ -31,7 +31,7 @@ Reworked the namespace bundle unload REST handler to be asynchronous. This avoid
 
 For more information about implementation, see [PR-7364](https://github.com/apache/pulsar/pull/7364).
 
-### Support initial namespace of the cluster without startup the broker
+### Support initial namespace of the cluster without starting the broker
 
 Setup the initial namespace of the cluster without startup the broker.
 
