@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.api.transaction.Transaction;
-
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.pulsar.client.api.transaction.Transaction;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
