@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,7 +34,7 @@ public class BundleData extends JSONWritable {
     // by the number of long term samples
     // and the bundle update period.
     private TimeAverageMessageData longTermData;
-    
+
     // number of topics present under this bundle
     private int topics;
 
@@ -44,7 +44,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Initialize the bundle data.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -58,7 +58,7 @@ public class BundleData extends JSONWritable {
     /**
      * Initialize this bundle data and have its histories default to the given stats before the first sample is
      * received.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -73,7 +73,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Update the historical data for this bundle.
-     * 
+     *
      * @param newSample
      *            The bundle stats to update this data with.
      */
