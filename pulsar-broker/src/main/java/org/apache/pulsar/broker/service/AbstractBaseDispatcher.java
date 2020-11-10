@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -33,6 +34,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -61,6 +64,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * <li>Message is not meant to be delivered immediately
      * </ul>
      *
+     * @param consumer
+     *            the consumer we are filtering for.
+     *
      * @param entries
      *            a list of entries as read from storage
      *
@@ -71,7 +77,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * @param sendMessageInfo
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
-    public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
+    public void filterEntriesForConsumer(Consumer consumer, List<Entry> entries, EntryBatchSizes batchSizes,
                                          SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
                                          ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
@@ -79,8 +85,11 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         int totalChunkedMessages = 0;
 
         boolean isAfterTxnCommitMarker = false;
+        consumer.initFiltering(); // Ensure consumer filtering is initialized on first use.
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
+
+            MessageMetadata msgMetadata = null;
             Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
@@ -88,7 +97,55 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             ByteBuf metadataAndPayload = entry.getDataBuffer();
 
-            MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), consumer.consumerId());
+            boolean isFiltering = consumer.getConsumerFilter().isFiltering();
+            if (isFiltering) {
+                try {
+                    if (msgMetadata.hasNumMessagesInBatch() && msgMetadata.getEncryptionKeysCount() == 0) {
+                        msgMetadata = null;
+                        int readerIdx = metadataAndPayload.readerIndex();
+                        Optional<ByteBuf> filteredOrEmpty;
+                        try {
+                            filteredOrEmpty = RawBatchConverter.filter(metadataAndPayload, consumer.getConsumerFilter());
+                        } finally {
+                            metadataAndPayload.readerIndex(readerIdx);
+                        }
+                        if (filteredOrEmpty.isPresent()) {
+                            ByteBuf filtered = filteredOrEmpty.get();
+                            Entry filteredEntry = EntryImpl.create(entry.getLedgerId(), entry.getEntryId(), filtered);
+
+                            entries.set(i, filteredEntry);
+                            entry.release();
+                            metadataAndPayload.release();
+                            metadataAndPayload = filtered;
+                            msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), consumer.consumerId());
+                        } // else nothing to forwards and msgMetadata remains null which is handled below.
+                    } else {
+                        if (msgMetadata.getEncryptionKeysCount() == 0) {
+                            // Filter single message.
+                            List<PulsarApi.KeyValue> properties = msgMetadata.getPropertiesList();
+                            // Position reader to message.
+                            int readerIdx = metadataAndPayload.readerIndex();
+                            try {
+                                Commands.skipChecksumIfPresent(metadataAndPayload);
+                                int metadataSize = (int) metadataAndPayload.readUnsignedInt();
+                                metadataAndPayload.readerIndex(metadataAndPayload.readerIndex() + metadataSize);
+
+                                if (!consumer.getConsumerFilter().filter(properties, metadataAndPayload)) {
+                                    msgMetadata.recycle();
+                                    msgMetadata = null;
+                                }
+                            } finally {
+                                metadataAndPayload.readerIndex(readerIdx);
+                            }
+                        }
+                    }
+                } catch (IOException ioe) {
+                    log.error("Error in filtering for consumer - dropping messages.", ioe);
+                    entries.set(i, null);
+                    entry.release();
+                }
+            }
 
             try {
                 if (!isReplayRead && msgMetadata != null
@@ -106,7 +163,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     continue;
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
-                    // Message metadata was corrupted or the messages was a server-only marker
+                    // Message metadata was filtered out or corrupted or the messages was a server-only marker
 
                     if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
                         processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
@@ -135,6 +192,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 totalBytes += metadataAndPayload.readableBytes();
                 totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
                 batchSizes.setBatchSize(i, batchSize);
+
                 if (indexesAcks != null && cursor != null) {
                     long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
@@ -143,8 +201,14 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                         indexesAcks.setIndexesAcks(i,null);
                     }
                 }
+
             } finally {
-                msgMetadata.recycle();
+                if (msgMetadata != null) {
+                    msgMetadata.recycle();
+                }
+                if (isFiltering) {
+                    metadataAndPayload.release();
+                }
             }
         }
 

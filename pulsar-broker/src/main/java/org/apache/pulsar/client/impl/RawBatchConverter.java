@@ -24,15 +24,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiPredicate;
 
 import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.pulsar.broker.service.ConsumerFilter;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -161,6 +161,73 @@ public class RawBatchConverter {
             }
         } finally {
             uncompressedPayload.release();
+            batchBuffer.release();
+            metadata.recycle();
+        }
+    }
+
+    /**
+     * Filter messages from payload using consumer filter.
+     *
+     * @param payload The payload of messages.
+     * @param consumerFilter The tags to OR filter on.
+     * @return An optional ByteBuf that is a replacement payload or an empty option if no message matched.
+     * The payload passed in is owned by the caller unless replaced by the buffer returned. In which case
+     * the caller then own the returned with the one passed in released.
+     * @throws IOException
+     */
+    public static Optional<ByteBuf> filter(ByteBuf payload, ConsumerFilter consumerFilter) throws IOException {
+
+        MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity()); // Allocation could be delayed until needed.
+
+        CompressionType compressionType = metadata.getCompression();
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+
+        int uncompressedSize = metadata.getUncompressedSize();
+        ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
+        try {
+            int batchSize = metadata.getNumMessagesInBatch();
+            int messagesRetained = 0;
+
+            for (int i = 0; i < batchSize; i++) {
+                SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
+                        singleMessageMetadataBuilder,
+                        0, batchSize);
+
+                List<PulsarApi.KeyValue> properties = singleMessageMetadataBuilder.getPropertiesList();
+
+                if (consumerFilter.filter(properties, singleMessagePayload) && singleMessagePayload.readableBytes() > 0) {
+                    messagesRetained++;
+                    Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
+                            singleMessagePayload, batchBuffer);
+                }
+                singleMessageMetadataBuilder.recycle();
+                singleMessagePayload.release();
+            }
+
+            if (messagesRetained > 0) {
+                int newUncompressedSize = batchBuffer.readableBytes();
+                ByteBuf compressedPayload = codec.encode(batchBuffer);
+
+                MessageMetadata.Builder metadataBuilder = metadata.toBuilder();
+                metadataBuilder.setUncompressedSize(newUncompressedSize);
+                metadataBuilder.setNumMessagesInBatch(messagesRetained);
+                MessageMetadata newMetadata = metadataBuilder.build();
+
+                ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
+                        newMetadata, compressedPayload);
+
+                metadataBuilder.recycle();
+                newMetadata.recycle();
+                compressedPayload.release();
+
+                return Optional.of(metadataAndPayload);
+            } else {
+                return Optional.empty();
+            }
+        } finally {
             batchBuffer.release();
             metadata.recycle();
         }

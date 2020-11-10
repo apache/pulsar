@@ -101,6 +101,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         consumerMock = mock(Consumer.class);
         channelMock = mock(ChannelPromise.class);
         doReturn("consumer1").when(consumerMock).consumerName();
+        doReturn(new ConsumerNullFilter()).when(consumerMock).getConsumerFilter();
         doReturn(1000).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
         doReturn(channelMock).when(consumerMock).sendMessages(

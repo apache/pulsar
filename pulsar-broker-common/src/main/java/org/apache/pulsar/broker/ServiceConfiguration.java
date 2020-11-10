@@ -675,6 +675,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable broker to filter messages for consumer subscriptions"
+    )
+    private boolean enableConsumerFilters = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Consumer filter implementation"
+    )
+    private String consumerFilterClass = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Enable broker to load persistent topics"
     )
