@@ -1227,7 +1227,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-    
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
