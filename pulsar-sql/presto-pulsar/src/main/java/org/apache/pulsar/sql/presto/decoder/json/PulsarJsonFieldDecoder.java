@@ -57,7 +57,22 @@ import io.prestosql.decoder.json.JsonRowDecoderFactory;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.block.BlockBuilder;
-import io.prestosql.spi.type.*;
+import io.prestosql.spi.type.ArrayType;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.BooleanType;
+import io.prestosql.spi.type.DateType;
+import io.prestosql.spi.type.DoubleType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.MapType;
+import io.prestosql.spi.type.RealType;
+import io.prestosql.spi.type.RowType;
+import io.prestosql.spi.type.SmallintType;
+import io.prestosql.spi.type.TimeType;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.TinyintType;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.VarbinaryType;
+import io.prestosql.spi.type.VarcharType;
 import org.apache.commons.lang3.tuple.Pair;
 
 
@@ -320,10 +335,10 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            if (type instanceof RealType || type instanceof BigintType ||
-                    type instanceof IntegerType || type instanceof SmallintType ||
-                    type instanceof TinyintType || type instanceof TimestampType ||
-                    type instanceof TimeType || type instanceof DateType) {
+            if (type instanceof RealType || type instanceof BigintType
+                    || type instanceof IntegerType || type instanceof SmallintType
+                    || type instanceof TinyintType || type instanceof TimestampType
+                    || type instanceof TimeType || type instanceof DateType) {
                 Pair<Long, Long> numRange = getNumRangeByType(type);
                 type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));
                 return;

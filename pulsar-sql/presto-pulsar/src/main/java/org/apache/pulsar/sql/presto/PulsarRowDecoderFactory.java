@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import java.util.List;
-import java.util.Set;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
+import java.util.List;
+import java.util.Set;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -32,20 +32,20 @@ public interface PulsarRowDecoderFactory {
 
     /**
      * extract ColumnMetadata from pulsar SchemaInfo and HandleKeyValueType.
-     *
      * @param schemaInfo
      * @param handleKeyValueType
      * @return
      */
-    List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType);
+    List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
+                                               PulsarColumnHandle.HandleKeyValueType handleKeyValueType);
 
     /**
      * createRowDecoder RowDecoder by pulsar SchemaInfo and column DecoderColumnHandles.
-     *
      * @param schemaInfo
      * @param columns
      * @return
      */
-    PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns);
+    PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
+                                      Set<DecoderColumnHandle> columns);
 
 }

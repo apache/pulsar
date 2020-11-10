@@ -24,14 +24,14 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Consumer;
-import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.IntegerType;
 import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarcharType;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * This abstract class represents internal columns.

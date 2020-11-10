@@ -117,8 +117,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(format(
-                        "field '%s' NULL Type code should not be reached ，" +
-                        "please check the schema or report the bug.", fieldname));
+                        "field '%s' NULL Type code should not be reached ，"
+                                + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
                 return VarbinaryType.VARBINARY;
@@ -156,8 +156,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                             .collect(toImmutableList()));
                 } else {
                     throw new UnsupportedOperationException(format(
-                            "field '%s' of record Type has no fields, " +
-                            "please check avro schema definition. ", fieldname));
+                            "field '%s' of record Type has no fields, "
+                                    + "please check avro schema definition. ", fieldname));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
@@ -169,8 +169,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                         "field '%s' of UNION type must contains not null type ", fieldname));
             default:
                 throw new UnsupportedOperationException(format(
-                        "Cannot convert from Schema type '%s' (%s) to " +
-                        "Presto type", schema.getType(), schema.getFullName()));
+                        "Cannot convert from Schema type '%s' (%s) to Presto type",
+                        schema.getType(), schema.getFullName()));
         }
     }
 }

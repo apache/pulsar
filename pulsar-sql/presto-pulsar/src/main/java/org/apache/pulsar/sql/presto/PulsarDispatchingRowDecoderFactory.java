@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.inject.Inject;
+import static java.lang.String.format;
 
+import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import java.util.List;
 import java.util.Set;
-
-import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.TypeManager;
@@ -33,8 +33,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.sql.presto.decoder.avro.PulsarAvroRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.json.PulsarJsonRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.primitive.PulsarPrimitiveRowDecoderFactory;
-
-import static java.lang.String.format;
 
 /**
  * dispatcher RowDecoderFactory for {@link org.apache.pulsar.common.schema.SchemaType}.
@@ -50,12 +48,14 @@ public class PulsarDispatchingRowDecoderFactory {
         this.typeManager = typeManager;
     }
 
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
+                                             Set<DecoderColumnHandle> columns) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
         return rowDecoderFactory.createRowDecoder(topicName, schemaInfo, columns);
     }
 
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
+                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
         return rowDecoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType);
     }

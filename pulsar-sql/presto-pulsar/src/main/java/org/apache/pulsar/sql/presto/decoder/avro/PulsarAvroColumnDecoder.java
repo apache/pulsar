@@ -28,6 +28,8 @@ import static java.lang.Float.floatToIntBits;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import java.nio.ByteBuffer;
@@ -35,8 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.PrestoException;

@@ -75,7 +75,8 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     @Override
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
+                                             Set<DecoderColumnHandle> columns) {
         return new PulsarAvroRowDecoder((GenericAvroSchema) GenericAvroSchema.of(schemaInfo), columns);
     }
 
@@ -122,7 +123,7 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(
-                        format("field '%s' NULL Type code should not be reached ，" +
+                        format("field '%s' NULL Type code should not be reached," +
                                 "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
@@ -158,11 +159,13 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
             case RECORD:
                 if (schema.getFields().size() > 0) {
                     return RowType.from(schema.getFields().stream()
-                            .map(field -> new RowType.Field(Optional.of(field.name()), parseAvroPrestoType(field.name(), field.schema())))
+                            .map(field -> new RowType.Field(Optional.of(field.name()),
+                                    parseAvroPrestoType(field.name(), field.schema())))
                             .collect(toImmutableList()));
                 } else {
                     throw new UnsupportedOperationException(format(
-                            "field '%s' of record Type has no fields, please check avro schema definition. ", fieldname));
+                            "field '%s' of record Type has no fields, " +
+                                    "please check avro schema definition. ", fieldname));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
@@ -174,7 +177,8 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                         "field '%s' of UNION type must contains not null type ", fieldname));
             default:
                 throw new UnsupportedOperationException(format(
-                        "Cannot convert from Schema type '%s' (%s) to Presto type", schema.getType(), schema.getFullName()));
+                        "Cannot convert from Schema type '%s' (%s) to Presto type",
+                        schema.getType(), schema.getFullName()));
         }
     }
 }
