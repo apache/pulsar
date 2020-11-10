@@ -18,25 +18,6 @@
  */
 package org.apache.pulsar.sql.presto.decoder.json;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slice;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.json.JsonFieldDecoder;
-import io.prestosql.decoder.json.JsonRowDecoderFactory;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.block.BlockBuilder;
-import io.prestosql.spi.type.*;
-import org.apache.commons.lang3.tuple.Pair;
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -59,6 +40,26 @@ import static java.lang.Float.parseFloat;
 import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.prestosql.decoder.DecoderColumnHandle;
+import io.prestosql.decoder.FieldValueProvider;
+import io.prestosql.decoder.json.JsonFieldDecoder;
+import io.prestosql.decoder.json.JsonRowDecoderFactory;
+import io.prestosql.spi.PrestoException;
+import io.prestosql.spi.block.Block;
+import io.prestosql.spi.block.BlockBuilder;
+import io.prestosql.spi.type.*;
+import org.apache.commons.lang3.tuple.Pair;
+
 
 /**
  * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
@@ -305,7 +306,8 @@ public class PulsarJsonFieldDecoder
                 value = (JsonNode) node;
             } else {
                 throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                        format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode", node.getClass(), type, columnName));
+                        format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
+                                node.getClass(), type, columnName));
             }
 
             if (value == null) {
@@ -318,8 +320,9 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            if (type instanceof RealType || type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType
-                    || type instanceof TinyintType || type instanceof TimestampType || type instanceof TimeType
+            if (type instanceof RealType || type instanceof BigintType || type instanceof
+                    IntegerType || type instanceof SmallintType || type instanceof
+                    TinyintType || type instanceof TimestampType || type instanceof TimeType
                     || type instanceof DateType) {
                 Pair<Long, Long> numRange = getNumRangeByType(type);
                 type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));

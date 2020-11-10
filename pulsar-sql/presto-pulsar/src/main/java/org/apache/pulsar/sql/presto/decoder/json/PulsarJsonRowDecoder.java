@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.sql.presto.decoder.json;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Splitter;
@@ -34,11 +39,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
-
+/**
+ * Json PulsarRowDecoder.
+ */
 public class PulsarJsonRowDecoder implements PulsarRowDecoder {
 
     private final Map<DecoderColumnHandle, JsonFieldDecoder> fieldDecoders;

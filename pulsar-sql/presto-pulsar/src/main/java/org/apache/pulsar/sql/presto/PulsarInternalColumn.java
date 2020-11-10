@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.VarcharType;
-import io.prestosql.spi.type.Type;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static java.util.Objects.requireNonNull;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.VarcharType;
 
 /**
  * This abstract class represents internal columns.
@@ -50,10 +50,10 @@ public class PulsarInternalColumn {
             TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
 
     public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__",
-            VarcharType.VARCHAR,"The message ID of the message used to generate this row");
+            VarcharType.VARCHAR, "The message ID of the message used to generate this row");
 
     public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__",
-            BigintType.BIGINT,"The sequence ID of the message used to generate this row");
+            BigintType.BIGINT, "The sequence ID of the message used to generate this row");
 
     public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__",
             VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row");

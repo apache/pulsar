@@ -18,6 +18,18 @@
  */
 package org.apache.pulsar.sql.presto.decoder.json;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.type.DateType.DATE;
+import static io.prestosql.spi.type.TimeType.TIME;
+import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
+import static java.lang.String.format;
+import static java.util.stream.Collectors.toList;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
 import com.google.common.collect.ImmutableList;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.PrestoException;
@@ -35,17 +47,6 @@ import org.apache.pulsar.sql.presto.PulsarColumnHandle;
 import org.apache.pulsar.sql.presto.PulsarColumnMetadata;
 import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
-import static java.lang.String.format;
-import static java.util.stream.Collectors.toList;
 
 /**
  * PulsarRowDecoderFactory for {@link org.apache.pulsar.common.schema.SchemaType#JSON}.
@@ -59,12 +60,14 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     @Override
-    public PulsarJsonRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+    public PulsarJsonRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
+                                                 Set<DecoderColumnHandle> columns) {
         return new PulsarJsonRowDecoder((GenericJsonSchema) GenericJsonSchema.of(schemaInfo), columns);
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
+                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
@@ -82,7 +85,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
 
         return schema.getFields().stream()
                 .map(field ->
-                        new PulsarColumnMetadata(field.name(), parseJsonPrestoType(field.name(), field.schema()), field.schema().toString(), null, false, false,
+                        new PulsarColumnMetadata(field.name(), parseJsonPrestoType(field.name(), field.schema()),
+                                field.schema().toString(), null, false, false,
                                 handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.name(), null, null))
 
                 ).collect(toList());
@@ -97,7 +101,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case ENUM:
                 return createUnboundedVarcharType();
             case NULL:
-                throw new UnsupportedOperationException(format("field '%s' NULL Type code should not be reached ，please check the schema or report the bug.", fieldname));
+                throw new UnsupportedOperationException(format("field '%s' NULL Type code should not be reached ，" +
+                        "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
                 return VarbinaryType.VARBINARY;
@@ -124,14 +129,16 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case MAP:
                 //The key for an avro map must be a string
                 TypeSignature valueType = parseJsonPrestoType(fieldname, schema.getValueType()).getTypeSignature();
-                return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()), TypeSignatureParameter.typeParameter(valueType)));
+                return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.
+                        typeParameter(VarcharType.VARCHAR.getTypeSignature()), TypeSignatureParameter.typeParameter(valueType)));
             case RECORD:
                 if (schema.getFields().size() > 0) {
                     return RowType.from(schema.getFields().stream()
                             .map(field -> new RowType.Field(Optional.of(field.name()), parseJsonPrestoType(field.name(), field.schema())))
                             .collect(toImmutableList()));
                 } else {
-                    throw new UnsupportedOperationException(format("field '%s' of record Type has no fields, please check avro schema definition. ", fieldname));
+                    throw new UnsupportedOperationException(format("field '%s' of record Type has no fields, " +
+                            "please check avro schema definition. ", fieldname));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
@@ -141,7 +148,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 }
                 throw new UnsupportedOperationException(format("field '%s' of UNION type must contains not null type ", fieldname));
             default:
-                throw new UnsupportedOperationException(format("Cannot convert from Schema type '%s' (%s) to Presto type", schema.getType(), schema.getFullName()));
+                throw new UnsupportedOperationException(format("Cannot convert from Schema type '%s' (%s) to " +
+                        "Presto type", schema.getType(), schema.getFullName()));
         }
     }
 }
