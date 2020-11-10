@@ -34,8 +34,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
     public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
 
-
-    private DecoderExtraInfo decoderExtraInfo ;
+    private DecoderExtraInfo decoderExtraInfo;
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
@@ -123,7 +122,8 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
 
     /**
-     * Decoder ExtraInfo for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle} used by {@link io.prestosql.decoder.RowDecoder}
+     * Decoder ExtraInfo for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
+     * used by {@link io.prestosql.decoder.RowDecoder}.
      */
     public static class DecoderExtraInfo {
 

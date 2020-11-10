@@ -18,19 +18,23 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
-import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.type.*;
-import org.apache.pulsar.sql.presto.PulsarRowDecoder;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import io.netty.buffer.ByteBuf;
+import io.prestosql.decoder.DecoderColumnHandle;
+import io.prestosql.decoder.FieldValueProvider;
+
+import io.prestosql.spi.type.*;
+import org.apache.pulsar.sql.presto.PulsarRowDecoder;
+
 import static io.prestosql.decoder.FieldValueProviders.*;
 import static org.apache.pulsar.sql.presto.PulsarFieldValueProviders.doubleValueProvider;
 
+/**
+ * Primitive Schema PulsarRowDecoder.
+ */
 public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
 
     private final DecoderColumnHandle columnHandle;
@@ -47,7 +51,8 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
         Type type = columnHandle.getType();
         if (type instanceof BooleanType) {
             primitiveColumn.put(columnHandle, booleanValueProvider(Boolean.valueOf(new String(data))));
-        } else if (type instanceof TinyintType || type instanceof SmallintType || type instanceof IntegerType || type instanceof BigintType) {
+        } else if (type instanceof TinyintType || type instanceof SmallintType || type instanceof IntegerType
+                || type instanceof BigintType) {
             primitiveColumn.put(columnHandle, longValueProvider(Long.valueOf(new String(data))));
         } else if (type instanceof DoubleType) {
             primitiveColumn.put(columnHandle, doubleValueProvider(Double.valueOf(new String(data))));

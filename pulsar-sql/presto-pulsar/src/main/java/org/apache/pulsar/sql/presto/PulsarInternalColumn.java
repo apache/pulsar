@@ -20,7 +20,11 @@ package org.apache.pulsar.sql.presto;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.prestosql.spi.type.*;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.VarcharType;
+import io.prestosql.spi.type.Type;
 
 import java.util.Map;
 import java.util.Set;
@@ -36,32 +40,32 @@ import static java.util.Objects.requireNonNull;
 public class PulsarInternalColumn {
 
 
-    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn("__partition__", IntegerType.INTEGER,
-            "The partition number which the message belongs to");
+    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn("__partition__",
+            IntegerType.INTEGER, "The partition number which the message belongs to");
 
-    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn("__event_time__", TimestampType
-            .TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
+    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn("__event_time__",
+            TimestampType.TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
 
     public static final PulsarInternalColumn PUBLISH_TIME = new PulsarInternalColumn("__publish_time__",
             TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
 
-    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__", VarcharType.VARCHAR,
-            "The message ID of the message used to generate this row");
+    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__",
+            VarcharType.VARCHAR,"The message ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__", BigintType.BIGINT,
-            "The sequence ID of the message used to generate this row");
+    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__",
+            BigintType.BIGINT,"The sequence ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__", VarcharType
-            .VARCHAR, "The name of the producer that publish the message used to generate this row");
+    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__",
+            VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row");
 
-    public static final PulsarInternalColumn KEY = new PulsarInternalColumn("__key__", VarcharType.VARCHAR, "The partition key "
-            + "for the topic");
+    public static final PulsarInternalColumn KEY = new PulsarInternalColumn("__key__",
+            VarcharType.VARCHAR, "The partition key for the topic");
 
-    public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__", VarcharType.VARCHAR,
-            "User defined properties");
+    public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__",
+            VarcharType.VARCHAR, "User defined properties");
 
-    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY,
-            PROPERTIES);
+    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
+            MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
 
 
     private final String name;

@@ -16,26 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
-
-import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-
-import java.util.Map;
-import java.util.Optional;
-
 /**
- * RowDecoder interface for Pulsar.
+ * This package contains decoder for SchemaType.AVRO.
  */
-public interface PulsarRowDecoder {
-
-    /**
-     * decode byteBuf to Column FieldValueProvider.
-     *
-     * @param byteBuf
-     * @return
-     */
-    Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf);
-
-}
+package org.apache.pulsar.sql.presto.decoder.avro;

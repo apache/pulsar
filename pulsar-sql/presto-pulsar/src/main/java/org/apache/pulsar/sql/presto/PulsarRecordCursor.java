@@ -18,6 +18,19 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
+import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -43,18 +56,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
-import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
 
 /**
  * Implementation of a cursor to read records.
@@ -96,7 +97,8 @@ public class PulsarRecordCursor implements RecordCursor {
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
-                              PulsarConnectorConfig pulsarConnectorConfig, PulsarDispatchingRowDecoderFactory decoderFactory) {
+                              PulsarConnectorConfig pulsarConnectorConfig,
+                              PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
         // Set start time for split
         this.startTime = System.nanoTime();
@@ -127,7 +129,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-        pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
                        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker, PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig,
@@ -154,7 +156,7 @@ public class PulsarRecordCursor implements RecordCursor {
         this.pulsarConnectorConfig = pulsarConnectorConfig;
 
         try {
-            this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider( this.topicName, pulsarConnectorConfig.getPulsarAdmin());
+            this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName, pulsarConnectorConfig.getPulsarAdmin());
         } catch (PulsarClientException e) {
             log.error(e, "Failed to init  Pulsar SchemaInfo Provider");
             throw new RuntimeException(e);
@@ -435,7 +437,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
         Map<ColumnHandle, FieldValueProvider> currentRowValuesMap = new HashMap<>();
 
-        if(schemaInfo.getType().equals(SchemaType.KEY_VALUE)  ){
+        if (schemaInfo.getType().equals(SchemaType.KEY_VALUE)) {
 
             PulsarRowDecoder keyDecoder = decoderFactory.createRowDecoder(topicName,
                     schemaInfo,
@@ -474,11 +476,14 @@ public class PulsarRecordCursor implements RecordCursor {
                 if (PulsarInternalColumn.PARTITION.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
                 } else if (PulsarInternalColumn.EVENT_TIME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
+                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                            this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
                 } else if (PulsarInternalColumn.PUBLISH_TIME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
+                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                            this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
                 } else if (PulsarInternalColumn.MESSAGE_ID.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(this.currentMessage.getMessageId().toString().getBytes()));
+                    currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                            this.currentMessage.getMessageId().toString().getBytes()));
                 } else if (PulsarInternalColumn.SEQUENCE_ID.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
                 } else if (PulsarInternalColumn.PRODUCER_NAME.getName().equals(columnHandle.getName())) {
@@ -488,7 +493,8 @@ public class PulsarRecordCursor implements RecordCursor {
                     currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
                 } else if (PulsarInternalColumn.PROPERTIES.getName().equals(columnHandle.getName())) {
                     try {
-                        currentRowValuesMap.put(columnHandle, bytesValueProvider(new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
+                        currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                                new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
@@ -545,7 +551,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
     @Override
     public boolean isNull(int field) {
-        FieldValueProvider  provider= currentRowValues[field];
+        FieldValueProvider provider = currentRowValues[field];
         return provider == null || provider.isNull();
     }
 

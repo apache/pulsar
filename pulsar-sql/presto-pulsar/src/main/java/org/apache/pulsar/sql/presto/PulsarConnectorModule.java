@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.json.JsonBinder.jsonBinder;
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 import com.google.inject.Binder;
@@ -29,10 +33,6 @@ import io.prestosql.spi.type.TypeId;
 import io.prestosql.spi.type.TypeManager;
 
 import javax.inject.Inject;
-
-import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.json.JsonBinder.jsonBinder;
-import static java.util.Objects.requireNonNull;
 
 /**
  * This class defines binding of classes in the Presto connector.

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
@@ -30,10 +34,9 @@ import org.apache.pulsar.sql.presto.PulsarColumnMetadata;
 import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-
+/**
+ * Primitive Schema PulsarRowDecoderFactory.
+ */
 public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory {
 
     private static final Logger log = Logger.get(PulsarPrimitiveRowDecoderFactory.class);
@@ -48,12 +51,14 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
+                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
                 PulsarColumnMetadata.getColumnName(handleKeyValueType, "__value__"),
                 parsePrimitivePrestoType("__value__", schemaInfo.getType()),
                 "The value of the message with primitive type schema", null, false, false,
-                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo("__value__", null, null));
+                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo("__value__",
+                null, null));
         return Arrays.asList(valueColumn);
     }
 

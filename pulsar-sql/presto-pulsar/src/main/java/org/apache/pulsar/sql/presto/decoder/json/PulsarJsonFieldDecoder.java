@@ -61,12 +61,13 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
- * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345) with some pulsar's extensions :
- * 1) support array
- * 2) support map
- * 3) support row
- * 3) support TIMESTAMP,DATE,TIME
- * 4) support Real
+ * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
+ * with some pulsar's extensions:
+ * 1) support array.
+ * 2) support map.
+ * 3) support row.
+ * 3) support TIMESTAMP,DATE,TIME.
+ * 4) support Real.
  */
 public class PulsarJsonFieldDecoder
         implements JsonFieldDecoder {
@@ -146,6 +147,9 @@ public class PulsarJsonFieldDecoder
         return new JsonValueProvider(value, columnHandle, minValue, maxValue);
     }
 
+    /**
+     * JsonValueProvider.
+     */
     public static class JsonValueProvider
             extends FieldValueProvider {
         private final JsonNode value;
@@ -167,22 +171,22 @@ public class PulsarJsonFieldDecoder
 
         @Override
         public boolean getBoolean() {
-            return getBoolean(value,columnHandle.getType(),columnHandle.getName());
+            return getBoolean(value, columnHandle.getType(), columnHandle.getName());
         }
 
         @Override
         public long getLong() {
-            return getLong(value,columnHandle.getType(),columnHandle.getName(),minValue,maxValue);
+            return getLong(value, columnHandle.getType(), columnHandle.getName(), minValue, maxValue);
         }
 
         @Override
         public double getDouble() {
-            return getDouble(value,columnHandle.getType(),columnHandle.getName());
+            return getDouble(value, columnHandle.getType(), columnHandle.getName());
         }
 
         @Override
         public Slice getSlice() {
-            return getSlice(value,columnHandle.getType(),columnHandle.getName());
+            return getSlice(value, columnHandle.getType(), columnHandle.getName());
         }
 
         @Override
@@ -200,7 +204,7 @@ public class PulsarJsonFieldDecoder
                     format("could not parse non-value node as '%s' for column '%s'", type, columnName));
         }
 
-        public static long getLong(JsonNode value, Type type, String columnName,long minValue,long maxValue) {
+        public static long getLong(JsonNode value, Type type, String columnName, long minValue, long maxValue) {
             try {
                 if (type instanceof RealType) {
                     return floatToIntBits((Float) parseFloat(value.asText()));
@@ -252,7 +256,6 @@ public class PulsarJsonFieldDecoder
             return slice;
         }
 
-
         private Block serializeObject(BlockBuilder builder, Object value, Type type, String columnName) {
             if (type instanceof ArrayType) {
                 return serializeList(builder, value, type, columnName);
@@ -276,7 +279,7 @@ public class PulsarJsonFieldDecoder
 
             checkState(value instanceof ArrayNode, "Json array node must is ArrayNode type");
 
-            Iterator<JsonNode> jsonNodeIterator = ((ArrayNode)value).elements();
+            Iterator<JsonNode> jsonNodeIterator = ((ArrayNode) value).elements();
 
             List<Type> typeParameters = type.getTypeParameters();
             Type elementType = typeParameters.get(0);
@@ -301,7 +304,8 @@ public class PulsarJsonFieldDecoder
             if (node instanceof JsonNode) {
                 value = (JsonNode) node;
             } else {
-                throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED, format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode", node.getClass(), type, columnName));
+                throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+                        format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode", node.getClass(), type, columnName));
             }
 
             if (value == null) {
@@ -314,7 +318,9 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            if (type instanceof RealType || type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType || type instanceof TinyintType || type instanceof TimestampType || type instanceof TimeType || type instanceof DateType) {
+            if (type instanceof RealType || type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType
+                    || type instanceof TinyintType || type instanceof TimestampType || type instanceof TimeType
+                    || type instanceof DateType) {
                 Pair<Long, Long> numRange = getNumRangeByType(type);
                 type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));
                 return;
@@ -330,7 +336,8 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED, format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
+            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+                    format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
         }
 
         private Block serializeMap(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
@@ -354,7 +361,7 @@ public class PulsarJsonFieldDecoder
 
             BlockBuilder entryBuilder = blockBuilder.beginBlockEntry();
 
-            Iterator<Map.Entry<String, JsonNode>> fields = ((ObjectNode)value).fields();
+            Iterator<Map.Entry<String, JsonNode>> fields = ((ObjectNode) value).fields();
             while (fields.hasNext()) {
                 Map.Entry entry = fields.next();
                 if (entry.getKey() != null) {
@@ -393,7 +400,8 @@ public class PulsarJsonFieldDecoder
 
             for (RowType.Field field : fields) {
                 checkState(field.getName().isPresent(), "field name not found");
-                serializeObject(singleRowBuilder, ((ObjectNode) value).get(field.getName().get()), field.getType(), columnName);
+                serializeObject(singleRowBuilder, ((ObjectNode) value).get(field.getName().get()),
+                        field.getType(), columnName);
             }
             blockBuilder.closeEntry();
             if (parentBlockBuilder == null) {

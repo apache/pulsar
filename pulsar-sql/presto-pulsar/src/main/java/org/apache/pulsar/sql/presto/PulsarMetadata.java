@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
+import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static java.util.Objects.requireNonNull;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
+import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
+import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -37,13 +45,6 @@ import javax.inject.Inject;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
-import static java.util.Objects.requireNonNull;
-import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
-import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
-import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
-import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
 
 /**
  * This connector helps to work with metadata.
@@ -62,7 +63,8 @@ public class PulsarMetadata implements ConnectorMetadata {
     private static final Logger log = Logger.get(PulsarMetadata.class);
 
     @Inject
-    public PulsarMetadata(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig, PulsarDispatchingRowDecoderFactory decoderFactory) {
+    public PulsarMetadata(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig,
+                          PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.decoderFactory = decoderFactory;
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
         this.pulsarConnectorConfig = pulsarConnectorConfig;
@@ -188,7 +190,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     pulsarColumnMetadata.isHidden(),
                     pulsarColumnMetadata.isInternal(),
                     pulsarColumnMetadata.getDecoderExtraInfo().getMapping(),
-                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(),pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
                     pulsarColumnMetadata.getHandleKeyValueType());
 
             columnHandles.put(
@@ -306,13 +309,13 @@ public class PulsarMetadata implements ConnectorMetadata {
                                            SchemaInfo schemaInfo,
                                            boolean withInternalColumns,
                                            PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
-        SchemaType schemaType = schemaInfo.getType();
-        if (schemaType.isStruct()|| schemaType.isPrimitive()) {
-            return getPulsarColumnsFromSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
-        } else if (schemaType.equals(SchemaType.KEY_VALUE)) {
-            return getPulsarColumnsFromKeyValueSchema(topicName, schemaInfo, withInternalColumns);
-        } else {
-            throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
+         SchemaType schemaType = schemaInfo.getType();
+         if (schemaType.isStruct() || schemaType.isPrimitive()) {
+             return getPulsarColumnsFromSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
+         } else if (schemaType.equals(SchemaType.KEY_VALUE)) {
+             return getPulsarColumnsFromKeyValueSchema(topicName, schemaInfo, withInternalColumns);
+         } else {
+             throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
         }
     }
 

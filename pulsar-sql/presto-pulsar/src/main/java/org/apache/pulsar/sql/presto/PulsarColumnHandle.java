@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,8 +28,6 @@ import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.Type;
 
 import java.util.Objects;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * This class represents the basic information about a presto column.
@@ -60,16 +60,16 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
     private HandleKeyValueType handleKeyValueType;
 
     /**
-     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#mapping}
+     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#mapping}.
      */
     private String mapping;
     /**
-     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#dataFormat}
+     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#dataFormat}.
      */
     private String dataFormat;
 
     /**
-     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#formatHint}
+     * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#formatHint}.
      */
     private String formatHint;
 
@@ -78,7 +78,6 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
      */
     public enum HandleKeyValueType {
         /**
-         *
          * The handle not for keyValue schema.
          */
         NONE,
@@ -108,9 +107,9 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
         this.type = requireNonNull(type, "type is null");
         this.hidden = hidden;
         this.internal = internal;
-        this.mapping=mapping;
-        this.dataFormat=dataFormat;
-        this.formatHint=formatHint;
+        this.mapping = mapping;
+        this.dataFormat = dataFormat;
+        this.formatHint = formatHint;
         if (handleKeyValueType == null) {
             this.handleKeyValueType = HandleKeyValueType.NONE;
         } else {
@@ -174,7 +173,8 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
     }
 
     ColumnMetadata getColumnMetadata() {
-        return new PulsarColumnMetadata(name, type, null, null, hidden, internal, handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(mapping, dataFormat, formatHint));
+        return new PulsarColumnMetadata(name, type, null, null, hidden,
+                internal, handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(mapping, dataFormat, formatHint));
     }
 
     @Override
