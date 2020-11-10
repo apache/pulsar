@@ -1530,7 +1530,6 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
-<<<<<<< Updated upstream
      * Get the delayed delivery policy for a specified topic.
      * @param topic
      * @return

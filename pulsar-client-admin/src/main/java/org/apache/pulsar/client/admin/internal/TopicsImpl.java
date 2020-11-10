@@ -1517,7 +1517,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
             request(path.queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString()))
-                    .get();
+                    .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
