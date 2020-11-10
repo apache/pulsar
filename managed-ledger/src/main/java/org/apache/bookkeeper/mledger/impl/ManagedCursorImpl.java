@@ -2773,7 +2773,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ((PositionImpl) position).getEntryId()) || ((PositionImpl) position).compareTo(markDeletePosition) <= 0 ;
     }
 
-    //this method will return the a copy of the position's ack set
+    //this method will return a copy of the position's ack set
     public long[] getBatchPositionAckSet(Position position) {
         if (!(position instanceof PositionImpl)) {
             return null;
