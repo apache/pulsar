@@ -70,6 +70,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
@@ -558,6 +560,75 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
             assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+
+        } finally {
+            stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void nackMessageTest() throws Exception {
+        final String subscription = "my-sub";
+        final String dlqTopic = "my-property/my-ns/my-topic10";
+        final String consumerTopic = "my-property/my-ns/my-topic9";
+
+        final String dlqUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/consumer/persistent/" +
+          dlqTopic + "/" + subscription +
+          "?subscriptionType=Shared";
+
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/consumer/persistent/" +
+          consumerTopic + "/" + subscription +
+          "?deadLetterTopic=" + dlqTopic +
+          "&maxRedeliverCount=0&subscriptionType=Shared&ackTimeoutMillis=1000&negativeAckRedeliveryDelay=1000";
+
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+          "/ws/v2/producer/persistent/" + consumerTopic;
+
+        WebSocketClient consumeClient1 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        WebSocketClient consumeClient2 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        consumeSocket1.setMessageHandler((id, data) -> {
+            log.info(data.toString());
+            JsonObject nack = new JsonObject();
+            nack.add("messageId", new JsonPrimitive(id));
+            nack.add("type", new JsonPrimitive("negativeAcknowledge"));
+            return nack.toString();
+        });
+
+        try {
+            consumeClient1.start();
+            consumeClient2.start();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, URI.create(consumerUri), consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, URI.create(dlqUri), consumeRequest2);
+
+            assertTrue(consumerFuture1.get().isOpen());
+            assertTrue(consumerFuture2.get().isOpen());
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
+            assertTrue(producerFuture.get().isOpen());
+
+            log.info("SEND");
+            produceSocket.sendMessage(1);
+
+            Thread.sleep(500);
+
+            //assertEquals(consumeSocket1.getReceivedMessagesCount(), 1);
+            assertTrue(consumeSocket1.getReceivedMessagesCount() > 0);
+
+            Thread.sleep(500);
+
+            //assertEquals(consumeSocket2.getReceivedMessagesCount(), 1);
+            assertTrue(consumeSocket1.getReceivedMessagesCount() > 0);
 
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
