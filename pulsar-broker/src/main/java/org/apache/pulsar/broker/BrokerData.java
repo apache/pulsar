@@ -36,7 +36,7 @@ public class BrokerData {
 
     /**
      * Initialize this BrokerData using the most recent local data.
-     * 
+     *
      * @param localData
      *            The data local for the broker.
      */

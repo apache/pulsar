@@ -56,11 +56,10 @@
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
       <classifier>pkg</classifier>
-      <!-- bc module should not be included in the followed package, or the signature in jar would be wrong -->
-      <optional>true</optional>
     </dependency>
 
     <dependency>
+      <!-- this module only need by the real client, client inside broker no need this module -->
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.parent.version}</version>

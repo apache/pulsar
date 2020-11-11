@@ -19,6 +19,7 @@
 #ifndef LIB_BLOCKINGQUEUE_H_
 #define LIB_BLOCKINGQUEUE_H_
 
+#include <assert.h>
 #include <mutex>
 #include <condition_variable>
 #include <boost/circular_buffer.hpp>

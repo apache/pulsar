@@ -145,7 +145,7 @@ public abstract class PulsarWebResource {
     }
 
     public boolean isRequestHttps() {
-    	return "https".equalsIgnoreCase(httpRequest.getScheme());
+        return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
 
     public static boolean isClientAuthenticated(String appId) {

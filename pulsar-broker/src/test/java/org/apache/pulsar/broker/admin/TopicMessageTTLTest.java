@@ -26,6 +26,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -60,7 +61,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
         producer.close();
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
     }
 
     @AfterMethod
@@ -74,12 +75,12 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 100);
         log.info("Message TTL set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 100);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         admin.topics().removeMessageTTL(testTopic);
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
@@ -92,14 +93,14 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
             admin.topics().setMessageTTL(testTopic, -100);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
         }
 
         try {
             admin.topics().setMessageTTL(testTopic, (int)2147483650L);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
         }
     }
 
@@ -113,7 +114,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 200);
         log.info("Message TTL set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 200);
@@ -135,14 +136,14 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
             admin.topics().getMessageTTL(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().setMessageTTL(testTopic, 200);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
     }
 
