@@ -449,6 +449,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
         functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        functionConfig.setBatchBuilder("DEFAULT");
         functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);

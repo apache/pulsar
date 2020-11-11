@@ -226,6 +226,9 @@ public class FunctionConfigUtils {
             if (producerConf.getCryptoConfig() != null) {
                 pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
             }
+            if (producerConf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(producerConf.getBatchBuilder());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);

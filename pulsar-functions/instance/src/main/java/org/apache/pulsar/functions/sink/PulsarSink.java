@@ -24,18 +24,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
@@ -131,6 +120,13 @@ public class PulsarSink<T> implements Sink<T> {
                     builder.cryptoFailureAction(crypto.failureAction);
                     for (String encryptionKeyName : crypto.getEncryptionKeys()) {
                         builder.addEncryptionKey(encryptionKeyName);
+                    }
+                }
+                if (producerConfig.getBatchBuilder() != null) {
+                    if (producerConfig.getBatchBuilder().equals("KEY_BASED")) {
+                        builder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                    } else {
+                        builder.batcherBuilder(BatcherBuilder.DEFAULT);
                     }
                 }
             }

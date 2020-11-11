@@ -163,6 +163,9 @@ public class SourceConfigUtils {
             if (conf.getCryptoConfig() != null) {
                 pbldr.setCryptoSpec(CryptoUtils.convert(conf.getCryptoConfig()));
             }
+            if (conf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(conf.getBatchBuilder());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
