@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -114,12 +113,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetadataStore metadataStore;
 
     private static final int StatsPeriodSeconds = 60;
-    
-    private final static AtomicInteger currentCount = new AtomicInteger();
-    private final Throwable creationStackTrace = new Throwable("MLCLIENT created-"+System.identityHashCode(this)+" #"+currentCount.incrementAndGet()).fillInStackTrace();
-    private final String description = ""+System.identityHashCode(this);
-    private static long startupTime = System.currentTimeMillis();
-    private volatile ScheduledFuture<?> dieTests;
 
     private static class PendingInitializeManagedLedger {
 
@@ -216,15 +209,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
 
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
-        dieTests = this.scheduledExecutor.schedule(() -> {
-            System.out.println();
-            System.out.println("MLCLIENT Found a PulsarService "+System.identityHashCode(ManagedLedgerFactoryImpl.this)+" created as "+description+" not closed within 2 MINUTES, failing after " + (System.currentTimeMillis() - startupTime) / 60000 + " minutes");
-            creationStackTrace.printStackTrace(System.out);
-            System.out.flush();
-        }, 2, TimeUnit.MINUTES);
-        System.out.println();
-        creationStackTrace.printStackTrace(System.out);
-        System.out.flush();
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -498,18 +482,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
-        int nowCount = currentCount.decrementAndGet();
-        boolean already = false;
-        if (dieTests != null) {
-            dieTests.cancel(false);
-            dieTests = null;
-        } else {
-            already = true;
-        }
-        System.out.println();
-        new Throwable("MLCLIENT  closed-"+description+" ("+System.identityHashCode(this)+")  "+this.getClass().getName()+" #"+nowCount+" already:"+already).printStackTrace(System.out);
-        System.out.flush();
-       
         statsTask.cancel(true);
 
         int numLedgers = ledgers.size();
