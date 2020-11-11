@@ -384,6 +384,7 @@ The Apache Software License, Version 2.0
     - presto-parser-332.jar
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
+    - presto-record-decoder-332.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
