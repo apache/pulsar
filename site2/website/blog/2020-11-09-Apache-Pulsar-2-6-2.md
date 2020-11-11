@@ -1,5 +1,5 @@
 ---
-author: XiaoLong Ran
+author: Xiaolong Ran
 authorURL: https://twitter.com/wolf4j1
 title: Apache Pulsar 2.6.2
 ---
@@ -29,7 +29,7 @@ For more information about implementation, see [PR-7335](https://github.com/apac
 
 ### Update Jersey to 2.31
 
-Before 2.6.1, Pulsar uses the Jersey 2.27, which has security concerns. In Pulsar 2.6.2, we update the Jersey version to the latest stable version(2.31) to enhance security.
+Before 2.6.1, Pulsar used the Jersey 2.27, which has security concerns. In Pulsar 2.6.2, we update the Jersey version to the latest stable version(2.31) to enhance security.
 
 For more information about implementation, see [PR-7515](https://github.com/apache/pulsar/pull/7515).
 
@@ -72,7 +72,7 @@ private final ScheduledExecutorService executor = Executors.newScheduledThreadPo
            new DefaultThreadFactory("pulsar"));
 ```
 
-In 2.6.2, users can configure the executor pool size in the `broker.conf` file based on their need.
+In 2.6.2, users can configure the executor pool size in the `broker.conf` file based on their needs.
 
 For more information about implementation, see [PR-7782](https://github.com/apache/pulsar/pull/7782).
 
@@ -97,7 +97,7 @@ In 2.6.2, we upgrade the jetty-util version to `9.4.31` to enhance security.
 
 For more information about implementation, see [PR-8035](https://github.com/apache/pulsar/pull/8035).
 
-### Add command to delete a cluster's metadata from ZK
+### Add command to delete a cluster's metadata from ZooKeeper
 
 When we share the same ZooKeeper and BookKeeper cluster among multiple broker clusters, if a cluster was removed, its metadata in ZooKeeper were also removed.
 
@@ -142,7 +142,7 @@ Some broker servers had deadlocks while splitting namespace bundles. When checki
 ...
 ```
 
-The reason for the issue is that the `getBundle()` method leads to deadlock in `NamespaceService#isTopicOwned()`. To fix the issue, we remove the `getBundle()` method. When `isTopicOwned()` returns `false`, the bundle metadata is cached and can be got asynchronously. When the client reconnects the next time, the bundle metadata return the correct result from the cache.
+The reason for the issue is that the `getBundle()` method leads to deadlock in `NamespaceService#isTopicOwned()`. To fix the issue, we remove the `getBundle()` method. When `isTopicOwned()` returns `false`, the bundle metadata is cached and can be got asynchronously. When the client reconnects the next time, Pulsar returns the correct bundle metadata from the cache.
 
 For more information about implementation, see [PR-8406](https://github.com/apache/pulsar/pull/8406).
 
@@ -167,8 +167,9 @@ For more information about implementation, see [PR-8067](https://github.com/apac
 When enabling the broker TLS and broker client authentication with OAuth2 plugin,
 the proxy service exits with an unexpected null exception.
 
-Because there are some methods call authentication before initializing the flow
-which will cause the token client isn't initialized before using.
+The reason is that when initializing the flow, authentication is called, so the token client is not initialized before using.
+
+In 2.6.2, we fix the null exception when starting the proxy service.
 
 For more information about implementation, see [PR-8019](https://github.com/apache/pulsar/pull/8019).
 
@@ -177,6 +178,7 @@ For more information about implementation, see [PR-8019](https://github.com/apac
 ### Support input-stream for trustStore cert
 
 In 2.6.1, Pulsar supports dynamic cert loading by using input stream for TLS cert and key file. The feature is mainly used by container. However, container also requires dynamic loading for truststore certs and users cannot store trust-store cert into file-system. 
+
 In 2.6.2, Pulsar supports loading truststore cert dynamically using input stream.
 
 For more information about implementation, see [PR-7442](https://github.com/apache/pulsar/pull/7442).
@@ -251,11 +253,11 @@ In 2.6.2, we add a function instance classpath entry to the Kubernetes runtime c
 
 For more information about implementation, see [PR-7844](https://github.com/apache/pulsar/pull/7844).
 
-### Set `dryrun` of KubernetesRuntime is null
+### Set `dryrun` of Kubernetes Runtime to null
 
-Due to security issues, we upgrade the `client-java` of Kubernetes to `0.9.2`, this causes the following error. During the creation of statefulsets, secrets, and services, the code has been configured to set the "dryrun" value of "true". "true" is not accepted by Kubernetes. Only "All" is allowed. So the value should be set to null.
+Before 2.6.2, we upgraded the `client-java` of Kubernetes to `0.9.2` to enhance security. However, during the creation of statefulsets, secrets, and services, the value of `dryrun` was set to `true`, which was not accepted by Kubernetes. Only `All` is allowed in Kubernetes. 
 
-In 2.6.2, we set the `dryrun` of KubernetesRuntime is null.
+In 2.6.2, we set the `dryrun` of Kubernetes Runtime to null.
 
 For more information about implementation, see [PR-8064](https://github.com/apache/pulsar/pull/8064).
 
@@ -298,7 +300,7 @@ For more information about implementation, see [PR-8133](https://github.com/apac
 
 ## Pulsar Perf
 
-### Make pulsar-perf ioThread number configurable
+### Enable users to configure ioThread number in pulsar-perf
 
 In pulsar-perf, the default Pulsar client ioThread number is `Runtime.getRuntime().availableProcessors()` and users could not configure it in the command line. When running a pulsar-perf producer, it may cause messages to enqueue competition and lead to high latency.
 
