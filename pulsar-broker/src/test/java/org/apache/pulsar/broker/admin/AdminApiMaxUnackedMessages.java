@@ -54,7 +54,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("max-unacked-messages", tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

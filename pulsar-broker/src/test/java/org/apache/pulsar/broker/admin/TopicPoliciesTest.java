@@ -84,7 +84,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(3000);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

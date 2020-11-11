@@ -159,7 +159,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         brokerMock.close(); //to clear pulsarStats
         try {

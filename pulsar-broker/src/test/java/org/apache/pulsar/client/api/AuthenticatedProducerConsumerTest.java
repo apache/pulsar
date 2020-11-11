@@ -116,7 +116,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 .enableTls(true).build();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

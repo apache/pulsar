@@ -55,7 +55,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

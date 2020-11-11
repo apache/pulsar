@@ -75,7 +75,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         teardown();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.listeners.close();
 

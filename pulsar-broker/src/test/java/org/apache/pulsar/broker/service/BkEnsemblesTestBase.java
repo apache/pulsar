@@ -93,7 +93,7 @@ public abstract class BkEnsemblesTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void shutdown() throws Exception {
         try {
             admin.close();

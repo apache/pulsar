@@ -97,7 +97,7 @@ public class TransactionMetaStoreTestBase {
         log.info("[afterPulsarStart]");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void shutdownAll() throws Exception {
         for (PulsarService service : pulsarServices) {
             if (service != null) {

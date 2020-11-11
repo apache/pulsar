@@ -73,7 +73,7 @@ public class LeaderElectionServiceTest {
         };
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)(alwaysRun = true)
     void shutdown() throws Exception {
         bkEnsemble.stop();
         log.info("---- bk stopped ----");

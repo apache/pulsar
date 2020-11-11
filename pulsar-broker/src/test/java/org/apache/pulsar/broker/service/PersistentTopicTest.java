@@ -208,7 +208,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         setupMLAsyncCallbackMocks();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats

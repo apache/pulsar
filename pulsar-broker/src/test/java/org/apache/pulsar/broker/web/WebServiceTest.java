@@ -403,7 +403,7 @@ public class WebServiceTest {
         }
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)(alwaysRun = true)
     void teardown() throws Exception {
         if (pulsar != null) {
             try {

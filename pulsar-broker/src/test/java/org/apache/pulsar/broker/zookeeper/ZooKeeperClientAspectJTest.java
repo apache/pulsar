@@ -130,7 +130,7 @@ public class ZooKeeperClientAspectJTest {
         localZkS.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         localZkS.close();
     }
