@@ -64,8 +64,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        System.out.println();
-        System.out.println("AA BEFORE");
         conf.setManagedLedgerMaxEntriesPerLedger(10);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         conf.setSystemTopicEnabled(true);
@@ -83,8 +81,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
-        System.out.println();
-        System.out.println("AA AFTER");
         super.internalCleanup();
     }
 
