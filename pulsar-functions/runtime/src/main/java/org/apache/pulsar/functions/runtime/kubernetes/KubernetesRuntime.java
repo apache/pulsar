@@ -1087,31 +1087,34 @@ public class KubernetesRuntime implements Runtime {
 
     public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
         return jobName == null ? createJobName(functionDetails.getTenant(),
-                functionDetails.getNamespace(),
-                functionDetails.getName()) : createJobName(jobName);
+                functionDetails.getNamespace(), functionDetails.getName()) : 
+                	createJobName(jobName, functionDetails.getTenant(),
+                        functionDetails.getNamespace(), functionDetails.getName());
     }
 
     private static String toValidPodName(String ori) {
         return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
     }
     
-    private static String validateName(String jobName) {
+    private static String createJobName(String jobName, String tenant, String namespace, String functionName) {
     	final String convertedJobName = toValidPodName(jobName);
+        // use of customRuntimeOptions 'jobName' may cause naming collisions, 
+    	// add a short hash here to avoid it
+    	final String hashName = String.format("%s-%s-%s-%s", jobName, tenant, namespace, functionName);
+        final String shortHash = DigestUtils.sha1Hex(hashName).toLowerCase().substring(0, 8);
+        return convertedJobName + "-" + shortHash;
+    }
+    
+    private static String createJobName(String tenant, String namespace, String functionName) {
+    	final String jobNameBase = String.format("%s-%s-%s", tenant, namespace, functionName);
+        final String jobName = "pf-" + jobNameBase;
+        final String convertedJobName = toValidPodName(jobName);
         if (jobName.equals(convertedJobName)) {
             return jobName;
         }
         // toValidPodName may cause naming collisions, add a short hash here to avoid it
-        final String shortHash = DigestUtils.sha1Hex(jobName.replaceFirst("pf-", "")).toLowerCase().substring(0, 8);
+        final String shortHash = DigestUtils.sha1Hex(jobNameBase).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
-    }
-    
-    private static String createJobName(String jobName) {
-    	return validateName(jobName);
-    }
-    
-    private static String createJobName(String tenant, String namespace, String functionName) {
-        final String jobName = "pf-" + String.format("%s-%s-%s", tenant, namespace, functionName);
-        return validateName(jobName);
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
