@@ -33,11 +33,11 @@ namespace pulsar {
 
 DECLARE_LOG_OBJECT();
 
-AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr, HandlerBase& handler,
-                                                     uint64_t consumerId, long ackGroupingTimeMs,
-                                                     long ackGroupingMaxSize)
+AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr,
+                                                     const HandlerBasePtr& handlerPtr, uint64_t consumerId,
+                                                     long ackGroupingTimeMs, long ackGroupingMaxSize)
     : AckGroupingTracker(),
-      handler_(handler),
+      handlerWeakPtr_(handlerPtr),
       consumerId_(consumerId),
       nextCumulativeAckMsgId_(MessageId::earliest()),
       requireCumulativeAck_(false),
@@ -94,7 +94,12 @@ void AckGroupingTrackerEnabled::close() {
 }
 
 void AckGroupingTrackerEnabled::flush() {
-    auto cnx = this->handler_.getCnx().lock();
+    auto handler = handlerWeakPtr_.lock();
+    if (!handler) {
+        LOG_WARN("Reference to the HandlerBase is not valid.");
+        return;
+    }
+    auto cnx = handler->getCnx().lock();
     if (cnx == nullptr) {
         LOG_DEBUG("Connection is not ready, grouping ACK failed.");
         return;
