@@ -111,6 +111,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public OffloadPolicies offload_policies = null;
 
+    public Integer deduplicationSnapshotIntervalSeconds = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
