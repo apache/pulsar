@@ -38,6 +38,7 @@ import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.distributedlog.namespace.NamespaceDriver;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.manager.PackageStorage;
 import org.apache.pulsar.packages.manager.PackageStorageConfig;
@@ -52,8 +53,12 @@ public class BKPackageStorage implements PackageStorage {
     private Namespace namespace;
     private BKPackageStorageConfig config;
 
-    BKPackageStorage(PackageStorageConfig config) {
-        this.config = (BKPackageStorageConfig) config;
+    BKPackageStorage(ServiceConfiguration configuration) {
+        this(BKPackageStorageConfig.loadFromServiceConfiguration(configuration));
+    }
+
+    BKPackageStorage(BKPackageStorageConfig config) {
+        this.config = config;
         setup();
     }
 

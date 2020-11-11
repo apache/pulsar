@@ -338,6 +338,13 @@
 
     <!-- transaction related dependencies (end) -->
 
+    <!-- package manager related dependencies (begin) -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-package-manager</artifactId>
+        <version>${project.version}</version>
+    </dependency>
+    <!-- package manager related dependencies (begin) -->
   </dependencies>
 
   <build>

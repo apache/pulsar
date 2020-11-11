@@ -19,9 +19,11 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.packages.manager.PackageStorageConfig;
 
 /**
@@ -30,6 +32,7 @@ import org.apache.pulsar.packages.manager.PackageStorageConfig;
 @Data
 @Setter
 @Getter
+@Builder
 class BKPackageStorageConfig implements PackageStorageConfig {
     int numReplicas;
     String zkServers;
@@ -37,4 +40,14 @@ class BKPackageStorageConfig implements PackageStorageConfig {
     String bookkeeperClientAuthenticationPlugin;
     String bookkeeperClientAuthenticationParametersName;
     String bookkeeperClientAuthenticationParameters;
+
+    public static BKPackageStorageConfig loadFromServiceConfiguration(ServiceConfiguration config) {
+        return BKPackageStorageConfig.builder()
+            .numReplicas(config.getPackageReplicas())
+            .zkServers(config.getZookeeperServers())
+            .ledgersRootPath(config.getPackageLedgerRootPath())
+            .bookkeeperClientAuthenticationPlugin(config.getBookkeeperClientAuthenticationPlugin())
+            .bookkeeperClientAuthenticationParametersName(config.getBookkeeperClientAuthenticationParametersName())
+            .bookkeeperClientAuthenticationParameters(config.getBookkeeperClientAuthenticationParameters()).build();
+    }
 }

@@ -442,7 +442,6 @@ public abstract class BookKeeperClusterTestCase {
      */
     protected BookieServer startBookie(ServerConfiguration conf, final Bookie b) throws Exception {
         BookieServer server = new BookieServer(conf) {
-            @Override
             protected Bookie newBookie(ServerConfiguration conf, ByteBufAllocator allocator)
                     throws IOException, KeeperException, InterruptedException, BookieException {
                 return b;

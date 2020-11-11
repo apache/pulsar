@@ -16,19 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.packages.manager;
 
-package org.apache.pulsar.packages.manager.storage.bk;
+public class PackageManagerService {
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.packages.manager.PackageStorage;
-import org.apache.pulsar.packages.manager.PackageStorageProvider;
 
-/**
- * Provide a bookKeeper storage.
- */
-public class BKPackageStorageProvider implements PackageStorageProvider {
-    @Override
-    public PackageStorage getStorage(ServiceConfiguration config) {
-        return new BKPackageStorage(config);
+
+    public PackageManagerService(){
+
+    }
+
+    public void start() {
+
+    }
+
+    public void stop() {
+
     }
 }

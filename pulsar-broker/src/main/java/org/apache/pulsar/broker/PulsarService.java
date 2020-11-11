@@ -126,6 +126,10 @@ import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.packages.manager.PackageManagerService;
+import org.apache.pulsar.packages.manager.PackageStorage;
+import org.apache.pulsar.packages.manager.PackageStorageProvider;
+import org.apache.pulsar.packages.manager.impl.PackageImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
@@ -212,6 +216,9 @@ public class PulsarService implements AutoCloseable {
     private TransactionBufferClient transactionBufferClient;
 
     private BrokerInterceptor brokerInterceptor;
+
+    private PackageImpl packageService;
+    private PackageStorageProvider packageStorageProvider;
 
     public enum State {
         Init, Started, Closed
@@ -591,6 +598,9 @@ public class PulsarService implements AutoCloseable {
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
             acquireSLANamespace();
+
+            this.packageStorageProvider = PackageStorageProvider.newProvider(config.getPackageStorageProvider());
+            this.packageService = new PackageImpl(packageStorageProvider.getStorage(config));
 
             // start function worker service if necessary
             this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());

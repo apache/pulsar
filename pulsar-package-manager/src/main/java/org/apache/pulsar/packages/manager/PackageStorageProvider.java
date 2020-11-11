@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.packages.manager;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
+
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
@@ -55,5 +57,5 @@ public interface PackageStorageProvider {
      * @param config storage configuration
      * @return
      */
-    CompletableFuture<PackageStorage> getStorage(PackageStorageConfig config);
+    PackageStorage getStorage(ServiceConfiguration config);
 }

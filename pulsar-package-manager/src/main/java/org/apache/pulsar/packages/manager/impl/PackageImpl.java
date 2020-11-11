@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.manager.Package;
@@ -50,7 +51,7 @@ public class PackageImpl implements Package {
     private final PackageStorage packageStorage;
     private final static Gson gson = new Gson();
 
-    PackageImpl(PackageStorage packageStorage) {
+    public PackageImpl(PackageStorage packageStorage) {
         this.packageStorage = packageStorage;
     }
 
