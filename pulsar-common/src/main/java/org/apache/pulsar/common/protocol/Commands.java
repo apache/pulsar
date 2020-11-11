@@ -137,6 +137,7 @@ public class Commands {
 
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
+    @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicRawMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
@@ -1925,18 +1926,9 @@ public class Commands {
         return command;
     }
 
-    //
-    //
-
-    /**
-     * Add raw metadata for headerAndPayload, raw metadata format like :
-     * | RAW_METADATA_MAGIC_NUMBER | RAW_METADATA_SIZE |          RAW_METADATA        |
-     * |         2 bytes           |       4 bytes     |    RAW_METADATA_SIZE bytes   |
-     *
-     * @param headerAndPayload origin headerAndPayload
-     * @return headerAndPayload together with raw metadata
-     * */
     public static ByteBuf addRawMessageMetadata(ByteBuf headerAndPayload) {
+        //   | RAW_METADATA_MAGIC_NUMBER | RAW_METADATA_SIZE |          RAW_METADATA        |
+        //   |         2 bytes           |       4 bytes     |    RAW_METADATA_SIZE bytes   |
         PulsarApi.RawMessageMetadata rawMessageMetadata = PulsarApi.RawMessageMetadata.newBuilder()
                 .setBrokerTimestamp(System.currentTimeMillis()).build();
         int rawMetadataSize = rawMessageMetadata.getSerializedSize();
@@ -1975,8 +1967,10 @@ public class Commands {
         if (headerAndPayloadWithRawMetadata.readShort() == magicRawMetadata) {
             int rawMetadataSize = headerAndPayloadWithRawMetadata.readInt();
             int writerIndex = headerAndPayloadWithRawMetadata.writerIndex();
-            headerAndPayloadWithRawMetadata.writerIndex(headerAndPayloadWithRawMetadata.readerIndex() + rawMetadataSize);
-            ByteBufCodedInputStream rawMetadataInputStream = ByteBufCodedInputStream.get(headerAndPayloadWithRawMetadata);
+            headerAndPayloadWithRawMetadata.writerIndex(headerAndPayloadWithRawMetadata.readerIndex()
+                    + rawMetadataSize);
+            ByteBufCodedInputStream rawMetadataInputStream =
+                    ByteBufCodedInputStream.get(headerAndPayloadWithRawMetadata);
             PulsarApi.RawMessageMetadata.Builder builder =  PulsarApi.RawMessageMetadata.newBuilder();
             try {
                 builder.mergeFrom(rawMetadataInputStream, null).build();
