@@ -1,0 +1,85 @@
+Enable broker side filtering of messages based on message properties. Consumers can specify message properties 
+as tags to filter on using consumer subscription (meta data) properties. Message properties which have a key 
+beginning with the string "tag" are matched by value against these consumer subscription properties with keys 
+starting with strings "anytag" or "alltag". The matching is by string equality of property values.
+
+An "anytag" matches successfully if any of the messages "tag" properities has the same property value 
+as the consumer property value. This allows "or" matching.
+
+e.g. Say a consumer subscribes with an "anyTag" property with "anyTag1" of "urgent" and another 
+with key "anyTag2" and value "compressed". Then a message with property "tag0" as key and "urgent" 
+as value will match as would a message with "tagA" / "compressed".
+
+To subscribe the consumer:
+
+Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                    .topic("sometopic")
+                    .property("anytag0", "urgent") // A filtering meta tag.
+                    .property("anytag1", "compressed") // Another filtering meta tag.
+                    .subscribe();
+                    
+To send a message with a tag that matches:
+
+Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .create();
+
+producer.newMessage()
+                   .property("tag0", "urgent") // tag with a matching property value.
+                   .value("my-matching-message")
+                   .sendAsync();
+
+An "allTag" will only match if all other allTags in the consumer subscription meta data properties
+also can be match. This allows "and" matching of multiple values.
+
+e.g. Say a consumer subscribes with an "allTag" property with "allTag1" of "urgent" and another 
+with key "allTag2" and value "compressed". Then a message with property "tag0" as key and "urgent" 
+and property "tag1" of "compressed" as value will match while a message with "tag0" of "urgent" 
+and "tag1" of "uncompressed" property values will not.
+
+
+Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                    .topic("sometopic")
+                    .property("alltag0", "urgent") // A filtering meta tag.
+                    .property("alltag1", "compressed") // Additional filtering meta tag.
+                    .subscribe();
+
+will match on the following message:
+
+producer.newMessage()
+                   .property("tag0", "urgent") // A tag property value.
+                   .property("tag1", "compressed") // A second tag property value.
+                   .value("my-matching-message")
+                   .sendAsync();
+
+But the following will not match:
+
+producer.newMessage()
+                   .property("tag0", "urgent") // A tag property value.
+                   .property("tag1", "uncompressed") // A second tag property value.
+                   .value("my-not-matching-message")
+                   .sendAsync();
+
+producer.newMessage()
+                   .property("tag0", "urgent") // A tag property value.
+                   .value("my-other-not-matching-message")
+                   .sendAsync();
+                    
+If the consumer subscribes with both anyTags and allTags then at least one anyTag and all of the 
+allTags must match tags in the message (with overlap allowed) for the message to be passed by the 
+filter.
+
+The default implementation matches only on properties that have keys beginning with "tag" to help 
+avoid unintended matching. A new Java ConsumerFilter interface and factory allows other property 
+based filtering schemes to be implented and deployed.
+
+Appart from message tag properties starting with (lowercase) "tag" and consumer tag subscription 
+meta data properties starting with "anyTag" and "allTag" there are no other requirements or 
+conventions on tag naming and usage. For example, tags could use more meaningful keys such as 
+"tag_priority" and namespace tag values such as values "prority_urgent" and "priority_low". 
+
+Another possibliity is to use values such as "priority=ugent" and match by text on such 
+categories or classes (with keys just enumerating "tag0","tag1" etc as in examples above). 
+These suggestions are a convention only and not checked or enforced in any way. In the 
+examples above we have used "0" and "1" but other unique strings (such as "A","B" ..) 
+could have been used.
