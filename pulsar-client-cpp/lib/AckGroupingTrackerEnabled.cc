@@ -143,7 +143,8 @@ void AckGroupingTrackerEnabled::scheduleTimer() {
     std::lock_guard<std::mutex> lock(this->mutexTimer_);
     this->timer_ = this->executor_->createDeadlineTimer();
     this->timer_->expires_from_now(boost::posix_time::milliseconds(std::max(1L, this->ackGroupingTimeMs_)));
-    this->timer_->async_wait([this](const boost::system::error_code& ec) -> void {
+    auto self = shared_from_this();
+    this->timer_->async_wait([this, self](const boost::system::error_code& ec) -> void {
         if (!ec) {
             this->flush();
             this->scheduleTimer();
