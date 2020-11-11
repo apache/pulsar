@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.annotations.AfterMethod;
@@ -475,6 +476,11 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<Void> acknowledgeAsync(Message<?> message) {
             return null;
         }
@@ -483,6 +489,11 @@ public class PulsarConsumerSourceTests {
         public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
             acknowledgedIds.put(messageId, messageId);
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> acknowledgeAsync(MessageId messageId, Transaction txn) {
+            return null;
         }
 
         @Override
