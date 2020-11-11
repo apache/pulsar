@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -34,17 +45,11 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+/**
+ * TODO: resolve order issues
+ * [ERROR] src/main/java/org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.java:[30]
+ * (imports) ImportOrder: Import java.util.List appears after other imports that it should precede
+ */
 
 @Slf4j
 public class PendingAckHandleImpl implements PendingAckHandle {
