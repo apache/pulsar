@@ -21,6 +21,9 @@ name: CI - Pulsar Website build
 on:
   schedule:
     - cron: '0 */3 * * *'
+  pull_request:
+    paths:
+      - '.github/workflows/ci-pulsar-website-build.yaml'
 
 env:
   MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
