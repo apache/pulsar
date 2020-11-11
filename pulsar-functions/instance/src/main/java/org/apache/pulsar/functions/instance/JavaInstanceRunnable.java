@@ -350,7 +350,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Exception lastException = null;
             while (true) {
                 try {
-                    result(storageAdminClient.getStream(tableNs, tableName),5, TimeUnit.SECONDS);
+                    result(storageAdminClient.getStream(tableNs, tableName), 5, TimeUnit.SECONDS);
                     return;
                 } catch (TimeoutException e){
                     if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
