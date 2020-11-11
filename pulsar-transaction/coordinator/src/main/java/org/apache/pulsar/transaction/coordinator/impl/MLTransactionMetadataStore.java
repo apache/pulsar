@@ -31,9 +31,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
-import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry.TransactionMetadataOp;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry.TransactionMetadataOp;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;

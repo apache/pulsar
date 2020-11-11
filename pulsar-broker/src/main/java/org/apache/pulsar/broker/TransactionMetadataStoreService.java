@@ -22,10 +22,16 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+
+import org.apache.pulsar.client.impl.MessageIdImpl;
+
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -45,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class TransactionMetadataStoreService {
 
@@ -177,7 +184,7 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatusAsync(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<MessageIdData> messageIdDataList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
@@ -196,7 +203,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endToTB(txnID, txnAction));
+                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction, messageIdDataList));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -207,7 +214,8 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
+    private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction,
+                                                              List<MessageIdData> messageIdDataList) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -230,12 +238,27 @@ public class TransactionMetadataStoreService {
                 completableFutureList.add(actionFuture);
             });
 
+            List<MessageId> messageIdList = new ArrayList<>();
+            for (MessageIdData messageIdData : messageIdDataList) {
+                messageIdList.add(new MessageIdImpl(
+                        messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
+                messageIdData.recycle();
+            }
+
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+
                 if (TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
+                            messageIdList.stream().filter(
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
+                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
                 } else if (TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
+                            messageIdList.stream().filter(
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
+                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
+
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }

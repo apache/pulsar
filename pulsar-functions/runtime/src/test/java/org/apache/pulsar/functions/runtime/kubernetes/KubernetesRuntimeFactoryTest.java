@@ -105,7 +105,7 @@ public class KubernetesRuntimeFactoryTest {
         }
 
         @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, FunctionDetails functionDetails) {
+        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
 
         }
     }
@@ -152,6 +152,7 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
+        kubernetesRuntimeFactoryConfig.setJobName(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
         kubernetesRuntimeFactoryConfig.setFunctionDockerImages(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
@@ -375,6 +376,7 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri("test_k8uri");
         kubernetesRuntimeFactoryConfig.setJobNamespace("test_jobNamespace");
+        kubernetesRuntimeFactoryConfig.setJobName("test_jobName");
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName("test_dockerImage");
         kubernetesRuntimeFactoryConfig.setFunctionDockerImages(imageNames);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");

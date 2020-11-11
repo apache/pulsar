@@ -19,7 +19,7 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry;
 
 /**
  * The callback of transaction log replay the transaction operate.
@@ -37,6 +37,6 @@ public interface TransactionLogReplayCallback {
      * @param position the transaction operation position
      * @param transactionMetadataEntry the metadata entry of transaction
      */
-    void handleMetadataEntry(Position position, PulsarApi.TransactionMetadataEntry transactionMetadataEntry);
+    void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
 
 }

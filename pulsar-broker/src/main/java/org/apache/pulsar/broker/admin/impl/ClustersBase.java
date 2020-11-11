@@ -324,41 +324,41 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-	@GET
-	@Path("/{cluster}/peers")
-	@ApiOperation(
-	    value = "Get the peer-cluster data for the specified cluster.",
-        response = String.class,
-        responseContainer = "Set",
-        notes = "This operation requires Pulsar superuser privileges."
+    @GET
+    @Path("/{cluster}/peers")
+    @ApiOperation(
+            value = "Get the peer-cluster data for the specified cluster.",
+            response = String.class,
+            responseContainer = "Set",
+            notes = "This operation requires Pulsar superuser privileges."
     )
-	@ApiResponses(value = {
-	    @ApiResponse(code = 403, message = "Don't have admin permission."),
-        @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
-	})
-	public Set<String> getPeerCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-	    @PathParam("cluster") String cluster
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public Set<String> getPeerCluster(
+            @ApiParam(
+                    value = "The cluster name",
+                    required = true
+            )
+            @PathParam("cluster") String cluster
     ) {
-		validateSuperUserAccess();
+        validateSuperUserAccess();
 
-		try {
-			String clusterPath = path("clusters", cluster);
-			byte[] content = globalZk().getData(clusterPath, null, null);
-			ClusterData clusterData = jsonMapper().readValue(content, ClusterData.class);
-			return clusterData.getPeerClusterNames();
-		} catch (KeeperException.NoNodeException e) {
-			log.warn("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
-			throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-		} catch (Exception e) {
-			log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-			throw new RestException(e);
-		}
-	}
+        try {
+            String clusterPath = path("clusters", cluster);
+            byte[] content = globalZk().getData(clusterPath, null, null);
+            ClusterData clusterData = jsonMapper().readValue(content, ClusterData.class);
+            return clusterData.getPeerClusterNames();
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
+            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+    }
 
     @DELETE
     @Path("/{cluster}")
@@ -595,6 +595,9 @@ public class ClustersBase extends AdminResource {
                             brokerIsolationData.namespaceRegex = Lists.newArrayList();
                         }
                         brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                        if (nsPolicyImpl.isPrimaryBroker(broker)) {
+                            brokerIsolationData.isPrimary = true;
+                        }
                     }
                 });
             }

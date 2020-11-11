@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.client.api.transaction.TxnID;

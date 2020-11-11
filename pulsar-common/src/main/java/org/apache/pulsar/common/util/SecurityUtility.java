@@ -102,14 +102,7 @@ public class SecurityUtility {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
-        }
-
-        // failed to get from class path. try to get from Nar file.
-        try {
-            // User need set the bc nar path in java env.
-            return SearchBcNarUtils.getBcProvider(System.getProperty("BcPath"));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+            throw new RuntimeException(e);
         }
     }
 

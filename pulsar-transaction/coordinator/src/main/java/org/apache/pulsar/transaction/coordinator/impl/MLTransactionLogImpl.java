@@ -34,8 +34,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -73,7 +73,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.tcId = tcID.getId();
         this.managedLedger = managedLedgerFactory.open(topicName);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
-                PulsarApi.CommandSubscribe.InitialPosition.Earliest);
+                CommandSubscribe.InitialPosition.Earliest);
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }

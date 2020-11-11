@@ -25,27 +25,42 @@ class Events extends React.Component {
               <h1><translate>Events</translate></h1>
               <hr />
             </header>
-            <h2><translate>Calander</translate></h2>
+            <h2><translate>Calender</translate></h2>
 
             <iframe src={iframeSrc} 
               style={{borderWidth: 0}} 
               height={300} width={640} 
               frameBorder={0} scrolling={"no"}>
             </iframe>
-            
+            <h2><translate>Events</translate></h2>            
+            <MarkdownBlock>
+              - [Pulsar Summit Asia 2020](https://pulsar-summit.org/en/event/asia-2020)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar Summit Virtual Conference](https://www.youtube.com/playlist?list=PLqRma1oIkcWjVlPfaWlf3VO9W-XWsF_4-)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [ApacheCon @Home](https://www.youtube.com/watch?v=iIABx20uvmw&list=PLU2OcwpQkYCy_awEe5xwlxGTk5UieA37m)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [ApacheCon @Home Pulsar/BookKeeper track](https://www.apachecon.com/acah2020/tracks/pulsar.html)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar Training: Developing Pulsar Applications with Jesse Anderson](https://www.eventbrite.com/e/developing-pulsar-applications-online-training-tickets-122334542911)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Monthly webinar](https://www.youtube.com/watch?v=Owl_ncQbVwk&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Weekly TGIP](https://www.youtube.com/watch?v=Bss2OYq7SVk)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [SF Bay Area Apache Pulsar Meetup](https://www.meetup.com/SF-Bay-Area-Apache-Pulsar-Meetup/)
+            </MarkdownBlock>
             <h2><translate>Groups</translate></h2>
-            <MarkdownBlock>
-              - [Pulsar Summit Asia 2020](https://pulsar-summit.org/)
-            </MarkdownBlock>
-            <MarkdownBlock>
-              - [Webinar: How to Operate Pulsar in Production](https://us02web.zoom.us/webinar/register/WN_xMt6QBJ9TWiyeVdifqKITg/)
-            </MarkdownBlock>
-            <MarkdownBlock>
-              - [Weekly TGIP](https://github.com/streamnative/tgip/)
-            </MarkdownBlock>
-            <MarkdownBlock>
-              - [Apache Pulsar Bay Area Meetup Group](https://www.meetup.com/Apache-Pulsar-Meetup-Group/)
-            </MarkdownBlock>
             <MarkdownBlock>
               - [Japan Pulsar User Group](https://japan-pulsar-user-group.connpass.com/)
             </MarkdownBlock> 

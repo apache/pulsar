@@ -180,9 +180,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(
-        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
-        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition());
+    SharedBuffer cmd =
+        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
+                               subscriptionMode_, startMessageId_, readCompacted_, config_.getProperties(),
+                               config_.getSchema(), getInitialPosition(), config_.getKeySharedPolicy());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -326,6 +327,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
+
+    if (metadata.has_schema_version()) {
+        m.impl_->setSchemaVersion(metadata.schema_version());
+    }
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "

@@ -24,7 +24,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Set;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

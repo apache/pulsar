@@ -23,7 +23,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTING;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTED;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTING;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 
 
 /**

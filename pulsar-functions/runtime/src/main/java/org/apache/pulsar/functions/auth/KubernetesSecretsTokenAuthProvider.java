@@ -177,7 +177,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         // If deleteNamespacedSecret is called and secret name is null or empty string
                         // it will delete all the secrets in the namespace
                         coreClient.deleteNamespacedSecret(secretName,
-                                kubeNamespace, null, "true",
+                                kubeNamespace, null, null,
                                 0, null, "Foreground", null);
                     } catch (ApiException e) {
                         // if already deleted
@@ -298,11 +298,11 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .data(buildSecretMap(token));
 
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, "true", null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
                     } catch (ApiException e) {
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
-                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, "true", null);
+                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, null, null);
                                 return Actions.ActionResult.builder().success(true).build();
 
                             } catch (ApiException e1) {
@@ -354,7 +354,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(buildSecretMap(token));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, "true", null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {

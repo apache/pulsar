@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry;
 
 /**
  * A log interface for transaction to read and write transaction operation.
@@ -45,10 +45,10 @@ public interface TransactionLog {
     /**
      * Append the transaction operation to the transaction log.
      *
-     * @param transactionMetadataEntry {@link PulsarApi.TransactionMetadataEntry} transaction metadata entry
+     * @param transactionMetadataEntry {@link TransactionMetadataEntry} transaction metadata entry
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Position> append(PulsarApi.TransactionMetadataEntry transactionMetadataEntry);
+    CompletableFuture<Position> append(TransactionMetadataEntry transactionMetadataEntry);
 
     /**
      * Delete the transaction operation log from bookkeeper by positions.

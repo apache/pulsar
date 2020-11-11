@@ -205,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -409,6 +412,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of producer information that it's going to be persisted for deduplication purposes"
     )
     private int brokerDeduplicationMaxNumberOfProducers = 10000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
+    )
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "If this time interval is exceeded, a snapshot will be taken."
+            + "It will run simultaneously with `brokerDeduplicationEntriesInterval`"
+    )
+    private Integer brokerDeduplicationSnapshotIntervalSeconds = 120;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -692,10 +707,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Enforce producer to publish encrypted messages.(default disable).")
+    private boolean encryptionRequireOnProducer = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Max number of consumers allowed to connect to topic. \n\nOnce this limit reaches,"
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerTopic-limit check.")
     private int maxConsumersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max number of subscriptions allowed to subscribe to topic. \n\nOnce this limit reaches, "
+                + " broker will reject new subscription until the number of subscribed subscriptions decrease.\n"
+                + " Using a value of 0, is disabling maxSubscriptionsPerTopic limit check."
+    )
+    private int maxSubscriptionsPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1809,7 +1837,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Class name for transaction buffer provider"
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(

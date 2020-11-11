@@ -53,6 +53,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -542,8 +543,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
-                        "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024, 10000L));
+                        "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                        10 * 1024 * 1024L, 10000L));
+
+        namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
+        verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
 
         namespaces.run(split("get-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
@@ -749,7 +753,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10"));
         OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
-                , "endpoint", 8, 9, 10L, null);
+                , "endpoint", null, null, 8, 9, 10L, null);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
@@ -792,6 +796,12 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("last-message-id persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
+
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopics(admin);
+        cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds2 -s sub1 -m 1:1 -e"));
+        verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
+                , eq(new MessageIdImpl(1, 1, -1)), eq(true));
     }
 
     @Test

@@ -53,11 +53,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
     <dependency>
+      <!-- this module only need by the real client, client inside broker no need this module -->
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.parent.version}</version>
@@ -133,7 +135,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf3.version}</version>
       <scope>provided</scope>
     </dependency>
 

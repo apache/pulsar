@@ -141,7 +141,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     Long getUpperEndpoint() {
         return this.keyRange.upperEndpoint();
     }
-    
+
     public boolean hasNonPersistentTopic() {
         return hasNonPersistentTopic;
     }

@@ -49,7 +49,6 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -278,7 +277,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public void start() throws PulsarServerException {
         try {
             // Register the brokers in zk list
-            ServiceConfiguration conf = pulsar.getConfiguration();
             if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
                 try {
                     ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
@@ -609,7 +607,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             // update realtime quota for each bundle
             Map<String, ResourceQuota> newQuotas = new HashMap<>();
             for (Map.Entry<ResourceUnit, LoadReport> entry : currentLoadReports.entrySet()) {
-                ResourceUnit resourceUnit = entry.getKey();
                 LoadReport loadReport = entry.getValue();
                 Map<String, NamespaceBundleStats> bundleStats = loadReport.getBundleStats();
                 if (bundleStats == null) {
@@ -840,7 +837,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 continue;
             }
 
-            String resourceUnitId = candidate.getResourceId();
             ResourceUnitRanking ranking = resourceUnitRankings.get(candidate);
 
             // check if this ServiceUnit is already loaded
@@ -1241,7 +1237,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 long maxCapacity = ResourceUnitRanking.calculateBrokerMaxCapacity(
                         lastLoadReport.getSystemResourceUsage(),
                         pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
-                double bundlePercentageChange = (maxCapacity > 0) ? (bundleCountChange * 100 / maxCapacity) : 0;
                 if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }

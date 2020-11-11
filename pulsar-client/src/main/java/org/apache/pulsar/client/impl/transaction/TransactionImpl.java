@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,8 +35,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -69,6 +73,13 @@ public class TransactionImpl implements Transaction {
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
+    private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
+
+    private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
+    private final ArrayList<CompletableFuture<Void>> registerPartitionFutureList;
+    private final ArrayList<CompletableFuture<Void>> ackFutureList;
+    private final ArrayList<CompletableFuture<Void>> registerSubscriptionFutureList;
+    private final ArrayList<MessageId> sendMessageIdList;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -83,6 +94,12 @@ public class TransactionImpl implements Transaction {
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
         this.tcClient = client.getTcClient();
+
+        sendFutureList = new ArrayList<>();
+        registerPartitionFutureList = new ArrayList<>();
+        ackFutureList = new ArrayList<>();
+        registerSubscriptionFutureList = new ArrayList<>();
+        sendMessageIdList = new ArrayList<>();
     }
 
     public long nextSequenceId() {
@@ -93,58 +110,104 @@ public class TransactionImpl implements Transaction {
     public synchronized void registerProducedTopic(String topic) {
         if (producedTopics.add(topic)) {
             // we need to issue the request to TC to register the produced topic
-            tcClient.addPublishPartitionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
+            registerPartitionFutureList.add(
+                    tcClient.addPublishPartitionToTxnAsync(
+                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
+            );
         }
     }
 
     public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
                                                                     CompletableFuture<MessageId> sendFuture) {
-        CompletableFuture<MessageId> transactionalSendFuture = new CompletableFuture<>();
-        TransactionalSendOp sendOp = new TransactionalSendOp(
-            sendFuture,
-            transactionalSendFuture
-        );
-        sendOps.put(sequenceId, sendOp);
-        return transactionalSendFuture;
+        sendFutureList.add(sendFuture);
+        return sendFuture;
     }
 
     // register the topics that will be modified by this transaction
     public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
             // we need to issue the request to TC to register the acked topic
-            tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
+            registerSubscriptionFutureList.add(
+                    tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
+            );
         }
     }
 
+    public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
+        if (this.cumulativeAckConsumers == null) {
+            this.cumulativeAckConsumers = new HashMap<>();
+        }
+        cumulativeAckConsumers.put(consumer, 0);
+    }
+
     public synchronized CompletableFuture<Void> registerAckOp(CompletableFuture<Void> ackFuture) {
-        CompletableFuture<Void> transactionalAckFuture = new CompletableFuture<>();
-        TransactionalAckOp ackOp = new TransactionalAckOp(
-            ackFuture,
-            transactionalAckFuture
-        );
-        ackOps.add(ackOp);
-        return transactionalAckFuture;
+        ackFutureList.add(ackFuture);
+        return ackFuture;
     }
 
     @Override
     public CompletableFuture<Void> commit() {
-        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
-                txnSendOp.sendFuture.whenComplete((messageId, t) -> {
-                    txnSendOp.transactionalSendFuture.complete(messageId);
+        CompletableFuture<Void> commitFuture = new CompletableFuture<>();
+        allOpComplete().whenComplete((v, e) -> {
+            if (e != null) {
+                abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+            } else {
+                for (CompletableFuture<MessageId> future : sendFutureList) {
+                    future.thenAccept(sendMessageIdList::add);
+                }
+                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList)
+                        .whenComplete((vx, ex) -> {
+                    if (ex != null) {
+                        commitFuture.completeExceptionally(ex);
+                    } else {
+                        commitFuture.complete(vx);
+                    }
                 });
-            });
+            }
         });
+        return commitFuture;
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
-            sendOps.values().forEach(txnSendOp -> {
-                txnSendOp.sendFuture.whenComplete(((messageId, t) -> {
-                    txnSendOp.transactionalSendFuture.complete(messageId);
-                }));
+
+        CompletableFuture<Void> abortFuture = new CompletableFuture<>();
+        allOpComplete().whenComplete((v, e) -> {
+            if (e != null) {
+                log.error(e.getMessage());
+            }
+            for (CompletableFuture<MessageId> future : sendFutureList) {
+                future.thenAccept(sendMessageIdList::add);
+            }
+            if (cumulativeAckConsumers != null) {
+                cumulativeAckConsumers.forEach((consumer, integer) ->
+                        cumulativeAckConsumers
+                                .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+            }
+            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList).whenComplete((vx, ex) -> {
+                if (cumulativeAckConsumers != null) {
+                    cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
+                    cumulativeAckConsumers.clear();
+                }
+
+                if (ex != null) {
+                    abortFuture.completeExceptionally(ex);
+                } else {
+                    abortFuture.complete(null);
+                }
+
             });
         });
+
+        return abortFuture;
+    }
+
+    private CompletableFuture<Void> allOpComplete() {
+        List<CompletableFuture<?>> futureList = new ArrayList<>();
+        futureList.addAll(registerPartitionFutureList);
+        futureList.addAll(sendFutureList);
+        futureList.addAll(registerSubscriptionFutureList);
+        futureList.addAll(ackFutureList);
+        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }
 }

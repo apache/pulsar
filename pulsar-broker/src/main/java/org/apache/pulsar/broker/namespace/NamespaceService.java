@@ -18,9 +18,41 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.AdminResource.PARTITIONED_TOPIC_PATH_ZNODE;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
+import static org.apache.pulsar.common.util.Codec.decode;
+
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
+
 import io.netty.channel.EventLoopGroup;
+import io.prometheus.client.Counter;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -37,6 +69,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -67,42 +100,11 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.AdminResource.PARTITIONED_TOPIC_PATH_ZNODE;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
-import static org.apache.pulsar.common.util.Codec.decode;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -151,6 +153,19 @@ public class NamespaceService {
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
+
+    private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+    private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+    private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
+
+    private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
+            .quantile(0.50)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(1.0)
+            .register();
+
+
     /**
      * Default constructor.
      *
@@ -175,8 +190,26 @@ public class NamespaceService {
     }
 
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic, LookupOptions options) {
-        return getBundleAsync(topic)
+        long startTime = System.nanoTime();
+
+        CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> findBrokerServiceUrl(bundle, options));
+
+        future.thenAccept(optResult -> {
+            lookupLatency.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            if (optResult.isPresent()) {
+                if (optResult.get().isRedirect()) {
+                    lookupRedirects.inc();
+                } else {
+                    lookupAnswers.inc();
+                }
+            }
+        }).exceptionally(ex -> {
+            lookupFailures.inc();
+            return null;
+        });
+
+        return future;
     }
 
     public CompletableFuture<NamespaceBundle> getBundleAsync(TopicName topic) {
@@ -855,12 +888,12 @@ public class NamespaceService {
 
         if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
-            this.pulsar.getLocalZkCacheService().createPolicies(path, false)
+            policies = this.pulsar.getLocalZkCacheService().createPolicies(path, false)
                     .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         long version = nsBundles.getVersion();
-        LocalPolicies local = new LocalPolicies();
+        LocalPolicies local = policies.orElse(new LocalPolicies());
         local.bundles = getBundlesData(nsBundles);
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
 
@@ -922,7 +955,19 @@ public class NamespaceService {
         if (bundle.isPresent()) {
             return ownershipCache.getOwnedBundle(bundle.get()) != null;
         } else {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
+            // Calling `getBundle(TopicName)` here can cause a deadlock.
+            // cf. https://github.com/apache/pulsar/pull/4190
+            //
+            // This method returns false once if the bundle metadata is not cached, but gets the metadata asynchronously
+            // to cache it. Otherwise, the clients will never be able to connect to the topic due to ServiceUnitNotReadyException.
+            // cf. https://github.com/apache/pulsar/pull/5919
+            getBundleAsync(topicName).thenAccept(bundle2 -> {
+                LOG.info("Succeeded in getting bundle {} for topic - [{}]", bundle2, topicName);
+            }).exceptionally(ex -> {
+                LOG.warn("Failed to get bundle for topic - [{}] {}", topicName, ex.getMessage());
+                return null;
+            });
+            return false;
         }
     }
 
