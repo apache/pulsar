@@ -68,7 +68,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                 ((PulsarClientImpl) pulsarClient).getCnxPool());
     }
 
-    @AfterClass(alwaysRun = true)(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     public void shutdownClient() throws Exception {
         if (tbClient != null) {
             tbClient.close();

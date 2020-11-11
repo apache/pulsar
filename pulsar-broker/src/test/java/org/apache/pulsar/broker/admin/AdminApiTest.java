@@ -1283,6 +1283,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
+        executorService.shutdown();
     }
 
     @Test

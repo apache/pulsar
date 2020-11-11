@@ -31,11 +31,10 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
-
-    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor();
 
     @BeforeClass
     @Override
@@ -323,7 +322,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                     log.error("Ack message error", e);
                 }
                 if (messages.size() < expected) {
-                    EXECUTOR.execute(() -> receiveAsync(consumer, expected - messages.size(), latch));
+                    ForkJoinPool.commonPool().execute(() -> receiveAsync(consumer, expected - messages.size(), latch));
                 } else {
                     Assert.assertEquals(expected, 0);
                 }

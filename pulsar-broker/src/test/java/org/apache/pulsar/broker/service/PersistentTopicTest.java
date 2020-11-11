@@ -876,6 +876,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
         }
+        executor.shutdown();
     }
 
     @Test
@@ -1126,6 +1127,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             assertTrue(ee.getCause() instanceof BrokerServiceException.TopicFencedException);
             // Expected
         }
+        executor.shutdown();
     }
 
     @SuppressWarnings("unchecked")

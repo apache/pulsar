@@ -64,6 +64,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        System.out.println();
         System.out.println("AA BEFORE");
         conf.setManagedLedgerMaxEntriesPerLedger(10);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -79,9 +80,10 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
 
-    @AfterMethod(alwaysRun = true)(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
+        System.out.println();
         System.out.println("AA AFTER");
         super.internalCleanup();
     }
@@ -180,7 +182,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertNull(offload3);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testOffloadPoliciesApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -211,10 +213,16 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testTopicLevelOffload() throws Exception {
+    public void testTopicLevelOffloadPartitioned() throws Exception {
         //wait for cache init
         Thread.sleep(2000);
         testOffload(true);
+    }
+    
+    @Test
+    public void testTopicLevelOffloadNonPartitioned() throws Exception {
+        //wait for cache init
+        Thread.sleep(2000);
         testOffload(false);
     }
 

@@ -529,5 +529,6 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         assertTrue(rateIn > numMessage * msgBytes);
 
         producer.close();
+        executor.shutdown();
     }
 }

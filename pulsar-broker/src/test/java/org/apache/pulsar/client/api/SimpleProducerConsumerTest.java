@@ -821,6 +821,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads);
         Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
         consumer.close();
+        executor.shutdown();
     }
 
     @Test
@@ -1145,6 +1146,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test(timeOut = 2000)
@@ -1184,6 +1186,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test

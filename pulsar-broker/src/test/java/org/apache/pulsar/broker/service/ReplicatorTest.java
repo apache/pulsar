@@ -105,7 +105,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @AfterClass(alwaysRun = true)(timeOut = 300000)
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
