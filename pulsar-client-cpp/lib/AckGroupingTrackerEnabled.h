@@ -50,6 +50,7 @@ class AckGroupingTrackerEnabled : public AckGroupingTracker {
     AckGroupingTrackerEnabled(ClientImplPtr clientPtr, const HandlerBasePtr& handlerPtr, uint64_t consumerId,
                               long ackGroupingTimeMs, long ackGroupingMaxSize);
 
+    void start() override;
     bool isDuplicate(const MessageId& msgId) override;
     void addAcknowledge(const MessageId& msgId) override;
     void addAcknowledgeCumulative(const MessageId& msgId) override;

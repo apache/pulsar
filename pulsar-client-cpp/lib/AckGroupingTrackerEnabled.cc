@@ -51,8 +51,9 @@ AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr,
       mutexTimer_() {
     LOG_DEBUG("ACK grouping is enabled, grouping time " << ackGroupingTimeMs << "ms, grouping max size "
                                                         << ackGroupingMaxSize);
-    this->scheduleTimer();
 }
+
+void AckGroupingTrackerEnabled::start() { this->scheduleTimer(); }
 
 bool AckGroupingTrackerEnabled::isDuplicate(const MessageId& msgId) {
     {

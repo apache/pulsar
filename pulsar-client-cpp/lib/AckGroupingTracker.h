@@ -41,6 +41,11 @@ class AckGroupingTracker : public std::enable_shared_from_this<AckGroupingTracke
     virtual ~AckGroupingTracker() = default;
 
     /**
+     * Start tracking the ACK requests.
+     */
+    virtual void start() {}
+
+    /**
      * Since ACK requests are grouped and delayed, we need to do some best-effort duplicate check to
      * discard messages that are being resent after a disconnection and for which the user has
      * already sent an acknowledgement.
