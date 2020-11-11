@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
@@ -39,7 +34,9 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
-
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;

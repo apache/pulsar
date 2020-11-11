@@ -27,12 +27,7 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.ImmutableList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
 import io.prestosql.decoder.DecoderColumnHandle;
-
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.ArrayType;
@@ -50,6 +45,10 @@ import io.prestosql.spi.type.TypeSignature;
 import io.prestosql.spi.type.TypeSignatureParameter;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;

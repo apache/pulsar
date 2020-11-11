@@ -28,13 +28,8 @@ import static java.lang.Float.floatToIntBits;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
-
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -59,6 +54,12 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+import java.nio.ByteBuffer;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
