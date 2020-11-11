@@ -195,48 +195,48 @@ ls offloaders
 <p>0 | It triggers the offloading operation if the topic storage reaches its threshold. = 0|It causes a broker to offload data as soon as possible. &lt; 0 |It disables automatic offloading operation.</p>
 </blockquote>
 <p>Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.</p>
-<p>You can configure the threshold size using CLI tools, such as <a href="https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/">pulsarctl</a> or pulsar-admin.</p>
+<p>You can configure the threshold size using CLI tools, such as pulsar-admin.</p>
 <h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
-<p>This example sets the filesystem offloader threshold size to 10 MB using pulsarctl.</p>
-<pre><code class="hljs css language-bash">bin/pulsarctl namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
+<p>This example sets the filesystem offloader threshold size to 10 MB using pulsar-admin.</p>
+<pre><code class="hljs css language-bash">pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about the <code>pulsarctl namespaces set-offload-threshold options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-set-offload-threshold-em-">here</a>.</p>
+<p>For more information about the <code>pulsar-admin namespaces set-offload-threshold options</code> command, including flags, descriptions, default values, and shorthands, see <a href="/docs/ko/next/pulsar-admin#set-offload-threshold">here</a>.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="configure-filesystem-offloader-to-run-manually"></a><a href="#configure-filesystem-offloader-to-run-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure filesystem offloader to run manually</h3>
 <p>For individual topics, you can trigger filesystem offloader manually using one of the following methods:</p>
 <ul>
-<li><p>Use REST endpoint</p></li>
-<li><p>Use CLI tools (such as pulsarctl or pulsar-admin).</p></li>
+<li><p>Use REST endpoint.</p></li>
+<li><p>Use CLI tools (such as pulsar-admin).</p></li>
 </ul>
 <p>To trigger via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.</p>
 <h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
-<li><p>This example triggers the filesystem offloader to run manually using pulsarctl.</p>
-<pre><code class="hljs css language-bash">bin/pulsarctl topic offload persistent://my-tenant/my-namespace/topic1 10M
+<li><p>This example triggers the filesystem offloader to run manually using pulsar-admin.</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>Output</strong></p>
 <pre><code class="hljs css language-bash">Offload triggered <span class="hljs-keyword">for</span> persistent://my-tenant/my-namespace/topic1 <span class="hljs-keyword">for</span> messages before 2:0:-1
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about the <code>pulsarctl topic offload options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-em-">here</a>.</p>
+<p>For more information about the <code>pulsar-admin topics offload options</code> command, including flags, descriptions, default values, and shorthands, see <a href="/docs/ko/next/pulsar-admin#offload">here</a>.</p>
 </blockquote></li>
-<li><p>This example checks filesystem offloader status using pulsarctl.</p>
-<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+<li><p>This example checks filesystem offloader status using pulsar-admin.</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>Output</strong></p>
 <pre><code class="hljs css language-bash">Offload is currently running
 </code></pre>
 <p>To wait for the filesystem to complete the job, add the <code>-w</code> flag.</p>
-<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status -w persistent://my-tenant/my-namespace/topic1
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>Output</strong></p>
 <pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
 </code></pre>
-<p>If there is an error in the offloading operation, the error is propagated to the <code>pulsarctl topic offload-status</code> command.</p>
-<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+<p>If there is an error in the offloading operation, the error is propagated to the <code>pulsar-admin topics offload-status</code> command.</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>Output</strong></p>
 <pre><code class="hljs"><span class="hljs-builtin-name">Error</span> <span class="hljs-keyword">in</span> offload
@@ -246,7 +246,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about the <code>pulsarctl topic offload-status options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-status-em-">here</a>.</p>
+<p>For more information about the <code>pulsar-admin topics offload-status options</code> command, including flags, descriptions, default values, and shorthands, see <a href="/docs/ko/next/pulsar-admin#offload-status">here</a>.</p>
 </blockquote></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="tutorial"></a><a href="#tutorial" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tutorial</h2>

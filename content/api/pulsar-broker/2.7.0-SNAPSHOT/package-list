@@ -31,6 +31,8 @@ org.apache.pulsar.broker.tools
 org.apache.pulsar.broker.transaction.buffer
 org.apache.pulsar.broker.transaction.buffer.exceptions
 org.apache.pulsar.broker.transaction.buffer.impl
+org.apache.pulsar.broker.transaction.pendingack
+org.apache.pulsar.broker.transaction.pendingack.impl
 org.apache.pulsar.broker.web
 org.apache.pulsar.client.api
 org.apache.pulsar.client.impl

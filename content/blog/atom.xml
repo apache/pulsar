@@ -2,12 +2,25 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2020-09-01T06:00:00.000Z</updated>
+    <updated>2020-11-09T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.6.2]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2.html"/>
+        <updated>2020-11-09T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes.</p>
+<p>Here are some highlights and major features added in Pulsar 2.6.2.</p>
+]]></summary>
+        <author>
+            <name>Xiaolong Ran</name>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Pulsar Summit Asia 2020 CFP is now open]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2020/09/01/pulsar-summit-asia-2020-cfp.html</id>

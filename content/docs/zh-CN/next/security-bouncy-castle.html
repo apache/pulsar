@@ -76,47 +76,62 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Bouncy Castle Providers</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="bouncycastle-介绍"></a><a href="#bouncycastle-介绍" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BouncyCastle 介绍</h2>
-<p><code>Bouncy Castle</code> 是一个完善了默认 Java 加密拓展（JCE）的 Java 库，它比 Sun 提供的默认 JCE 多提供了许多密钥套件与算法。</p>
+<p><code>Bouncy Castle</code> is a Java library that complements the default Java Cryptographic Extension (JCE), and it provides more cipher suites and algorithms than the default JCE provided by Sun.</p>
 <p>除此之外，<code>Bouncy Castle</code> 有许多能读取像 PEM 和 ASN.1 这些晦涩格式的工具。这些格式正常人是不会想去自己重写一遍的。</p>
 <p>在 Pulsar 中，安全与加密都对 BouncyCastle Jar 包有依赖。 关于Bouncy Castle FIPS的详细安装和配置，请参阅 <a href="https://www.bouncycastle.org/documentation.html">BC FIPS 文档</a>， 特别是 <strong>用户指南</strong> 和 <strong>安全政策</strong> PDF 文档。</p>
 <p><code>Bouncy Castle</code> 提供 <a href="https://www.bouncycastle.org/fips_faq.html">FIPS</a> 与 non-FIPS 两个版本。 但在 JVM 中，不能同时引入两个版本，所以需要先排除当前版本才能引入另一个版本。</p>
 <p>在 Pulsar 中，安全和加密方法也依赖于 <code>Bouncy Castle</code>， 特别是 <a href="/docs/zh-CN/next/security-tls-authentication">TLS 认证</a> 和 <a href="/docs/zh-CN/next/security-encryption">传输加密</a>。 本文档包含使用 Pulsar 时的 Bounccastle FIPS(BC-FIPS)和 non-FIPS(BC-non-FIPS)版本的配置。</p>
-<h2><a class="anchor" aria-hidden="true" id="引入-bc-non-fips-的依赖"></a><a href="#引入-bc-non-fips-的依赖" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>引入 BC-non-FIPS 的依赖</h2>
-<p>默认情况下，Bouncycastle 的 non-FIPS 版本与 Pulsar Broker 和 Java 客户端一起构建。</p>
-<p>在 <code>bouncy-castle/bc/pom.xml</code> 中定义的 Pulsar 模块 <code>bouncy-castle-bc</code>，包含了Pulsar 所需的 non-FIPS jar 包。</p>
-<pre><code class="hljs css language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bcpkix-jdk15on<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastle.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+<h2><a class="anchor" aria-hidden="true" id="how-bouncycastle-modules-packaged-in-pulsar"></a><a href="#how-bouncycastle-modules-packaged-in-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How BouncyCastle modules packaged in Pulsar</h2>
+<p>In Pulsar's <code>bouncy-castle</code> module, We provide 2 sub modules: <code>bouncy-castle-bc</code>(for non-FIPS version) and <code>bouncy-castle-bcfips</code>(for FIPS version), to package BC jars together to make the include and exclude of <code>Bouncy Castle</code> easier.</p>
+<p>To achieve this goal, we will need to package several <code>bouncy-castle</code> jars together into <code>bouncy-castle-bc</code> or <code>bouncy-castle-bcfips</code> jar. Each of the original bouncy-castle jar is related with security, so BouncyCastle dutifully supplies signed of each JAR. But when we do the re-package, Maven shade explodes the BouncyCastle jar file which puts the signatures into META-INF, these signatures aren't valid for this new, uber-jar (signatures are only for the original BC jar). Usually, You will meet error like <code>java.lang.SecurityException: Invalid signature file digest for Manifest main attributes</code>.</p>
+<p>You could exclude these signatures in mvn pom file to avoid above error, by</p>
+<pre><code class="hljs css language-access transformers"><span class="hljs-tag">&lt;<span class="hljs-name">exclude</span>&gt;</span>META-INF/*.SF<span class="hljs-tag">&lt;/<span class="hljs-name">exclude</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">exclude</span>&gt;</span>META-INF/*.DSA<span class="hljs-tag">&lt;/<span class="hljs-name">exclude</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">exclude</span>&gt;</span>META-INF/*.RSA<span class="hljs-tag">&lt;/<span class="hljs-name">exclude</span>&gt;</span>
+</code></pre>
+<p>But it can also lead to new, cryptic errors, e.g. <code>java.security.NoSuchAlgorithmException: PBEWithSHA256And256BitAES-CBC-BC SecretKeyFactory not available</code> By explicitly specifying where to find the algorithm like this: <code>SecretKeyFactory.getInstance(&quot;PBEWithSHA256And256BitAES-CBC-BC&quot;,&quot;BC&quot;)</code> It will get the real error: <code>java.security.NoSuchProviderException: JCE cannot authenticate the provider BC</code></p>
+<p>So, we used a <a href="https://github.com/nthuemmel/executable-packer-maven-plugin">executable packer plugin</a> that uses a jar-in-jar approach to preserve the BouncyCastle signature in a single, executable jar.</p>
+<h3><a class="anchor" aria-hidden="true" id="引入-bc-non-fips-的依赖"></a><a href="#引入-bc-non-fips-的依赖" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>引入 BC-non-FIPS 的依赖</h3>
+<p>Pulsar module <code>bouncy-castle-bc</code>, which defined by <code>bouncy-castle/bc/pom.xml</code> contains the needed non-FIPS jars for Pulsar, and packaged as a jar-in-jar(need to provide <code>&lt;classifier&gt;pkg&lt;/classifier&gt;</code>).</p>
+<pre><code class="hljs css language-xml">  <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bcpkix-jdk15on<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastle.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 
-    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bcprov-ext-jdk15on<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastle.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bcprov-ext-jdk15on<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastle.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
-<p>通过使用 <code>bouncy-castle-bc</code> 模块，你可以轻松地将 Bouncycastle non-FIPS jar 包引入或排除。</p>
-<h3><a class="anchor" aria-hidden="true" id="pulsar-客户端和-broker-在-bc-non-fips-上的依赖"></a><a href="#pulsar-客户端和-broker-在-bc-non-fips-上的依赖" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 客户端和 Broker 在 BC-non-FIPS 上的依赖</h3>
-<p>Pulsar 客户端(<code>pulsar-client-original</code>) 模块可以通过以下方式添加依赖来引入 BouncyCastle non-FIPS jar 包：</p>
-<pre><code class="hljs css language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${project.parent.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">classifier</span>&gt;</span>pkg<span class="hljs-tag">&lt;/<span class="hljs-name">classifier</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+<p>By using this <code>bouncy-castle-bc</code> module, you can easily include and exclude BouncyCastle non-FIPS jars.</p>
+<h3><a class="anchor" aria-hidden="true" id="modules-that-include-bc-non-fips-module-bouncy-castle-bc"></a><a href="#modules-that-include-bc-non-fips-module-bouncy-castle-bc" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Modules that include BC-non-FIPS module (<code>bouncy-castle-bc</code>)</h3>
+<p>For Pulsar client, user need the bouncy-castle module, so <code>pulsar-client-original</code> will include the <code>bouncy-castle-bc</code> module, and have <code>&lt;classifier&gt;pkg&lt;/classifier&gt;</code> set to reference the <code>jar-in-jar</code> package. It is included as following example:</p>
+<pre><code class="hljs css language-xml">  <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">classifier</span>&gt;</span>pkg<span class="hljs-tag">&lt;/<span class="hljs-name">classifier</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
-<p>Pulsar Broker (<code>pulsar-broker</code>) 模块可以通过间接引入 Pulsar 客户端(<code>pulsar-client-original</code>) 模块来引入 BouncyCastle non-FIPS jar 包。</p>
-<pre><code class="hljs css language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-original<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${project.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+<p>By default <code>bouncy-castle-bc</code> already included in <code>pulsar-client-original</code>, And <code>pulsar-client-original</code> has been included in a lot of other modules like <code>pulsar-client-admin</code>, <code>pulsar-broker</code>.<br>
+But for the above shaded jar and signatures reason, we should not package Pulsar's <code>bouncy-castle</code> module into <code>pulsar-client-all</code> other shaded modules directly, such as <code>pulsar-client-shaded</code>, <code>pulsar-client-admin-shaded</code> and <code>pulsar-broker-shaded</code>. So in the shaded modules, we will exclude the <code>bouncy-castle</code> modules.</p>
+<pre><code class="hljs css language-xml">  <span class="hljs-tag">&lt;<span class="hljs-name">filters</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">filter</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">artifact</span>&gt;</span>org.apache.pulsar:pulsar-client-original<span class="hljs-tag">&lt;/<span class="hljs-name">artifact</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">includes</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">include</span>&gt;</span>**<span class="hljs-tag">&lt;/<span class="hljs-name">include</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">includes</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">excludes</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">exclude</span>&gt;</span>org/bouncycastle/**<span class="hljs-tag">&lt;/<span class="hljs-name">exclude</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">excludes</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">filter</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">filters</span>&gt;</span>
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="排除-bc-non-fips-并引入-bc-fips"></a><a href="#排除-bc-non-fips-并引入-bc-fips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>排除 BC-non-FIPS 并引入 BC-FIPS</h2>
-<p>在理解上述依赖后，用户可以轻松地排除 non-FIPS 版本，并引入 FIPS 版本。</p>
-<h3><a class="anchor" aria-hidden="true" id="bc-fips"></a><a href="#bc-fips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BC-FIPS</h3>
-<p>在 <code>bouncy-castle/bcfips/pom.xml</code> 中定义的 Pulsar 模块 <code>bouncy-castle-bcfips</code>，包含了Pulsar 所需的 FIPS jar 包。</p>
+<p>That means, <code>bouncy-castle</code> related jars are not shaded in these fat jars.</p>
+<h3><a class="anchor" aria-hidden="true" id="module-bc-fips-bouncy-castle-bcfips"></a><a href="#module-bc-fips-bouncy-castle-bcfips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Module BC-FIPS (<code>bouncy-castle-bcfips</code>)</h3>
+<p>在 <code>bouncy-castle/bcfips/pom.xml</code> 中定义的 Pulsar 模块 <code>bouncy-castle-bcfips</code>，包含了Pulsar 所需的 FIPS jar 包。 Similar to <code>bouncy-castle-bc</code>, <code>bouncy-castle-bcfips</code> also packaged as a <code>jar-in-jar</code> package for easy include/exclude.</p>
 <pre><code class="hljs css language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
       <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bc-fips<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
@@ -129,36 +144,29 @@
       <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastlefips.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
     <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
-<p>用户可以选择直接引入模块 <code>bouncy-castle-bfips</code>，或者引入原生的 BC-FIPS jar 包。</p>
-<p>例如:</p>
-<pre><code class="hljs css language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>${project.groupId}<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-broker<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${project.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">exclusions</span>&gt;</span>
-        <span class="hljs-tag">&lt;<span class="hljs-name">exclusion</span>&gt;</span>
-          <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>${project.groupId}<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-          <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-        <span class="hljs-tag">&lt;/<span class="hljs-name">exclusion</span>&gt;</span>
-      <span class="hljs-tag">&lt;/<span class="hljs-name">exclusions</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+<h3><a class="anchor" aria-hidden="true" id="排除-bc-non-fips-并引入-bc-fips"></a><a href="#排除-bc-non-fips-并引入-bc-fips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>排除 BC-non-FIPS 并引入 BC-FIPS</h3>
+<p>If you want to switch from BC-non-FIPS to BC-FIPS version, Here is an example for <code>pulsar-broker</code> module:</p>
+<pre><code class="hljs css language-xml">  <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-broker<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">exclusions</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">exclusion</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bc<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">exclusion</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">exclusions</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 
-    <span class="hljs-comment">&lt;!--exclude bouncy castle non-FIPS version, then load fips version--&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bc-fips<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastlefips.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
-
-    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.bouncycastle<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bcpkix-fips<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${bouncycastlefips.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>bouncy-castle-bcfips<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">classifier</span>&gt;</span>pkg<span class="hljs-tag">&lt;/<span class="hljs-name">classifier</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
-<p>除此之外，<code>bouncy-castle-bcfips</code> 模块构建会包含一个 NAR 格式的输出，你可以通过 <code>-DBcPath='nar/file/path'</code> 设置 java 环境，Pulsar 会自动载入它。</p>
-<p>更多的示例可以参考模块 <code>bcfips-include-test</code> 与 <code>bcfips-nar-test</code>。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/security-extending"><span class="arrow-prev">← </span><span>Extending</span></a><a class="docs-next button" href="/docs/zh-CN/next/performance-pulsar-perf"><span>Pulsar Perf</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bouncycastle-介绍">BouncyCastle 介绍</a></li><li><a href="#引入-bc-non-fips-的依赖">引入 BC-non-FIPS 的依赖</a><ul class="toc-headings"><li><a href="#pulsar-客户端和-broker-在-bc-non-fips-上的依赖">Pulsar 客户端和 Broker 在 BC-non-FIPS 上的依赖</a></li></ul></li><li><a href="#排除-bc-non-fips-并引入-bc-fips">排除 BC-non-FIPS 并引入 BC-FIPS</a><ul class="toc-headings"><li><a href="#bc-fips">BC-FIPS</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<p>For more example, you can reference module <code>bcfips-include-test</code>.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/security-extending"><span class="arrow-prev">← </span><span>Extending</span></a><a class="docs-next button" href="/docs/zh-CN/next/performance-pulsar-perf"><span>Pulsar Perf</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bouncycastle-介绍">BouncyCastle 介绍</a></li><li><a href="#how-bouncycastle-modules-packaged-in-pulsar">How BouncyCastle modules packaged in Pulsar</a><ul class="toc-headings"><li><a href="#引入-bc-non-fips-的依赖">引入 BC-non-FIPS 的依赖</a></li><li><a href="#modules-that-include-bc-non-fips-module-bouncy-castle-bc">Modules that include BC-non-FIPS module (<code>bouncy-castle-bc</code>)</a></li><li><a href="#module-bc-fips-bouncy-castle-bcfips">Module BC-FIPS (<code>bouncy-castle-bcfips</code>)</a></li><li><a href="#排除-bc-non-fips-并引入-bc-fips">排除 BC-non-FIPS 并引入 BC-FIPS</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
