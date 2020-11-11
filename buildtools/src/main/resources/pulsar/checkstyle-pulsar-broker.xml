@@ -28,113 +28,114 @@ what the following rules do, please see the checkstyle configuration
 page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
-    <!--    TODO: gradually make this file same as checkstyle.xml then remove it -->
+    <!--    &lt;!&ndash;    TODO: gradually make this file same as checkstyle.xml then remove it &ndash;&gt;-->
 
-    <module name="SuppressWarningsFilter"/>
+    <!--    <module name="SuppressWarningsFilter"/>-->
 
-    <module name="FileTabCharacter">
-        <!-- Checks that there are no tab characters in the file. -->
-    </module>
+    <!--    <module name="FileTabCharacter">-->
+    <!--        &lt;!&ndash; Checks that there are no tab characters in the file. &ndash;&gt;-->
+    <!--    </module>-->
 
-    <module name="RegexpSingleline">
-        <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
-        <property name="format" value="((//.*)|(\*.*))TODO\("/>
-        <property name="message" value="TODO comments must not include usernames."/>
-        <property name="severity" value="error"/>
-    </module>
+    <!--    <module name="RegexpSingleline">-->
+    <!--        &lt;!&ndash; Checks that TODOs don't have stuff in parenthesis, e.g., username. &ndash;&gt;-->
+    <!--        <property name="format" value="((//.*)|(\*.*))TODO\("/>-->
+    <!--        <property name="message" value="TODO comments must not include usernames."/>-->
+    <!--        <property name="severity" value="error"/>-->
+    <!--    </module>-->
 
-    <module name="RegexpSingleline">
-        <property name="format" value="\s+$"/>
-        <property name="message" value="Trailing whitespace"/>
-        <property name="severity" value="error"/>
-    </module>
+    <!--    <module name="RegexpSingleline">-->
+    <!--        <property name="format" value="\s+$"/>-->
+    <!--        <property name="message" value="Trailing whitespace"/>-->
+    <!--        <property name="severity" value="error"/>-->
+    <!--    </module>-->
 
-    <module name="RegexpSingleline">
-        <property name="format" value="Throwables.propagate\("/>
-        <property name="message" value="Throwables.propagate is deprecated"/>
-        <property name="severity" value="error"/>
-    </module>
+    <!--    <module name="RegexpSingleline">-->
+    <!--        <property name="format" value="Throwables.propagate\("/>-->
+    <!--        <property name="message" value="Throwables.propagate is deprecated"/>-->
+    <!--        <property name="severity" value="error"/>-->
+    <!--    </module>-->
 
-    <!-- Prevent *Tests.java as tools may not pick them up -->
-    <module name="RegexpOnFilename">
-        <property name="fileNamePattern" value=".*Tests\.java$"/>
-    </module>
+    <!--    &lt;!&ndash; Prevent *Tests.java as tools may not pick them up &ndash;&gt;-->
+    <!--    <module name="RegexpOnFilename">-->
+    <!--        <property name="fileNamePattern" value=".*Tests\.java$"/>-->
+    <!--    </module>-->
 
-    <!-- Allow use of comment to suppress javadocstyle -->
-    <module name="SuppressionCommentFilter">
-        <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
-        <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
-        <property name="checkFormat" value="$1"/>
-    </module>
-    <module name="SuppressionFilter">
-        <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
-    </module>
+    <!--    <module name="SuppressionFilter">-->
+    <!--        <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>-->
+    <!--    </module>-->
 
-    <!-- Check that every module has a package-info.java -->
-    <module name="JavadocPackage"/>
+    <!--    &lt;!&ndash; Check that every module has a package-info.java &ndash;&gt;-->
+    <!--    <module name="JavadocPackage"/>-->
 
-    <!-- All Java AST specific tests live under TreeWalker module. -->
-    <module name="TreeWalker">
+    <!--    &lt;!&ndash; All Java AST specific tests live under TreeWalker module. &ndash;&gt;-->
+    <!--    <module name="TreeWalker">-->
 
-        <module name="SuppressWarningsHolder"/>
+    <!--        &lt;!&ndash; Allow use of comment to suppress javadocstyle &ndash;&gt;-->
+    <!--        <module name="SuppressionCommentFilter">-->
+    <!--            <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>-->
+    <!--            <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>-->
+    <!--            <property name="checkFormat" value="$1"/>-->
+    <!--        </module>-->
 
-        <module name="TodoComment">
-            <!-- Checks that disallowed strings are not used in comments.  -->
-            <property name="format" value="(FIXME)|(XXX)|(@author)"/>
-        </module>
+    <!--        <module name="SuppressWarningsHolder"/>-->
 
-        <!--
+    <!--        <module name="TodoComment">-->
+    <!--            &lt;!&ndash; Checks that disallowed strings are not used in comments.  &ndash;&gt;-->
+    <!--            <property name="format" value="(FIXME)|(XXX)|(@author)"/>-->
+    <!--        </module>-->
 
-        IMPORT CHECKS
+    <!--        &lt;!&ndash;-->
 
-        -->
+    <!--        IMPORT CHECKS-->
 
-        <module name="RedundantImport">
-            <!-- Checks for redundant import statements. -->
-            <property name="severity" value="error"/>
-            <message key="import.redundancy"
-                     value="Redundant import {0}."/>
-        </module>
+    <!--        &ndash;&gt;-->
 
-        <module name="AvoidStarImport">
-            <property name="severity" value="error"/>
-        </module>
+    <!--        <module name="RedundantImport">-->
+    <!--            &lt;!&ndash; Checks for redundant import statements. &ndash;&gt;-->
+    <!--            <property name="severity" value="error"/>-->
+    <!--            <message key="import.redundancy"-->
+    <!--                     value="Redundant import {0}."/>-->
+    <!--        </module>-->
 
-        <module name="IllegalImport">
-            <property name="illegalPkgs"
-                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
-        </module>
+    <!--        <module name="AvoidStarImport">-->
+    <!--            <property name="severity" value="error"/>-->
+    <!--        </module>-->
 
-        <module name="RedundantModifier">
-            <!-- Checks for redundant modifiers on various symbol definitions.
-              See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
-            -->
-            <property name="tokens"
-                      value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
-        </module>
+    <!--        <module name="IllegalImport">-->
+    <!--            <property name="illegalPkgs"-->
+    <!--                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>-->
+    <!--        </module>-->
 
-        <!--
-            IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
-            code and some useful code. So we need to fall back to Regexp.
-        -->
-        <module name="RegexpSinglelineJava">
-            <property name="format"
-                      value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
-        </module>
+    <!--        <module name="RedundantModifier">-->
+    <!--            &lt;!&ndash; Checks for redundant modifiers on various symbol definitions.-->
+    <!--              See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier-->
+    <!--            &ndash;&gt;-->
+    <!--            <property name="tokens"-->
+    <!--                      value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>-->
+    <!--        </module>-->
 
-        <!--
-             Require static importing from Preconditions.
-        -->
-        <module name="RegexpSinglelineJava">
-            <property name="format" value="^import com.google.common.base.Preconditions;$"/>
-            <property name="message" value="Static import functions from Guava Preconditions"/>
-        </module>
+    <!--        &lt;!&ndash;-->
+    <!--            IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded-->
+    <!--            code and some useful code. So we need to fall back to Regexp.-->
+    <!--        &ndash;&gt;-->
+    <!--        <module name="RegexpSinglelineJava">-->
+    <!--            <property name="format"-->
+    <!--                      value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>-->
+    <!--        </module>-->
 
-        <module name="UnusedImports">
-            <property name="severity" value="error"/>
-            <property name="processJavadoc" value="true"/>
-            <message key="import.unused"
-                     value="Unused import: {0}."/>
-        </module>
-    </module>
+    <!--        &lt;!&ndash;-->
+    <!--             Require static importing from Preconditions.-->
+    <!--        &ndash;&gt;-->
+    <!--        <module name="RegexpSinglelineJava">-->
+    <!--            <property name="format" value="^import com.google.common.base.Preconditions;$"/>-->
+    <!--            <property name="message" value="Static import functions from Guava Preconditions"/>-->
+    <!--        </module>-->
+
+    <!--        <module name="UnusedImports">-->
+    <!--            <property name="severity" value="error"/>-->
+    <!--            <property name="processJavadoc" value="true"/>-->
+    <!--            <message key="import.unused"-->
+    <!--                     value="Unused import: {0}."/>-->
+    <!--        </module>-->
+    <!--    </module>-->
 </module>
