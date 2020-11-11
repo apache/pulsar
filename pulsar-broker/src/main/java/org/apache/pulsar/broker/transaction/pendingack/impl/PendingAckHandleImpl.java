@@ -306,6 +306,9 @@ public class PendingAckHandleImpl implements PendingAckHandle {
 
     @Override
     public synchronized void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position) {
+        if (individualAckPositions == null) {
+            individualAckPositions = new HashMap<>();
+        }
         if (!individualAckPositions.containsKey(position.left)) {
             this.individualAckPositions.put(position.left, position);
         } else {
