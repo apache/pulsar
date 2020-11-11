@@ -699,6 +699,133 @@ admin.topics().getLastMessage(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+## Manage non-partitioned topics
+You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
+
+### Create
+Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
+
+By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
+
+For more information about the two parameters, see [here](reference-configuration.md#broker).
+
+You can create non-partitioned topics in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+When you create non-partitioned topics with the [`create`](reference-pulsar-admin.md#create-3) command, you need to specify the topic name as an argument.
+
+```shell
+$ bin/pulsar-admin topics create \
+  persistent://my-tenant/my-namespace/my-topic
+```
+> **Note**    
+> When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
+
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+
+<!--Java-->
+```java
+String topicName = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().createNonPartitionedTopic(topicName);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Delete
+You can delete non-partitioned topics in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ bin/pulsar-admin topics delete \
+  persistent://my-tenant/my-namespace/my-topic
+```
+
+<!--REST API-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
+
+<!--Java-->
+```java
+admin.topics().delete(topic);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### List
+
+You can get the list of topics under a given namespace in the following ways.  
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics list tenant/namespace
+persistent://tenant/namespace/topic1
+persistent://tenant/namespace/topic2
+```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
+
+<!--Java-->
+```java
+admin.topics().getList(namespace);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Stats
+
+You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
+
+```json
+{
+  "msgRateIn": 4641.528542257553,
+  "msgThroughputIn": 44663039.74947473,
+  "msgRateOut": 0,
+  "msgThroughputOut": 0,
+  "averageMsgSize": 1232439.816728665,
+  "storageSize": 135532389160,
+  "publishers": [
+    {
+      "msgRateIn": 57.855383881403576,
+      "msgThroughputIn": 558994.7078932219,
+      "averageMsgSize": 613135,
+      "producerId": 0,
+      "producerName": null,
+      "address": null,
+      "connectedSince": null
+    }
+  ],
+  "subscriptions": {
+    "my-topic_subscription": {
+      "msgRateOut": 0,
+      "msgThroughputOut": 0,
+      "msgBacklog": 116632,
+      "type": null,
+      "msgRateExpired": 36.98245516804671,
+      "consumers": []
+    }
+  },
+  "replication": {}
+}
+```
+You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics stats \
+  persistent://test-tenant/namespace/topic \
+  --get-precise-backlog
+```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
+
+<!--Java-->
+```java
+admin.topics().getStats(topic, false /* is precise backlog */);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## Manage partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
 
@@ -994,129 +1121,85 @@ admin.topics().getInternalStats(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Manage non-partitioned topics
-You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
+## Publish to partitioned topics
 
-### Create
-Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
+By default, Pulsar topics are served by a single broker, which limits the maximum throughput of a topic. *Partitioned topics* can span multiple brokers and thus allow for higher throughput. 
 
-By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
+You can publish to partitioned topics using Pulsar client libraries. When publishing to partitioned topics, you must specify a routing mode. If you do not specify any routing mode when you create a new producer, the round robin routing mode is used. 
 
-For more information about the two parameters, see [here](reference-configuration.md#broker).
+### Routing mode
 
-You can create non-partitioned topics in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-When you create non-partitioned topics with the [`create`](reference-pulsar-admin.md#create-3) command, you need to specify the topic name as an argument.
+You can specify the routing mode in the ProducerConfiguration object that you use to configure your producer. The routing mode determines which partition(internal topic) that each message should be published to.
 
-```shell
-$ bin/pulsar-admin topics create \
-  persistent://my-tenant/my-namespace/my-topic
-```
-> **Note**    
-> When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
+The following {@inject: javadoc:MessageRoutingMode:/client/org/apache/pulsar/client/api/MessageRoutingMode} options are available.
 
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+Mode     | Description 
+:--------|:------------
+`RoundRobinPartition` | If no key is provided, the producer publishes messages across all partitions in round-robin policy to achieve the maximum throughput. Round-robin is not done per individual message, round-robin is set to the same boundary of batching delay to ensure that batching is effective. If a key is specified on the message, the partitioned producer hashes the key and assigns message to a particular partition. This is the default mode. 
+`SinglePartition`     | If no key is provided, the producer picks a single partition randomly and publishes all messages into that partition. If a key is specified on the message, the partitioned producer hashes the key and assigns message to a particular partition.
+`CustomPartition`     | Use custom message router implementation that is called to determine the partition for a particular message. You can create a custom routing mode by using the Java client and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
 
-<!--Java-->
+The following is an example:
+
 ```java
-String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.topics().createNonPartitionedTopic(topicName);
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
+producer.send("Partitioned topic message".getBytes());
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+### Custom message router
 
-### Delete
-You can delete non-partitioned topics in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ bin/pulsar-admin topics delete \
-  persistent://my-tenant/my-namespace/my-topic
-```
+To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
-
-<!--Java-->
 ```java
-admin.topics().delete(topic);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
-### List
-
-You can get the list of topics under a given namespace in the following ways.  
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics list tenant/namespace
-persistent://tenant/namespace/topic1
-persistent://tenant/namespace/topic2
-```
-
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
-
-<!--Java-->
-```java
-admin.topics().getList(namespace);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
-### Stats
-
-You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
-
-```json
-{
-  "msgRateIn": 4641.528542257553,
-  "msgThroughputIn": 44663039.74947473,
-  "msgRateOut": 0,
-  "msgThroughputOut": 0,
-  "averageMsgSize": 1232439.816728665,
-  "storageSize": 135532389160,
-  "publishers": [
-    {
-      "msgRateIn": 57.855383881403576,
-      "msgThroughputIn": 558994.7078932219,
-      "averageMsgSize": 613135,
-      "producerId": 0,
-      "producerName": null,
-      "address": null,
-      "connectedSince": null
-    }
-  ],
-  "subscriptions": {
-    "my-topic_subscription": {
-      "msgRateOut": 0,
-      "msgThroughputOut": 0,
-      "msgBacklog": 116632,
-      "type": null,
-      "msgRateExpired": 36.98245516804671,
-      "consumers": []
-    }
-  },
-  "replication": {}
+public interface MessageRouter extends Serializable {
+    int choosePartition(Message msg);
 }
 ```
-You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics stats \
-  persistent://test-tenant/namespace/topic \
-  --get-precise-backlog
-```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
+The following router routes every message to partition 10:
 
-<!--Java-->
 ```java
-admin.topics().getStats(topic, false /* is precise backlog */);
+public class AlwaysTenRouter implements MessageRouter {
+    public int choosePartition(Message msg) {
+        return 10;
+    }
+}
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+With that implementation, you can send
+
+```java
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(new AlwaysTenRouter())
+        .create();
+producer.send("Partitioned topic message".getBytes());
+```
+
+### How to choose partitions when using a key
+If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
+
+```java
+// If the message has a key, it supersedes the round robin routing policy
+        if (msg.hasKey()) {
+            return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
+        }
+
+        if (isBatchingEnabled) { // if batching is enabled, choose partition on `partitionSwitchMs` boundary.
+            long currentMs = clock.millis();
+            return signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartitions());
+        } else {
+            return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
+        }
+```        

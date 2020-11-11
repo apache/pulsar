@@ -735,6 +735,78 @@ $ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
 admin.namespaces().getReplicatorDispatchRate(namespace)
 ```
 
+#### Get deduplication snapshot interval
+
+It shows configured `deduplicationSnapshotInterval` for a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval)
+
+###### CLI
+
+```
+$ pulsar-admin namespaces get-deduplication-snapshot-interval test-tenant/ns1
+```
+
+###### REST
+
+```
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+```
+
+###### Java
+
+```java
+admin.namespaces().getDeduplicationSnapshotInterval(namespace)
+```
+
+#### Set deduplication snapshot interval
+
+Set configured `deduplicationSnapshotInterval` for a namespace. Each topic under the namespace will take a deduplication snapshot according to this interval.
+`brokerDeduplicationEnabled` must be set to `true` for this property to take effect.
+
+###### CLI
+
+```
+$ pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/ns1 --interval 1000 
+```
+
+###### REST
+
+```
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+```
+
+```json
+{
+  "interval": 1000
+}
+```
+###### Java
+
+```java
+admin.namespaces().setDeduplicationSnapshotInterval(namespace, 1000)
+```
+
+#### Remove deduplication snapshot interval
+
+Remove configured `deduplicationSnapshotInterval` of a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval)
+
+###### CLI
+
+```
+$ pulsar-admin namespaces remove-deduplication-snapshot-interval test-tenant/ns1
+```
+
+###### REST
+
+```
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+```
+
+###### Java
+
+```java
+admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
+```
+
 ### Namespace isolation
 
 Coming soon.

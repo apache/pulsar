@@ -102,7 +102,6 @@ flexible messaging model and an intuitive client API.</description>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
@@ -147,7 +146,6 @@ flexible messaging model and an intuitive client API.</description>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
-    <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <scala-library.version>2.11.12</scala-library.version>
     <debezium.version>1.0.0.Final</debezium.version>
@@ -1607,9 +1605,6 @@ flexible messaging model and an intuitive client API.</description>
 
         <!-- kafka connect avro converter shaded, because version mismatch    -->
         <module>kafka-connect-avro-converter-shaded</module>
-
-        <!-- examples -->
-        <module>examples</module>
 
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>

@@ -53,7 +53,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -2504,6 +2503,19 @@ public abstract class NamespacesBase extends AdminResource {
     protected int internalGetMaxProducersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_producers_per_topic;
+    }
+
+    protected Integer internalGetDeduplicationSnapshotInterval() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).deduplicationSnapshotIntervalSeconds;
+    }
+
+    protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        if (interval != null && interval < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "interval must be greater than or equal to 0");
+        }
+        internalSetPolicies("deduplicationSnapshotIntervalSeconds", interval);
     }
 
     protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {

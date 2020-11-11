@@ -22,9 +22,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.util.Recycler;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.List;
 
 public class EntryBatchIndexesAcks {
 

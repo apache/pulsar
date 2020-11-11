@@ -1075,7 +1075,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void createPersistentTopic(final String topic, boolean createIfMissing,
-    		CompletableFuture<Optional<Topic>> topicFuture) {
+                                       CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);

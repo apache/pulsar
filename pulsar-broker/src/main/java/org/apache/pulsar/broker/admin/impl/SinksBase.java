@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import io.swagger.annotations.*;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
@@ -42,7 +41,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 

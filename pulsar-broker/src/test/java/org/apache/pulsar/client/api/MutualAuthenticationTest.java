@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;

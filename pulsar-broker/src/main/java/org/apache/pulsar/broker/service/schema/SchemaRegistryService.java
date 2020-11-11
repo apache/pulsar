@@ -19,11 +19,8 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.collect.Maps;
-import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
