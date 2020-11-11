@@ -2193,7 +2193,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                     subName);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
+                    "Peek messages on a non-persistent topic is not allowed");
         }
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -2215,13 +2215,63 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
         } catch (Exception exception) {
-            log.error("[{}] Failed to get message at position {} from {} {}", clientAppId(), messagePosition,
+            log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(), messagePosition,
                     topicName, subName, exception);
             throw new RestException(exception);
         } finally {
             if (entry != null) {
                 entry.release();
             }
+        }
+    }
+
+    protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a partitioned topic is not allowed, " +
+                    "please try examine message on specific topic partition");
+        }
+        validateTopicOwnership(topicName, authoritative);
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a non-persistent topic is not allowed");
+        }
+
+        if (messagePosition < 1) {
+            messagePosition = 1;
+        }
+
+        if (null == initialPosition) {
+            initialPosition = "latest";
+        }
+
+        try {
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            long totalMessage = topic.getNumberOfEntries();
+            PositionImpl startPosition = topic.getFirstPosition();
+            long messageToSkip = initialPosition.equals("earliest")? messagePosition : totalMessage - messagePosition + 1;
+            CompletableFuture<Entry> future = new CompletableFuture<>();
+            PositionImpl readPosition = topic.getPositionAfterN(startPosition, messageToSkip);
+            topic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    future.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+            return generateResponseWithEntry(future.get());
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
+                    topicName , exception);
+            throw new RestException(exception);
         }
     }
 
