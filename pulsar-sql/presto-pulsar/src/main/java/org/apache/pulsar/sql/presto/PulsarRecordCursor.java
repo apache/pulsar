@@ -550,8 +550,7 @@ public class PulsarRecordCursor implements RecordCursor {
         return getFieldValueProvider(field, Slice.class).getSlice();
     }
 
-    private FieldValueProvider getFieldValueProvider(int fieldIndex, Class<?> expectedType)
-    {
+    private FieldValueProvider getFieldValueProvider(int fieldIndex, Class<?> expectedType) {
         checkArgument(fieldIndex < columnHandles.size(), "Invalid field index");
         checkFieldType(fieldIndex, expectedType);
         return currentRowValues[fieldIndex];

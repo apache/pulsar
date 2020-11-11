@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import io.prestosql.decoder.DecoderColumnHandle;
+
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.ArrayType;
@@ -49,6 +50,7 @@ import io.prestosql.spi.type.TypeSignature;
 import io.prestosql.spi.type.TypeSignatureParameter;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -123,8 +125,8 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(
-                        format("field '%s' NULL Type code should not be reached," +
-                                "please check the schema or report the bug.", fieldname));
+                        format("field '%s' NULL Type code should not be reached,"
+                                + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
                 //TODO: support decimal logicalType
@@ -164,8 +166,8 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                             .collect(toImmutableList()));
                 } else {
                     throw new UnsupportedOperationException(format(
-                            "field '%s' of record Type has no fields, " +
-                                    "please check avro schema definition. ", fieldname));
+                            "field '%s' of record Type has no fields, "
+                                    + "please check avro schema definition. ", fieldname));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {

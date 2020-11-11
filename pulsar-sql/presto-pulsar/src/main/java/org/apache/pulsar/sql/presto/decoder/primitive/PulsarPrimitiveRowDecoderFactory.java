@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
-import io.airlift.log.Logger;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.BigintType;
@@ -38,6 +39,7 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -54,7 +56,8 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
     private static final Logger log = Logger.get(PulsarPrimitiveRowDecoderFactory.class);
 
     @Override
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
+                                             Set<DecoderColumnHandle> columns) {
         if (columns.size() == 1) {
             return new PulsarPrimitiveRowDecoder(columns.iterator().next());
         } else {

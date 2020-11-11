@@ -21,12 +21,16 @@ package org.apache.pulsar.sql.presto;
 import static java.lang.String.format;
 
 import com.google.inject.Inject;
+
 import io.airlift.log.Logger;
-import java.util.List;
-import java.util.Set;
+
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.TypeManager;
+
+import java.util.List;
+import java.util.Set;
+
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;

@@ -26,7 +26,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;

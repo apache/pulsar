@@ -23,13 +23,14 @@ import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
 import static org.apache.pulsar.sql.presto.PulsarFieldValueProviders.doubleValueProvider;
 
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import io.netty.buffer.ByteBuf;
+
+import io.prestosql.decoder.DecoderColumnHandle;
+import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
 import io.prestosql.spi.type.DateType;
@@ -43,6 +44,7 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+
 import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
 
