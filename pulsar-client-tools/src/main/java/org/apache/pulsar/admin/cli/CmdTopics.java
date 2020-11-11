@@ -1225,6 +1225,14 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload service endpoint, only s3 requires this parameter")
         private String endpoint;
 
+        @Parameter(names = {"-i", "--aws-id"}
+                , description = "AWS Credential Id to use when using driver S3 or aws-s3")
+        private String awsId;
+
+        @Parameter(names = {"-s", "--aws-secret"}
+                , description = "AWS Credential Secret to use when using driver S3 or aws-s3")
+        private String awsSecret;
+
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
                 , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
         private int maxBlockSizeInBytes;
@@ -1244,7 +1252,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, maxBlockSizeInBytes
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
                     , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

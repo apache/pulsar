@@ -214,6 +214,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
+    private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -442,6 +443,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
+        this.startDeduplicationSnapshotMonitor();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -453,6 +455,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         // Ensure the broker starts up with initial stats
         updateRates();
+    }
+
+    protected void startDeduplicationSnapshotMonitor() {
+        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
+        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+            this.deduplicationSnapshotMonitor =
+                    Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("deduplication-snapshot-monitor"));
+            deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(Topic::checkDeduplicationSnapshot))
+                    , interval, interval, TimeUnit.SECONDS);
+        }
     }
 
     protected void startInactivityMonitor() {
@@ -674,6 +686,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         if (brokerPublishRateLimiterMonitor != null) {
             brokerPublishRateLimiterMonitor.shutdown();
+        }
+        if (deduplicationSnapshotMonitor != null) {
+            deduplicationSnapshotMonitor.shutdown();
         }
 
         log.info("Broker service completely shut down");
@@ -1033,7 +1048,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void createPersistentTopic(final String topic, boolean createIfMissing,
-    		CompletableFuture<Optional<Topic>> topicFuture) {
+                                       CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);

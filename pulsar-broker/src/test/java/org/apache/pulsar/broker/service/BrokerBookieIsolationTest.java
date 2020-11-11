@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +36,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
+import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -116,7 +119,6 @@ public class BrokerBookieIsolationTest {
      */
     @Test
     public void testBookieIsolation() throws Exception {
-
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
@@ -235,6 +237,15 @@ public class BrokerBookieIsolationTest {
 
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
+
+        // make sure bk-isolation group also configure REPP_DNS_RESOLVER_CLASS as ZkBookieRackAffinityMapping to
+        // configure rack-aware policy with in isolated group
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkMap = mlFactory.getBkEnsemblePolicyToBookKeeperMap();
+        BookKeeper bk = bkMap.values().iterator().next();
+        Method getConf = BookKeeper.class.getDeclaredMethod("getConf");
+        getConf.setAccessible(true);
+        ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
+        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), ZkBookieRackAffinityMapping.class.getName());
     }
 
     /**
@@ -506,7 +517,6 @@ public class BrokerBookieIsolationTest {
 
         zkClient.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
-
     private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 
 }

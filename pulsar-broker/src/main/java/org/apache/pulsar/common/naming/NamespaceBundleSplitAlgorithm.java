@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 
 import java.util.List;
