@@ -18,20 +18,21 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Interface for offloading ledgers to long-term storage
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Evolving
 public interface LedgerOffloader {
 
     // TODO: improve the user metadata in subsequent changes
