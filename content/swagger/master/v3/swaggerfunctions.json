@@ -1674,9 +1674,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
@@ -1687,10 +1684,6 @@
                         "format": "byte"
                     }
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "schemaVersion": {
                     "type": "array",
                     "items": {
@@ -1698,8 +1691,12 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "producerName": {
                     "type": "string"
@@ -1720,6 +1717,9 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "value": {
                     "type": "object"

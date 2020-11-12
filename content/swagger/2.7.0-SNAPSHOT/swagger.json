@@ -2103,6 +2103,78 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get deduplicationSnapshotInterval config on a namespace.",
+        "description" : "",
+        "operationId" : "getDeduplicationSnapshotInterval",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set deduplicationSnapshotInterval config on a namespace.",
+        "description" : "",
+        "operationId" : "setDeduplicationSnapshotInterval",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Interval to take deduplication snapshot per topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/delayedDelivery" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -15245,25 +15317,16 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -15277,6 +15340,15 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -16117,6 +16189,10 @@
         },
         "offload_policies" : {
           "$ref" : "#/definitions/OffloadPolicies"
+        },
+        "deduplicationSnapshotIntervalSeconds" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -16471,11 +16547,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
