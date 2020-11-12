@@ -391,6 +391,9 @@ public class FunctionConfigUtils {
             if (spec.hasCryptoSpec()) {
                 producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
             }
+            if (spec.getBatchBuilder() != null) {
+                producerConfig.setBatchBuilder(spec.getBatchBuilder());
+            }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
             functionConfig.setProducerConfig(producerConfig);
         }
