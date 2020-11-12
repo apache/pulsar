@@ -163,6 +163,22 @@ public abstract class BaseResource {
         return future;
     }
 
+    public <T> CompletableFuture<T> asyncGetRequest(final WebTarget target) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        asyncGetRequest(target, new InvocationCallback<T>() {
+            @Override
+            public void completed(T t) {
+                future.complete(t);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
     public <T> Future<T> asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
         try {
             return request(target).async().get(callback);

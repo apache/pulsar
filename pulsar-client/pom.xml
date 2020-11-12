@@ -162,6 +162,13 @@
       <version>${skyscreamer.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!--  package management related dependencies (begin) -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-manager</artifactId>
+    </dependency>
+    <!--  package management related dependencies (end)  -->
   </dependencies>
 
   <build>

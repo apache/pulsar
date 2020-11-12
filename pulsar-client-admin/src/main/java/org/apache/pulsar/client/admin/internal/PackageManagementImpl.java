@@ -19,54 +19,83 @@
 package org.apache.pulsar.client.admin.internal;
 
 import org.apache.pulsar.client.admin.PackageManagement;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.packages.manager.PackageMetadata;
 
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-public class PackageManagementImpl implements PackageManagement {
+public class PackageManagementImpl extends BaseResource implements PackageManagement {
+
+    private final WebTarget packageManagement;
+
+    public PackageManagementImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
+        this.packageManagement = web.path("/admin/v3/packages");
+    }
+
     @Override
     public PackageMetadata getMetadata(String packageName) {
         return null;
     }
 
     @Override
-    public CompletableFuture<PackageMetadta> getMetadataAsync(String packageName) {
-        return null;
+    public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
+        WebTarget path = packageManagement.path(packageName);
+        return asyncGetRequest(path);
     }
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) {
+        WebTarget path = packageManagement.path(packageName);
 
     }
 
     @Override
     public CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata) {
+        WebTarget path = packageManagement.path(packageName);
+        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void upload(String packageName, String path) {
+        uploadAsync(packageName, path);
+    }
+
+    @Override
+    public CompletableFuture<Void> uploadAsync(String packageName, String path) {
         return null;
     }
 
     @Override
-    public void upload() {
+    public void download(String packageName, String path) {
 
     }
 
     @Override
-    public CompletableFuture<Void> uploadAsync() {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Void> downloadAsync() {
+    public CompletableFuture<Void> downloadAsync(String packageName, String path) {
         return null;
     }
 
     @Override
     public List<String> listPackageVersions(String packageName) {
-        return null;
+        try {
+            return listPackageVersionsAsync(packageName).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public CompletableFuture<List<String>> listPackageVersionsAsync(String packageName) {
-        return null;
+        WebTarget path = packageManagement.path();
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -76,6 +105,7 @@ public class PackageManagementImpl implements PackageManagement {
 
     @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
-        return null;
+        WebTarget path = packageManagement.path();
+        return asyncGetRequest(path);
     }
 }

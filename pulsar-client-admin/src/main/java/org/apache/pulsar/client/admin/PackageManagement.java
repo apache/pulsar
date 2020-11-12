@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin;
 
+import org.apache.pulsar.packages.manager.PackageMetadata;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -42,7 +44,7 @@ public interface PackageManagement {
      *          the package name of the package metadata you want to find
      * @return  the package metadata information
      */
-    CompletableFuture<PackageMetadta> getMetadataAsync(String packageName);
+    CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
 
     /**
      * Update a package metadata information.
@@ -66,19 +68,46 @@ public interface PackageManagement {
     CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
 
     /**
-     * Upload a package.
+     * Upload a package to the package management service.
      *
+     * @param packageName
+     *          the package name of the upload file
+     * @param path
+     *          the upload file path
      */
-    void upload();
+    void upload(String packageName, String path);
 
     /**
-     * Upload a package asynchronously.
+     * Upload a package to the package management service asynchronously.
      *
+     * @param packageName
+     *          the package name you want to upload
+     * @param path
+     *          the path you want to upload from
      * @return nothing
      */
-    CompletableFuture<Void> uploadAsync();
+    CompletableFuture<Void> uploadAsync(String packageName, String path);
 
-    CompletableFuture<Void> downloadAsync();
+    /**
+     * Download a package from the package management service.
+     *
+     * @param packageName
+     *          the package name you want to download
+     * @param path
+     *          the path you want to download to
+     */
+    void download(String packageName, String path);
+
+    /**
+     * Download a package from the package management service asynchronously.
+     *
+     * @param packageName
+     *          the package name you want to download
+     * @param path
+     *          the path you want to download to
+     * @return nothing
+     */
+    CompletableFuture<Void> downloadAsync(String packageName, String path);
 
     /**
      * List all the versions of a package.
