@@ -16,4 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/**
+ * Component for processing pending acks for transactions.
+ */
 package org.apache.pulsar.broker.transaction.pendingack;
