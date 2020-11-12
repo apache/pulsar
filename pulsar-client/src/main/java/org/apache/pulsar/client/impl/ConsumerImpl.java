@@ -2220,6 +2220,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // Propagate notification to listener
             listener.reachedEndOfTopic(this);
         }
+        if(endOfTopicMessageListener != null) {
+          listenerExecutor.execute(() -> {
+              endOfTopicMessageListener.reachedEndOfTopic(this);
+            });
+        }
     }
 
     @Override

@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.EndOfTopicMessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
@@ -225,6 +226,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
         return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> endOfTopicMessageListener(@NonNull EndOfTopicMessageListener<T> endOfTopicMessageListener) {
+      conf.setEndOfTopicMessageListener(endOfTopicMessageListener);
+      return this;
     }
 
     @Override

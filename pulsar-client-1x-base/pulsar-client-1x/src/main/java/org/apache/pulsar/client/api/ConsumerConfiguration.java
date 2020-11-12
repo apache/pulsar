@@ -25,6 +25,8 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.EndOfTopicMessageListener;
+
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v1.ConsumerV1Impl;
 /**
@@ -47,6 +49,8 @@ public class ConsumerConfiguration implements Serializable {
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
     private MessageListener<byte[]> messageListener;
+
+    private EndOfTopicMessageListener<byte[]> endOfTopicMessageListener;
 
     public ConsumerConfiguration() {
         // Disable acknowledgment grouping when using v1 API
@@ -107,7 +111,7 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * Sets a {@link MessageListener} for the consumer
+     * Sets a {@link MessageListener} for the consumer.
      * <p>
      * When a {@link MessageListener} is set, application will receive messages through it. Calls to
      * {@link Consumer#receive()} will not be allowed.
@@ -132,6 +136,38 @@ public class ConsumerConfiguration implements Serializable {
         });
         return this;
     }
+
+    /**
+     * Sets a {@link EndOfTopicMessageListener} for the consumer.
+     * <p>
+     * When a {@link EndOfTopicMessageListener} is set, the application will receive the end of topic event through it.
+     *
+     * @param messageListener
+     *            the listener object
+     * @since 2.7.0
+     */
+     public ConsumerConfiguration setEndOfTopicMessageListener(EndOfTopicMessageListener<byte[]> endOfTopicMessageListener) {
+        checkNotNull(endOfTopicMessageListener);
+        this.endOfTopicMessageListener = endOfTopicMessageListener;
+        conf.setEndOfTopicMessageListener(new org.apache.pulsar.shade.client.api.v2.EndOfTopicMessageListener<byte[]>() {
+
+            @Override
+            public void reachedEndOfTopic(org.apache.pulsar.shade.client.api.v2.Consumer<byte[]> consumer) {
+                endOfTopicMessageListener.reachedEndOfTopic(new ConsumerV1Impl(consumer));
+            }
+        });
+        return this;
+    }
+
+   /**
+    * @return this configured {@link EndOfTopicMessageListener} for the consumer.
+    * @see #setEndOfTopicMessageListener(EndOfTopicMessageListener)
+    * @since 2.7.0
+    */
+    public EndOfTopicMessageListener getEndOfTopicMessageListener() {
+      return conf.getEndOfTopicMessageListener();
+    }
+
 
     /**
      * @return this configured {@link ConsumerEventListener} for the consumer.

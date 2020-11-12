@@ -85,6 +85,7 @@
                     <include>org.apache.pulsar.client.api.Consumer</include>
                     <include>org.apache.pulsar.client.api.Reader</include>
                     <include>org.apache.pulsar.client.api.MessageListener</include>
+                    <include>org.apache.pulsar.client.api.EndOfTopicMessageListener</include>
                     <include>org.apache.pulsar.client.api.ReaderListener</include>
                   </includes>
                 </relocation>

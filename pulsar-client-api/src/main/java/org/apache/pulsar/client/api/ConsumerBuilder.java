@@ -248,12 +248,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * <p>When a {@link MessageListener} is set, application will receive messages through it. Calls to
      * {@link Consumer#receive()} will not be allowed.
+     * Use {@Link endOfTopicMessageListener} for end of topic events only.
      *
      * @param messageListener
      *            the listener object
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
+
+  /**
+   * Sets a {@link EndOfTopicMessageListener} for the consumer
+   *
+   * <p>When a {@link endOfTopicMessageListener} is set, the application will receive the end of topic event through it.
+   *
+   * @param endOfTopicMessageListener
+   *            the listener object
+   * @return the consumer builder instance
+   */
+  ConsumerBuilder<T> endOfTopicMessageListener(EndOfTopicMessageListener<T> endOfTopicMessageListener);
 
     /**
      * Sets a {@link CryptoKeyReader}.

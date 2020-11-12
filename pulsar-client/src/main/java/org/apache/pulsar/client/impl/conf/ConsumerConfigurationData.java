@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.EndOfTopicMessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -65,6 +66,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     private MessageListener<T> messageListener;
+
+    @JsonIgnore
+    private EndOfTopicMessageListener<T> endOfTopicMessageListener;
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
