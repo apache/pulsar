@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Handle for processing pending acks for transactions.
+ */
 public interface PendingAckHandle {
 
     /**
