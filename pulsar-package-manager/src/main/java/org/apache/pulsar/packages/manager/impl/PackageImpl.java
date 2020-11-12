@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -46,6 +47,7 @@ import org.apache.pulsar.packages.manager.naming.PackageType;
 /**
  * The implementation of package management.
  */
+@Slf4j
 public class PackageImpl implements Package {
 
     private final PackageStorage packageStorage;
@@ -53,6 +55,14 @@ public class PackageImpl implements Package {
 
     public PackageImpl(PackageStorage packageStorage) {
         this.packageStorage = packageStorage;
+    }
+
+    public CompletableFuture<Void> setMeta(PackageName packageName, PackageMetadata metadata) {
+        String metadataPath = getMetadataStoragePath(packageName);
+        log.info("save the package metadata to the path {}", metadataPath);
+        System.out.println("save package metadta to the path " + metadataPath);
+        ByteArrayInputStream meta = new ByteArrayInputStream(gson.toJson(metadata).getBytes(StandardCharsets.UTF_8));
+        return packageStorage.writeAsync(metadataPath, meta);
     }
 
     @Override

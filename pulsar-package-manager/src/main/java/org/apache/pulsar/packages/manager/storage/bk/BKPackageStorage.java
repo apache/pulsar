@@ -29,8 +29,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
+import org.apache.distributedlog.DistributedLogConstants;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -41,16 +43,17 @@ import org.apache.distributedlog.namespace.NamespaceDriver;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.manager.PackageStorage;
-import org.apache.pulsar.packages.manager.PackageStorageConfig;
 import org.apache.pulsar.packages.manager.exception.PackageException;
 import org.apache.zookeeper.KeeperException;
 
 /**
  * Using bookKeeper to store the package and package metadata.
  */
+@Slf4j
 public class BKPackageStorage implements PackageStorage {
 
-    private Namespace namespace;
+    @VisibleForTesting
+    Namespace namespace;
     private BKPackageStorageConfig config;
 
     BKPackageStorage(ServiceConfiguration configuration) {
@@ -69,18 +72,13 @@ public class BKPackageStorage implements PackageStorage {
 
     private void setup() {
         DistributedLogConfiguration conf = new DistributedLogConfiguration()
-            .setWriteLockEnabled(false)
-            .setOutputBufferSize(256 * 1024)                  // 256k
-            .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
-            .setImmediateFlushEnabled(false)                  // disable immediate flush
-            .setLogSegmentRollingIntervalMinutes(0)           // disable time-based rolling
-            .setMaxLogSegmentBytes(Long.MAX_VALUE)            // disable size-based rolling
-            .setExplicitTruncationByApplication(true)         // no auto-truncation
-            .setRetentionPeriodHours(Integer.MAX_VALUE)       // long retention
-            .setEnsembleSize(config.numReplicas)                     // replica settings
-            .setWriteQuorumSize(config.numReplicas)
-            .setAckQuorumSize(config.numReplicas)
-            .setUseDaemonThread(true);
+            .setImmediateFlushEnabled(true)
+            .setOutputBufferSize(0)
+            .setPeriodicFlushFrequencyMilliSeconds(0)
+            .setWriteQuorumSize(1)
+            .setEnsembleSize(1)
+            .setAckQuorumSize(1)
+            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
 
         conf.setProperty("bkc.allowShadedLedgerManagerFactoryClass", true);
         conf.setProperty("bkc.shadedLedgerManagerFactoryClassPrefix", "dlshade.");

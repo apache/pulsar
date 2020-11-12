@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -36,6 +37,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * DistributedLog Output Stream.
  */
+@Slf4j
 class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
@@ -48,6 +50,7 @@ class DLOutputStream {
     }
 
     static CompletableFuture<DLOutputStream> openWriterAsync(DistributedLogManager distributedLogManager) {
+        log.info("Open a dlog manager");
         return distributedLogManager.openAsyncLogWriter().thenApply(w -> new DLOutputStream(distributedLogManager, w));
     }
 
@@ -65,22 +68,33 @@ class DLOutputStream {
             try {
                 int read = 0;
                 while ((read = inputStream.read(readBuffer)) != -1) {
+                    log.info("write something into the ledgers");
                     ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
                     writeFuture.add(writeAsync(writeBuf));
                 }
+                log.info("write done, and add to the future");
             } catch (IOException e) {
+                e.printStackTrace();
                 result.completeExceptionally(e);
             }
-        }).thenRun(() -> {
+        }).whenComplete((ignore, e) -> {
+            if (e != null) {
+                result.completeExceptionally(e);
+                return;
+            }
+            log.info("All pending request has {}", writeFuture.size());
             FutureUtil.waitForAll(writeFuture)
-                .whenComplete((i, e) -> {
-                    if (e != null) {
-                        result.completeExceptionally(e);
+                .whenComplete((i, error) -> {
+                    log.info("Done the request");
+                    if (error != null) {
+                        error.printStackTrace();
+                        result.completeExceptionally(error);
                     } else {
                         result.complete(this);
                     }
                 });
         });
+
 
         return result;
     }
@@ -94,7 +108,14 @@ class DLOutputStream {
     private CompletableFuture<DLOutputStream> writeAsync(ByteBuf data) {
         offset += data.readableBytes();
         LogRecord record = new LogRecord(offset, data);
-        return writer.write(record).thenApply(ignore -> this);
+        log.info("execute write to the dlog");
+        return writer.write(record).whenComplete((dlsn, throwable) -> {
+            if (throwable != null) {
+                throwable.printStackTrace();
+            } else {
+                log.info("DLSN is {}", dlsn.toString());
+            }
+        }).thenApply(ignore -> this);
     }
 
     /**

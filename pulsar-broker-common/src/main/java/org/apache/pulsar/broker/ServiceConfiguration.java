@@ -258,7 +258,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "ZooKeeper session timeout in milliseconds"
     )
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    private long zooKeeperSessionTimeoutMillis = 3000000;
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "ZooKeeper operation timeout in seconds"
@@ -1959,11 +1959,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_PACKAGE_MANAGER,
         doc = ""
     )
-    private String packageStorageProvider = null;
+    private String packageStorageProvider = "org.apache.pulsar.packages.manager.storage.bk.BKPackageStorageProvider";
 
-    private int packageReplicas;
+    private int packageReplicas = 1;
 
-    private String packageLedgerRootPath = null;
+    private String packageLedgerRootPath = "/ledgers";
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
