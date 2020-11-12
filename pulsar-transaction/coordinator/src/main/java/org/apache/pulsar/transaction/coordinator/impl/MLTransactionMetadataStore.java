@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
@@ -64,7 +66,7 @@ public class MLTransactionMetadataStore
     private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
     private final MLTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
-    private final ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentHashMap<>();
     private final TransactionTimeoutTracker transactionTimeoutTracker;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
@@ -95,61 +97,66 @@ public class MLTransactionMetadataStore
 
                     TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
                             transactionMetadataEntry.getTxnidLeastBits());
-                    TxnMeta txn;
+                    Pair<TxnMeta, List<Position>> txnMetaPositionPair;
                     switch (transactionMetadataEntry.getMetadataOp()) {
                         case NEW:
                             if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
                                 sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
                             }
-                            txn = TxnMetaImpl.create(txnID);
-                            txnMetaMap.put(txnID, txn);
+                            if (txnMetaMap.containsKey(txnID)) {
+                                txnMetaMap.get(txnID).getValue().add(position);
+                            } else {
+                                List<Position> positions = new ArrayList<>();
+                                positions.add(position);
+                                txnMetaMap.put(txnID, MutablePair.of(TxnMetaImpl.create(txnID), positions));
+                            }
                             transactionTimeoutTracker
                                     .addTransaction(sequenceId.get(), transactionMetadataEntry.getTimeoutMs());
                             break;
-                        case ADD_PARTITION:
-                            txn = txnMetaMap.get(txnID);
-                            if (txn != null) {
-                                txn.addProducedPartitions(transactionMetadataEntry.getPartitionsList());
-                                txn.addTxnPosition(position);
-                            } else {
-                                throw new TransactionNotFoundException(txnID);
-                            }
-                            break;
-                        case ADD_SUBSCRIPTION:
-                            txn = txnMetaMap.get(txnID);
-                            if (txn != null) {
-                                txn.addAckedPartitions(
-                                        subscriptionToTxnSubscription
-                                                (transactionMetadataEntry.getSubscriptionsList()));
-                                txn.addTxnPosition(position);
-                            } else {
-                                throw new TransactionNotFoundException(txnID);
-                            }
-                            break;
-                        case UPDATE:
-                            txn = txnMetaMap.get(txnID);
-                            if (txn != null) {
-                                TxnStatus newStatus = transactionMetadataEntry.getNewStatus();
-                                txn.addTxnPosition(position);
-                                if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
-                                    transactionLog.deletePosition(txn.positions()).thenAccept(v -> {
-                                        txnMetaMap.remove(txnID);
-                                        ((TxnMetaImpl) txn).recycle();
-                                    });
-                                } else {
-                                    txn.updateTxnStatus(transactionMetadataEntry.getNewStatus(),
-                                            transactionMetadataEntry.getExpectedStatus());
-                                }
-                            } else {
-                                throw new TransactionNotFoundException(txnID);
-                            }
-                            break;
+//                        case ADD_PARTITION:
+//                            txn = txnMetaMap.get(txnID);
+//                            if (txn != null) {
+//                                txn.addProducedPartitions(transactionMetadataEntry.getPartitionsList());
+//                                txn.addTxnPosition(position);
+//                            } else {
+//                                throw new TransactionNotFoundException(txnID);
+//                            }
+//                            break;
+//                        case ADD_SUBSCRIPTION:
+//                            txn = txnMetaMap.get(txnID);
+//                            if (txn != null) {
+//                                txn.addAckedPartitions(
+//                                        subscriptionToTxnSubscription
+//                                                (transactionMetadataEntry.getSubscriptionsList()));
+//                                txn.addTxnPosition(position);
+//                            } else {
+//                                throw new TransactionNotFoundException(txnID);
+//                            }
+//                            break;
+//                        case UPDATE:
+//                            txn = txnMetaMap.get(txnID);
+//                            if (txn != null) {
+//                                TxnStatus newStatus = transactionMetadataEntry.getNewStatus();
+//                                txn.addTxnPosition(position);
+//                                if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
+//                                    transactionLog.deletePosition(txn.positions()).thenAccept(v -> {
+//                                        txnMetaMap.remove(txnID);
+//                                        ((TxnMetaImpl) txn).recycle();
+//                                    });
+//                                } else {
+//                                    txn.updateTxnStatus(transactionMetadataEntry.getNewStatus(),
+//                                            transactionMetadataEntry.getExpectedStatus());
+//                                }
+//                            } else {
+//                                throw new TransactionNotFoundException(txnID);
+//                            }
+//                            break;
                         default:
                             throw new InvalidTxnStatusException("Transaction `"
                                     + txnID + "` load replay metadata operation "
                                     + "from transaction log with unknown operation");
                     }
-                } catch (InvalidTxnStatusException | TransactionNotFoundException e) {
+                } catch (InvalidTxnStatusException  e) {
                     log.error(e.getMessage(), e);
                 }
             }
@@ -158,12 +165,12 @@ public class MLTransactionMetadataStore
 
     @Override
     public CompletableFuture<TxnStatus> getTxnStatusAsync(TxnID txnID) {
-        return CompletableFuture.completedFuture(txnMetaMap.get(txnID).status());
+        return CompletableFuture.completedFuture(txnMetaMap.get(txnID).getLeft().status());
     }
 
     @Override
     public CompletableFuture<TxnMeta> getTxnMetaAsync(TxnID txnID) {
-        return CompletableFuture.completedFuture(txnMetaMap.get(txnID));
+        return CompletableFuture.completedFuture(txnMetaMap.get(txnID).getLeft());
     }
 
     @Override
@@ -190,7 +197,8 @@ public class MLTransactionMetadataStore
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(v -> {
                     TxnMeta txn = TxnMetaImpl.create(txnID);
-                    txnMetaMap.put(txnID, txn);
+                    //
+                    txnMetaMap.put(txnID, new MutablePair<>());
                     txn.addTxnPosition(v);
                     transactionTimeoutTracker
                             .addTransaction(leastSigBits, timeOut);
@@ -371,7 +379,7 @@ public class MLTransactionMetadataStore
     }
 
     @VisibleForTesting
-    public ConcurrentMap<TxnID, TxnMeta> getTxnMetaMap() {
+    public ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> getTxnMetaMap() {
         return txnMetaMap;
     }
 }

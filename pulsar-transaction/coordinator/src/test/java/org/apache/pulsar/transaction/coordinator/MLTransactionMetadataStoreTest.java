@@ -23,7 +23,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
@@ -187,11 +186,11 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                     transactionMetadataStore.newTransactionAsync(5).get();
                 }
                 transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) -> {
-                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.OPEN);
+                    Assert.assertEquals(txnMeta.status(), TxnStatus.OPEN);
                 });
                 Thread.sleep(6000L);
                 transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) -> {
-                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.ABORTING);
+                    Assert.assertEquals(txnMeta.status(), TxnStatus.ABORTING);
                 });
                 Assert.assertEquals(1000, transactionMetadataStore.getTxnMetaMap().size());
                 break;
@@ -249,7 +248,7 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 countDownLatch.await();
                 Thread.sleep(4000L);
                 transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) ->{
-                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.ABORTING);
+                    Assert.assertEquals(txnMeta.status(), TxnStatus.ABORTING);
                 });
                 Assert.assertEquals(3000, transactionMetadataStore.getTxnMetaMap().size());
                 break;

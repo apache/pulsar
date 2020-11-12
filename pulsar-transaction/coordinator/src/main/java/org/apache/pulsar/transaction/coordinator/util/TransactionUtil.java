@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.transaction.coordinator.util;
 
-import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTED;
-import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTING;
-import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTED;
-import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTING;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTED;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTING;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTED;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTING;
 
 import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 

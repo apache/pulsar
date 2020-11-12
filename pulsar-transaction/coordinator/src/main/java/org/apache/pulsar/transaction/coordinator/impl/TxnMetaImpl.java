@@ -112,7 +112,11 @@ class TxnMetaImpl implements TxnMeta {
     public List<Position> positions() {
         return positions;
     }
-
+    /**
+     * Check if the transaction is in an expected status.
+     *
+     * @param expectedStatus
+     */
     @Override
     public synchronized void checkTxnStatus(TxnStatus expectedStatus) throws InvalidTxnStatusException {
         if (this.txnStatus != expectedStatus) {
@@ -122,6 +126,13 @@ class TxnMetaImpl implements TxnMeta {
         }
     }
 
+    /**
+     * Add the list partitions that the transaction produces to.
+     *
+     * @param partitions the list of partitions that the txn produces to
+     * @return the transaction itself.
+     * @throws InvalidTxnStatusException
+     */
     @Override
     public synchronized TxnMetaImpl addProducedPartitions(List<String> partitions) throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
@@ -138,8 +149,8 @@ class TxnMetaImpl implements TxnMeta {
      * @throws InvalidTxnStatusException
      */
     @Override
-    public synchronized TxnMetaImpl addAckedPartitions(
-            List<TransactionSubscription> partitions) throws InvalidTxnStatusException {
+    public synchronized TxnMetaImpl addAckedPartitions(List<TransactionSubscription> partitions)
+            throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
         this.ackedPartitions.addAll(partitions);
         return this;
@@ -160,7 +171,8 @@ class TxnMetaImpl implements TxnMeta {
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
         if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
-            throw new InvalidTxnStatusException(txnID, expectedStatus, newStatus);
+            throw new InvalidTxnStatusException(
+                "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }
         this.txnStatus = newStatus;
         return this;
