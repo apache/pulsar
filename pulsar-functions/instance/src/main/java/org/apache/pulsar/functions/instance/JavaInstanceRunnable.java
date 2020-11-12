@@ -350,9 +350,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     result(storageAdminClient.getStream(tableNs, tableName), 30, TimeUnit.SECONDS);
                     return;
                 } catch (TimeoutException e){
-                    if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
-                        lastException = e;
-                    }
+                    lastException = e;
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
                         result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
@@ -379,7 +377,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
                 if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
-                    throw new RuntimeException("Failed to create state table within timeout", lastException);
+                    if (lastException != null) {
+                        throw new RuntimeException("Failed to create state table within timeout", lastException);
+                    }
+                    throw new RuntimeException("Failed to create state table within timeout");
                 }
             }
         }
