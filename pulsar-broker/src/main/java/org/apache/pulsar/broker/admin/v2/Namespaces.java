@@ -939,6 +939,29 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Get deduplicationSnapshotInterval config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public Integer getDeduplicationSnapshotInterval(@PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetDeduplicationSnapshotInterval();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Set deduplicationSnapshotInterval config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void setDeduplicationSnapshotInterval(@PathParam("tenant") String tenant
+            , @PathParam("namespace") String namespace
+            , @ApiParam(value = "Interval to take deduplication snapshot per topic", required = true) Integer interval) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDeduplicationSnapshotInterval(interval);
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/maxConsumersPerTopic")
     @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),

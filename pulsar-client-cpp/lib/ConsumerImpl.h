@@ -196,7 +196,7 @@ class ConsumerImpl : public ConsumerImplBase,
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
     NegativeAcksTracker negativeAcksTracker_;
-    AckGroupingTrackerScopedPtr ackGroupingTrackerPtr_;
+    AckGroupingTrackerPtr ackGroupingTrackerPtr_;
 
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;

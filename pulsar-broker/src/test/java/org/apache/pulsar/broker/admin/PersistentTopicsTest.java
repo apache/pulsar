@@ -539,7 +539,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test()
+    @Test
     public void testGetLastMessageId() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
@@ -567,5 +567,43 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(admin.topics().getLastMessageId(topicName) instanceof MessageIdImpl);
 
+    }
+
+    @Test
+    public void testExamineMessage() throws Exception {
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/topic-123";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName + "-partition-0").create();
+
+        // Check examine message not allowed on partitioned topic.
+        try {
+            admin.topics().examineMessage(topicName, "earliest", 1);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(), "Examine messages on a partitioned topic is not allowed, please try examine message on specific topic partition");
+        }
+
+        producer.send("message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1).getData()), "message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 1).getData()), "message1");
+
+        producer.send("message2");
+        producer.send("message3");
+        producer.send("message4");
+        producer.send("message5");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1).getData()), "message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 2).getData()), "message2");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 3).getData()), "message3");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 4).getData()), "message4");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 5).getData()), "message5");
+
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 1).getData()), "message5");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 2).getData()), "message4");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 3).getData()), "message3");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 4).getData()), "message2");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 5).getData()), "message1");
     }
 }

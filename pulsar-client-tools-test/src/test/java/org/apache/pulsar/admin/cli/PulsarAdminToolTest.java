@@ -554,6 +554,14 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("remove-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).removeNamespaceMessageTTL("myprop/clust/ns1");
+
+        namespaces.run(split("set-deduplication-snapshot-interval myprop/clust/ns1 -i 1000"));
+        verify(mockNamespaces).setDeduplicationSnapshotInterval("myprop/clust/ns1", 1000);
+        namespaces.run(split("get-deduplication-snapshot-interval myprop/clust/ns1"));
+        verify(mockNamespaces).getDeduplicationSnapshotInterval("myprop/clust/ns1");
+        namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
+        verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
+
     }
 
     @Test

@@ -16,20 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.storm;
-
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
-
-import org.testng.Assert;
-
-public class TestUtil {
-
-    public static void testSerializability(Object object) throws Exception {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(out);
-        oos.writeObject(object);
-        oos.close();
-        Assert.assertTrue(out.toByteArray().length > 0);
-    }
-}
+/**
+ * Component for processing pending acks for transactions.
+ */
+package org.apache.pulsar.broker.transaction.pendingack;
