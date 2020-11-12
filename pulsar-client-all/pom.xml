@@ -132,7 +132,7 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
-                  <include>jackarta.annotation:*</include>
+                  <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
