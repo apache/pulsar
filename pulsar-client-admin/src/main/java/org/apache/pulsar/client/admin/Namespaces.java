@@ -2405,6 +2405,55 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscriptionAuthModeAsync(String namespace, SubscriptionAuthMode subscriptionAuthMode);
 
     /**
+     * Get the deduplicationSnapshotInterval for a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplicationSnapshotInterval for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String namespace);
+
+    /**
+     * Set the deduplicationSnapshotInterval for a namespace.
+     *
+     * @param namespace
+     * @param interval
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationSnapshotInterval(String namespace, Integer interval) throws PulsarAdminException;
+
+    /**
+     * Set the deduplicationSnapshotInterval for a namespace asynchronously.
+     *
+     * @param namespace
+     * @param interval
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String namespace, Integer interval);
+
+    /**
+     * Remove the deduplicationSnapshotInterval for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the deduplicationSnapshotInterval for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String namespace);
+
+    /**
      * Get the maxProducersPerTopic for a namespace.
      * <p/>
      * Response example:

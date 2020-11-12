@@ -46,6 +46,9 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 
+/**
+ * The default implementation of {@link PendingAckHandle}.
+ */
 @Slf4j
 public class PendingAckHandleImpl implements PendingAckHandle {
 

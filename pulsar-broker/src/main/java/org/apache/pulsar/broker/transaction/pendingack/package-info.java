@@ -16,32 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.common.policies.data;
-
 /**
- * PolicyName authorization operations.
+ * Component for processing pending acks for transactions.
  */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
-}
+package org.apache.pulsar.broker.transaction.pendingack;
