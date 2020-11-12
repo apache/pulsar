@@ -347,7 +347,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Exception lastException = null;
             while (true) {
                 try {
-                    result(storageAdminClient.getStream(tableNs, tableName), 5, TimeUnit.SECONDS);
+                    result(storageAdminClient.getStream(tableNs, tableName), 30, TimeUnit.SECONDS);
                     return;
                 } catch (TimeoutException e){
                     if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
@@ -378,8 +378,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                       ce.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
-                if (elapsedWatch.elapsed(TimeUnit.MINUTES) < 1) {
-                    throw new RuntimeException("Failed to create state table within timeout. Last exception:", lastException);
+                if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
+                    throw new RuntimeException("Failed to create state table within timeout", lastException);
                 }
             }
         }
@@ -413,7 +413,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
         this.storageClient = new SimpleStorageClientImpl(tableNs, settings);
-        
+
         // NOTE: this is a workaround until we bump bk version to 4.9.0
         // table might just be created above, so it might not be ready for serving traffic
         Stopwatch openSw = Stopwatch.createStarted();
