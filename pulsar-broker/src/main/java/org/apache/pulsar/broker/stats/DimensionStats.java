@@ -110,6 +110,6 @@ public class DimensionStats {
         return defaultRegistry.getSampleValue(name, QUANTILE_LABEL, new String[] { Collector.doubleToGoString(q) })
                 .doubleValue();
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(DimensionStats.class);
 }

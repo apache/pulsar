@@ -108,12 +108,12 @@ public interface LoadManager {
      * @throws Exception
      */
     void disableBroker() throws Exception;
-    
+
     /**
      * Get list of available brokers in cluster
-     * 
+     *
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
     Set<String> getAvailableBrokers() throws Exception;
 

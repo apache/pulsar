@@ -35,9 +35,9 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationSuccessTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.bucket", "test bucket");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadBucket", "test bucket");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "99999999");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -46,8 +46,8 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationDefaultBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadBucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -57,8 +57,8 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationMissingRegionTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.bucket", "my-bucket");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "999999");
+        map.put("managedLedgerOffloadBucket", "my-bucket");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "999999");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -68,8 +68,8 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationMissingBucketTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "99999999");
         config = new TieredStorageConfiguration(map);
         assertEquals(config.getRegion(), "us-east-1");
         JCloudBlobStoreProvider.AWS_S3.validate(config);
@@ -81,18 +81,18 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.bucket", "test bucket");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadBucket", "test bucket");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "1");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
    
     @Test
     public void transientValidationSuccessTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String,String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
-        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffloadBucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
     }

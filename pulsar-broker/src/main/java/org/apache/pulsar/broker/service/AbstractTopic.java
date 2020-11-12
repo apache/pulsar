@@ -24,7 +24,6 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +49,6 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -529,6 +527,10 @@ public abstract class AbstractTopic implements Topic {
 
     public boolean isDeleteWhileInactive() {
         return this.inactiveTopicPolicies.isDeleteWhileInactive();
+    }
+
+    public boolean deletePartitionedTopicMetadataWhileInactive() {
+        return brokerService.pulsar().getConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled();
     }
 
     public void setDeleteWhileInactive(boolean deleteWhileInactive) {

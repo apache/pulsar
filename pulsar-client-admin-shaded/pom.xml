@@ -92,8 +92,6 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>io.swagger:*</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
-                  <!-- bouncycastle Provider dependencies-->
-                  <include>org.bouncycastle:*</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -102,12 +100,20 @@
                   <includes>
                     <include>**</include>
                   </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
                 </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-client-admin-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
                 </filter>
               </filters>
               <relocations>

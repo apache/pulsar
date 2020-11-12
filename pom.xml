@@ -102,7 +102,6 @@ flexible messaging model and an intuitive client API.</description>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
@@ -147,7 +146,6 @@ flexible messaging model and an intuitive client API.</description>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
-    <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <scala-library.version>2.11.12</scala-library.version>
     <debezium.version>1.0.0.Final</debezium.version>
@@ -187,9 +185,9 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.14.3</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>6.14.3</testng.version>
-    <mockito.version>2.28.2</mockito.version>
-    <powermock.version>2.0.2</powermock.version>
+    <testng.version>7.3.0</testng.version>
+    <mockito.version>3.0.0</mockito.version>
+    <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
@@ -241,6 +239,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
+        <exclusions>
+            <exclusion>
+                <groupId>org.yaml</groupId>
+                <artifactId>*</artifactId>
+            </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1579,16 +1583,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-discovery-service</module>
-        <module>pulsar-storm</module>
-        <module>pulsar-flink</module>
-        <module>pulsar-spark</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-client-kafka-compat</module>
         <module>pulsar-zookeeper</module>
-        <module>pulsar-log4j2-appender</module>
         <module>pulsar-sql</module>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
@@ -1606,9 +1605,6 @@ flexible messaging model and an intuitive client API.</description>
 
         <!-- kafka connect avro converter shaded, because version mismatch    -->
         <module>kafka-connect-avro-converter-shaded</module>
-
-        <!-- examples -->
-        <module>examples</module>
 
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>
