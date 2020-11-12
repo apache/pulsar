@@ -201,10 +201,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public synchronized void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
             throws IllegalStateException, IllegalArgumentException {
+        boolean needsScheduling;
         if (exclusiveLeaderProducer == null) {
             throw new IllegalStateException("Not the leader");
         }
-        boolean needsScheduling;
+
         if (delete) {
             needsScheduling = proccessDeregister(functionMetaData);
         } else {
@@ -219,7 +220,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
             }
         } else {
             Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                    .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE : Request.ServiceRequest.ServiceRequestType.UPDATE)
+                    .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
+                            : Request.ServiceRequest.ServiceRequestType.UPDATE)
                     .setFunctionMetaData(functionMetaData)
                     .setWorkerId(workerConfig.getWorkerId())
                     .setRequestId(UUID.randomUUID().toString())
@@ -238,6 +240,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             log.error("Could not write into Function Metadata topic", e);
             throw new IllegalStateException("Internal Error updating function at the leader", e);
         }
+
         if (needsScheduling) {
             this.schedulerManager.schedule();
         }

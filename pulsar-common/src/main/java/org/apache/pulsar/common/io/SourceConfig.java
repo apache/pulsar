@@ -24,6 +24,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 
 /**
@@ -40,6 +41,8 @@ public class SourceConfig {
     private String className;
 
     private String topicName;
+
+    private ProducerConfig producerConfig;
 
     private String serdeClassName;
 

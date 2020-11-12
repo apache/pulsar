@@ -64,8 +64,9 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
     <dependency>
@@ -134,7 +135,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

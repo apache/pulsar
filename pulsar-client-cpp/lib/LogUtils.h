@@ -88,6 +88,8 @@ class PULSAR_PUBLIC LogUtils {
 
     static void setLoggerFactory(std::unique_ptr<LoggerFactory> loggerFactory);
 
+    static void resetLoggerFactory();
+
     static LoggerFactory* getLoggerFactory();
 
     static std::string getLoggerName(const std::string& path);

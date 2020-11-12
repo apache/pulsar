@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import java.util.BitSet;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -33,5 +34,27 @@ public class ConcurrentBitSetRecyclableTest {
         Assert.assertSame(bitset2, bitset1);
         Assert.assertFalse(bitset2.get(3));
         Assert.assertNotSame(bitset3, bitset1);
+    }
+
+    @Test
+    public void testGenerateByBitSet() {
+        BitSet bitSet = new BitSet();
+        ConcurrentBitSetRecyclable bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
+        Assert.assertEquals(bitSet, bitSetRecyclable);
+
+        bitSet.set(0, 10);
+        bitSetRecyclable.recycle();
+        bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
+        Assert.assertEquals(bitSet, bitSetRecyclable);
+
+        bitSet.clear(5);
+        bitSetRecyclable.recycle();
+        bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
+        Assert.assertEquals(bitSet, bitSetRecyclable);
+
+        bitSet.clear();
+        bitSetRecyclable.recycle();
+        bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
+        Assert.assertEquals(bitSet, bitSetRecyclable);
     }
 }

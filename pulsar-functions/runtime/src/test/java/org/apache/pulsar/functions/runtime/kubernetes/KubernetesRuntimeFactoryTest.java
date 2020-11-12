@@ -19,11 +19,11 @@
 
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1ConfigMap;
-import io.kubernetes.client.models.V1PodSpec;
-import io.kubernetes.client.models.V1StatefulSet;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.Resources;
@@ -105,7 +105,7 @@ public class KubernetesRuntimeFactoryTest {
         }
 
         @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, FunctionDetails functionDetails) {
+        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
 
         }
     }
@@ -152,7 +152,9 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
+        kubernetesRuntimeFactoryConfig.setJobName(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setFunctionDockerImages(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
         kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
         kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);
@@ -367,10 +369,16 @@ public class KubernetesRuntimeFactoryTest {
     private KubernetesRuntimeFactory getKuberentesRuntimeFactory() {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
         WorkerConfig workerConfig = new WorkerConfig();
+        Map<String, String> imageNames = new HashMap<>();
+        imageNames.put("JAVA", "test-java-function-docker-image");
+        imageNames.put("PYTHON", "test-python-function-docker-image");
+        imageNames.put("GO", "test-go-function-docker-image");
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri("test_k8uri");
         kubernetesRuntimeFactoryConfig.setJobNamespace("test_jobNamespace");
+        kubernetesRuntimeFactoryConfig.setJobName("test_jobName");
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName("test_dockerImage");
+        kubernetesRuntimeFactoryConfig.setFunctionDockerImages(imageNames);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(

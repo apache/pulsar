@@ -36,13 +36,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
-      <version>${project.parent.version}</version>
-      <optional>true</optional>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
@@ -64,7 +63,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -73,7 +72,7 @@
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -82,8 +81,6 @@
                   <outputDirectory>${project.build.directory}/classes/org/asynchttpclient/config</outputDirectory>
                 </artifactItem>
               </artifactItems>
-
-
             </configuration>
           </execution>
         </executions>
@@ -132,9 +129,6 @@
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
-                  <include>org.apache.httpcomponents:httpclient</include>
-                  <include>commons-logging:commons-logging</include>
-                  <include>org.apache.httpcomponents:httpcore</include>
                   <include>org.objenesis:*</include>
                   <include>org.yaml:snakeyaml</include>
 
@@ -145,33 +139,20 @@
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
-                  <!-- bouncycastle Provider dependencies-->
-                  <include>org.bouncycastle:*</include>
+                  <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
                 <filter>
-                  <!-- Shading signed JARs will fail without
-                      this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-                <filter>
                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
                 </filter>
               </filters>
               <relocations>
@@ -213,10 +194,6 @@
                 <relocation>
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.eclipse.jetty</pattern>

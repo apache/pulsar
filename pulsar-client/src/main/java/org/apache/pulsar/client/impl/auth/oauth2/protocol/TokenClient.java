@@ -18,54 +18,49 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.HttpURLConnection;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.http.Consts;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpResponseException;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
+import java.net.URLEncoder;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncHttpClientConfig;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.Response;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
  */
-public class TokenClient implements AutoCloseable, ClientCredentialsExchanger {
+public class TokenClient implements ClientCredentialsExchanger {
 
-    private static final ObjectReader resultReader;
-    private static final ObjectReader errorReader;
-
-    static {
-        resultReader = new ObjectMapper().readerFor(TokenResult.class);
-        errorReader = new ObjectMapper().readerFor(TokenError.class);
-    }
+    protected final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     private final URL tokenUrl;
-    private final CloseableHttpClient httpclient;
+    private final AsyncHttpClient httpClient;
 
     public TokenClient(URL tokenUrl) {
         this.tokenUrl = tokenUrl;
-        this.httpclient = HttpClientBuilder.create().useSystemProperties().disableCookieManagement().build();
+
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        AsyncHttpClientConfig config = confBuilder.build();
+        httpClient = new DefaultAsyncHttpClient(config);
     }
 
-    public void close() {
+    @Override
+    public void close() throws Exception {
+        httpClient.close();
     }
 
     /**
@@ -76,46 +71,50 @@ public class TokenClient implements AutoCloseable, ClientCredentialsExchanger {
      */
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
-        List<NameValuePair> params = new ArrayList<>(4);
-        params.add(new BasicNameValuePair("grant_type", "client_credentials"));
-        params.add(new BasicNameValuePair("client_id", req.getClientId()));
-        params.add(new BasicNameValuePair("client_secret", req.getClientSecret()));
-        params.add(new BasicNameValuePair("audience", req.getAudience()));
-        HttpPost post = new HttpPost(tokenUrl.toString());
-        post.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
-        post.setEntity(new UrlEncodedFormEntity(params, Consts.UTF_8));
+        Map<String, String> bodyMap = new TreeMap<>();
+        bodyMap.put("grant_type", "client_credentials");
+        bodyMap.put("client_id", req.getClientId());
+        bodyMap.put("client_secret", req.getClientSecret());
+        bodyMap.put("audience", req.getAudience());
+        String body = bodyMap.entrySet().stream()
+                .map(e -> {
+                    try {
+                        return URLEncoder.encode(e.getKey(), "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
+                    } catch (UnsupportedEncodingException e1) {
+                        throw new RuntimeException(e1);
+                    }
+                })
+                .collect(Collectors.joining("&"));
 
-        try (CloseableHttpResponse response = httpclient.execute(post)) {
-            StatusLine status = response.getStatusLine();
-            HttpEntity entity = response.getEntity();
-            try {
-                switch(status.getStatusCode()) {
-                    case HttpURLConnection.HTTP_OK:
-                        return readResponse(entity, resultReader);
-                    case HttpURLConnection.HTTP_BAD_REQUEST:
-                    case HttpURLConnection.HTTP_UNAUTHORIZED:
-                        throw new TokenExchangeException(readResponse(entity, errorReader));
-                    default:
-                        throw new HttpResponseException(status.getStatusCode(), status.getReasonPhrase());
-                }
-            } finally {
-                EntityUtils.consume(entity);
+        try {
+
+            Response res = httpClient.preparePost(tokenUrl.toString())
+                    .setHeader("Accept", "application/json")
+                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                    .setBody(body)
+                    .execute()
+                    .get();
+
+            switch (res.getStatusCode()) {
+            case 200:
+                return ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                        TokenResult.class);
+
+            case 400: // Bad request
+            case 401: // Unauthorized
+                throw new TokenExchangeException(
+                        ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                                TokenError.class));
+
+            default:
+                throw new IOException(
+                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
             }
-        }
-    }
 
-    private static <T> T readResponse(HttpEntity entity, ObjectReader objectReader) throws IOException {
-        ContentType contentType = ContentType.getOrDefault(entity);
-        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
-            throw new ClientProtocolException("Unsupported content type: " + contentType.getMimeType());
-        }
-        Charset charset = contentType.getCharset();
-        if (charset == null) {
-            charset = StandardCharsets.UTF_8;
-        }
-        try (Reader reader = new InputStreamReader(entity.getContent(), charset)) {
-            @SuppressWarnings("unchecked") T obj = (T) objectReader.readValue(reader);
-            return obj;
+
+
+        } catch (InterruptedException | ExecutionException e1) {
+            throw new IOException(e1);
         }
     }
 }

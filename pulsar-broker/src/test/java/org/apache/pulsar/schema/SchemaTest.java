@@ -19,10 +19,13 @@
 package org.apache.pulsar.schema;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -38,6 +41,7 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
 import static org.junit.Assert.assertEquals;
 
+@Slf4j
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     private final static String CLUSTER_NAME = "test";
@@ -132,5 +136,57 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testBytesSchemaDeserialize() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-bytes-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+        admin.schemas().createSchema(topic, Schema.JSON(Schemas.BytesRecord.class).getSchemaInfo());
+
+        Producer<Schemas.BytesRecord> producer = pulsarClient
+                .newProducer(Schema.JSON(Schemas.BytesRecord.class))
+                .topic(topic)
+                .create();
+
+        Schemas.BytesRecord bytesRecord = new Schemas.BytesRecord();
+        bytesRecord.setId(1);
+        bytesRecord.setName("Tom");
+        bytesRecord.setAddress("test".getBytes());
+
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        Consumer<Schemas.BytesRecord> consumer1 = pulsarClient.newConsumer(Schema.JSON(Schemas.BytesRecord.class))
+                .subscriptionName("test-sub1")
+                .topic(topic)
+                .subscribe();
+
+        producer.send(bytesRecord);
+
+        Message<GenericRecord> message = consumer.receive();
+        Message<Schemas.BytesRecord> message1 = consumer1.receive();
+
+        assertEquals(message.getValue().getField("address").getClass(),
+                message1.getValue().getAddress().getClass());
+
+        producer.close();
+        consumer.close();
+        consumer1.close();
     }
 }

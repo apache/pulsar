@@ -38,6 +38,18 @@ public class FunctionsStatsGenerator {
     public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
         // only when worker service is initialized, we generate the stats. otherwise we will get bunch of NPE.
         if (workerService != null && workerService.isInitialized()) {
+
+            /* worker internal stats */
+
+            try {
+                out.write(workerService.getWorkerStatsManager().getStatsAsString());
+            } catch (IOException e) {
+                log.warn("Encountered error when generating metrics for worker {}",
+                  workerService.getWorkerConfig().getWorkerId(), e);
+            }
+
+            /* function stats */
+
             // kubernetes runtime factory doesn't support stats collection through worker service
             if (workerService.getFunctionRuntimeManager().getRuntimeFactory() instanceof KubernetesRuntimeFactory) {
                 return;

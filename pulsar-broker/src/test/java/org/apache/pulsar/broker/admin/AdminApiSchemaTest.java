@@ -98,6 +98,10 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             { Schema.DATE },
             { Schema.TIME },
             { Schema.TIMESTAMP },
+            { Schema.INSTANT },
+            { Schema.LOCAL_DATE},
+            { Schema.LOCAL_TIME},
+            { Schema.LOCAL_DATE_TIME},
             { Schema.AVRO(
                 SchemaDefinition.builder()
                     .withPojo(Foo.class)

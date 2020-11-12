@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.net.URI;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -96,7 +95,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
-
+        conf.setNumExecutorThreadPoolSize(5);
         super.init();
     }
 

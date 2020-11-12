@@ -18,21 +18,24 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.util.MathUtils;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -177,41 +180,65 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public void commit(TxnID txnID) throws TransactionCoordinatorClientException {
+    public void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
+            throws TransactionCoordinatorClientException {
         try {
-            commitAsync(txnID).get();
+            addSubscriptionToTxnAsync(txnID, topic, subscription).get();
         } catch (Exception e) {
             throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+    public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
         }
-        return handler.commitAsync(txnID);
+        PulsarApi.Subscription sub = PulsarApi.Subscription.newBuilder()
+                .setTopic(topic)
+                .setSubscription(subscription)
+                .build();
+        return handler.addSubscriptionToTxn(txnID, Collections.singletonList(sub));
     }
 
     @Override
-    public void abort(TxnID txnID) throws TransactionCoordinatorClientException {
+    public void commit(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException {
         try {
-            abortAsync(txnID).get();
+            commitAsync(txnID, messageIdList).get();
         } catch (Exception e) {
             throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+    public CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> messageIdList) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
         }
-        return handler.abortAsync(txnID);
+        return handler.commitAsync(txnID, messageIdList);
+    }
+
+    @Override
+    public void abort(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException {
+        try {
+            abortAsync(txnID, messageIdList).get();
+        } catch (Exception e) {
+            throw TransactionCoordinatorClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> messageIdList) {
+        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        if (handler == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+        }
+        return handler.abortAsync(txnID, messageIdList);
     }
 
     @Override

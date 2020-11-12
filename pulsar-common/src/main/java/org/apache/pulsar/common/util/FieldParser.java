@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
+import com.fasterxml.jackson.databind.AnnotationIntrospector;
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.util.EnumResolver;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -56,6 +58,8 @@ public final class FieldParser {
 
     private static final Map<String, Method> CONVERTERS = new HashMap<>();
     private static final Map<Class<?>, Class<?>> WRAPPER_TYPES = new HashMap<>();
+
+    private static final AnnotationIntrospector ANNOTATION_INTROSPECTOR = new JacksonAnnotationIntrospector();
 
     static {
         // Preload converters and wrapperTypes.
@@ -97,7 +101,7 @@ public final class FieldParser {
 
         if (to.isEnum()) {
             // Converting string to enum
-            EnumResolver r = EnumResolver.constructUsingToString((Class<Enum<?>>) to, null);
+            EnumResolver r = EnumResolver.constructUsingToString((Class<Enum<?>>) to, ANNOTATION_INTROSPECTOR);
             T value = (T) r.findEnum((String) from);
             if (value == null) {
                 throw new RuntimeException("Invalid value '" + from + "' for enum " + to);

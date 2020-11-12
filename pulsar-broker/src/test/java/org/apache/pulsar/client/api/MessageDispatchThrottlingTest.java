@@ -243,8 +243,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     /**
      * It verifies that dispatch-rate throttling with cluster-configuration
      *
-     * @param subscription
-     * @param dispatchRateType
      * @throws Exception
      */
     @Test()

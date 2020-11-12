@@ -260,6 +260,10 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -360,6 +364,10 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));

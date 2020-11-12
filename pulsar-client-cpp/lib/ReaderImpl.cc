@@ -19,6 +19,7 @@
 
 #include "ClientImpl.h"
 #include "ReaderImpl.h"
+#include "TopicName.h"
 
 namespace pulsar {
 
@@ -54,6 +55,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumer_ = std::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
+    consumer_->setPartitionIndex(TopicName::getPartitionIndex(topic_));
     consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
                                                                 shared_from_this(), std::placeholders::_1,
                                                                 std::placeholders::_2));
@@ -63,7 +65,9 @@ void ReaderImpl::start(const MessageId& startMessageId) {
 const std::string& ReaderImpl::getTopic() const { return consumer_->getTopic(); }
 
 void ReaderImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer) {
-    readerCreatedCallback_(result, Reader(shared_from_this()));
+    auto self = shared_from_this();
+    readerCreatedCallback_(result, Reader(self));
+    readerImplWeakPtr_ = self;
 }
 
 ConsumerImplPtr ReaderImpl::getConsumer() { return consumer_; }
@@ -110,5 +114,7 @@ void ReaderImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     consumer_->seekAsync(timestamp, callback);
 }
+
+ReaderImplWeakPtr ReaderImpl::getReaderImplWeakPtr() { return readerImplWeakPtr_; }
 
 }  // namespace pulsar

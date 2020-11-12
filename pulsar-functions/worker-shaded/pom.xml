@@ -37,7 +37,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-worker</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
       <exclusions>
         <!-- exclude the dependencies already exists in bookkeeper-server-shaded -->
         <exclusion>
@@ -46,7 +46,7 @@
         </exclusion>
         <!-- exclude `pulsar-client-admin-shaded-for-functions` here, this allows worker-runner and broker to use unshaded clients -->
         <exclusion>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
         </exclusion>
       </exclusions>

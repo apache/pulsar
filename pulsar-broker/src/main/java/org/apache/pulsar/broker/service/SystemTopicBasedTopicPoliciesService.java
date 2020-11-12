@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsarService;
-    private NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
+    private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
     private final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
@@ -115,6 +116,26 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             }
         });
         return result;
+    }
+
+    private void notifyListener(Message<PulsarEvent> msg) {
+        if (!EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
+            return;
+        }
+        TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
+        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+        if (listeners.get(topicName) != null) {
+            TopicPolicies policies = event.getPolicies();
+            for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                listener.onUpdate(policies);
+            }
+        }
+    }
+
+    @Override
+    public boolean cacheIsInitialized(TopicName topicName) {
+        return policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && policyCacheInitMap.get(topicName.getNamespaceObject());
     }
 
     @Override
@@ -235,6 +256,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
                 refreshTopicPoliciesCache(msg);
+                notifyListener(msg);
                 readMorePolicies(reader);
             } else {
                 if (ex instanceof PulsarClientException.AlreadyClosedException) {
@@ -327,6 +349,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
+    }
+
+    @Override
+    public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
+    }
+
+    @Override
+    public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

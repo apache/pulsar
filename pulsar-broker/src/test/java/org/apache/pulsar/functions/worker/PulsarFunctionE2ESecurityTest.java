@@ -201,7 +201,9 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
-        functionWorkerService.get().getLeaderService().waitLeaderInit();
+        while (!functionWorkerService.get().getLeaderService().isLeader()) {
+            Thread.sleep(1000);
+        }
     }
 
     @AfterMethod

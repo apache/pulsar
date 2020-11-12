@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -191,7 +192,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             }
             topicName.append("/").append(parts.get(startPosition));
         }
-        final String name = topicName.toString();
+        final String name = Codec.decode(topicName.toString());
 
         return TopicName.get(domain, namespace, name);
     }

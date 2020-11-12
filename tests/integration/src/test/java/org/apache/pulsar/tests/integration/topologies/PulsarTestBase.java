@@ -24,13 +24,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.junit.Assert;
 
 public class PulsarTestBase {
 
@@ -126,6 +130,48 @@ public class PulsarTestBase {
                     Message<String> m = consumer.receive();
                     assertEquals("smoke-message-" + i, m.getValue());
                 }
+            }
+        }
+    }
+
+    public void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
+        String topicName = generateTopicName("test-batch-index-ack-disabled", true);
+        final int numMessages = 100;
+        try (PulsarClient client = PulsarClient.builder()
+                .serviceUrl(serviceUrl)
+                .build()) {
+
+            try (Consumer<Integer> consumer = client.newConsumer(Schema.INT32)
+                    .topic(topicName)
+                    .subscriptionName("sub")
+                    .receiverQueueSize(100)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .enableBatchIndexAcknowledgment(false)
+                    .ackTimeout(1, TimeUnit.SECONDS)
+                    .subscribe();) {
+
+                try (Producer<Integer> producer = client.newProducer(Schema.INT32)
+                        .topic(topicName)
+                        .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                        .create()) {
+
+                    List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+                    for (int i = 0; i < numMessages; i++) {
+                        futures.add(producer.sendAsync(i));
+                    }
+                    // Wait for all messages are publish succeed.
+                    FutureUtil.waitForAll(futures).get();
+                }
+
+                for (int i = 0; i < numMessages; i++) {
+                    Message<Integer> m = consumer.receive();
+                    if (i % 2 == 0) {
+                        consumer.acknowledge(m);
+                    }
+                }
+
+                Message<Integer> redelivery = consumer.receive(3, TimeUnit.SECONDS);
+                Assert.assertNotNull(redelivery);
             }
         }
     }

@@ -92,6 +92,9 @@ public class PerformanceReader {
         @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        String listenerName = null;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -114,6 +117,10 @@ public class PerformanceReader {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -208,7 +215,7 @@ public class PerformanceReader {
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .ioThreads(arguments.ioThreads) //
                 .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
@@ -218,6 +225,10 @@ public class PerformanceReader {
 
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+        }
+
+        if (isNotBlank(arguments.listenerName)) {
+            clientBuilder.listenerName(arguments.listenerName);
         }
 
         PulsarClient pulsarClient = clientBuilder.build();

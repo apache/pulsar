@@ -20,6 +20,7 @@
 
 #include <curl/curl.h>
 #include <sstream>
+#include <stdexcept>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -102,7 +103,7 @@ Oauth2CachedToken::Oauth2CachedToken(Oauth2TokenResultPtr token) {
     if (expiredIn > 0) {
         expiresAt_ = expiredIn + currentTimeMillis();
     } else {
-        throw "ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn;
+        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn);
     }
     authData_ = AuthenticationDataPtr(new AuthDataOauth2(token->getAccessToken()));
 }
@@ -119,6 +120,12 @@ Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
 
 // ClientCredentialFlow
+static std::string readFromFile(const std::string& credentialsFilePath) {
+    std::ifstream input(credentialsFilePath);
+    std::stringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
+}
 
 ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
                                            const std::string& clientSecret, const std::string& audience) {
@@ -126,15 +133,107 @@ ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const s
     clientId_ = clientId;
     clientSecret_ = clientSecret;
     audience_ = audience;
+    this->initialize();
 }
 
-void ClientCredentialFlow::initialize() {}
-void ClientCredentialFlow::close() {}
+// read clientId/clientSecret from passed in `credentialsFilePath`
+ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl,
+                                           const std::string& credentialsFilePath,
+                                           const std::string& audience) {
+    issuerUrl_ = issuerUrl;
+    audience_ = audience;
+
+    boost::property_tree::ptree loadPtreeRoot;
+    try {
+        boost::property_tree::read_json(credentialsFilePath, loadPtreeRoot);
+    } catch (boost::property_tree::json_parser_error& e) {
+        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath
+                                                                              << "with error:" << e.what());
+        return;
+    }
+
+    const std::string defaultNotFoundString = "Client Id / Secret Not Found";
+
+    clientId_ = loadPtreeRoot.get<std::string>("client_id", defaultNotFoundString);
+    clientSecret_ = loadPtreeRoot.get<std::string>("client_secret", defaultNotFoundString);
+
+    if (clientId_ == defaultNotFoundString || clientSecret_ == defaultNotFoundString) {
+        LOG_ERROR("Not get valid clientId / clientSecret: " << clientId_ << "/" << clientSecret_);
+        return;
+    }
+    this->initialize();
+}
 
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
     ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
     return size * nmemb;
 }
+
+void ClientCredentialFlow::initialize() {
+    CURL* handle = curl_easy_init();
+    CURLcode res;
+    std::string responseData;
+
+    // set header: json, request type: post
+    struct curl_slist* list = NULL;
+    list = curl_slist_append(list, "Accept: application/json");
+    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
+    curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "GET");
+
+    // set URL: well-know endpoint
+    issuerUrl_.append("/.well-known/openid-configuration");
+    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
+
+    // Write callback
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &responseData);
+
+    // New connection is made for each call
+    curl_easy_setopt(handle, CURLOPT_FRESH_CONNECT, 1L);
+    curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
+
+    curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    // Make get call to server
+    res = curl_easy_perform(handle);
+
+    switch (res) {
+        case CURLE_OK:
+            long response_code;
+            curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
+            LOG_DEBUG("Received well-known configuration data " << issuerUrl_ << " code " << response_code);
+            if (response_code == 200) {
+                boost::property_tree::ptree root;
+                std::stringstream stream;
+                stream << responseData;
+                try {
+                    boost::property_tree::read_json(stream, root);
+                } catch (boost::property_tree::json_parser_error& e) {
+                    LOG_ERROR("Failed to parse well-known configuration data response: "
+                              << e.what() << "\nInput Json = " << responseData);
+                    break;
+                }
+
+                this->tokenEndPoint_ = root.get<std::string>("token_endpoint");
+
+                LOG_DEBUG("Get token endpoint: " << this->tokenEndPoint_);
+            } else {
+                LOG_ERROR("Response failed for getting the well-known configuration "
+                          << issuerUrl_ << ". response Code " << response_code);
+            }
+            break;
+        default:
+            LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_
+                                                                                  << ". Error Code " << res);
+            break;
+    }
+    // Free header list
+    curl_slist_free_all(list);
+    curl_easy_cleanup(handle);
+}
+void ClientCredentialFlow::close() {}
 
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
@@ -150,7 +249,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "POST");
 
     // set URL: issuerUrl
-    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, tokenEndPoint_.c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -225,8 +324,16 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 // AuthOauth2
 
 AuthOauth2::AuthOauth2(ParamMap& params) {
-    flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
-                                                params["client_secret"], params["audience"]));
+    std::map<std::string, std::string>::iterator it;
+    it = params.find("private_key");
+
+    if (it != params.end()) {
+        flowPtr_ = FlowPtr(
+            new ClientCredentialFlow(params["issuer_url"], params["private_key"], params["audience"]));
+    } else {
+        flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
+                                                    params["client_secret"], params["audience"]));
+    }
 }
 
 AuthOauth2::~AuthOauth2() {}

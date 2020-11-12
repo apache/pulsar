@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.namespace;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -50,7 +49,7 @@ public class OwnedBundle {
     /**
      * constructor
      *
-     * @param nsname
+     * @param suName
      */
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
@@ -60,8 +59,7 @@ public class OwnedBundle {
     /**
      * Constructor to allow set initial active flag
      *
-     * @param nsname
-     * @param nssvc
+     * @param suName
      * @param active
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {
@@ -125,7 +123,7 @@ public class OwnedBundle {
         LOG.info("Disabling ownership: {}", this.bundle);
 
         // close topics forcefully
-        CompletableFuture<Void> future = pulsar.getNamespaceService().getOwnershipCache()
+        return pulsar.getNamespaceService().getOwnershipCache()
                 .updateBundleState(this.bundle, false)
                 .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(bundle, true, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
@@ -140,19 +138,12 @@ public class OwnedBundle {
                 .thenCompose(v -> {
                     // delete ownership node on zk
                     return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
-                }).thenAccept(v -> {
+                }).whenComplete((ignored, ex) -> {
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - unloadBundleStartTime));
                     LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle,
-                            unloadedTopics, unloadBundleTime);
+                            unloadedTopics, unloadBundleTime, ex);
                 });
-
-        future.exceptionally(ex -> {
-            // Failed to remove ownership node: enable namespace-bundle again so, it can serve new topics
-            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.bundle, true);
-            return null;
-        });
-        return future;
     }
 
     /**

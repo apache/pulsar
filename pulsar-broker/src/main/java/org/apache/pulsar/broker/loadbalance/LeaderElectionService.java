@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
@@ -53,6 +52,8 @@ public class LeaderElectionService {
     private final ExecutorService executor;
 
     private boolean stopped = true;
+
+    private boolean elected = false;
 
     private final ZooKeeper zkClient;
 
@@ -118,6 +119,7 @@ public class LeaderElectionService {
             LeaderBroker leaderBroker = jsonMapper.readValue(data, LeaderBroker.class);
             currentLeader.set(leaderBroker);
             isLeader.set(false);
+            elected = true;
             leaderListener.brokerIsAFollowerNow();
 
             // If broker comes here it is a follower. Do nothing, wait for the watch to trigger
@@ -135,6 +137,7 @@ public class LeaderElectionService {
                 // Update the current leader and set the flag to true
                 currentLeader.set(new LeaderBroker(leaderBroker.getServiceUrl()));
                 isLeader.set(true);
+                elected = true;
 
                 // Notify the listener that this broker is now the leader so that it can collect usage and start load
                 // manager.
@@ -198,6 +201,10 @@ public class LeaderElectionService {
 
     public boolean isLeader() {
         return isLeader.get();
+    }
+
+    public boolean isElected() {
+        return elected;
     }
 
 }

@@ -28,20 +28,21 @@
         state: directory
       with_items: ["/opt/pulsar"]
     - name: Install RPM packages
-      yum: pkg={{ item }} state=latest
-      with_items:
-        - wget
-        - java
-        - sysstat
-        - vim
+      yum:
+        state: latest
+        name:
+          - wget
+          - java
+          - sysstat
+          - vim
     - set_fact:
-        zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
-        service_url: "pulsar://{{ hostvars[groups['proxy'][0]].public_ip }}:6650/"
-        http_url: "http://{{ hostvars[groups['proxy'][0]].public_ip }}:8080/"
-        pulsar_version: "2.1.0-incubating"
+        zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"
+        service_url: "{{ pulsar_service_url }}"
+        http_url: "{{ pulsar_web_url }}"
+        pulsar_version: "2.6.0"
     - name: Download Pulsar binary package
       unarchive:
-        src: http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
+        src: https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         remote_src: yes
         dest: /opt/pulsar
         extra_opts: ["--strip-components=1"]
@@ -123,12 +124,45 @@
   connection: ssh
   become: true
   tasks:
-    - name: Download Pulsar IO package
-      unarchive:
-        src: http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-io-connectors-{{ pulsar_version }}-bin.tar.gz
-        remote_src: yes
-        dest: /opt/pulsar
-        extra_opts: ["--strip-components=1"]
+    - name: Create connectors directory
+      file:
+        path: "/opt/pulsar/{{ item }}"
+        state: directory
+      loop:
+        - connectors
+    - name: Download Pulsar IO packages
+      get_url:
+        url: https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{ pulsar_version }}/connectors/pulsar-io-{{ item }}-{{ pulsar_version }}.nar
+        dest: /opt/pulsar/connectors/pulsar-io-{{ item }}-{{ pulsar_version }}.nar
+      loop:
+#        - aerospike
+#        - canal
+#        - cassandra
+#        - data-generator
+#        - debezium-mongodb
+#        - debezium-mysql
+#        - debezium-postgres
+#        - dynamodb
+#        - elastic-search
+#        - file
+#        - flume
+#        - hbase
+#        - hdfs2
+#        - hdfs3
+#        - influxdb
+#        - jdbc-clickhouse
+#        - jdbc-mariadb
+#        - jdbc-postgres
+#        - jdbc-sqlite
+        - kafka
+#        - kafka-connect-adaptor
+#        - kinesis
+#        - mongo
+#        - netty
+#        - rabbitmq
+#        - redis
+#        - solr
+#        - twitter
     - name: Set up broker
       template:
         src: "../templates/broker.conf"

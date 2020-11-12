@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
@@ -28,6 +29,7 @@ import java.util.List;
 /**
  * Batch message container framework.
  */
+@Slf4j
 public abstract class AbstractBatchMessageContainer implements BatchMessageContainerBase {
 
     protected PulsarApi.CompressionType compressionType;
@@ -40,6 +42,9 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected int maxBytesInBatch;
     protected int numMessagesInBatch = 0;
     protected long currentBatchSizeBytes = 0;
+
+    protected long currentTxnidMostBits = -1L;
+    protected long currentTxnidLeastBits = -1L;
 
     protected static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
 
@@ -92,5 +97,19 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
         this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
+    }
+
+    @Override
+    public boolean hasSameTxn(MessageImpl<?> msg) {
+        if (!msg.getMessageBuilder().hasTxnidMostBits() || !msg.getMessageBuilder().hasTxnidLeastBits()) {
+            return true;
+        }
+        if (currentTxnidMostBits == -1 || currentTxnidLeastBits == -1) {
+            currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+            currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            return true;
+        }
+        return currentTxnidMostBits == msg.getMessageBuilder().getTxnidMostBits()
+                && currentTxnidLeastBits == msg.getMessageBuilder().getTxnidLeastBits();
     }
 }

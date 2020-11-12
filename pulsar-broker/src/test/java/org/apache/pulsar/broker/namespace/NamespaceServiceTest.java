@@ -35,6 +35,7 @@ import static org.testng.Assert.fail;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 
 import java.lang.reflect.Field;
@@ -42,6 +43,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +70,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.CreateMode;
@@ -235,7 +238,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testremoveOwnershipNamespaceBundle() throws Exception {
+    public void testRemoveOwnershipNamespaceBundle() throws Exception {
 
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
@@ -252,7 +255,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        assertNotNull(ownershipCache.tryAcquiringOwnership(bundle));
+        ownershipCache.tryAcquiringOwnership(bundle).get();
         assertNotNull(ownershipCache.getOwnedBundle(bundle));
         ownershipCache.removeOwnership(bundles).get();
         assertNull(ownershipCache.getOwnedBundle(bundle));
@@ -355,16 +358,41 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path2,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.EPHEMERAL);
-        LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1, false).get();
+        LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1, false, null).get();
 
         // update to new load manager
         LoadManager oldLoadManager = pulsar.getLoadManager()
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();
-        LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false).get();
+        LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false, null).get();
         Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
         Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
         System.out.println(result2);
+    }
+
+    @Test
+    public void testCreateLookupResult() throws Exception {
+
+        final String candidateBroker = "pulsar://localhost:6650";
+        final String listenerUrl = "pulsar://localhost:7000";
+        final String listenerUrlTls = "pulsar://localhost:8000";
+        final String listener = "listenerName";
+        Map<String, AdvertisedListener> advertisedListeners = Maps.newHashMap();
+        advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
+        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
+        URI uri = new URI(candidateBroker);
+        String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
+        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.EPHEMERAL);
+
+        LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
+        LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
+
+        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), candidateBroker);
+        Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
+        Assert.assertEquals(withListener.getLookupData().getBrokerUrlTls(), listenerUrlTls);
+        System.out.println(withListener);
     }
 
     @Test

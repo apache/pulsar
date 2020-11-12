@@ -174,10 +174,15 @@ Options
 |`-ub` , `--broker-service-url`|The broker service URL for the new cluster||
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
-|`--configuration-store`|The configuration store quorum connection string||
+|`-cs` , `--configuration-store`|The configuration store quorum connection string||
+|`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
+|`-h` , `--help`|Cluster name|false|
+|`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
+|`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
 |`-tw` , `--web-service-url-tls`|The web service URL for the new cluster with TLS encryption||
 |`-zk` , `--zookeeper`|The local ZooKeeper quorum connection string||
+|`--zookeeper-session-timeout-ms`|The local ZooKeeper session timeout. The time unit is in millisecond(ms)|30000|
 
 
 ### `proxy`
@@ -291,6 +296,7 @@ Options
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}"|{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}|
 |`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
+|`--listener-name`|Listener name for the broker||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
 
 
@@ -415,6 +421,7 @@ Options
 |---|---|---|
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
+|`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
 |`-k`, `--encryption-key-name`|The private key name to decrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
@@ -448,6 +455,7 @@ Options
 |---|---|---|
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
+|`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
 |`--conf-file`|Configuration file||
@@ -485,6 +493,7 @@ Options
 |---|---|---|
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
+|`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|

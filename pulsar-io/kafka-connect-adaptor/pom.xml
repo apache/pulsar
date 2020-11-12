@@ -69,7 +69,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>kafka-connect-avro-converter-shaded</artifactId>
       <version>${project.version}</version>
       <exclusions>
@@ -99,7 +99,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

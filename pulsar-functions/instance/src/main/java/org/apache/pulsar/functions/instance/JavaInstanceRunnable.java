@@ -34,12 +34,14 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.SimpleStorageAdminClientImpl;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.ClientException;
 import org.apache.bookkeeper.clients.exceptions.InternalServerException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
+import org.apache.bookkeeper.clients.utils.ClientResources;
 import org.apache.bookkeeper.common.util.Backoff.Jitter;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
@@ -55,7 +57,9 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
@@ -70,6 +74,8 @@ import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
+import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
@@ -330,9 +336,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void createStateTable(String tableNs, String tableName, StorageClientSettings settings) throws Exception {
-        try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .buildAdmin()) {
+    	try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
+             StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
+             ClientResources.create().scheduler())){
             StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
                 .setInitialNumRanges(4)
                 .setMinNumRanges(4)
@@ -454,7 +460,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Record readInput() {
+    private Record readInput() throws Exception {
         Record record;
         if (!(this.source instanceof PulsarSource)) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -463,8 +469,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             record = this.source.read();
         } catch (Exception e) {
             stats.incrSourceExceptions(e);
-            log.info("Encountered exception in source read: ", e);
-            throw new RuntimeException(e);
+            log.error("Encountered exception in source read", e);
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
@@ -687,6 +693,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
+                if (conf.hasCryptoSpec()) {
+                    consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                }
+
                 pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
             });
 
@@ -722,6 +732,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 case FAILOVER:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
                     break;
+                case KEY_SHARED:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Key_Shared);
+                    break;
                 default:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
                     break;
@@ -742,9 +755,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
             object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
         } else {
-            object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
-                    this.functionClassLoader);
+
+            // check if source is a batch source
+            if (sourceSpec.getClassName().equals(BatchSourceExecutor.class.getName())) {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.instanceClassLoader);
+            } else {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.functionClassLoader);
+            }
         }
 
         Class<?>[] typeArgs;
@@ -799,6 +820,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
+
+                if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
+                    org.apache.pulsar.functions.proto.Function.ProducerSpec conf = this.instanceConfig.getFunctionDetails().getSink().getProducerSpec();
+                    ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
+                            .maxPendingMessages(conf.getMaxPendingMessages())
+                            .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
+                            .useThreadLocalProducers(conf.getUseThreadLocalProducers())
+                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                    pulsarSinkConfig.setProducerConfig(builder.build());
+                }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }

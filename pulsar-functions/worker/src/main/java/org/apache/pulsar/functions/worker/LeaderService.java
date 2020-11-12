@@ -26,8 +26,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 @Slf4j
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
@@ -40,8 +38,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
-    private final AtomicBoolean isLeader = new AtomicBoolean(false);
-    private final AtomicBoolean leaderInitComplete = new AtomicBoolean(false);
+    private boolean isLeader = false;
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
@@ -86,8 +83,9 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public synchronized void becameActive(Consumer<?> consumer, int partitionId) {
-        if (isLeader.compareAndSet(false, true)) {
+    public void becameActive(Consumer<?> consumer, int partitionId) {
+        synchronized (this) {
+            if (isLeader) return;
             log.info("Worker {} became the leader.", consumerName);
             try {
 
@@ -97,32 +95,35 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 functionMetaDataManager.getIsInitialized().get();
                 functionRuntimeManager.getIsInitialized().get();
 
+                // make sure scheduler is initialized because this worker
+                // is the leader and may need to start computing and writing assignments
+                // also creates exclusive producer for assignment topic
+                schedulerManager.initialize();
+
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
                 functionAssignmentTailer.triggerReadToTheEndAndExit().get();
                 functionAssignmentTailer.close();
 
-                // make sure scheduler is initialized because this worker
-                // is the leader and may need to start computing and writing assignments
-                schedulerManager.initialize();
-
+                // need to move function meta data manager into leader mode
                 functionMetaDataManager.acquireLeadership();
-                // indicate leader initialization is complete
-                leaderInitComplete.set(true);
-                // Once we become leader we need to schedule
-                // This is done after leaderInitComplete because schedule waits on that becoming true
-                schedulerManager.schedule();
+
+                isLeader = true;
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);
             }
         }
+
+        // Once we become leader we need to schedule
+        schedulerManager.schedule();
     }
 
     @Override
     public synchronized void becameInactive(Consumer<?> consumer, int partitionId) {
-        if (isLeader.compareAndSet(true, false)) {
+        if (isLeader) {
             log.info("Worker {} lost the leadership.", consumerName);
+            isLeader = false;
             // when a worker has lost leadership it needs to start reading from the assignment topic again
             try {
                 // stop scheduler manager since we are not the leader anymore
@@ -136,8 +137,6 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                     functionAssignmentTailer.startFromMessage(schedulerManager.getLastMessageProduced());
                 }
                 functionMetaDataManager.giveupLeadership();
-
-                leaderInitComplete.set(false);
             } catch (Throwable th) {
                 log.error("Encountered error in routine when worker lost leadership", th);
                 errorNotifier.triggerError(th);
@@ -145,18 +144,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         }
     }
 
-    public boolean isLeader() {
-        return isLeader.get();
-    }
-
-    public void waitLeaderInit() {
-        while (!leaderInitComplete.get()) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+    public synchronized boolean isLeader() {
+        return isLeader;
     }
 
     @Override

@@ -31,7 +31,6 @@ import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,7 +49,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -69,7 +67,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -471,6 +468,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         // Case 1: Access without TLS
@@ -554,6 +552,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
@@ -616,6 +615,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
@@ -678,6 +678,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
         conf.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();

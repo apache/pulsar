@@ -26,7 +26,6 @@
     <version>2.7.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar</groupId>
   <artifactId>grafana-docker-image</artifactId>
   <name>Apache Pulsar :: Docker Images :: Grafana</name>
   <packaging>pom</packaging>

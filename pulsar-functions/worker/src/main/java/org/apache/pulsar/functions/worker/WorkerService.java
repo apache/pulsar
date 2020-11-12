@@ -74,19 +74,26 @@ public class WorkerService {
     private URI dlogUri;
     private LeaderService leaderService;
     private FunctionAssignmentTailer functionAssignmentTailer;
+    private final WorkerStatsManager workerStatsManager;
 
-    public WorkerService(WorkerConfig workerConfig) {
+    public WorkerService(WorkerConfig workerConfig, boolean runAsStandalone) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+          .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
     }
 
+    public WorkerService(WorkerConfig workerConfig) {
+        this(workerConfig, false);
+    }
 
     public void start(URI dlogUri,
                       AuthenticationService authenticationService,
                       AuthorizationService authorizationService,
                       ErrorNotifier errorNotifier) throws InterruptedException {
+
+        workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
 
         try {
@@ -163,7 +170,7 @@ public class WorkerService {
             brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
             brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(workerConfig, client, brokerAdmin, errorNotifier);
+            this.schedulerManager = new SchedulerManager(workerConfig, client, brokerAdmin, workerStatsManager, errorNotifier);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -188,6 +195,7 @@ public class WorkerService {
                     connectorsManager,
                     functionsManager,
                     functionMetaDataManager,
+                    workerStatsManager,
                     errorNotifier);
 
 
@@ -278,6 +286,11 @@ public class WorkerService {
             this.isInitialized = true;
 
             log.info("/** Started worker id={} **/", workerConfig.getWorkerId());
+
+            workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
+            workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
+            workerStatsManager.setLeaderService(leaderService);
+            workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);

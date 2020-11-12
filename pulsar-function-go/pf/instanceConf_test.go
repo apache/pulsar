@@ -22,11 +22,75 @@ package pf
 import (
 	"testing"
 
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_newInstanceConf(t *testing.T) {
+	assert.Equal(
+		t,
+		&instanceConf{
+			instanceID:                  101,
+			funcID:                      "pulsar-function",
+			funcVersion:                 "1.0.0",
+			maxBufTuples:                10,
+			port:                        8091,
+			clusterName:                 "pulsar-function-go",
+			pulsarServiceURL:            "pulsar://localhost:6650",
+			killAfterIdle:               50000,
+			expectedHealthCheckInterval: 3,
+			funcDetails: pb.FunctionDetails{Tenant: "",
+				Namespace:            "",
+				Name:                 "go-function",
+				ClassName:            "",
+				LogTopic:             "log-topic",
+				ProcessingGuarantees: 0,
+				UserConfig:           `{"word-of-the-day": "hapax legomenon"}`,
+				SecretsMap:           "",
+				Runtime:              0,
+				AutoAck:              true,
+				Parallelism:          0,
+				Source: &pb.SourceSpec{
+					SubscriptionType: pb.SubscriptionType(0),
+					InputSpecs: map[string]*pb.ConsumerSpec{
+						"persistent://public/default/topic-01": {
+							SchemaType:     "",
+							IsRegexPattern: false,
+							ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+								Value: 10,
+							},
+						},
+					},
+					TimeoutMs:           0,
+					SubscriptionName:    "",
+					CleanupSubscription: false,
+				},
+				Sink: &pb.SinkSpec{
+					Topic:      "persistent://public/default/topic-02",
+					SchemaType: "",
+				},
+				Resources: &pb.Resources{
+					Cpu:  0,
+					Ram:  0,
+					Disk: 0,
+				},
+				PackageUrl: "",
+				RetryDetails: &pb.RetryDetails{
+					MaxMessageRetries: 0,
+					DeadLetterTopic:   "",
+				},
+				RuntimeFlags:         "",
+				ComponentType:        0,
+				CustomRuntimeOptions: "",
+			},
+		},
+		newInstanceConf(),
+	)
+}
+
 func TestInstanceConf_GetInstanceName(t *testing.T) {
 	instanceConf := newInstanceConf()
-	str := instanceConf.getInstanceName()
-	assert.Equal(t, "101", str)
+	instanceName := instanceConf.getInstanceName()
+
+	assert.Equal(t, "101", instanceName)
 }

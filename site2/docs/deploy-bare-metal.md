@@ -253,6 +253,17 @@ Flag | Description
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 > ```
 
+> If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
+>
+> ```properties
+> --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
+> --web-service-url http://host1:8080,host2:8080,host3:8080 \
+> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+> ```
+> You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
+
 ## Deploy a BookKeeper cluster
 
 [BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a **3-bookie BookKeeper cluster**.
@@ -265,15 +276,6 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 
 Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide might be a better choice.
 
-> ##### NOTES
->
-> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-develop.md#state-storage) for Pulsar Functions. If you want to enable that feature,
-> you need to enable table service on BookKeeper by doing the following setting in `conf/bookkeeper.conf` file.
->
-> ```conf
-> extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-> ```
-
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
 To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
@@ -285,7 +287,7 @@ $ bin/pulsar-daemon start bookie
 To start the bookie in the foreground:
 
 ```bash
-$ bin/bookkeeper bookie
+$ bin/pulsar bookie
 ```
 
 You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):

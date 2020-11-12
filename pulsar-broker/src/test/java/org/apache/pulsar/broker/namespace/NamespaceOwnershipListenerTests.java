@@ -25,7 +25,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -36,8 +35,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
 
 import static org.testng.Assert.assertTrue;
 
@@ -62,13 +59,13 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         final AtomicBoolean onLoad = new AtomicBoolean(false);
         final AtomicBoolean unLoad = new AtomicBoolean(false);
 
-        final String namespace = "prop/ns-test-1";
+        final String namespace = "prop/" + UUID.randomUUID().toString();
 
         pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
 
             @Override
             public boolean test(NamespaceBundle namespaceBundle) {
-                return namespaceBundle.getNamespaceObject().getLocalName().equals("ns-test-1");
+                return namespaceBundle.getNamespaceObject().toString().equals(namespace);
             }
 
             @Override
@@ -95,7 +92,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
         producer.close();
 
-        admin.namespaces().unload("prop/ns-test-1");
+        admin.namespaces().unload(namespace);
 
         countDownLatch.await();
 

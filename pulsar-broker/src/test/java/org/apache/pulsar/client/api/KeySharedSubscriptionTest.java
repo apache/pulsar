@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -397,7 +398,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(false);
         String topic = "persistent://public/default/key_shared_disabled";
@@ -716,6 +717,142 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer3.close();
         consumer4.close();
         Assert.assertFalse(dispatcher.isConsumerConnected());
+    }
+
+    @Test
+    public void testWithMessageCompression() throws Exception {
+        final String topic = "testWithMessageCompression" + UUID.randomUUID().toString();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .compressionType(CompressionType.LZ4)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send(("Hello Pulsar > " + i).getBytes());
+        }
+        List<Message<byte[]>> receives = new ArrayList<>();
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> received = consumer.receive();
+            receives.add(received);
+            consumer.acknowledge(received);
+        }
+        Assert.assertEquals(receives.size(), messages);
+        producer.close();
+        consumer.close();
+    }
+
+    @Test
+    public void testAttachKeyToMessageMetadata()
+            throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+    }
+
+    @Test
+    public void testContinueDispatchMessagesWhenMessageTTL() throws Exception {
+        int defaultTTLSec = 3;
+        int totalMessages = 1000;
+        this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // don't ack the first message
+        consumer1.receive();
+        consumer1.acknowledge(consumer1.receive());
+
+        // The consumer1 and consumer2 should be stucked because of the mark delete position did not move forward.
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Message<Integer> received = null;
+        try {
+            received = consumer2.receive(1, TimeUnit.SECONDS);
+        } catch (PulsarClientException ignore) {
+        }
+        Assert.assertNull(received);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        try {
+            received = consumer3.receive(1, TimeUnit.SECONDS);
+        } catch (PulsarClientException ignore) {
+        }
+        Assert.assertNull(received);
+
+        Optional<Topic> topicRef = pulsar.getBrokerService().getTopic(topic, false).get();
+        assertTrue(topicRef.isPresent());
+        Thread.sleep((defaultTTLSec - 1) * 1000);
+        topicRef.get().checkMessageExpiry();
+
+        // The mark delete position is move forward, so the consumers should receive new messages now.
+        for (int i = 0; i < totalMessages; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // Wait broker dispatch messages.
+        Assert.assertNotNull(consumer2.receive(1, TimeUnit.SECONDS));
+        Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {

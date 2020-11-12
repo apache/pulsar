@@ -33,7 +33,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -80,6 +79,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setTlsAllowInsecureConnection(true);
+        conf.setNumExecutorThreadPoolSize(5);
     }
 
     @AfterMethod
@@ -134,7 +134,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
             policies.bundles = new BundlesData(4);
-            policies.auth_policies.namespace_auth.put("admin", ImmutableSet.of(AuthAction.produce, AuthAction.consume));
             policies.replication_clusters = ImmutableSet.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
@@ -143,6 +142,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 ex.printStackTrace();
                 fail("Should not have thrown an exception");
             }
+            String topicName = String.format("persistent://%s/t1", "tenant/ns");
+            admin.lookups().lookupTopic(topicName);
         }
 
     }

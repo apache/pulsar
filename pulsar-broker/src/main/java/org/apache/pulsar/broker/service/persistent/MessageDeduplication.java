@@ -31,9 +31,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -43,6 +46,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +64,10 @@ public class MessageDeduplication {
     private ManagedCursor managedCursor;
 
     enum Status {
+
+        // Deduplication is initialized
+        Initialized,
+
         // Deduplication is disabled
         Disabled,
 
@@ -110,6 +118,9 @@ public class MessageDeduplication {
     // Counter of number of entries stored after last snapshot was taken
     private int snapshotCounter;
 
+    // The timestamp when the snapshot was taken by the scheduled task last time
+    private volatile long lastSnapshotTimestamp = 0L;
+
     // Max number of producer for which to persist the sequence id information
     private final int maxNumberOfProducers;
 
@@ -122,7 +133,7 @@ public class MessageDeduplication {
         this.pulsar = pulsar;
         this.topic = topic;
         this.managedLedger = managedLedger;
-        this.status = Status.Disabled;
+        this.status = Status.Initialized;
         this.snapshotInterval = pulsar.getConfiguration().getBrokerDeduplicationEntriesInterval();
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
@@ -200,6 +211,25 @@ public class MessageDeduplication {
                     pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                     return CompletableFuture.completedFuture(null);
                 }
+                if (status == Status.Initialized && !shouldBeEnabled) {
+                    status = Status.Removing;
+                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new DeleteCursorCallback() {
+                        @Override
+                        public void deleteCursorComplete(Object ctx) {
+                            status = Status.Disabled;
+                            log.info("[{}] Deleted deduplication cursor", topic.getName());
+                        }
+
+                        @Override
+                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                status = Status.Disabled;
+                            } else {
+                                log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
+                            }
+                        }
+                    }, null);
+                }
 
                 if (status == Status.Enabled && !shouldBeEnabled) {
                     // Disabled deduping
@@ -220,15 +250,24 @@ public class MessageDeduplication {
 
                                 @Override
                                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
-                                            exception.getMessage());
-                                    status = Status.Failed;
-                                    future.completeExceptionally(exception);
+                                    // It's ok for disable message deduplication.
+                                    if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                        status = Status.Disabled;
+                                        managedCursor = null;
+                                        highestSequencedPushed.clear();
+                                        highestSequencedPersisted.clear();
+                                        future.complete(null);
+                                    } else {
+                                        log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
+                                                exception.getMessage());
+                                        status = Status.Failed;
+                                        future.completeExceptionally(exception);
+                                    }
                                 }
                             }, null);
 
                     return future;
-                } else if (status == Status.Disabled && shouldBeEnabled) {
+                } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
                     // Enable deduping
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
@@ -378,6 +417,7 @@ public class MessageDeduplication {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
                 }
+                lastSnapshotTimestamp = System.currentTimeMillis();
             }
 
             @Override
@@ -389,7 +429,11 @@ public class MessageDeduplication {
 
     private CompletableFuture<Boolean> isDeduplicationEnabled() {
         TopicName name = TopicName.get(topic.getName());
-
+        //Topic level setting has higher priority than namespace level
+        TopicPolicies topicPolicies = topic.getTopicPolicies(name);
+        if (topicPolicies != null && topicPolicies.isDeduplicationSet()) {
+            return CompletableFuture.completedFuture(topicPolicies.getDeduplicationEnabled());
+        }
         return pulsar.getConfigurationCache().policiesCache()
                 .getAsync(AdminResource.path(POLICIES, name.getNamespace())).thenApply(policies -> {
                     // If namespace policies have the field set, it will override the broker-level setting
@@ -443,6 +487,43 @@ public class MessageDeduplication {
     public long getLastPublishedSequenceId(String producerName) {
         Long sequenceId = highestSequencedPushed.get(producerName);
         return sequenceId != null ? sequenceId : -1;
+    }
+
+    public void takeSnapshot() {
+        Integer interval = null;
+        try {
+            //try to get namespace-level policies
+            final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
+            if (policies.isPresent()) {
+                interval = policies.get().deduplicationSnapshotIntervalSeconds;
+            }
+        } catch (Exception e) {
+            log.error("Failed to get namespace policies", e);
+        }
+        //There is no other level of policies, use the broker-level by default
+        if (interval == null) {
+            interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
+        }
+        long currentTimeStamp = System.currentTimeMillis();
+        if (interval == null || interval <= 0
+                || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
+            return;
+        }
+        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        if (position == null) {
+            return;
+        }
+        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
+            return;
+        }
+        takeSnapshot(position);
+    }
+
+    @VisibleForTesting
+    ManagedCursor getManagedCursor() {
+        return managedCursor;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);

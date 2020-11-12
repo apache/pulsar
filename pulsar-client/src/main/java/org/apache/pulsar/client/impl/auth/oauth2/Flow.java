@@ -25,7 +25,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 /**
  * An OAuth 2.0 authorization flow.
  */
-interface Flow extends Serializable {
+interface Flow extends Serializable, AutoCloseable {
 
     /**
      * Initializes the authorization flow.
@@ -43,5 +43,5 @@ interface Flow extends Serializable {
     /**
      * Closes the authorization flow.
      */
-    void close();
+    void close() throws Exception;
 }

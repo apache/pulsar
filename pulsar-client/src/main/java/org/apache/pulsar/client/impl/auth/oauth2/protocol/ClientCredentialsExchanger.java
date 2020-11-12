@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * An interface for exchanging client credentials for an access token.
  */
-public interface ClientCredentialsExchanger {
+public interface ClientCredentialsExchanger extends AutoCloseable {
     /**
      * Requests an exchange of client credentials for an access token.
      * @param req the request details.
@@ -33,9 +33,4 @@ public interface ClientCredentialsExchanger {
      */
     TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException;
-
-    /**
-     * Closes the exchanger.
-     */
-    void close();
 }

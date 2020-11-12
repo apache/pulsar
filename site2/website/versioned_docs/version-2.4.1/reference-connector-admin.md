@@ -70,7 +70,7 @@ $ pulsar-admin sources create options
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
-| `-t`, `--source-type` | The source's connector provider.
+| `-t`, `--source-type` | The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--tenant` | The source's tenant.
 
 ### `update`
@@ -101,7 +101,7 @@ $ pulsar-admin sources update options
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
-| `-t`, `--source-type` | The source's connector provider.
+| `-t`, `--source-type` | The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--tenant` | The source's tenant.
 | `--update-auth-data` | Whether or not to update the auth data.<br>**Default value: false.**
 
@@ -269,7 +269,7 @@ $ pulsar-admin sources localrun options
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 |`--source-config`|Source config key/values.
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration.
-|`--source-type`|The source's connector provider.
+|`--source-type`|The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 |`--tenant`|The source’s tenant.
 |`--tls-allow-insecure`|Allow insecure tls connection.<br>**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
@@ -360,7 +360,7 @@ $ pulsar-admin sinks create options
 | `--retain-ordering` | Sink consumes and sinks messages in order.
 | `--sink-config` | sink config key/values.
 | `--sink-config-file` | The path to a YAML config file specifying the sink's configuration.
-| `-t`, `--sink-type` | The sink's connector provider.
+| `-t`, `--sink-type` | The sink's connector provider. The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
@@ -396,7 +396,7 @@ $ pulsar-admin sinks update options
 | `--retain-ordering` | Sink consumes and sinks messages in order.
 | `--sink-config` | sink config key/values.
 | `--sink-config-file` | The path to a YAML config file specifying the sink's configuration.
-| `-t`, `--sink-type` | The sink's connector provider.
+| `-t`, `--sink-type` | The sink's connector provider. The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
@@ -570,7 +570,7 @@ $ pulsar-admin sinks localrun options
 |`--retain-ordering` | Sink consumes and sinks messages in order.
 |`--sink-config`|sink config key/values.
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration.
-|`--sink-type`|The sink's connector provider.
+|`--sink-type`|The sink's connector provider. The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 |`--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 |`--tenant`|The sink’s tenant.
 | `--timeout-ms` | The message timeout in milliseconds.

@@ -15,7 +15,8 @@
       "concepts-replication",
       "concepts-multi-tenancy",
       "concepts-authentication",
-      "concepts-topic-compaction"
+      "concepts-topic-compaction",
+      "concepts-proxy-sni-routing"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -28,9 +29,11 @@
       "functions-worker",
       "functions-runtime",
       "functions-develop",
+      "functions-package",
       "functions-debug",
       "functions-deploy",
-      "functions-cli"
+      "functions-cli",
+      "window-functions-context"
     ],
     "Pulsar IO": [
       "io-overview",
@@ -68,6 +71,7 @@
       "deploy-bare-metal",
       "deploy-bare-metal-multi-cluster",
       "deploy-dcos",
+      "deploy-docker",
       "deploy-monitoring"
     ],
     "Administration": [
@@ -87,7 +91,7 @@
       "security-jwt",
       "security-athenz",
       "security-kerberos",
-      "security-oauth"
+      "security-oauth2",
       "security-authorization",
       "security-encryption",
       "security-extending",
@@ -112,10 +116,7 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
-      "admin-api-persistent-topics",
-      "admin-api-non-persistent-topics",
-      "admin-api-partitioned-topics",
-      "admin-api-non-partitioned-topics",
+      "admin-api-topics",
       "admin-api-schemas",
       "admin-api-functions"
     ],
@@ -128,7 +129,6 @@
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",
-      "cookbooks-partitioned",
       "cookbooks-retention-expiry",
       "cookbooks-encryption",
       "cookbooks-message-queue",

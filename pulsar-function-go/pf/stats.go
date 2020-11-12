@@ -20,7 +20,6 @@
 package pf
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,7 +29,7 @@ import (
 
 var (
 	metricsLabelNames          = []string{"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"}
-	exceptionLabelNames        = []string{"error", "ts"}
+	exceptionLabelNames        = []string{"error"}
 	exceptionMetricsLabelNames = append(metricsLabelNames, exceptionLabelNames...)
 )
 
@@ -254,12 +253,12 @@ func (stat *StatWithLabelValues) addUserException(err error) {
 		stat.latestUserException = stat.latestUserException[1:]
 	}
 	// report exception via prometheus
-	stat.reportUserExceptionPrometheus(err, ts)
+	stat.reportUserExceptionPrometheus(err)
 }
 
 //@limits(calls=5, period=60)
-func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error, ts int64) {
-	errorTs := []string{exception.Error(), strconv.FormatInt(ts, 10)}
+func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error) {
+	errorTs := []string{exception.Error()}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
 	userExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
@@ -284,12 +283,12 @@ func (stat *StatWithLabelValues) addSysException(exception error) {
 		stat.latestSysException = stat.latestSysException[1:]
 	}
 	// report exception via prometheus
-	stat.reportSystemExceptionPrometheus(exception, ts)
+	stat.reportSystemExceptionPrometheus(exception)
 }
 
 //@limits(calls=5, period=60)
-func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error, ts int64) {
-	errorTs := []string{exception.Error(), strconv.FormatInt(ts, 10)}
+func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error) {
+	errorTs := []string{exception.Error()}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
 	systemExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }

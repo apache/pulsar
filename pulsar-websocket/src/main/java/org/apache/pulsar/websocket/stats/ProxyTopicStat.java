@@ -20,6 +20,7 @@ package org.apache.pulsar.websocket.stats;
 
 import java.util.Set;
 
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.websocket.ConsumerHandler;
 import org.apache.pulsar.websocket.ProducerHandler;
@@ -62,6 +63,7 @@ public class ProxyTopicStat {
         public ConsumerStats(ConsumerHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
+            this.subscriptionMode = handler.getSubscriptionMode();
             this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
@@ -76,6 +78,7 @@ public class ProxyTopicStat {
         public String remoteConnection;
         public String subscriptionName;
         public SubscriptionType subscriptionType;
+        public SubscriptionMode subscriptionMode;
         public long numberOfMsgDelivered;
     }
 

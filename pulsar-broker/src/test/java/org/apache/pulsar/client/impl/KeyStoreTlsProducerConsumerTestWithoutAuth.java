@@ -23,13 +23,11 @@ import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -101,6 +99,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuth extends ProducerConsumer
         conf.setTlsRequireTrustedClientCertOnConnect(true);
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
+        conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {

@@ -156,4 +156,17 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     public void rebalance() {
         worker.rebalance(uri.getRequestUri(), clientAppId());
     }
+
+    @GET
+    @ApiOperation(
+            value = "Checks if this node is the leader and is ready to service requests",
+            response = Boolean.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
+    @Path("/cluster/leader/ready")
+    public Boolean isLeaderReady() {
+        return worker.isLeaderReady(clientAppId());
+    }
 }

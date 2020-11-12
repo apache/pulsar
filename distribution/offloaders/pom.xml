@@ -35,7 +35,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -45,6 +45,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
         <executions>
           <execution>
             <id>distro-assembly</id>

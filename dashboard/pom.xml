@@ -27,7 +27,6 @@
     <relativePath>../docker</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar</groupId>
   <artifactId>dashboard-docker-image</artifactId>
   <name>Apache Pulsar :: Docker Images :: Pulsar Dashboard</name>
   <packaging>pom</packaging>

@@ -95,6 +95,11 @@ Compile and install:
 $ mvn install -DskipTests
 ```
 
+## Minimal build (This skips most of external connectors and tiered storage handlers)
+```
+mvn install -Pcore-modules
+```
+
 Run Unit Tests:
 
 ```bash
@@ -108,6 +113,13 @@ $ cd module-name (e.g: pulsar-client)
 $ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
+Run Selected Test packages:
+
+```bash
+$ cd module-name (e.g: pulsar-broker)
+$ mvn test -pl module-name -Dinclude=org/apache/pulsar/**/*.java
+```
+
 Start standalone Pulsar service:
 
 ```bash
@@ -115,7 +127,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
- 
+
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with

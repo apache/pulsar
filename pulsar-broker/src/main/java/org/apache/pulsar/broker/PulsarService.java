@@ -95,12 +95,16 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -170,10 +174,9 @@ public class PulsarService implements AutoCloseable {
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
 
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
-            new DefaultThreadFactory("pulsar"));
-    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
-            new DefaultThreadFactory("zk-cache-callback"));
+    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService cacheExecutor;
+
     private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
@@ -203,7 +206,11 @@ public class PulsarService implements AutoCloseable {
     private final ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
+
     private TransactionMetadataStoreService transactionMetadataStoreService;
+    private TransactionBufferProvider transactionBufferProvider;
+    private TransactionBufferClient transactionBufferClient;
+
     private BrokerInterceptor brokerInterceptor;
 
     public enum State {
@@ -249,6 +256,10 @@ public class PulsarService implements AutoCloseable {
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
         this.functionWorkerService = functionWorkerService;
+        this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
+                new DefaultThreadFactory("pulsar"));
+        this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
+                new DefaultThreadFactory("zk-cache-callback"));
     }
 
     /**
@@ -356,6 +367,10 @@ public class PulsarService implements AutoCloseable {
                 protocolHandlers = null;
             }
 
+            if (transactionBufferClient != null) {
+                transactionBufferClient.close();
+            }
+
             state = State.Closed;
             isClosedCondition.signalAll();
         } catch (Exception e) {
@@ -417,7 +432,9 @@ public class PulsarService implements AutoCloseable {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
 
-            orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
+            orderedExecutor = OrderedExecutor.newBuilder()
+                    .numThreads(config.getNumOrderedExecutorThreads())
+                    .name("pulsar-ordered")
                     .build();
 
             // Initialize the message protocol handlers
@@ -459,7 +476,7 @@ public class PulsarService implements AutoCloseable {
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
             brokerService.setInterceptor(getBrokerInterceptor());
-            this.brokerInterceptor.initialize(config);
+            this.brokerInterceptor.initialize(this);
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -546,9 +563,16 @@ public class PulsarService implements AutoCloseable {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
+                transactionBufferClient = TransactionBufferClientImpl.create(
+                        getNamespaceService(), ((PulsarClientImpl) getClient()).getCnxPool());
+
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
+                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
+                        transactionBufferClient);
                 transactionMetadataStoreService.start();
+
+                transactionBufferProvider = TransactionBufferProvider
+                        .newProvider(config.getTransactionBufferProviderClassName());
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -566,8 +590,6 @@ public class PulsarService implements AutoCloseable {
                 this.protocolHandlers.newChannelInitializers();
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
-            state = State.Started;
-
             acquireSLANamespace();
 
             // start function worker service if necessary
@@ -582,6 +604,8 @@ public class PulsarService implements AutoCloseable {
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
+
+            state = State.Started;
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
             throw new PulsarServerException(e);
@@ -1079,6 +1103,14 @@ public class PulsarService implements AutoCloseable {
 
     public TransactionMetadataStoreService getTransactionMetadataStoreService() {
         return transactionMetadataStoreService;
+    }
+
+    public TransactionBufferProvider getTransactionBufferProvider() {
+        return transactionBufferProvider;
+    }
+
+    public TransactionBufferClient getTransactionBufferClient() {
+        return transactionBufferClient;
     }
 
     public ShutdownService getShutdownService() {

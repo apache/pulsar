@@ -815,6 +815,9 @@ public class SourceApiV3ResourceTest {
             Integer parallelism,
             String expectedError) throws Exception {
 
+        NarClassLoader classLoader = mock(NarClassLoader.class);
+        doReturn(TwitterFireHose.class).when(classLoader).loadClass(eq(TwitterFireHose.class.getName()));
+
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
@@ -824,9 +827,9 @@ public class SourceApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
-        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        doReturn(classLoader).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
@@ -884,6 +887,9 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
 
+        NarClassLoader classLoader = mock(NarClassLoader.class);
+        doReturn(TwitterFireHose.class).when(classLoader).loadClass(eq(TwitterFireHose.class.getName()));
+
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
@@ -893,9 +899,9 @@ public class SourceApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
-        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        doReturn(classLoader).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
@@ -974,6 +980,9 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setClassName(className);
         sourceConfig.setParallelism(parallelism);
 
+        NarClassLoader classLoader = mock(NarClassLoader.class);
+        doReturn(TwitterFireHose.class).when(classLoader).loadClass(eq(TwitterFireHose.class.getName()));
+
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
@@ -983,10 +992,10 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSourceType(eq(TwitterFireHose.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
-        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        doReturn(classLoader).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();

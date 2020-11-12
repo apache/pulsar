@@ -1,7 +1,7 @@
 ---
 id: version-2.6.1-functions-develop
 title: Develop Pulsar Functions
-sidebar_label: How-to: Develop
+sidebar_label: "How-to: Develop"
 original_id: functions-develop
 ---
 
@@ -307,6 +307,8 @@ public interface Context {
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }
 ```
 
