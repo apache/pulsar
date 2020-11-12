@@ -35,7 +35,7 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
         producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

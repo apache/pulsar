@@ -46,7 +46,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         admin.topics().createNonPartitionedTopic(TOPIC_TEST);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }

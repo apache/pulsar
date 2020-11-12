@@ -61,7 +61,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         Thread.sleep(1000 * 3);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

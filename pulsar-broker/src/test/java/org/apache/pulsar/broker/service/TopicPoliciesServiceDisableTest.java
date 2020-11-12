@@ -39,7 +39,7 @@ public class TopicPoliciesServiceDisableTest extends MockedPulsarServiceBaseTest
         prepareData();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

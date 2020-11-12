@@ -116,7 +116,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -555,14 +555,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         this.conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         MockedPulsarService mockPulsarSetup2 = new MockedPulsarService(this.conf);
         mockPulsarSetup2.setup();
-        PulsarService modularLoadManager = mockPulsarSetup2.getPulsar();
         PulsarAdmin modularLoadManagerAdmin = mockPulsarSetup2.getAdmin();
         assertNotNull(modularLoadManagerAdmin.brokerStats().getLoadReport());
 
-        simpleLoadManagerAdmin.close();
-        simpleLoadManager.close();
-        modularLoadManagerAdmin.close();
-        modularLoadManager.close();
         mockPulsarSetup1.cleanup();
         mockPulsarSetup2.cleanup();
     }
