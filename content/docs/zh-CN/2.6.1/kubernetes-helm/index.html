@@ -111,22 +111,25 @@
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="步骤-1：安装-pulsar-helm-chart"></a><a href="#步骤-1：安装-pulsar-helm-chart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 1：安装 Pulsar Helm chart</h2>
 <ol>
+<li><p>添加 Pulsar Helm 仓库。</p>
+<pre><code class="hljs css language-bash">helm repo add apache https://pulsar.apache.org/charts
+</code></pre>
+<pre><code class="hljs css language-bash">helm repo update
+</code></pre></li>
 <li><p>克隆 Pulsar Helm chart 的仓库。</p>
-<pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar
-<span class="hljs-built_in">cd</span> deployment/kubernetes/helm/
+<pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
+<span class="hljs-built_in">cd</span> pulsar-helm-chart
 </code></pre></li>
 <li><p>运行脚本 <code>prepare_helm_release.sh</code> 来创建安装 Apache Pulsar Helm chart 所需的 secrets。 用户名 <code>pulsar</code> 与密码 <code>pulsar</code> 可用于登录 Grafana dashboard 与 Pulsar Manager。</p>
 <pre><code class="hljs css language-bash">./scripts/pulsar/prepare_helm_release.sh \
     -n pulsar \
     -k pulsar-mini \
-    --control-center-admin pulsar \
-    --control-center-password pulsar \
     -c
 </code></pre></li>
 <li><p>使用 Pulsar Helm chart 来将一个 Pulsar 集群安装至 Kubernetes。</p>
 <pre><code class="hljs css language-bash">helm install \
     --values examples/values-minikube.yaml \
-    pulsar-mini pulsar
+    pulsar-mini apache/pulsar
 </code></pre></li>
 <li><p>检查所有 pod 的状态。</p>
 <pre><code class="hljs css language-bash">kubectl get pods -n pulsar
@@ -164,7 +167,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <p><code>pulsar-admin</code> 是 Pulsar 的 CLI（命令行客户端） 工具。 这一步中，你可以使用 <code>pulsar-admin</code> 来创建资源，包括租户、命名空间和主题。</p>
 <ol>
 <li><p>进入 <code>toolset</code> 容器。</p>
-<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 /bin/bash
+<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
 </code></pre></li>
 <li><p>在 <code>toolset</code> 容器里，创建一个名为 <code>apache</code> 的租户。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin tenants create apache
@@ -198,35 +201,20 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="步骤-3：使用-pulsar-客户端生产和消费消息"></a><a href="#步骤-3：使用-pulsar-客户端生产和消费消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 3：使用 Pulsar 客户端生产和消费消息</h2>
 <p>你可以使用 Pulsar 客户端来创建生产者与消费者并用于生产和消费消息。</p>
-<p>默认地，Pulsar Helm chart 会通过 Kubernetes <code>LoadBalancer</code> 将 Pulsar 集群暴露出来。 在 Minikube 中，你可以使用如下命令来检查代理服务。</p>
+<p>默认地，Pulsar Helm chart 会通过 Kubernetes <code>LoadBalancer</code> 将 Pulsar 集群暴露出来。 在 Minikube 中，你可以使用以下命令获取代理服务的 IP 地址。</p>
 <pre><code class="hljs css language-bash">kubectl get services -n pulsar | grep pulsar-mini-proxy
 </code></pre>
 <p>你将看到类似如下的输出：</p>
 <pre><code class="hljs css language-bash">pulsar-mini-proxy            LoadBalancer   10.97.240.109    &lt;pending&gt;     80:32305/TCP,6650:31816/TCP   28m
 </code></pre>
-<p>这个输出显示了 Pulsar 集群的二进制端口 和 HTTP 端口都映射到了哪个 node 端口上。 <code>80:</code> 后面的端口是 HTTP 端口，而 <code>6650:</code> 后面的端口是二进制端口。</p>
-<p>然后你就可以找到 IP 地址并通过运行以下命令来对外暴露你的 Minikube 服务器。</p>
-<pre><code class="hljs css language-bash">minikube service pulsar-mini-proxy -n pulsar
+<p>这个输出显示 Pulsar 集群的二进制端口及 HTTP 端口暴露给了哪些节点端口。 <code>80:</code> 后面的端口是 HTTP 端口，而 <code>6650:</code> 后面的端口是二进制端口。</p>
+<p>然后你可以通过运行以下命令来获取你的 Minikube 服务器 IP 地址。</p>
+<pre><code class="hljs css language-bash">minikube ip
 </code></pre>
-<p><strong>输出</strong></p>
-<pre><code class="hljs css language-bash">|-----------|-------------------|-------------|-------------------------|
-| NAMESPACE |       NAME        | TARGET PORT |           URL           |
-|-----------|-------------------|-------------|-------------------------|
-| pulsar    | pulsar-mini-proxy | http/80     | http://172.17.0.4:32305 |
-|           |                   | pulsar/6650 | http://172.17.0.4:31816 |
-|-----------|-------------------|-------------|-------------------------|
-🏃 pulsar-mini-proxy 服务的起始通道。
-|-----------|-------------------|-------------|------------------------|
-| NAMESPACE |       NAME        | TARGET PORT |          URL           |
-|-----------|-------------------|-------------|------------------------|
-| pulsar    | pulsar-mini-proxy |             | http://127.0.0.1:61853 |
-|           |                   |             | http://127.0.0.1:61854 |
-|-----------|-------------------|-------------|------------------------|
-</code></pre>
-<p>此时，你可以获得连接到你的 Pulsar 客户端的服务 URL。 下面是一些 URL 示例：</p>
-<pre><code class="hljs">webServiceUrl=<span class="hljs-string">http:</span><span class="hljs-comment">//127.0.0.1:61853/</span>
-brokerServiceUrl=<span class="hljs-string">pulsar:</span><span class="hljs-comment">//127.0.0.1:61854/</span>
-</code></pre>
+<p>此时，你可以获得连接到你的 Pulsar 客户端的服务 URL。</p>
+<pre><code class="hljs"><span class="hljs-symbol">webServiceUrl</span><span class="hljs-symbol">=http</span>://$(minikube <span class="hljs-built_in">ip</span>):&lt;exposed-http-port&gt;/
+<span class="hljs-keyword">brokerServiceUrl=pulsar://$(minikube </span><span class="hljs-built_in">ip</span>):&lt;exposed-<span class="hljs-keyword">binary-port&gt;/
+</span></code></pre>
 <p>然后你可以继续如下步骤：</p>
 <ol>
 <li><p>从 <a href="https://pulsar.apache.org/en/download/">下载页面</a> 下载 Apache Pulsar tarball。</p></li>

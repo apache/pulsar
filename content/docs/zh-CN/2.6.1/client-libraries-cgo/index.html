@@ -46,7 +46,7 @@
 <pre><code class="hljs css language-bash">$ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
 </code></pre>
 <p>Or you can use <a href="https://github.com/golang/dep">dep</a> for managing the dependencies.</p>
-<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.6.0
+<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.6.2
 </code></pre>
 <p>Once installed locally, you can import it into your project:</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
@@ -63,7 +63,7 @@
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="创建客户端"></a><a href="#创建客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建客户端</h2>
-<p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). Here's an example:</p>
+<p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). 下面是一个示例：</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"log"</span>
     <span class="hljs-string">"runtime"</span>
@@ -86,7 +86,7 @@
 <p>The following configurable parameters are available for Pulsar clients:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>URL</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. See <a href="#urls">above</a> for more info</td><td style="text-align:left"></td></tr>
@@ -102,7 +102,7 @@
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
-<p>Pulsar producers publish messages to Pulsar topics. You can <a href="#producer-configuration">configure</a> Go producers using a <code>ProducerOptions</code> object. Here's an example:</p>
+<p>Pulsar producers publish messages to Pulsar topics. You can <a href="#producer-configuration">configure</a> Go producers using a <code>ProducerOptions</code> object. 下面是一个示例：</p>
 <pre><code class="hljs css language-go">producer, err := client.CreateProducer(pulsar.ProducerOptions{
     Topic: <span class="hljs-string">"my-topic"</span>,
 })
@@ -199,11 +199,11 @@ msg := pulsar.ProducerMessage{
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method.  如果指定名称，则指定的名称必须在<em>所有</em> Pulsar 集群中唯一，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method.  如果指定名称，则指定的名称必须在<em>所有</em> Pulsar 集群中唯一，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>属性</code></td><td style="text-align:left">Attach a set of application defined properties to the producer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SendTimeout</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set <code>SendTimeout</code> to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/2.6.1/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30 seconds</td></tr>
 <tr><td style="text-align:left"><code>MaxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/zh-CN/2.6.1/reference-terminology#broker">broker</a>). By default, when the queue is full all calls to the <code>Send</code> and <code>SendAsync</code> methods will fail <em>unless</em> <code>BlockIfQueueFull</code> is set to <code>true</code>.</td><td style="text-align:left"></td></tr>
@@ -323,15 +323,15 @@ consumer, err := client.Subscribe(consumerOpts)
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>TopicsPattern</code></td><td style="text-align:left">Specify a regular expression to subscribe to multiple topics under the same namespace. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SubscriptionName</code></td><td style="text-align:left">The subscription name for this consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>属性</code></td><td style="text-align:left">Attach a set of application defined properties to the consumer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the consumer</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">The name of the consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>AckTimeout</code></td><td style="text-align:left">Set the timeout for unacked messages</td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>NackRedeliveryDelay</code></td><td style="text-align:left">The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See <code>Consumer.Nack()</code>)</td><td style="text-align:left">1 minute</td></tr>
 <tr><td style="text-align:left"><code>类型</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
@@ -343,7 +343,7 @@ consumer, err := client.Subscribe(consumerOpts)
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
-<p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. Here's an example:</p>
+<p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. 下面是一个示例：</p>
 <pre><code class="hljs css language-go">reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic: <span class="hljs-string">"my-golang-topic"</span>,
     StartMessageId: pulsar.LatestMessage,
@@ -404,7 +404,7 @@ consumer, err := client.Subscribe(consumerOpts)
     }
 }
 </code></pre>
-<p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. Here's an example:</p>
+<p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. 下面是一个示例：</p>
 <pre><code class="hljs css language-go">lastSavedId := <span class="hljs-comment">// Read last saved message id from external store as byte[]</span>
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
@@ -415,11 +415,11 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the reader</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题(Topic)</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.1/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">The name of the reader</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>StartMessageID</code></td><td style="text-align:left">THe initial reader position, i.e. the message at which the reader begins processing messages. The options are <code>pulsar.EarliestMessage</code> (the earliest available message on the topic), <code>pulsar.LatestMessage</code> (the latest available message on the topic), or a <code>MessageID</code> object for a position that isn't earliest or latest.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>ReceiverQueueSize</code></td><td style="text-align:left">Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls <code>Next</code>. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
@@ -446,7 +446,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <p>The following methods parameters are available for <code>ProducerMessage</code> objects:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Payload</code></td><td style="text-align:left">The actual data payload of the message</td></tr>
@@ -465,7 +465,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <li>Set <code>TLSTrustCertsFilePath</code> to the path to the TLS certs used by your client and the Pulsar broker</li>
 <li>Configure <code>Authentication</code> option</li>
 </ul>
-<p>Here's an example:</p>
+<p>下面是一个示例：</p>
 <pre><code class="hljs css language-go">opts := pulsar.ClientOptions{
     URL: <span class="hljs-string">"pulsar+ssl://my-cluster.com:6651"</span>,
     TLSTrustCertsFilePath: <span class="hljs-string">"/path/to/certs/my-cert.csr"</span>,
