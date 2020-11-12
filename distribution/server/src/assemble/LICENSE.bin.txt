@@ -333,7 +333,7 @@ The Apache Software License, Version 2.0
     - io.sundr-sundr-codegen-0.21.0.jar
     - io.sundr-sundr-core-0.21.0.jar
  * Guava
-    - com.google.guava-guava-25.1-jre.jar
+    - com.google.guava-guava-30.0-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar

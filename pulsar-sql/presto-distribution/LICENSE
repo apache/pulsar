@@ -221,7 +221,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.11.1.jar
     - jackson-module-jsonSchema-2.11.1.jar
  * Guava
-    - guava-25.1-jre.jar
+    - guava-30.0-jre.jar
  * Google Guice
     - guice-4.2.3.jar
     - guice-multibindings-4.2.0.jar
