@@ -913,6 +913,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
+        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);
