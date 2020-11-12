@@ -22,7 +22,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.common.functions.ProducerConfig;
 
 import java.util.Map;
 
@@ -37,5 +37,5 @@ public class PulsarSinkConfig {
     private Map<String, String> schemaProperties;
     private String typeClassName;
     private boolean forwardSourceMessageProperty;
-    private Function.ProducerSpec producerSpec;
+    private ProducerConfig producerConfig;
 }

@@ -60,13 +60,13 @@
                             </transformers>
                             <filters>
                                 <filter>
-                                    <!-- Shading signed JARs will fail without
-                                        this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
-                                    <artifact>*:*</artifact>
+                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                     <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                                        <exclude>org/bouncycastle/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
@@ -249,10 +249,6 @@
                                 <relocation>
                                     <pattern>jline</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jline</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.bouncycastle</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.bouncycastle</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.xerial.snappy</pattern>

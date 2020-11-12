@@ -34,7 +34,7 @@ public class BundleData extends JSONWritable {
     // by the number of long term samples
     // and the bundle update period.
     private TimeAverageMessageData longTermData;
-    
+
     // number of topics present under this bundle
     private int topics;
 
@@ -44,7 +44,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Initialize the bundle data.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -58,7 +58,7 @@ public class BundleData extends JSONWritable {
     /**
      * Initialize this bundle data and have its histories default to the given stats before the first sample is
      * received.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -73,7 +73,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Update the historical data for this bundle.
-     * 
+     *
      * @param newSample
      *            The bundle stats to update this data with.
      */

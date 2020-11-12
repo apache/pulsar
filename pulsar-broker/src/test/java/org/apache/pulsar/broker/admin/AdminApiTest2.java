@@ -116,7 +116,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -555,14 +555,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         this.conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         MockedPulsarService mockPulsarSetup2 = new MockedPulsarService(this.conf);
         mockPulsarSetup2.setup();
-        PulsarService modularLoadManager = mockPulsarSetup2.getPulsar();
         PulsarAdmin modularLoadManagerAdmin = mockPulsarSetup2.getAdmin();
         assertNotNull(modularLoadManagerAdmin.brokerStats().getLoadReport());
 
-        simpleLoadManagerAdmin.close();
-        simpleLoadManager.close();
-        modularLoadManagerAdmin.close();
-        modularLoadManager.close();
         mockPulsarSetup1.cleanup();
         mockPulsarSetup2.cleanup();
     }
@@ -1285,6 +1280,17 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testListOfNamespaceBundles() throws Exception {
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz2", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz2/ns1", 10);
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz2/ns1", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("prop-xyz2/test/ns2", 10);
+        assertEquals(admin.namespaces().getBundles("prop-xyz2/ns1").numBundles, 10);
+        assertEquals(admin.namespaces().getBundles("prop-xyz2/test/ns2").numBundles, 10);
+    }
+
+    @Test
     public void testUpdateClusterWithProxyUrl() throws Exception {
         ClusterData cluster = new ClusterData(pulsar.getWebServiceAddress());
         String clusterName = "test2";
@@ -1325,6 +1331,16 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.namespaces().createNamespace("testTenant/ns-" + i, Sets.newHashSet("test"));
         }
 
+    }
+
+    @Test
+    public void testInvalidBundleErrorResponse() throws Exception {
+        try {
+            admin.namespaces().deleteNamespaceBundle("prop-xyz/ns1", "invalid-bundle");
+            fail("should have failed due to invalid bundle");
+        } catch (PreconditionFailedException e) {
+            assertTrue(e.getMessage().startsWith("Invalid bundle range"));
+        }
     }
 
     @Test

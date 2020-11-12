@@ -78,7 +78,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -167,14 +167,18 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         long offloadDeletionLagInMillis = 100L;
 
         OffloadPolicies offload1 = OffloadPolicies.create(
-                driver, region, bucket, endpoint, 100, 100,
-                offloadThresholdInBytes, offloadDeletionLagInMillis);
+                driver, region, bucket, endpoint, null, null,
+                100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
         OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
+
+        admin.namespaces().removeOffloadPolicies(namespaceName);
+        OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
+        assertNull(offload3);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testOffloadPoliciesApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -205,10 +209,16 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testTopicLevelOffload() throws Exception {
+    public void testTopicLevelOffloadPartitioned() throws Exception {
         //wait for cache init
         Thread.sleep(2000);
         testOffload(true);
+    }
+    
+    @Test
+    public void testTopicLevelOffloadNonPartitioned() throws Exception {
+        //wait for cache init
+        Thread.sleep(2000);
         testOffload(false);
     }
 

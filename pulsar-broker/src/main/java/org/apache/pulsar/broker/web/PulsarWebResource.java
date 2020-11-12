@@ -145,7 +145,7 @@ public abstract class PulsarWebResource {
     }
 
     public boolean isRequestHttps() {
-    	return "https".equalsIgnoreCase(httpRequest.getScheme());
+        return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
 
     public static boolean isClientAuthenticated(String appId) {
@@ -477,7 +477,7 @@ public abstract class PulsarWebResource {
     protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         try {
-            checkArgument(bundleRange.contains("_"), "Invalid bundle range");
+            checkArgument(bundleRange.contains("_"), "Invalid bundle range: " + bundleRange);
             String[] boundaries = bundleRange.split("_");
             Long lowerEndpoint = Long.decode(boundaries[0]);
             Long upperEndpoint = Long.decode(boundaries[1]);
@@ -489,6 +489,9 @@ public abstract class PulsarWebResource {
                     bundles);
             nsBundles.validateBundle(nsBundle);
             return nsBundle;
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Invalid bundle range {}/{}, {}", clientAppId(), fqnn.toString(), bundleRange, e.getMessage());
+            throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
         } catch (Exception e) {
             log.error("[{}] Failed to validate namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);

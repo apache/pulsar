@@ -89,6 +89,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
     AtomicInteger allTopicPartitionsNumber;
 
+    private boolean paused = false;
+    private final Object pauseMutex = new Object();
     // timeout related to auto check and subscribe partition increasement
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
@@ -1079,12 +1081,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void pause() {
-        consumers.forEach((name, consumer) -> consumer.pause());
+        synchronized (pauseMutex) {
+            paused = true;
+            consumers.forEach((name, consumer) -> consumer.pause());
+        }
     }
 
     @Override
     public void resume() {
-        consumers.forEach((name, consumer) -> consumer.resume());
+        synchronized (pauseMutex) {
+            paused = false;
+            consumers.forEach((name, consumer) -> consumer.resume());
+        }
     }
 
     // This listener is triggered when topics partitions are updated.
@@ -1149,7 +1157,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             client.externalExecutorProvider().getExecutor(),
                             partitionIndex, true, subFuture, null, schema, interceptors,
                             true /* createTopicIfDoesNotExist */);
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        synchronized (pauseMutex) {
+                            if (paused) {
+                                newConsumer.pause();
+                            }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        }
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",
                                 topicName, newConsumer.getTopic(), partitionName);
@@ -1203,7 +1216,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             // schedule the next re-check task
             partitionsAutoUpdateTimeout = client.timer()
-                .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);
+                .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
         }
     };
 

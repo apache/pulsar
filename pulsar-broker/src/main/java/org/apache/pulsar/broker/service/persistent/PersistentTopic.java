@@ -45,7 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -105,6 +104,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -353,6 +353,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
 
         }
+    }
+
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+        if (ledger instanceof ManagedLedgerImpl) {
+            ((ManagedLedgerImpl)ledger).asyncReadEntry(position, callback, ctx);
+        } else {
+            callback.readEntryFailed(new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "direct read entry operation.") ,ctx);
+        }
+    }
+
+    public PositionImpl getPositionAfterN(PositionImpl startPosition, long n) throws ManagedLedgerException {
+        if (ledger instanceof ManagedLedgerImpl) {
+            return ((ManagedLedgerImpl)ledger).getPositionAfterN(startPosition, n, ManagedLedgerImpl.PositionBound.startExcluded);
+        } else {
+            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "getPositionAfterN operation.");
+        }
+    }
+
+    public PositionImpl getFirstPosition() throws ManagedLedgerException {
+        if (ledger instanceof ManagedLedgerImpl) {
+            return ((ManagedLedgerImpl)ledger).getFirstPosition();
+        } else {
+            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support " +
+                    "getFirstPosition operation.");
+        }
+    }
+
+    public long getNumberOfEntries() {
+        return ledger.getNumberOfEntries();
     }
 
     private void decrementPendingWriteOpsAndCheck() {
@@ -1403,10 +1434,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
-            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
-            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
-                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
-            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -1422,6 +1449,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replicationMetrics.msgReplBacklog += rStat.replicationBacklog;
                 if (update) {
                     replStats.put(namespaceClusterKey, replicationMetrics);
+                }
+                // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+                if (rStat.replicationDelayInSeconds > replicationMetrics.maxMsgReplDelayInSeconds) {
+                    replicationMetrics.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
                 }
             }
         });
@@ -1770,6 +1801,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, true))
+                    .thenApply((res) -> tryToDeletePartitionedMetadata())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1782,7 +1814,62 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                         return null;
                     });
+        }
+    }
 
+    private CompletableFuture<Void> tryToDeletePartitionedMetadata() {
+        if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
+                , topicName.getDomain().value(), topicName.getEncodedLocalName());
+        try {
+            if (topicName.isPartitioned() && !getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
+            getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                    .thenAccept((metadata -> {
+                        // make sure all sub partitions were deleted
+                        String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
+                                , topicName.getDomain().value());
+                        Set<String> cache = null;
+                        try {
+                            cache = brokerService.pulsar().getLocalZkCacheService().managedLedgerListCache().get(managedPath);
+                        } catch (Exception e) {
+                            deleteMetadataFuture.completeExceptionally(e);
+                        }
+                        if (cache == null) {
+                            return;
+                        }
+                        for (int i = 0; i < metadata.partitions; i++) {
+                            if (cache.contains(topicName.getPartition(i).getLocalName())) {
+                                throw new UnsupportedOperationException();
+                            }
+                        }
+                    }))
+                    .thenAccept((res) -> getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
+                            , (rc, s, o) -> {
+                                if (KeeperException.Code.OK.intValue() == rc
+                                        || KeeperException.Code.NONODE.intValue() == rc) {
+                                    getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
+                                    deleteMetadataFuture.complete(null);
+                                } else {
+                                    deleteMetadataFuture.completeExceptionally(
+                                            KeeperException.create(KeeperException.Code.get(rc)));
+                                }
+                            }, null))
+                    .exceptionally((e) -> {
+                        if (!(e.getCause() instanceof UnsupportedOperationException)) {
+                            log.error("delete metadata fail", e);
+                        }
+                        deleteMetadataFuture.complete(null);
+                        return null;
+                    });
+            return deleteMetadataFuture;
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
         }
     }
 
@@ -1828,6 +1915,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getCursor().setInactive();
             }
         });
+    }
+
+    @Override
+    public void checkDeduplicationSnapshot() {
+        messageDeduplication.takeSnapshot();
     }
 
     /**
@@ -2319,7 +2411,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext) {
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
@@ -2332,7 +2424,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             case NotDup:
                 getTransactionBuffer(true)
                         .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
-                                txnID, publishContext.getSequenceId(), batchSize, headersAndPayload))
+                                txnID, publishContext.getSequenceId(), headersAndPayload))
                         .thenAccept(position -> {
                             decrementPendingWriteOpsAndCheck();
                             publishContext.completed(null,
@@ -2357,15 +2449,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
 
             CompletableFuture<Void> future = new CompletableFuture<>();
             if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-                future = tb.commitTxn(txnID);
+                future = tb.commitTxn(txnID, sendMessageList);
             } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-                future = tb.abortTxn(txnID);
+                future = tb.abortTxn(txnID, sendMessageList);
             } else {
                 future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
             }

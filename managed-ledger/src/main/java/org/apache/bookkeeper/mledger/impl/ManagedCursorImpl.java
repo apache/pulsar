@@ -2773,6 +2773,24 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ((PositionImpl) position).getEntryId()) || ((PositionImpl) position).compareTo(markDeletePosition) <= 0 ;
     }
 
+    //this method will return a copy of the position's ack set
+    public long[] getBatchPositionAckSet(Position position) {
+        if (!(position instanceof PositionImpl)) {
+            return null;
+        }
+
+        if (batchDeletedIndexes != null) {
+            BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.get(position);
+            if (bitSetRecyclable == null) {
+                return null;
+            } else {
+                return bitSetRecyclable.toLongArray();
+            }
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
      * deleted up to that point.
@@ -2889,14 +2907,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         return Math.min(maxEntriesBasedOnSize, maxEntries);
-    }
-
-    public void internalInitBatchDeletedIndex(PositionImpl position, int totalNumMessageInBatch) {
-        batchDeletedIndexes.computeIfAbsent(position, key -> {
-            BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
-            bitSetRecyclable.set(0, totalNumMessageInBatch);
-            return bitSetRecyclable;
-        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

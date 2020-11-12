@@ -96,7 +96,6 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
@@ -366,6 +365,10 @@ public class PulsarService implements AutoCloseable {
             if (protocolHandlers != null) {
                 protocolHandlers.close();
                 protocolHandlers = null;
+            }
+
+            if (transactionBufferClient != null) {
+                transactionBufferClient.close();
             }
 
             state = State.Closed;

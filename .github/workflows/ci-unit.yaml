@@ -64,10 +64,6 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh mvn -B -ntp test -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
-      - name: run flaky test "**/KafkaProducerSimpleConsumerTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-client-kafka-compat/pulsar-client-kafka_0_8 -Dinclude="**/KafkaProducerSimpleConsumerTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
       - name: run flaky test "**/TestPulsarKeyValueSchemaHandler.java"
         if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh mvn -B -ntp test -pl pulsar-sql/presto-pulsar-plugin -Dinclude="**/TestPulsarKeyValueSchemaHandler.java" -DtestForkCount=1 -DtestReuseFork=true

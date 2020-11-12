@@ -25,7 +25,6 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -1608,11 +1607,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                Preconditions.checkNotNull(repl);
+                checkNotNull(repl);
                 repl.skipMessages(numMessages).get();
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                checkNotNull(sub);
                 sub.skipMessages(numMessages).get();
             }
             log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages, topicName, subName);
@@ -2040,7 +2039,10 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                    return;
+                }
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 if (batchIndex >= 0) {
                     try {
@@ -2139,11 +2141,7 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (Exception e) {
                 log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), topicName,
                         subName, messageId, e);
-                if (e instanceof NullPointerException) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                } else {
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }
     }
@@ -2194,7 +2192,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                     subName);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
+                    "Peek messages on a non-persistent topic is not allowed");
         }
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -2216,13 +2214,63 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
         } catch (Exception exception) {
-            log.error("[{}] Failed to get message at position {} from {} {}", clientAppId(), messagePosition,
+            log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(), messagePosition,
                     topicName, subName, exception);
             throw new RestException(exception);
         } finally {
             if (entry != null) {
                 entry.release();
             }
+        }
+    }
+
+    protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a partitioned topic is not allowed, " +
+                    "please try examine message on specific topic partition");
+        }
+        validateTopicOwnership(topicName, authoritative);
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a non-persistent topic is not allowed");
+        }
+
+        if (messagePosition < 1) {
+            messagePosition = 1;
+        }
+
+        if (null == initialPosition) {
+            initialPosition = "latest";
+        }
+
+        try {
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            long totalMessage = topic.getNumberOfEntries();
+            PositionImpl startPosition = topic.getFirstPosition();
+            long messageToSkip = initialPosition.equals("earliest")? messagePosition : totalMessage - messagePosition + 1;
+            CompletableFuture<Entry> future = new CompletableFuture<>();
+            PositionImpl readPosition = topic.getPositionAfterN(startPosition, messageToSkip);
+            topic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    future.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+            return generateResponseWithEntry(future.get());
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
+                    topicName , exception);
+            throw new RestException(exception);
         }
     }
 
@@ -2237,7 +2285,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Response generateResponseWithEntry(Entry entry) throws IOException {
-        Preconditions.checkNotNull(entry);
+        checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
@@ -2798,11 +2846,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                Preconditions.checkNotNull(repl);
+                checkNotNull(repl);
                 repl.expireMessages(expireTimeInSeconds);
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                checkNotNull(sub);
                 sub.expireMessages(expireTimeInSeconds);
             }
             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
@@ -2953,9 +3001,6 @@ public class PersistentTopicsBase extends AdminResource {
                 throw ex;
             }
 
-            String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace(), topicName.getDomain().toString(),
-                    topicName.getEncodedLocalName());
-
             // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
@@ -2984,9 +3029,6 @@ public class PersistentTopicsBase extends AdminResource {
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture();
-
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace(),
-            topicName.getDomain().toString(), topicName.getEncodedLocalName());
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
@@ -3055,7 +3097,7 @@ public class PersistentTopicsBase extends AdminResource {
                 sub = topic.createSubscription(subName, InitialPosition.Earliest, false).get();
             }
 
-            return Preconditions.checkNotNull(sub);
+            return checkNotNull(sub);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
         }
@@ -3068,7 +3110,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-            return Preconditions.checkNotNull(repl);
+            return checkNotNull(repl);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Replicator not found");
         }
@@ -3109,7 +3151,6 @@ public class PersistentTopicsBase extends AdminResource {
      *            : number partitions for the topics
      */
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions < 1) {

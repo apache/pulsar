@@ -53,7 +53,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("delayed-delivery-messages", tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

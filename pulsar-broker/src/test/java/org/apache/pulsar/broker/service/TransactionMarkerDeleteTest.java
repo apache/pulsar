@@ -49,7 +49,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -76,9 +76,9 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 .build();
         Position position1 = managedLedger.addEntry("test".getBytes());
         managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, messageIdData).array());
+                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
         Position position3 = managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, messageIdData).array());
+                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
         assertEquals(3, cursor.getNumberOfEntriesInBacklog(true));
         assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),

@@ -63,12 +63,14 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster
  */
+@PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
 public abstract class MockedPulsarServiceBaseTest {
 
     protected ServiceConfiguration conf;
@@ -92,7 +94,7 @@ public abstract class MockedPulsarServiceBaseTest {
         resetConfig();
     }
 
-    protected void resetConfig() {
+    protected final void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setClusterName(configClusterName);
@@ -186,50 +188,50 @@ public abstract class MockedPulsarServiceBaseTest {
         startBroker();
     }
 
-    protected final void internalCleanup() {
-        try {
-            // if init fails, some of these could be null, and if so would throw
-            // an NPE in shutdown, obscuring the real error
-            if (admin != null) {
-                admin.close();
-                admin = null;
-            }
-            if (pulsarClient != null) {
-                pulsarClient.shutdown();
-                pulsarClient = null;
-            }
-            if (pulsar != null) {
-                pulsar.close();
-            }
-            if (mockBookKeeper != null) {
-                mockBookKeeper.reallyShutdown();
-            }
-            if (mockZooKeeper != null) {
-                mockZooKeeper.shutdown();
-            }
-            if(sameThreadOrderedSafeExecutor != null) {
-                try {
-                    sameThreadOrderedSafeExecutor.shutdownNow();
-                    sameThreadOrderedSafeExecutor.awaitTermination(5, TimeUnit.SECONDS);
-                } catch (InterruptedException ex) {
-                    log.error("sameThreadOrderedSafeExecutor shutdown had error", ex);
-                    Thread.currentThread().interrupt();
-                }
-                sameThreadOrderedSafeExecutor = null;
-            }
-            if(bkExecutor != null) {
-                try {
-                    bkExecutor.shutdownNow();
-                    bkExecutor.awaitTermination(5, TimeUnit.SECONDS);
-                } catch (InterruptedException ex) {
-                    log.error("bkExecutor shutdown had error", ex);
-                    Thread.currentThread().interrupt();
-                }
-                bkExecutor = null;
-            }
-        } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+    protected final void internalCleanup() throws Exception {
+        // if init fails, some of these could be null, and if so would throw
+        // an NPE in shutdown, obscuring the real error
+        if (admin != null) {
+            admin.close();
+            admin = null;
         }
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+        }
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (mockBookKeeper != null) {
+            mockBookKeeper.reallyShutdown();
+            mockBookKeeper = null;
+        }
+        if (mockZooKeeper != null) {
+            mockZooKeeper.shutdown();
+            mockZooKeeper = null;
+        }
+        if(sameThreadOrderedSafeExecutor != null) {
+            try {
+                sameThreadOrderedSafeExecutor.shutdownNow();
+                sameThreadOrderedSafeExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                log.error("sameThreadOrderedSafeExecutor shutdown had error", ex);
+                Thread.currentThread().interrupt();
+            }
+            sameThreadOrderedSafeExecutor = null;
+        }
+        if(bkExecutor != null) {
+            try {
+                bkExecutor.shutdownNow();
+                bkExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                log.error("bkExecutor shutdown had error", ex);
+                Thread.currentThread().interrupt();
+            }
+            bkExecutor = null;
+        }
+        
     }
 
     protected abstract void setup() throws Exception;
@@ -243,11 +245,15 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected void stopBroker() throws Exception {
         pulsar.close();
+        pulsar = null;
         // Simulate cleanup of ephemeral nodes
         //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
     }
 
     protected void startBroker() throws Exception {
+        if (this.pulsar != null) {
+            throw new RuntimeException("broker already started!");
+        }
         this.pulsar = startBroker(conf);
 
         brokerUrl = new URL(pulsar.getWebServiceAddress());
@@ -286,6 +292,15 @@ public abstract class MockedPulsarServiceBaseTest {
         doAnswer((invocation) -> {
                 return spy(invocation.callRealMethod());
             }).when(pulsar).newCompactor();
+    }
+
+    protected void waitForZooKeeperWatchers() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
     }
 
     public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {

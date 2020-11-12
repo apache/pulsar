@@ -214,7 +214,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

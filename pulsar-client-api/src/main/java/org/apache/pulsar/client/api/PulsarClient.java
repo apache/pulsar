@@ -282,4 +282,13 @@ public interface PulsarClient extends Closeable {
      *             if the forceful shutdown fails
      */
     void shutdown() throws PulsarClientException;
+
+    /**
+     * Return internal state of the client. Useful if you want to check that current client is valid.
+     * @return true is the client has been closed
+     * @see #shutdown()
+     * @see #close()
+     * @see #closeAsync()
+     */
+    boolean isClosed();
 }
