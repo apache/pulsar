@@ -48,11 +48,11 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -2505,6 +2505,19 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_producers_per_topic;
     }
 
+    protected Integer internalGetDeduplicationSnapshotInterval() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).deduplicationSnapshotIntervalSeconds;
+    }
+
+    protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
+        if (interval != null && interval < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "interval must be greater than or equal to 0");
+        }
+        internalSetPolicies("deduplicationSnapshotIntervalSeconds", interval);
+    }
+
     protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2995,6 +3008,46 @@ public abstract class NamespacesBase extends AdminResource {
                     }, null);
         } catch (Exception e) {
             log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    protected void internalRemoveOffloadPolicies(AsyncResponse asyncResponse) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+
+            policies.offload_policies = null;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion(),
+                    (rc, path1, ctx, stat) -> {
+                        if (rc == KeeperException.Code.OK.intValue()) {
+                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                            log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(),
+                                    namespaceName);
+                            asyncResponse.resume(Response.noContent().build());
+                        } else {
+                            String errorMsg = String.format(
+                                    "[%s] Failed to remove offload configuration for namespace %s",
+                                    clientAppId(), namespaceName);
+                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                log.warn("{} : does not exist", errorMsg);
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                log.warn("{} : concurrent modification", errorMsg);
+                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            } else {
+                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                            }
+                        }
+                    }, null);
+        } catch (Exception e) {
+            log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName,
                     e);
             asyncResponse.resume(new RestException(e));
         }

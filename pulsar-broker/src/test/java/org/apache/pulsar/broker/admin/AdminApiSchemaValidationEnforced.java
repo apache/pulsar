@@ -59,7 +59,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

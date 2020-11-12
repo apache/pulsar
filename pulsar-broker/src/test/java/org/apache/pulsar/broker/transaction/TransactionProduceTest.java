@@ -106,7 +106,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         Thread.sleep(1000 * 3);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

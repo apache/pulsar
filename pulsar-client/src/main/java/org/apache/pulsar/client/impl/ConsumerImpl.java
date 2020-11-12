@@ -1554,6 +1554,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    public void increaseAvailablePermits(int delta) {
+        increaseAvailablePermits(cnx(), delta);
+    }
+
     @Override
     public void pause() {
         paused = true;
@@ -1731,6 +1735,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    public int clearIncomingMessagesAndGetMessageNumber() {
+        int messagesNumber = incomingMessages.size();
+        incomingMessages.clear();
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        unAckedMessageTracker.clear();
+        return messagesNumber;
     }
 
     @Override
@@ -2380,11 +2392,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             entryId = batchMessageId.getEntryId();
             if (ackType == AckType.Cumulative) {
                 batchMessageId.ackCumulative();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
-                batchMessageId.ackIndividual();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
         } else {
@@ -2399,7 +2410,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);
-        unAckedMessageTracker.remove(messageId);
+        if (ackType == AckType.Cumulative) {
+            unAckedMessageTracker.removeMessagesTill(messageId);
+        } else {
+            unAckedMessageTracker.remove(messageId);
+        }
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;

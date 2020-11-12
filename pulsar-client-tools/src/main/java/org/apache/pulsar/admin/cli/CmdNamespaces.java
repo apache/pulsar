@@ -96,6 +96,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the list of bundles for a namespace")
+    private class GetBundles extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getBundles(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Get the list of destinations for a namespace", hidden = true)
     private class GetDestinations extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1149,6 +1161,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get deduplicationSnapshotInterval for a namespace")
+    private class GetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getDeduplicationSnapshotInterval(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove deduplicationSnapshotInterval for a namespace")
+    private class RemoveDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeDeduplicationSnapshotInterval(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Set deduplicationSnapshotInterval for a namespace")
+    private class SetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--interval", "-i"}
+                , description = "deduplicationSnapshotInterval for a namespace", required = true)
+        private int interval;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setDeduplicationSnapshotInterval(namespace, interval);
+        }
+    }
+
     @Parameters(commandDescription = "Get maxProducersPerTopic for a namespace")
     private class GetMaxProducersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1583,6 +1635,18 @@ public class CmdNamespaces extends CmdBase {
         private String endpoint;
 
         @Parameter(
+                names = {"--aws-id", "-i"},
+                description = "AWS Credential Id to use when using driver S3 or aws-s3",
+                required = false)
+        private String awsId;
+
+        @Parameter(
+                names = {"--aws-secret", "-s"},
+                description = "AWS Credential Secret to use when using driver S3 or aws-s3",
+                required = false)
+        private String awsSecret;
+
+        @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
                 description = "Max block size (eg: 32M, 64M), default is 64MB",
                 required = false)
@@ -1685,12 +1749,26 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis);
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }
+
+    @Parameters(commandDescription = "Remove the offload policies for a namespace")
+    private class RemoveOffloadPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            admin.namespaces().removeOffloadPolicies(namespace);
+        }
+    }
+
 
     @Parameters(commandDescription = "Get the offload policies for a namespace")
     private class GetOffloadPolicies extends CliCommand {
@@ -1710,6 +1788,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("list-cluster", new GetNamespacesPerCluster());
 
         jcommander.addCommand("topics", new GetTopics());
+        jcommander.addCommand("bundles", new GetBundles());
         jcommander.addCommand("destinations", new GetDestinations());
         jcommander.addCommand("policies", new GetPolicies());
         jcommander.addCommand("create", new Create());
@@ -1827,6 +1906,11 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
+        jcommander.addCommand("remove-offload-policies", new RemoveOffloadPolicies());
         jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
+
+        jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
+        jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
+        jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
     }
 }

@@ -160,14 +160,16 @@ public class LoadBalancerTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();
-            pulsarServices[i].close();
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+            }
         }
 
         bkEnsemble.stop();
@@ -704,25 +706,30 @@ public class LoadBalancerTest {
      */
     @Test
     public void testLeaderElection() throws Exception {
+        // this.pulsarServices is the reference to all of the PulsarServices
+        // it is used in order to clean up the resources
+        PulsarService[] allServices = new PulsarService[pulsarServices.length];
+        System.arraycopy(pulsarServices, 0, allServices, 0, pulsarServices.length);
         for (int i = 0; i < BROKER_COUNT - 1; i++) {
             Set<PulsarService> activePulsar = new HashSet<PulsarService>();
             LeaderBroker oldLeader = null;
             PulsarService leaderPulsar = null;
             PulsarService followerPulsar = null;
-
             for (int j = 0; j < BROKER_COUNT; j++) {
-                if (pulsarServices[j].getState() != PulsarService.State.Closed) {
-                    activePulsar.add(pulsarServices[j]);
-                    LeaderElectionService les = pulsarServices[j].getLeaderElectionService();
+                if (allServices[j].getState() != PulsarService.State.Closed) {
+                    activePulsar.add(allServices[j]);
+                    LeaderElectionService les = allServices[j].getLeaderElectionService();
                     if (les.isLeader()) {
                         oldLeader = les.getCurrentLeader();
-                        leaderPulsar = pulsarServices[j];
+                        leaderPulsar = allServices[j];
+                        // set the refence to null in the main array,
+                        // in order to prevent closing this PulsarService twice
+                        pulsarServices[i] = null;
                     } else {
-                        followerPulsar = pulsarServices[j];
+                        followerPulsar = allServices[j];
                     }
                 }
             }
-
             // Make sure both brokers see the same leader
             log.info("Old leader is : {}", oldLeader.getServiceUrl());
             for (PulsarService pulsar : activePulsar) {

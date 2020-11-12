@@ -73,5 +73,4 @@ public class SimpleResourceUnit implements ResourceUnit {
     public String toString() {
         return MoreObjects.toStringHelper(this).add("resourceId", resourceId).toString();
     }
-    
 }

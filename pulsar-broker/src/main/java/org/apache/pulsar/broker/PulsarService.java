@@ -367,6 +367,10 @@ public class PulsarService implements AutoCloseable {
                 protocolHandlers = null;
             }
 
+            if (transactionBufferClient != null) {
+                transactionBufferClient.close();
+            }
+
             state = State.Closed;
             isClosedCondition.signalAll();
         } catch (Exception e) {

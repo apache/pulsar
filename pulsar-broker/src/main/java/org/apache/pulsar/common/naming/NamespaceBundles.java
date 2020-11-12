@@ -125,7 +125,7 @@ public class NamespaceBundles {
         return bundles.get(lowerIdx);
     }
 
-    private static final long[] convertPartitions(SortedSet<Long> partitionsSet) {
+    private static long[] convertPartitions(SortedSet<Long> partitionsSet) {
         checkNotNull(partitionsSet);
         long[] partitions = new long[partitionsSet.size()];
         int idx = 0;

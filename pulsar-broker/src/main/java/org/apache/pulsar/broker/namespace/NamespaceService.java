@@ -119,7 +119,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NamespaceService {
 
-    public static enum AddressType {
+    public enum AddressType {
         BROKER_URL, LOOKUP_URL
     }
 

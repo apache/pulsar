@@ -117,7 +117,7 @@ public class OwnershipCacheTest {
         doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         executor.shutdown();
         zkCache.stop();

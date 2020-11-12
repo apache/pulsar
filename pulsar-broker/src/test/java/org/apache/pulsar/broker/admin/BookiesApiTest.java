@@ -41,7 +41,7 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
