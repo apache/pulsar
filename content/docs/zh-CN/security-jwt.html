@@ -75,20 +75,20 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Client authentication using tokens based on JSON Web Tokens</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="token-认证概述"></a><a href="#token-认证概述" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Token 认证概述</h2>
-<p>Pulsar supports authenticating clients using security tokens that are based on <a href="https://jwt.io/introduction/">JSON Web Tokens</a> (<a href="https://tools.ietf.org/html/rfc7519">RFC-7519</a>).</p>
-<p>你可以根据 Token 来识别用户的身份。通过给 Token 关联一些 &quot;principal&quot; 或 &quot;role&quot;，用来授权客户端允许执行某些操作(例如：发布消息主题或从主题消费消息)。</p>
+<p>Pulsar 支持通过加密 Token 的方式认证客户端，它是基于<a href="https://jwt.io/introduction/">JSON Web Tokens</a>（<a href="https://tools.ietf.org/html/rfc7519">RFC-7519</a>）来实现的。</p>
+<p>你可以根据 Token 来识别 Pulsar 客户端。通过给 Token 关联一些 &quot;principal&quot; 或 &quot;role&quot;，可以用来授权客户端允许执行某些操作 (例如：发布消息主题或从主题消费消息) 。</p>
 <p>用户通常需要从管理员（或某些自动化服务）获得 Token 字符串。</p>
 <p>如下是一个简短的 JWT 签名字符串：</p>
 <pre><code class="hljs">eyJhbGciOiJIUzI<span class="hljs-number">1</span><span class="hljs-symbol">NiJ9</span>.eyJzdWIiOiJKb<span class="hljs-number">2</span>UifQ.ipevR<span class="hljs-symbol">NuRP6</span>Hfl<span class="hljs-name">G8</span>cFK<span class="hljs-symbol">nmUPtypruRC4</span>fb<span class="hljs-number">1</span>DWtoLL<span class="hljs-number">62</span>SY
 </code></pre>
-<p>应用程序需要在创建客户端实例时，指定所使用的 Token。 An alternative is to pass a &quot;token supplier&quot; (a function that returns the token when the client library needs one).</p>
+<p>应用程序需要在创建客户端实例时，指定所使用的 Token。 一个替代方法是通过“令牌供应商”(即通过一个函数返回所需要的Token)。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="始终使用-tls-传输加密"></a><a href="#始终使用-tls-传输加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>始终使用 TLS 传输加密</h4>
 <p>发送 Token 等同于在网络上发送密码。 在连接 Pulsar 服务的整个过程中，最好始终使用 TLS 加密。 有关详细信息，请参阅 <a href="/docs/zh-CN/security-tls-transport">使用 TLS 传输加密</a> 。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="命令行工具"></a><a href="#命令行工具" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命令行工具</h3>
 <p><a href="/docs/zh-CN/reference-cli-tools">命令行工具</a> <a href="/docs/zh-CN/pulsar-admin"><code>pulsar-admin</code></a>, <a href="/docs/zh-CN/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> <a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> 使用 <code>conf/client. onf</code> 配置文件在 Pulsar 安装中。</p>
-<p>You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:</p>
+<p>你需要添加以下参数到该文件以使用 Pulsar 的 CLI 工具使用 Token 身份验证：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://broker.example.com:8080/</span>
 <span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar://broker.example.com:6650/</span>
 <span class="hljs-attr">authPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
@@ -98,10 +98,10 @@
 <pre><code class="hljs">authParams=file:<span class="hljs-regexp">//</span><span class="hljs-regexp">/path/</span>to<span class="hljs-regexp">/token/</span>file
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="pulsar-客户端"></a><a href="#pulsar-客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 客户端</h3>
-<p>您可以使用 tokens 对以下 Pulsar 客户端进行身份认证。</p>
+<p>你可以使用 Token  对如下 Pulsar 客户端进行身份认证。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-5158-tab-5159" class="nav-link active" data-group="group_5158" data-tab="tab-group-5158-content-5159">Java</div><div id="tab-group-5158-tab-5160" class="nav-link" data-group="group_5158" data-tab="tab-group-5158-content-5160">Python</div><div id="tab-group-5158-tab-5161" class="nav-link" data-group="group_5158" data-tab="tab-group-5158-content-5161">Go</div><div id="tab-group-5158-tab-5162" class="nav-link" data-group="group_5158" data-tab="tab-group-5158-content-5162">C++</div><div id="tab-group-5158-tab-5163" class="nav-link" data-group="group_5158" data-tab="tab-group-5158-content-5163">C#</div></div><div class="tab-content"><div id="tab-group-5158-content-5159" class="tab-pane active" data-group="group_5158" tabindex="-1"><div><span><pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()<br />    .serviceUrl(<span class="hljs-string">"pulsar://broker.example.com:6650/"</span>)<br />    .authentication(<br />        AuthenticationFactory.token(<span class="hljs-string">"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"</span>)）<br />    .build();<br /></code></pre>
 <p>同样，你也可以传入一个 <code>Supplier</code>：</p>
-<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()<br />    .serviceUrl(<span class="hljs-string">"pulsar://broker.example.com:6650/"</span>)<br />    .authentication(<br />        AuthenticationFactory.token(() -&gt; {<br />            <span class="hljs-comment">// Read token from custom source</span><br />            <span class="hljs-keyword">return</span> readToken();<br />        }))<br />    .build();<br /></code></pre>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()<br />    .serviceUrl(<span class="hljs-string">"pulsar://broker.example.com:6650/"</span>)<br />    .authentication(<br />        AuthenticationFactory.token(() -&gt; {<br />            <span class="hljs-comment">// 从通用的数据源读取 Token</span><br />            <span class="hljs-keyword">return</span> readToken();<br />        }))<br />    .build();<br /></code></pre>
 </span></div></div><div id="tab-group-5158-content-5160" class="tab-pane" data-group="group_5158" tabindex="-1"><div><span><pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client, AuthenticationToken<br /><br />client = Client(<span class="hljs-string">'pulsar://broker.example.com:6650/'</span><br />                authentication=AuthenticationToken(<span class="hljs-string">'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'</span>))<br /></code></pre>
 <p>或者，您也可以通过 <code>Supplier</code>：</p>
 <pre><code class="hljs css language-python"><br /><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">read_token</span><span class="hljs-params">()</span>:</span><br />    <span class="hljs-keyword">with</span> open(<span class="hljs-string">'/path/to/token.txt'</span>) <span class="hljs-keyword">as</span> tf:<br />        <span class="hljs-keyword">return</span> tf.read().strip()<br /><br />client = Client(<span class="hljs-string">'pulsar://broker.example.com:6650/'</span><br />                authentication=AuthenticationToken(read_token))<br /></code></pre>
@@ -112,17 +112,17 @@
 </span></div></div><div id="tab-group-5158-content-5163" class="tab-pane" data-group="group_5158" tabindex="-1"><div><span><pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> client = PulsarClient.Builder()<br />                         .AuthenticateUsingToken(<span class="hljs-string">"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"</span>)<br />                         .Build();<br /></code></pre>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="启用-token-认证"></a><a href="#启用-token-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 Token 认证</h2>
-<p>通过参考下面的指南，可以在 Pulsar 集群中启用 Token 认证。</p>
-<p>JWT 支持两种不同的 keys ，都可以生成和验证 tokens：</p>
+<p>根据如下指南，可以在 Pulsar 集群中启用 Token 认证。</p>
+<p>JWT 支持通过两种不同的秘钥，来生成和验证 Token：</p>
 <ul>
-<li>对称：
+<li>对称秘钥：
 <ul>
 <li>使用单个 <strong><em>Secret</em></strong> key 来生成和验证 tokens。</li>
 </ul></li>
-<li>非对称：包含由私钥和公钥组成的一对密钥。
+<li>非对称秘钥：包含由私钥和公钥组成的一对密钥。
 <ul>
-<li>使用 <strong><em>Private</em></strong> key 生成 tokens。</li>
-<li>使用 <strong><em>Public</em></strong> key 验证 tokens。</li>
+<li>使用 <strong><em>Private</em></strong> key 生成 Token。</li>
+<li>使用 <strong><em>Public</em></strong> key 验证 Token。</li>
 </ul></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="创建-secret-key"></a><a href="#创建-secret-key" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 Secret key</h3>
@@ -134,7 +134,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="创建秘钥对"></a><a href="#创建秘钥对" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建秘钥对</h3>
-<p>若需要使用公钥和私钥，需要先创建一对秘钥。 Pulsar 支持 Java JWT 库（ <a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">这里</a>）支持的所有算法。</p>
+<p>若需要使用公钥和私钥方式，需要先创建一对秘钥。 Pulsar 支持 Java JWT 库（ <a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">这里</a>）支持的所有算法。</p>
 <p>默认在 Pulsar 安装目录的根目录生成输出文件。 您也可以使用下面的命令为输出文件指定绝对路径。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key</span>
 </code></pre>
@@ -153,7 +153,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar tokens create --private-key file:///path/to/my-private.key \</span>
             --subject test-user
 </code></pre>
-<p>最后，您可以通过以下命令来创建一个带有预定义的 TTL token。 Token 会自动过期失效。</p>
+<p>最后，你可以通过以下命令来创建一个带有过期时间的 Token。 Token 到期后会自动失效。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \</span>
             --subject test-user \
             --expiry-time 1y
@@ -166,16 +166,17 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="在-brokers-上启用-token-认证"></a><a href="#在-brokers-上启用-token-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Brokers 上启用 token 认证</h3>
 <p>要让 brokers 能对客户端进行身份认证，请在 <code>broker.conf</code> 中添加以下参数：</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Configuration to enable authentication and authorization</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 启用认证和鉴权</span>
 <span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">authorizationEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderToken</span>
 <span class="hljs-comment">
-# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters</span>
+# 设置Broker 自身的认证。 当 Broker 连接到其他的 Broker 时使用。可以是本集群的 Broker 也可以是其他集群的 Broker。</span>
 <span class="hljs-attr">brokerClientTlsEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
 <span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw</span>
-<span class="hljs-comment"># Or, alternatively, read token from file</span>
+<span class="hljs-comment">
+# 或者从文件里面读取 Token</span>
 <span class="hljs-comment"># brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt</span>
 <span class="hljs-attr">brokerClientTrustCertsFilePath</span>=<span class="hljs-string">/path/my-ca/certs/ca.cert.pem</span>
 <span class="hljs-comment">
@@ -191,8 +192,8 @@
 # If using public/private</span>
 <span class="hljs-comment"># tokenPublicKey=file:///path/to/public.key</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="在-proxies-上启用-token-认证"></a><a href="#在-proxies-上启用-token-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Proxies 上启用 token 认证</h3>
-<p>要让 proxies 能对客户端进行身份认证，请在 <code>proxy.conf</code> 中添加以下参数：</p>
+<h3><a class="anchor" aria-hidden="true" id="proxy-启用-token-认证"></a><a href="#proxy-启用-token-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy 启用 Token 认证</h3>
+<p>要让 Proxy 能对客户端进行身份认证，请在 <code>proxy.conf</code> 中添加以下参数：</p>
 <p>Proxy 连接 brokers 使用的是自己的 token。 你需要在 broker 的 <code>代理角色</code> 中配置此密钥对的角色标记。 有关详细信息，请参阅 <a href="/docs/zh-CN/security-authorization">授权指南</a>。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># For clients connecting to the proxy</span>
 <span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-string">true</span>
@@ -210,7 +211,7 @@
 <span class="hljs-comment"># Authentication must be enabled via authenticationEnabled=true for this to take effect.</span>
 <span class="hljs-attr">forwardAuthorizationCredentials</span>=<span class="hljs-string">true</span>
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/security-tls-keystore"><span class="arrow-prev">← </span><span class="function-name-prevnext">Using TLS with KeyStore configure</span></a><a class="docs-next button" href="/docs/zh-CN/security-athenz"><span>使用 Athenz 验证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#token-认证概述">Token 认证概述</a><ul class="toc-headings"><li><a href="#命令行工具">命令行工具</a></li><li><a href="#pulsar-客户端">Pulsar 客户端</a></li></ul></li><li><a href="#启用-token-认证">启用 Token 认证</a><ul class="toc-headings"><li><a href="#创建-secret-key">创建 Secret key</a></li><li><a href="#创建秘钥对">创建秘钥对</a></li><li><a href="#生成-token">生成 Token</a></li><li><a href="#authorization">Authorization</a></li><li><a href="#在-brokers-上启用-token-认证">在 Brokers 上启用 token 认证</a></li><li><a href="#在-proxies-上启用-token-认证">在 Proxies 上启用 token 认证</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/security-tls-keystore"><span class="arrow-prev">← </span><span class="function-name-prevnext">Using TLS with KeyStore configure</span></a><a class="docs-next button" href="/docs/zh-CN/security-athenz"><span>使用 Athenz 验证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#token-认证概述">Token 认证概述</a><ul class="toc-headings"><li><a href="#命令行工具">命令行工具</a></li><li><a href="#pulsar-客户端">Pulsar 客户端</a></li></ul></li><li><a href="#启用-token-认证">启用 Token 认证</a><ul class="toc-headings"><li><a href="#创建-secret-key">创建 Secret key</a></li><li><a href="#创建秘钥对">创建秘钥对</a></li><li><a href="#生成-token">生成 Token</a></li><li><a href="#authorization">Authorization</a></li><li><a href="#在-brokers-上启用-token-认证">在 Brokers 上启用 token 认证</a></li><li><a href="#proxy-启用-token-认证">Proxy 启用 Token 认证</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
