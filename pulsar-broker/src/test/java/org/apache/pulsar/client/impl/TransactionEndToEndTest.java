@@ -365,7 +365,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-
+        Thread.sleep(500);
         markDeletePositionCheck(topic, subName, true);
 
         log.info("receive transaction messages count: {}", receiveCnt);
