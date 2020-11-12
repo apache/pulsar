@@ -80,7 +80,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTopic).create();
         producer.close();
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
+        return;
     }
 
     @AfterMethod
@@ -98,7 +99,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} get on topic: {}", getBacklogQuota, testTopic);
@@ -119,7 +120,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} get on topic: {}", getBacklogQuota, testTopic);
@@ -159,7 +160,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 + 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
@@ -169,12 +170,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 - 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, testTopic);
@@ -188,7 +189,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         BacklogQuota backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         RetentionPolicies retention = new RetentionPolicies(10, 10);
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
@@ -208,11 +209,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         retention = new RetentionPolicies(10, 12);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topics().setRetention(testTopic, retention);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
         log.info("Backlog quota {} get on topic: {}", getRetention, testTopic);
         Assert.assertEquals(getRetention, retention);
@@ -228,7 +229,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setRetention(testTopic, retention);
         log.info("Retention set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
         log.info("Retention {} get on topic: {}", getRetention, testTopic);
         Assert.assertEquals(getRetention, retention);
@@ -245,13 +246,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setRetention(testTopic, retention);
         log.info("Retention set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
         log.info("Retention {} get on topic: {}", getRetention, testTopic);
         Assert.assertEquals(getRetention, retention);
 
         admin.topics().removeRetention(testTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         log.info("Retention {} get on topic: {} after remove", getRetention, testTopic);
         getRetention = admin.topics().getRetention(testTopic);
         Assert.assertNull(getRetention);
@@ -309,7 +310,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
 
         admin.topics().setPersistence(persistenceTopic, persistencePolicies);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(persistenceTopic).create();
@@ -341,7 +342,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
 
         admin.topics().setPersistence(persistenceTopic, persistencePolicies);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(persistenceTopic).create();
         producer.close();
@@ -351,7 +352,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
 
         admin.topics().removePersistence(persistenceTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
         getPersistencePolicies = admin.topics().getPersistence(testTopic);
         Assert.assertNull(getPersistencePolicies);
@@ -390,7 +391,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer producer1 = null;
@@ -431,7 +432,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer producer1 = null;
@@ -459,7 +460,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(producer3);
 
         admin.topics().removeMaxProducers(persistenceTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer getMaxProducers = admin.topics().getMaxProducers(testTopic);
         log.info("MaxProducers: {} get on topic: {} after remove", getMaxProducers, testTopic);
         Assert.assertNull(getMaxProducers);
@@ -495,7 +496,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setDispatchRate(testTopic, dispatchRate);
         log.info("Dispatch Rate set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
         log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
         Assert.assertEquals(getDispatchRate, dispatchRate);
@@ -511,13 +512,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setDispatchRate(testTopic, dispatchRate);
         log.info("Dispatch Rate set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
         log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
         Assert.assertEquals(getDispatchRate, dispatchRate);
 
         admin.topics().removeDispatchRate(testTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         log.info("Dispatch Rate get on topic: {} after remove", getDispatchRate, testTopic);
         getDispatchRate = admin.topics().getDispatchRate(testTopic);
         Assert.assertNull(getDispatchRate);
@@ -732,7 +733,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
         log.info("Compaction threshold set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
         log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
         Assert.assertEquals(getCompactionThreshold, compactionThreshold);
@@ -748,13 +749,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
         log.info("Compaction threshold set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
         log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
         Assert.assertEquals(getCompactionThreshold, compactionThreshold);
 
         admin.topics().removeCompactionThreshold(testTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
         log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
         Assert.assertNull(getCompactionThreshold);
@@ -770,7 +771,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
         log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
         Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
@@ -786,13 +787,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
         log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
         Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
 
         admin.topics().removeMaxConsumersPerSubscription(testTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
         log.info("MaxConsumersPerSubscription get on topic: {} after remove", getMaxConsumersPerSubscription, testTopic);
         Assert.assertNull(getMaxConsumersPerSubscription);
@@ -808,7 +809,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setPublishRate(testTopic, publishRate);
         log.info("Publish Rate set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
         log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
         Assert.assertEquals(getPublishRate, publishRate);
@@ -824,13 +825,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setPublishRate(testTopic, publishRate);
         log.info("Publish Rate set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
         log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
         Assert.assertEquals(getPublishRate, publishRate);
 
         admin.topics().removePublishRate(testTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         getPublishRate = admin.topics().getPublishRate(testTopic);
         log.info("Publish Rate get on topic: {} after remove", getPublishRate, testTopic);
         Assert.assertNull(getPublishRate);
@@ -859,7 +860,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxConsumers = 2;
         log.info("MaxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
         admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Consumer consumer1 = null;
@@ -900,7 +901,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxConsumers = 2;
         log.info("maxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
         admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Consumer consumer1 = null;
@@ -928,7 +929,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(consumer3);
 
         admin.topics().removeMaxConsumers(persistenceTopic);
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer getMaxConsumers = admin.topics().getMaxConsumers(testTopic);
         log.info("MaxConsumers: {} get on topic: {} after remove", getMaxConsumers, testTopic);
         Assert.assertNull(getMaxConsumers);
