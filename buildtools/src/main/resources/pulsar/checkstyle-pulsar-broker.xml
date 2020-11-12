@@ -97,6 +97,16 @@ page at http://checkstyle.sourceforge.net/config.html -->
                      value="Redundant import {0}."/>
         </module>
 
+        <module name="ImportOrder">
+            <property name="severity" value="error"/>
+            <!-- This ensures that static imports go first. -->
+            <property name="option" value="top"/>
+            <property name="sortStaticImportsAlphabetically" value="true"/>
+            <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
+            <message key="import.ordering"
+                     value="Import {0} appears after other imports that it should precede"/>
+        </module>
+
         <module name="AvoidStarImport">
             <property name="severity" value="error"/>
         </module>
