@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             recentlyJoinedConsumers.remove(consumer);
             if (consumerList.size() == 1) {
                 recentlyJoinedConsumers.clear();
+            }
+            if (removeConsumersFromRecentJoinedConsumers() || messagesToRedeliver.size() > 0) {
+                readMoreEntries();
             }
         }
     }
@@ -260,12 +264,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             nextStuckConsumers.add(consumer);
             return 0;
         }
-
         if (recentlyJoinedConsumers == null) {
             return maxMessages;
         }
-
+        removeConsumersFromRecentJoinedConsumers();
         PositionImpl maxReadPosition = recentlyJoinedConsumers.get(consumer);
+        // At this point, all the old messages were already consumed and this consumer
+        // is now ready to receive any message
         if (maxReadPosition == null) {
             // stop to dispatch by stuckConsumers
             if (stuckConsumers.contains(consumer)) {
@@ -275,15 +280,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 return 0;
             }
             // The consumer has not recently joined, so we can send all messages
-            return maxMessages;
-        }
-
-        PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
-
-        if (maxReadPosition.compareTo(markDeletePosition.getNext()) <= 0) {
-            // At this point, all the old messages were already consumed and this consumer
-            // is now ready to receive any message
-            recentlyJoinedConsumers.remove(consumer);
             return maxMessages;
         }
 
@@ -317,12 +313,29 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    public synchronized void acknowledgementWasProcessed() {
-        if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()) {
+    public synchronized void markDeletePositionMoveForward() {
+        if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
+                && removeConsumersFromRecentJoinedConsumers()) {
             // After we process acks, we need to check whether the mark-delete position was advanced and we can finally
             // read more messages. It's safe to call readMoreEntries() multiple times.
             readMoreEntries();
         }
+    }
+
+    private boolean removeConsumersFromRecentJoinedConsumers() {
+        Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
+        PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
+        boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
+        while (itr.hasNext()) {
+            Map.Entry<Consumer, PositionImpl> entry = itr.next();
+            if (entry.getValue().compareTo(mdp) <= 0) {
+                itr.remove();
+                hasConsumerRemovedFromTheRecentJoinedConsumers = true;
+            } else {
+                break;
+            }
+        }
+        return hasConsumerRemovedFromTheRecentJoinedConsumers;
     }
 
     protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {

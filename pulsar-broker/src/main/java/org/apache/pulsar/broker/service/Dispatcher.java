@@ -112,7 +112,7 @@ public interface Dispatcher {
         //No-op
     }
 
-    default void acknowledgementWasProcessed() {
+    default void markDeletePositionMoveForward() {
         // No-op
     }
 }

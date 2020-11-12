@@ -326,7 +326,7 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
-            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
+            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, previousMarkDeletePosition);
 
         } else {
             if (log.isDebugEnabled()) {
@@ -356,9 +356,9 @@ public class PersistentSubscription implements Subscription {
                         return true;
                     }).collect(Collectors.toList());
                 }
-                cursor.asyncDelete(positionsSafeToAck, deleteCallback, positionsSafeToAck);
+                cursor.asyncDelete(positionsSafeToAck, deleteCallback, previousMarkDeletePosition);
             } else {
-                cursor.asyncDelete(positions, deleteCallback, positions);
+                cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
             }
 
             if(dispatcher != null){
@@ -384,11 +384,6 @@ public class PersistentSubscription implements Subscription {
             if(dispatcher != null){
                 dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
             }
-        }
-
-        // Signal the dispatchers to give chance to take extra actions
-        if(dispatcher != null){
-            dispatcher.acknowledgementWasProcessed();
         }
     }
 
@@ -499,10 +494,13 @@ public class PersistentSubscription implements Subscription {
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
         @Override
         public void markDeleteComplete(Object ctx) {
-            PositionImpl pos = (PositionImpl) ctx;
+            PositionImpl oldMD = (PositionImpl) ctx;
+            PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Mark deleted messages until position {}", topicName, subName, pos);
+                log.debug("[{}][{}] Mark deleted messages to position {} from position {}", topicName, subName, newMD, oldMD);
             }
+            // Signal the dispatchers to give chance to take extra actions
+            notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
         }
 
         @Override
@@ -520,6 +518,8 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
             }
+            // Signal the dispatchers to give chance to take extra actions
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) position);
         }
 
         @Override
@@ -527,6 +527,14 @@ public class PersistentSubscription implements Subscription {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
         }
     };
+
+    private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
+        PositionImpl oldMD = (PositionImpl) oldPosition;
+        PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+        if(dispatcher != null && newMD.compareTo(oldMD) > 0){
+            dispatcher.markDeletePositionMoveForward();
+        }
+    }
 
     @Override
     public String toString() {
