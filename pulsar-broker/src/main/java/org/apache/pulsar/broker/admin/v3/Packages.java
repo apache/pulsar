@@ -151,7 +151,7 @@ public class Packages extends PackageManagerBase {
     public List<PackageName> listPackages(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
+        final @PathParam("namespace") String namespace
     ) {
         return internalList(type, tenant, namespace);
     }

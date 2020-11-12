@@ -1,0 +1,122 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.admin;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Admin interface for Package management REST APIs.
+ */
+public interface PackageManagement {
+
+    /**
+     * Get a package metadata information.
+     *
+     * @param packageName
+     *          the package name of the package metadata you want to find
+     * @return the package metadata information
+     */
+    PackageMetadata getMetadata(String packageName);
+
+    /**
+     * Get a package metadata information asynchronously.
+     *
+     * @param packageName
+     *          the package name of the package metadata you want to find
+     * @return  the package metadata information
+     */
+    CompletableFuture<PackageMetadta> getMetadataAsync(String packageName);
+
+    /**
+     * Update a package metadata information.
+     *
+     * @param packageName
+     *          the package name of the package metadata you want to update
+     * @param metadata
+     *          the updated metadata information
+     */
+    void updateMetadata(String packageName, PackageMetadata metadata);
+
+    /**
+     * Update a package metadata information asynchronously.
+     *
+     * @param packageName
+     *          the package name of the package metadata you want to update
+     * @param metadata
+     *          the updated metadata information
+     * @return nothing
+     */
+    CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
+
+    /**
+     * Upload a package.
+     *
+     */
+    void upload();
+
+    /**
+     * Upload a package asynchronously.
+     *
+     * @return nothing
+     */
+    CompletableFuture<Void> uploadAsync();
+
+    CompletableFuture<Void> downloadAsync();
+
+    /**
+     * List all the versions of a package.
+     *
+     * @param packageName
+     *          the package name which you want to get all the versions
+     * @return all the versions of the package
+     */
+    List<String> listPackageVersions(String packageName);
+
+    /**
+     * List all the versions of a package asynchronously.
+     *
+     * @param packageName
+     *          the package name which you want to get all the versions
+     * @return all the versions of the package
+     */
+    CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
+
+    /**
+     * List all the packages with the given type in a namespace.
+     *
+     * @param type
+     *          the type you want to get the packages
+     * @param namespace
+     *          the namespace you want to get the packages
+     * @return all the packages of the given type which in the given namespace
+     */
+
+    List<String> listPackages(String type, String namespace);
+    /**
+     * List all the packages with the given type in a namespace asynchronously.
+     *
+     * @param type
+     *          the type you want to get the packages
+     * @param namespace
+     *          the namespace you want to get the packages
+     * @return all the packages of the given type which in the given namespace
+     */
+    CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
+}
