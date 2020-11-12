@@ -17,6 +17,6 @@
  * under the License.
  */
 /**
- * Annotations used across the whole project.
+ * State Store API.
  */
-package org.apache.pulsar.common.classification;
+package org.apache.pulsar.functions.api.state;

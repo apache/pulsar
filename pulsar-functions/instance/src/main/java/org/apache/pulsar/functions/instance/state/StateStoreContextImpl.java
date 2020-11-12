@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.instance.state;
+
+import org.apache.pulsar.functions.api.StateStoreContext;
+
 /**
- * Annotations used across the whole project.
+ * Default implementation of {@link StateStoreContext}.
  */
-package org.apache.pulsar.common.classification;
+public class StateStoreContextImpl implements StateStoreContext {
+}

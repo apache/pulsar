@@ -16,7 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.api;
+
+import org.apache.pulsar.common.classification.InterfaceAudience.Public;
+import org.apache.pulsar.common.classification.InterfaceStability.Evolving;
+
 /**
- * Annotations used across the whole project.
+ * State Store Context Interface.
  */
-package org.apache.pulsar.common.classification;
+@Public
+@Evolving
+public interface StateStoreContext {
+}

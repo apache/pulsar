@@ -16,7 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.instance.state;
+
+import org.apache.pulsar.functions.api.state.ByteBufferStateStore;
+import org.apache.pulsar.functions.api.state.CounterStateStore;
+
 /**
- * Annotations used across the whole project.
+ * The default state store interface.
  */
-package org.apache.pulsar.common.classification;
+public interface DefaultStateStore extends ByteBufferStateStore, CounterStateStore {
+}

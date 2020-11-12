@@ -19,34 +19,21 @@
 
 package org.apache.pulsar.functions.instance;
 
-import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.admin.SimpleStorageAdminClientImpl;
-import org.apache.bookkeeper.clients.admin.StorageAdminClient;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.exceptions.ClientException;
-import org.apache.bookkeeper.clients.exceptions.InternalServerException;
-import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
-import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.clients.utils.ClientResources;
-import org.apache.bookkeeper.common.util.Backoff.Jitter;
-import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
-import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
-import org.apache.bookkeeper.stream.proto.StorageType;
-import org.apache.bookkeeper.stream.proto.StreamConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -57,11 +44,17 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
+import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.instance.state.StateManager;
+import org.apache.pulsar.functions.instance.state.StateStoreContextImpl;
+import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -83,16 +76,6 @@ import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileNotFoundException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
-
 /**
  * A function container implemented using java thread.
  */
@@ -110,8 +93,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
-    private StorageClient storageClient;
-    private Table<ByteBuf, ByteBuf> stateTable;
+    private StateStoreProvider stateStoreProvider;
+    private StateManager stateManager;
 
     private JavaInstance javaInstance;
     @Getter
@@ -222,7 +205,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         // start the state table
-        setupStateTable();
+        setupStateStore();
 
         ContextImpl contextImpl = setupContext();
 
@@ -240,7 +223,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateTable);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager);
     }
 
     /**
@@ -335,89 +318,27 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return fnClassLoader;
     }
 
-    private void createStateTable(String tableNs, String tableName, StorageClientSettings settings) throws Exception {
-    	try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
-             StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
-             ClientResources.create().scheduler())){
-            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
-                .setInitialNumRanges(4)
-                .setMinNumRanges(4)
-                .setStorageType(StorageType.TABLE)
-                .build();
-            Stopwatch elapsedWatch = Stopwatch.createStarted();
-            while (elapsedWatch.elapsed(TimeUnit.MINUTES) < 1) {
-                try {
-                    result(storageAdminClient.getStream(tableNs, tableName));
-                    return;
-                } catch (NamespaceNotFoundException nnfe) {
-                    try {
-                        result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(streamConf)
-                            .build()));
-                        result(storageAdminClient.createStream(tableNs, tableName, streamConf));
-                    } catch (Exception e) {
-                        // there might be two clients conflicting at creating table, so let's retrieve the table again
-                        // to make sure the table is created.
-                    }
-                } catch (StreamNotFoundException snfe) {
-                    try {
-                        result(storageAdminClient.createStream(tableNs, tableName, streamConf));
-                    } catch (Exception e) {
-                        // there might be two client conflicting at creating table, so let's retrieve it to make
-                        // sure the table is created.
-                    }
-                } catch (ClientException ce) {
-                    log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
-                        ce.getMessage());
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
-        }
-    }
 
-    private void setupStateTable() throws Exception {
+    private void setupStateStore() throws Exception {
+        this.stateManager = new InstanceStateManager();
+
         if (null == stateStorageServiceUrl) {
-            return;
-        }
+            stateStoreProvider = StateStoreProvider.NULL;
+        } else {
+            stateStoreProvider = new BKStateStoreProviderImpl();
+            Map<String, Object> stateStoreProviderConfig = new HashMap();
+            stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
+            stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
-        String tableNs = FunctionCommon.getStateNamespace(
-            instanceConfig.getFunctionDetails().getTenant(),
-            instanceConfig.getFunctionDetails().getNamespace()
-        );
-        String tableName = instanceConfig.getFunctionDetails().getName();
+            StateStore store = stateStoreProvider.getStateStore(
+                instanceConfig.getFunctionDetails().getTenant(),
+                instanceConfig.getFunctionDetails().getNamespace(),
+                instanceConfig.getFunctionDetails().getName()
+            );
+            StateStoreContext context = new StateStoreContextImpl();
+            store.init(context);
 
-        StorageClientSettings settings = StorageClientSettings.newBuilder()
-                .serviceUri(stateStorageServiceUrl)
-                .clientName("function-" + tableNs + "/" + tableName)
-                // configure a maximum 2 minutes jitter backoff for accessing table service
-                .backoffPolicy(Jitter.of(
-                    Type.EXPONENTIAL,
-                    100,
-                    2000,
-                    60
-                ))
-                .build();
-
-        // we defer creation of the state table until a java instance is running here.
-        createStateTable(tableNs, tableName, settings);
-
-        log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
-        this.storageClient = StorageClientBuilder.newBuilder()
-                .withSettings(settings)
-                .withNamespace(tableNs)
-                .build();
-        // NOTE: this is a workaround until we bump bk version to 4.9.0
-        // table might just be created above, so it might not be ready for serving traffic
-        Stopwatch openSw = Stopwatch.createStarted();
-        while (openSw.elapsed(TimeUnit.MINUTES) < 1) {
-            try {
-                this.stateTable = result(storageClient.openTable(tableName));
-                break;
-            } catch (InternalServerException ise) {
-                log.warn("Encountered internal server on opening table '{}', re-attempt in 100 milliseconds : {}",
-                    tableName, ise.getMessage());
-                TimeUnit.MILLISECONDS.sleep(100);
-            }
+            stateManager.registerStore(store);
         }
     }
 
@@ -529,18 +450,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             javaInstance = null;
         }
 
-        // kill the state table
-        if (null != stateTable) {
-            stateTable.close();
-            stateTable = null;
+        if (null != stateManager) {
+            stateManager.close();
         }
-        if (null != storageClient) {
-            storageClient.closeAsync()
-                .exceptionally(cause -> {
-                    log.warn("Failed to close state storage client", cause);
-                    return null;
-                });
-            storageClient = null;
+
+        if (null != stateStoreProvider) {
+            stateStoreProvider.close();
         }
 
         if (instanceCache != null) {

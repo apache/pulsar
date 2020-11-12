@@ -16,36 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.classification;
+package org.apache.pulsar.functions.instance.state;
 
-import java.lang.annotation.Documented;
+import org.apache.pulsar.functions.api.StateStore;
 
 /**
- * Annotation to inform users of how much to rely on a particular package,
- * class or method not changing over time.
+ * A state manager that manages multiple state stores.
  */
-@InterfaceAudience.Public
-@InterfaceStability.Stable
-public class InterfaceStability {
-  /**
-   * Can evolve while retaining compatibility for minor release boundaries.;
-   * can break compatibility only at major release (ie. at m.0).
-   */
-  @Documented
-  public @interface Stable {}
+public interface StateManager extends AutoCloseable {
 
-  /**
-   * Evolving, but can break compatibility at minor release (i.e. m.x)
-   */
-  @Documented
-  public @interface Evolving {}
+    /**
+     * Register the state store.
+     *
+     * @param store the state store to register.
+     */
+    void registerStore(StateStore store);
 
-  /**
-   * No guarantee is provided as to reliability or stability across any
-   * level of release granularity.
-   */
-  @Documented
-  public @interface Unstable {}
+    /**
+     * Get the state store with the given name.
+     *
+     * @param tenant the state store tenant.
+     * @param namespace the state store namespace.
+     * @param name the state store name.
+     * @return the state store with the given name.
+     */
+    StateStore getStore(String tenant, String namespace, String name);
 
-  private InterfaceStability() {}
+    void close();
+
 }
