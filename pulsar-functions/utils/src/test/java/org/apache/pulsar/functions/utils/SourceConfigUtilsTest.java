@@ -341,7 +341,6 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         sourceConfig.setSerdeClassName("test-serde");
         sourceConfig.setParallelism(1);
         sourceConfig.setRuntimeFlags("-DKerberos");
-        sourceConfig.setBatchBuilder("DEFAULT");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         Map<String, String> consumerConfigs = new HashMap<>();
@@ -355,6 +354,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);
