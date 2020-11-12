@@ -96,7 +96,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     }
 
     @Test
-    private void txnAckTestNoBatchAndSharedSubMemoryDeleteTest() throws Exception {
+    public void txnAckTestNoBatchAndSharedSubMemoryDeleteTest() throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
         String subscriptionName = "test";
 
@@ -179,7 +179,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     }
 
     @Test
-    private void txnAckTestBatchAndSharedSubMemoryDeleteTest() throws Exception {
+    public void txnAckTestBatchAndSharedSubMemoryDeleteTest() throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
         String subscriptionName = "test";
 
