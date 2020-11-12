@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -326,10 +327,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private boolean removeConsumersFromRecentJoinedConsumers() {
         Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
+        PositionImpl nextPositionOfTheMarkDeletePosition = ((ManagedLedgerImpl)cursor.getManagedLedger()).getNextValidPosition(mdp);
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         while (itr.hasNext()) {
             Map.Entry<Consumer, PositionImpl> entry = itr.next();
-            if (entry.getValue().compareTo(mdp) <= 0) {
+            if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
                 itr.remove();
                 hasConsumerRemovedFromTheRecentJoinedConsumers = true;
             } else {
@@ -359,6 +361,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
         return cursor.asyncReplayEntries(positions, this, ReadType.Replay, true);
+    }
+
+    public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {
+        return recentlyJoinedConsumers;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
