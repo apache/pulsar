@@ -378,9 +378,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
                 if (elapsedWatch.elapsed(TimeUnit.MINUTES) > 1) {
                     if (lastException != null) {
-                        throw new RuntimeException("Failed to create state table within timeout", lastException);
+                        throw new RuntimeException("Failed to get or create state table within timeout", lastException);
                     }
-                    throw new RuntimeException("Failed to create state table within timeout");
+                    throw new RuntimeException("Failed to get or create state table within timeout");
                 }
             }
         }
