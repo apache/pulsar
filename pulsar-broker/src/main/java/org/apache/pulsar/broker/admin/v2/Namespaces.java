@@ -70,7 +70,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 
-import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -295,6 +294,17 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceMessageTTL(null);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(value = "Get the subscription expiration time for the namespace")
@@ -486,6 +496,15 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Publish rate for all topics of the specified namespace") PublishRate publishRate) {
         validateNamespaceName(property, namespace);
         internalSetPublishRate(publishRate);
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void removePublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalRemovePublishRate();
     }
 
     @GET
@@ -920,6 +939,29 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Get deduplicationSnapshotInterval config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public Integer getDeduplicationSnapshotInterval(@PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetDeduplicationSnapshotInterval();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Set deduplicationSnapshotInterval config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void setDeduplicationSnapshotInterval(@PathParam("tenant") String tenant
+            , @PathParam("namespace") String namespace
+            , @ApiParam(value = "Interval to take deduplication snapshot per topic", required = true) Integer interval) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDeduplicationSnapshotInterval(interval);
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/maxConsumersPerTopic")
     @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1303,11 +1345,31 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid") })
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Offload policies for the specified namespace", required = true) OffloadPolicies offload,
-            @Suspended final AsyncResponse asyncResponse) {
+                                   @ApiParam(value = "Offload policies for the specified namespace", required = true) OffloadPolicies offload,
+                                   @Suspended final AsyncResponse asyncResponse) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSetOffloadPolicies(asyncResponse, offload);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/removeOffloadPolicies")
+    @ApiOperation(value = " Set offload configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid")})
+    public void removeOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                      @Suspended final AsyncResponse asyncResponse) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalRemoveOffloadPolicies(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1320,9 +1382,9 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace does not exist") })
+            @ApiResponse(code = 404, message = "Namespace does not exist")})
     public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
-                                        @PathParam("namespace") String namespace) {
+                                              @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetOffloadPolicies();
     }

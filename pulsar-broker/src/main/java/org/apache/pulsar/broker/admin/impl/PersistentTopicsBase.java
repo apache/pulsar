@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -126,6 +127,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -374,11 +376,11 @@ public class PersistentTopicsBase extends AdminResource {
         grantPermissions(topicName.toString(), role, actions);
     }
 
-    protected void internalDeleteTopicForcefully(boolean authoritative) {
+    protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
         validateWriteOperationOnTopic(authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
         } catch (Exception e) {
             if (e.getCause() instanceof MetadataNotFoundException) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
@@ -630,7 +632,8 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
+    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
+                                                  boolean force, boolean deleteSchema) {
         try {
             validateWriteOperationOnTopic(authoritative);
         } catch (WebApplicationException wae) {
@@ -650,6 +653,18 @@ public class PersistentTopicsBase extends AdminResource {
             final int numPartitions = partitionMeta.partitions;
             if (numPartitions > 0) {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
+                if (deleteSchema) {
+                    count.incrementAndGet();
+                    pulsar().getBrokerService().deleteSchemaStorage(topicName.getPartition(0).toString())
+                            .whenComplete((r, ex) -> {
+                                if (ex != null) {
+                                    log.warn("Failed to delete schema storage of topic: {}", topicName);
+                                }
+                                if (count.decrementAndGet() == 0) {
+                                    future.complete(null);
+                                }
+                            });
+                }
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
                     try {
@@ -885,6 +900,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {
+        if (maxUnackedNum != null && maxUnackedNum < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedNum must be 0 or more");
+        }
+
         TopicPolicies topicPolicies = null;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
@@ -900,6 +920,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnConsumer(Integer maxUnackedNum) {
+        if (maxUnackedNum != null && maxUnackedNum < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedNum must be 0 or more");
+        }
+
         TopicPolicies topicPolicies = null;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
@@ -937,19 +962,19 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean force) {
+    protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
         if (force) {
-            internalDeleteTopicForcefully(authoritative);
+            internalDeleteTopicForcefully(authoritative, deleteSchema);
         } else {
-            internalDeleteTopic(authoritative);
+            internalDeleteTopic(authoritative, deleteSchema);
         }
     }
 
-    protected void internalDeleteTopic(boolean authoritative) {
+    protected void internalDeleteTopic(boolean authoritative, boolean deleteSchema) {
         validateWriteOperationOnTopic(authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false, deleteSchema).get();
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();
@@ -1053,14 +1078,19 @@ public class PersistentTopicsBase extends AdminResource {
         return topic.getStats(getPreciseBacklog);
     }
 
-    protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative) {
+    protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getInternalStats();
+        try {
+            boolean includeMetadata = metadata && hasSuperUserAccess();
+            return topic.getInternalStats(includeMetadata).get();
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+        }
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
@@ -1251,7 +1281,7 @@ public class PersistentTopicsBase extends AdminResource {
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 try {
                     topicStatsFutureList.add(pulsar().getAdminClient().topics()
-                            .getInternalStatsAsync((topicName.getPartition(i).toString())));
+                            .getInternalStatsAsync((topicName.getPartition(i).toString()), false));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
@@ -1977,7 +2007,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
-            MessageIdImpl messageId) {
+            MessageIdImpl messageId, boolean isExcluded, int batchIndex) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -2001,6 +2031,8 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         } else {
             validateAdminAccessForSubscriber(subName, authoritative);
+            // will redirect if the topic not owned by current broker
+            validateReadOperationOnTopic(authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
@@ -2008,34 +2040,109 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
-                sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).thenRun(() -> {
-                    log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
-                            topicName, subName, messageId);
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-                    Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                    log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
-                            topicName, subName, messageId, t);
-                    if (t instanceof SubscriptionInvalidCursorPosition) {
-                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                "Unable to find position for position specified: " + t.getMessage()));
-                    } else if (t instanceof SubscriptionBusyException) {
-                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                "Failed for Subscription Busy: " + t.getMessage()));
-                    } else {
-                        resumeAsyncResponseExceptionally(asyncResponse, t);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                    return;
+                }
+                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
+                if (batchIndex >= 0) {
+                    try {
+                        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+                        ledger.asyncReadEntry(new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()), new AsyncCallbacks.ReadEntryCallback() {
+                            @Override
+                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                // Since we can't read the message from the storage layer, it might be an already delete message ID or an invalid message ID
+                                // We should fall back to non batch index seek.
+                                batchSizeFuture.complete(0);
+                            }
+
+                            @Override
+                            public void readEntryComplete(Entry entry, Object ctx) {
+                                try {
+                                    try {
+                                        if (entry == null) {
+                                            batchSizeFuture.complete(0);
+                                        } else {
+                                            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                                            batchSizeFuture.complete(metadata.getNumMessagesInBatch());
+                                        }
+                                    } catch (Exception e) {
+                                        batchSizeFuture.completeExceptionally(new RestException(e));
+                                    }
+                                } finally {
+                                    if (entry != null) {
+                                        entry.release();
+                                    }
+                                }
+                            }
+                        }, null);
+                    } catch (NullPointerException npe) {
+                        batchSizeFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Message not found"));
+                    } catch (Exception exception) {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), messageId.getLedgerId(), messageId.getEntryId(), topicName, exception);
+                        batchSizeFuture.completeExceptionally(new RestException(exception));
                     }
+                } else {
+                    batchSizeFuture.complete(0);
+                }
+                batchSizeFuture.thenAccept(bi -> {
+                    PositionImpl seekPosition;
+                    if (bi > 0) {
+                        long[] ackSet;
+                        BitSetRecyclable bitSet = BitSetRecyclable.create();
+                        bitSet.set(0, bi);
+                        if (isExcluded) {
+                            bitSet.clear(0, Math.max(batchIndex + 1, 0));
+                            if (bitSet.length() > 0) {
+                                ackSet = bitSet.toLongArray();
+                                seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId(), ackSet);
+                            } else {
+                                seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                                seekPosition = seekPosition.getNext();
+                            }
+                        } else {
+                            if (batchIndex - 1 >= 0) {
+                                bitSet.clear(0, batchIndex);
+                                ackSet = bitSet.toLongArray();
+                                seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId(), ackSet);
+                            } else {
+                                seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                            }
+                        }
+                        bitSet.recycle();
+                    } else {
+                        seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                        seekPosition = isExcluded ? seekPosition.getNext() : seekPosition;
+                    }
+
+                    sub.resetCursor(seekPosition).thenRun(() -> {
+                        log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
+                                topicName, subName, messageId);
+                        asyncResponse.resume(Response.noContent().build());
+                    }).exceptionally(ex -> {
+                        Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+                        log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
+                                topicName, subName, messageId, t);
+                        if (t instanceof SubscriptionInvalidCursorPosition) {
+                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                    "Unable to find position for position specified: " + t.getMessage()));
+                        } else if (t instanceof SubscriptionBusyException) {
+                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed for Subscription Busy: " + t.getMessage()));
+                        } else {
+                            resumeAsyncResponseExceptionally(asyncResponse, t);
+                        }
+                        return null;
+                    });
+                }).exceptionally(e -> {
+                    asyncResponse.resume(e);
                     return null;
                 });
             } catch (Exception e) {
                 log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), topicName,
                         subName, messageId, e);
-                if (e instanceof NullPointerException) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                } else {
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }
     }
@@ -2086,7 +2193,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                     subName);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
+                    "Peek messages on a non-persistent topic is not allowed");
         }
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -2108,13 +2215,63 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
         } catch (Exception exception) {
-            log.error("[{}] Failed to get message at position {} from {} {}", clientAppId(), messagePosition,
+            log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(), messagePosition,
                     topicName, subName, exception);
             throw new RestException(exception);
         } finally {
             if (entry != null) {
                 entry.release();
             }
+        }
+    }
+
+    protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a partitioned topic is not allowed, " +
+                    "please try examine message on specific topic partition");
+        }
+        validateTopicOwnership(topicName, authoritative);
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Examine messages on a non-persistent topic is not allowed");
+        }
+
+        if (messagePosition < 1) {
+            messagePosition = 1;
+        }
+
+        if (null == initialPosition) {
+            initialPosition = "latest";
+        }
+
+        try {
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            long totalMessage = topic.getNumberOfEntries();
+            PositionImpl startPosition = topic.getFirstPosition();
+            long messageToSkip = initialPosition.equals("earliest")? messagePosition : totalMessage - messagePosition + 1;
+            CompletableFuture<Entry> future = new CompletableFuture<>();
+            PositionImpl readPosition = topic.getPositionAfterN(startPosition, messageToSkip);
+            topic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    future.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+            return generateResponseWithEntry(future.get());
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
+                    topicName , exception);
+            throw new RestException(exception);
         }
     }
 
@@ -2289,7 +2446,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalSetMessageTTL(AsyncResponse asyncResponse, Integer ttlInSecond) {
         //Validate message ttl value.
-        if (ttlInSecond != null && ttlInSecond.intValue() < 0) {
+        if (ttlInSecond != null && ttlInSecond < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
         validateAdminAccessForTenant(namespaceName.getTenant());
@@ -2458,16 +2615,18 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
+        if (maxProducers != null && maxProducers < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxProducers must be 0 or more");
+        }
+
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        if (maxProducers < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxProducers must be 0 or more");
-        }
+
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxProducerPerTopic(maxProducers);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
@@ -2499,16 +2658,18 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {
+        if (maxConsumers != null && maxConsumers < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxConsumers must be 0 or more");
+        }
+
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        if (maxConsumers < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxConsumers must be 0 or more");
-        }
+
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxConsumerPerTopic(maxConsumers);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
@@ -2841,9 +3002,6 @@ public class PersistentTopicsBase extends AdminResource {
                 throw ex;
             }
 
-            String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace(), topicName.getDomain().toString(),
-                    topicName.getEncodedLocalName());
-
             // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
@@ -2872,9 +3030,6 @@ public class PersistentTopicsBase extends AdminResource {
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture();
-
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace(),
-            topicName.getDomain().toString(), topicName.getEncodedLocalName());
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
@@ -2939,6 +3094,10 @@ public class PersistentTopicsBase extends AdminResource {
     private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
         try {
             Subscription sub = topic.getSubscription(subName);
+            if (sub == null) {
+                sub = topic.createSubscription(subName, InitialPosition.Earliest, false).get();
+            }
+
             return Preconditions.checkNotNull(sub);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
@@ -2993,7 +3152,6 @@ public class PersistentTopicsBase extends AdminResource {
      *            : number partitions for the topics
      */
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions < 1) {

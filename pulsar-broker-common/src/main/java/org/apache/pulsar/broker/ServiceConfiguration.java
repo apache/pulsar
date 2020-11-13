@@ -205,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -236,6 +239,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "The maximum number of tenants that each pulsar cluster can create." 
+                + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
+    )
+    private int maxTenants = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -310,9 +320,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Enable the deletion of inactive topics"
+        doc = "Enable the deletion of inactive topics.\n"
+        + "If only enable this option, will not clean the metadata of partitioned topic."
     )
     private boolean brokerDeleteInactiveTopicsEnabled = true;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
+            + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
+            + "it may appear that a partitioned topic has just been deleted but is automatically created as a non-partitioned topic."
+    )
+    private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for inactive topics"
@@ -405,6 +423,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
+    )
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "If this time interval is exceeded, a snapshot will be taken."
+            + "It will run simultaneously with `brokerDeduplicationEntriesInterval`"
+    )
+    private Integer brokerDeduplicationSnapshotIntervalSeconds = 120;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "Number of entries after which a dedup info snapshot is taken.\n\n"
             + "A bigger interval will lead to less snapshots being taken though it would"
             + " increase the topic recovery time, when the entries published after the"
@@ -423,6 +453,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
+    
+    @FieldContext(
+        category = CATEGORY_POLICIES, 
+        dynamic = true,
+        doc = "The maximum number of namespaces that each tenant can create."
+            + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
+    private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -501,6 +538,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private int maxPublishRatePerTopicInMessages = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long maxPublishRatePerTopicInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -664,10 +715,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Enforce producer to publish encrypted messages.(default disable).")
+    private boolean encryptionRequireOnProducer = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Max number of consumers allowed to connect to topic. \n\nOnce this limit reaches,"
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerTopic-limit check.")
     private int maxConsumersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max number of subscriptions allowed to subscribe to topic. \n\nOnce this limit reaches, "
+                + " broker will reject new subscription until the number of subscribed subscriptions decrease.\n"
+                + " Using a value of 0, is disabling maxSubscriptionsPerTopic limit check."
+    )
+    private int maxSubscriptionsPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -751,11 +815,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+    )
+    private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
         doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
         + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
         + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
+
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1774,7 +1845,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Class name for transaction buffer provider"
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(

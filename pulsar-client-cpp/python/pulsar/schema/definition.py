@@ -167,6 +167,12 @@ class Boolean(Field):
     def python_type(self):
         return bool
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return False
+
 
 class Integer(Field):
     def type(self):
@@ -174,6 +180,12 @@ class Integer(Field):
 
     def python_type(self):
         return int
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
 
 
 class Long(Field):
@@ -183,6 +195,12 @@ class Long(Field):
     def python_type(self):
         return int
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0
+
 
 class Float(Field):
     def type(self):
@@ -190,6 +208,12 @@ class Float(Field):
 
     def python_type(self):
         return float
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
 
 
 class Double(Field):
@@ -199,6 +223,12 @@ class Double(Field):
     def python_type(self):
         return float
 
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return 0.0
+
 
 class Bytes(Field):
     def type(self):
@@ -206,6 +236,12 @@ class Bytes(Field):
 
     def python_type(self):
         return bytes
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return bytes('')
 
 
 class String(Field):
@@ -220,6 +256,12 @@ class String(Field):
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return str('')
 
 # Complex types
 

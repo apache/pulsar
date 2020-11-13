@@ -21,12 +21,12 @@ package org.apache.pulsar.broker.intercept;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -44,18 +44,28 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     private final NarClassLoader classLoader;
 
     @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
         this.interceptor.onPulsarCommand(command, cnx);
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        this.interceptor.onWebServiceRequest(request, response, chain);
+    public void onConnectionClosed(ServerCnx cnx) {
+        this.interceptor.onConnectionClosed(cnx);
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
-        this.interceptor.initialize(conf);
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        this.interceptor.onWebserviceRequest(request);
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        this.interceptor.onWebserviceResponse(request, response);
+    }
+
+    @Override
+    public void initialize(PulsarService pulsarService) throws Exception {
+        this.interceptor.initialize(pulsarService);
     }
 
     @Override

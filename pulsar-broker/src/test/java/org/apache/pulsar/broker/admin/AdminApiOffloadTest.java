@@ -163,12 +163,19 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String region = "test-region";
         String bucket = "test-bucket";
         String endpoint = "test-endpoint";
+        long offloadThresholdInBytes = 0;
+        long offloadDeletionLagInMillis = 100L;
 
         OffloadPolicies offload1 = OffloadPolicies.create(
-                driver, region, bucket, endpoint, 100, 100, -1, null);
+                driver, region, bucket, endpoint, null, null,
+                100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
         OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
+
+        admin.namespaces().removeOffloadPolicies(namespaceName);
+        OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
+        assertNull(offload3);
     }
 
     @Test(timeOut = 20000)
@@ -240,7 +247,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         offloadPolicies.setOffloadersDirectory(".");
         offloadPolicies.setManagedLedgerOffloadDriver("mock");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
-        offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024);
+        offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024L);
 
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");

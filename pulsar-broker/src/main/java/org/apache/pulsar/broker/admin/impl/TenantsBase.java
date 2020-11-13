@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -105,6 +104,16 @@ public class TenantsBase extends AdminResource {
 
         try {
             NamedEntity.checkName(tenant);
+
+            int maxTenants = pulsar().getConfiguration().getMaxTenants();
+            //Due to the cost of distributed locks, no locks are added here.
+            //In a concurrent scenario, the threshold will be exceeded.
+            if (maxTenants > 0) {
+                List<String> tenants = globalZk().getChildren(path(POLICIES), false);
+                if (tenants != null && tenants.size() >= maxTenants) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
+                }
+            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {

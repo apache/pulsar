@@ -105,8 +105,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ServiceConfiguration serviceConfig;
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
-    protected TransactionReader transactionReader;
-
     enum ReadType {
         Normal, Replay
     }
@@ -123,7 +121,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader = new TransactionReader(topic, cursor);
     }
 
     @Override
@@ -218,9 +215,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 readMoreEntries();
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
-            }
+            log.info("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
         }
     }
 
@@ -340,8 +335,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (transactionReader.havePendingTxnToRead()) {
-                transactionReader.read(messagesToRead, ReadType.Normal, this);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -522,7 +515,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        transactionReader);
+                        readType == ReadType.Replay);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -632,7 +625,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     /**
-     * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
+     * returns true only if {@link AbstractDispatcherMultipleConsumers#consumerList}
+     * has atleast one unblocked consumer and have available permits
      *
      * @return
      */
@@ -808,6 +802,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
             this.lastIndividualDeletedRangeFromCursorRecovery = null;
         }
+    }
+
+    @Override
+    public void addMessageToReplay(long ledgerId, long entryId) {
+        this.messagesToRedeliver.add(ledgerId, entryId);
     }
 
     public PersistentTopic getTopic() {

@@ -21,9 +21,7 @@ package org.apache.pulsar.client.api;
 import io.netty.util.HashedWheelTimer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

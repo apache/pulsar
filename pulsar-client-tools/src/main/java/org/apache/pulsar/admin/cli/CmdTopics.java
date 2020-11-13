@@ -74,6 +74,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
+        jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("unload", new UnloadCmd());
@@ -102,6 +103,7 @@ public class CmdTopics extends CmdBase {
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
+        jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
@@ -260,6 +262,18 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             print(admin.lookups().lookupTopic(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
+    private class PartitionedLookup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/partitionedTopic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            print(admin.lookups().lookupPartitionedTopic(topic));
         }
     }
 
@@ -468,10 +482,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-m",
+        "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getInternalStats(topic));
+            print(topics.getInternalStats(topic, metadata));
         }
     }
 
@@ -636,12 +654,20 @@ public class CmdTopics extends CmdBase {
                 "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
         private String resetMessageIdStr;
 
+        @Parameter(names = { "-e", "--exclude-reset-position" },
+                description = "Exclude the reset position, start consume messages from the next position.", required = false)
+        private boolean excludeResetPosition = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
-                topics.resetCursor(persistentTopic, subName, messageId);
+                if (excludeResetPosition) {
+                    topics.resetCursor(persistentTopic, subName, messageId, true);
+                } else {
+                    topics.resetCursor(persistentTopic, subName, messageId);
+                }
             } else if (isNotBlank(resetTimeStr)) {
                 long resetTimeInMillis = TimeUnit.SECONDS
                         .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
@@ -708,6 +734,39 @@ public class CmdTopics extends CmdBase {
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(data));
             }
+        }
+    }
+
+
+    @Parameters(commandDescription = "Examine a specific message on a topic by position relative to the" +
+            " earliest or the latest message.")
+    private class ExamineMessages extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-i", "--initialPosition" },
+                description = "Relative start position to examine message." +
+                        "It can be 'latest' or 'earliest', default is latest")
+        private String initialPosition = "latest";
+
+        @Parameter(names = { "-m", "--messagePosition" },
+                description = "The position of messages (default 1)", required = false)
+        private long messagePosition = 1;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Message<byte[]> messages = topics.examineMessage(persistentTopic, initialPosition, messagePosition);
+            MessageIdImpl msgId = (MessageIdImpl) messages.getMessageId();
+            System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+
+            if (messages.getProperties().size() > 0) {
+                System.out.println("Tenants:");
+                print(messages.getProperties());
+            }
+
+            ByteBuf data = Unpooled.wrappedBuffer(messages.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
         }
     }
 
@@ -823,7 +882,7 @@ public class CmdTopics extends CmdBase {
             long sizeThreshold = validateSizeString(sizeThresholdStr);
             String persistentTopic = validatePersistentTopic(params);
 
-            PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic);
+            PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic, false);
             if (stats.ledgers.size() < 1) {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
@@ -1200,6 +1259,14 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload service endpoint, only s3 requires this parameter")
         private String endpoint;
 
+        @Parameter(names = {"-i", "--aws-id"}
+                , description = "AWS Credential Id to use when using driver S3 or aws-s3")
+        private String awsId;
+
+        @Parameter(names = {"-s", "--aws-secret"}
+                , description = "AWS Credential Secret to use when using driver S3 or aws-s3")
+        private String awsSecret;
+
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
                 , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
         private int maxBlockSizeInBytes;
@@ -1219,7 +1286,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, maxBlockSizeInBytes
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
                     , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

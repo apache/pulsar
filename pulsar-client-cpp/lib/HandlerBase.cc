@@ -36,6 +36,7 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
       operationTimeut_(seconds(client->conf().getOperationTimeoutSeconds())),
       state_(Pending),
       backoff_(backoff),
+      epoch_(0),
       timer_(client->getIOExecutorProvider()->get()->createDeadlineTimer()) {}
 
 HandlerBase::~HandlerBase() { timer_->cancel(); }
@@ -140,6 +141,7 @@ void HandlerBase::handleTimeout(const boost::system::error_code& ec, HandlerBase
         LOG_DEBUG(handler->getName() << "Ignoring timer cancelled event, code[" << ec << "]");
         return;
     } else {
+        handler->epoch_++;
         handler->grabCnx();
     }
 }

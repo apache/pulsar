@@ -19,9 +19,11 @@
 #include <pulsar/Client.h>
 #include <pulsar/Reader.h>
 #include "ReaderTest.h"
+#include "HttpHelper.h"
 
 #include <gtest/gtest.h>
 
+#include <time.h>
 #include <string>
 
 #include <lib/LogUtils.h>
@@ -30,6 +32,7 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 static std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string adminUrl = "http://localhost:8080/";
 
 TEST(ReaderTest, testSimpleReader) {
     Client client(serviceUrl);
@@ -461,4 +464,45 @@ TEST(ReaderTest, testReferenceLeak) {
     // will be released after exit this method.
     ASSERT_EQ(1, consumerPtr.use_count());
     ASSERT_EQ(1, readerPtr.use_count());
+}
+
+TEST(ReaderTest, testPartitionIndex) {
+    Client client(serviceUrl);
+
+    const std::string nonPartitionedTopic = "ReaderTestPartitionIndex-topic-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "ReaderTestPartitionIndex-par-topic-" + std::to_string(time(nullptr));
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    const std::string partition0 = partitionedTopic + "-partition-0";
+    const std::string partition1 = partitionedTopic + "-partition-1";
+
+    ReaderConfiguration readerConf;
+    Reader readers[3];
+    ASSERT_EQ(ResultOk,
+              client.createReader(nonPartitionedTopic, MessageId::earliest(), readerConf, readers[0]));
+    ASSERT_EQ(ResultOk, client.createReader(partition0, MessageId::earliest(), readerConf, readers[1]));
+    ASSERT_EQ(ResultOk, client.createReader(partition1, MessageId::earliest(), readerConf, readers[2]));
+
+    Producer producers[3];
+    ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producers[0]));
+    ASSERT_EQ(ResultOk, client.createProducer(partition0, producers[1]));
+    ASSERT_EQ(ResultOk, client.createProducer(partition1, producers[2]));
+
+    for (auto& producer : producers) {
+        ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build()));
+    }
+
+    Message msg;
+    readers[0].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), -1);
+    readers[1].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), 0);
+    readers[2].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), 1);
+
+    client.close();
 }

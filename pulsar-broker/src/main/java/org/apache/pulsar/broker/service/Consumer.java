@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -44,9 +45,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -60,6 +62,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
@@ -129,6 +132,7 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
+    private PositionImpl readPositionWhenJoining;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -156,7 +160,6 @@ public class Consumer {
         this.appId = appId;
         this.authenticationData = cnx.getAuthenticationData();
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
-
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -284,9 +287,6 @@ public class Consumer {
                 }
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                if (entry instanceof TransactionEntryImpl) {
-                    messageIdBuilder.setBatchIndex(((TransactionEntryImpl) entry).getStartBatchIndex());
-                }
                 MessageIdData messageId = messageIdBuilder
                     .setLedgerId(entry.getLedgerId())
                     .setEntryId(entry.getEntryId())
@@ -311,8 +311,8 @@ public class Consumer {
                 if (redeliveryTracker.contains(position)) {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
-                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
+                ctx.write(cnx.newMessageAndIntercept(consumerId, messageId, redeliveryCount, metadataAndPayload,
+                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -388,24 +388,22 @@ public class Consumer {
         });
     }
 
-    void messageAcked(CommandAck ack) {
+    CompletableFuture<Void> messageAcked(CommandAck ack) {
         this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
-                .collect(Collectors.toMap((e) -> e.getKey(),
-                                          (e) -> e.getValue()));
+                .collect(Collectors.toMap(PulsarApi.KeyLongValue::getKey,
+                        PulsarApi.KeyLongValue::getValue));
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
-                return;
             }
 
             if (Subscription.isIndividualAckMode(subType)) {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
-                return;
             }
             PositionImpl position = PositionImpl.earliest;
             if (ack.getMessageIdCount() == 1) {
@@ -416,53 +414,161 @@ public class Consumer {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
             }
-            List<Position> positionsAcked = Collections.singletonList(position);
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Cumulative);
+                List<PositionImpl> positionsAcked = Collections.singletonList(position);
+                return transactionCumulativeAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked);
             } else {
+                List<Position> positionsAcked = Collections.singletonList(position);
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
+                return CompletableFuture.completedFuture(null);
             }
         } else {
-            // Individual ack
-            List<Position> positionsAcked = new ArrayList<>();
-            for (int i = 0; i < ack.getMessageIdCount(); i++) {
-                MessageIdData msgId = ack.getMessageId(i);
-                PositionImpl position;
-                if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
-                } else {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                }
-                positionsAcked.add(position);
-
-                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
-                    removePendingAcks(position);
-                }
-
-                if (ack.hasValidationError()) {
-                    log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
-                            consumerId, position, ack.getValidationError());
-                }
-            }
-            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Individual);
+            if (ack.hasTxnidLeastBits() && ack.hasTxnidMostBits()) {
+                return individualAckWithTransaction(ack);
             } else {
-                subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+                return individualAckNormal(ack, properties);
             }
         }
     }
 
-    private void transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
-                                        List<Position> positionList, AckType ackType) {
+    //this method is for individual ack not carry the transaction
+    private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String,Long> properties) {
+        List<Position> positionsAcked = new ArrayList<>();
+        List<PositionImpl> checkBatchPositions = null;
+        if (isTransactionEnabled()) {
+            checkBatchPositions = new ArrayList<>();
+        }
+        for (int i = 0; i < ack.getMessageIdCount(); i++) {
+            MessageIdData msgId = ack.getMessageId(i);
+            PositionImpl position;
+            if (msgId.getAckSetCount() > 0) {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
+                        SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                if (isTransactionEnabled()) {
+                    //sync the batch position bit set point, in order to delete the position in pending acks
+                    checkBatchPositions.add(position);
+                    LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+                    if (batchSizePair == null) {
+                        String error = "Batch position [" + position + "] could not find " +
+                                "it's batch size from consumer pendingAcks!";
+                        log.warn(error);
+                        return FutureUtil.failedFuture(
+                                new BrokerServiceException.NotAllowedException(error));
+                    }
+                    ((PersistentSubscription) subscription)
+                            .syncBatchPositionBitSetForPendingAck(new MutablePair<>(position, batchSizePair.first));
+                    //check if the position can remove from the consumer pending acks.
+                    // the bit set is empty in pending ack handle.
+                    if (((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(position)) {
+                        removePendingAcks(position);
+                    }
+                }
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            }
+            positionsAcked.add(position);
+
+            checkCanRemovePendingAcksAndHandle(position, msgId);
+
+            checkAckValidationError(ack, position);
+        }
+        subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+        return CompletableFuture.completedFuture(null);
+    }
+
+
+    //this method is for individual ack carry the transaction
+    private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
+        // Individual ack
+        List<MutablePair<PositionImpl, Long>> positionsAcked = new ArrayList<>();
+
+        if (!isTransactionEnabled()) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
+        }
+
+        for (int i = 0; i < ack.getMessageIdCount(); i++) {
+            MessageIdData msgId = ack.getMessageId(i);
+            PositionImpl position;
+            if (msgId.getAckSetCount() > 0) {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
+                        SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            }
+
+            LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+            if (batchSizePair == null) {
+                String error = "Batch position [" + position + "] could not find " +
+                        "it's batch size from consumer pendingAcks!";
+                log.error(error);
+                return FutureUtil.failedFuture(
+                        new BrokerServiceException.NotAllowedException(error));
+            }
+            positionsAcked.add(new MutablePair<>(position, batchSizePair.first));
+
+            checkCanRemovePendingAcksAndHandle(position, msgId);
+
+            checkAckValidationError(ack, position);
+        }
+
+        CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
+                ack.getTxnidLeastBits(), positionsAcked);
+        positionsAcked.forEach(positionLongMutablePair -> {
+            if (((PersistentSubscription) subscription)
+                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
+                removePendingAcks(positionLongMutablePair.left);
+            }
+        });
+        return completableFuture;
+    }
+
+    private void checkAckValidationError(CommandAck ack, PositionImpl position) {
+        if (ack.hasValidationError()) {
+            log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
+                    consumerId, position, ack.getValidationError());
+        }
+    }
+
+    private void checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
+        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
+            removePendingAcks(position);
+        }
+    }
+
+    private boolean isTransactionEnabled() {
+        return subscription instanceof PersistentSubscription
+                && ((PersistentTopic) subscription.getTopic())
+                .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled();
+    }
+
+    private CompletableFuture<Void> transactionIndividualAcknowledge(
+            long txnidMostBits,
+            long txnidLeastBits,
+            List<MutablePair<PositionImpl, Long>> positionList) {
         if (subscription instanceof PersistentSubscription) {
             TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-            try {
-                ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
-            } catch (TransactionConflictException e) {
-                log.error("Transaction acknowledge failed for txn " + txnID, e);
-            }
+            return ((PersistentSubscription) subscription).transactionIndividualAcknowledge(txnID, positionList);
         } else {
-            log.error("Transaction acknowledge only support the `PersistentSubscription`.");
+            String error = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(error);
+            return FutureUtil.failedFuture(new TransactionConflictException(error));
+        }
+    }
+
+    private CompletableFuture<Void> transactionCumulativeAcknowledge(long txnidMostBits, long txnidLeastBits,
+                                                                     List<PositionImpl> positionList) {
+        if (!isTransactionEnabled()) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
+        }
+        if (subscription instanceof PersistentSubscription) {
+            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+            return ((PersistentSubscription) subscription).transactionCumulativeAcknowledge(txnID, positionList);
+        } else {
+            String error = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(error);
+            return FutureUtil.failedFuture(new TransactionConflictException(error));
         }
     }
 
@@ -553,6 +659,9 @@ public class Consumer {
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
+        if (readPositionWhenJoining != null) {
+            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
+        }
         return stats;
     }
 
@@ -737,6 +846,10 @@ public class Consumer {
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
+    }
+
+    public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
+        this.readPositionWhenJoining = readPositionWhenJoining;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

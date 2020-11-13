@@ -176,6 +176,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+        return schemaStorage.delete(schemaId);
+    }
+
+    @Override
     public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
         return checkCompatible(schemaId, schema, strategy).thenApply(v -> true);
     }

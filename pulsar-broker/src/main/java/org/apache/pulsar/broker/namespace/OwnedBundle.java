@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.namespace;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -50,7 +49,7 @@ public class OwnedBundle {
     /**
      * constructor
      *
-     * @param nsname
+     * @param suName
      */
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
@@ -60,8 +59,7 @@ public class OwnedBundle {
     /**
      * Constructor to allow set initial active flag
      *
-     * @param nsname
-     * @param nssvc
+     * @param suName
      * @param active
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {

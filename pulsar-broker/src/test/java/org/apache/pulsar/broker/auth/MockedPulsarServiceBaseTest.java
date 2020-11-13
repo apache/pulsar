@@ -63,12 +63,14 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster
  */
+@PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
 public abstract class MockedPulsarServiceBaseTest {
 
     protected ServiceConfiguration conf;
@@ -286,6 +288,15 @@ public abstract class MockedPulsarServiceBaseTest {
         doAnswer((invocation) -> {
                 return spy(invocation.callRealMethod());
             }).when(pulsar).newCompactor();
+    }
+
+    protected void waitForZooKeeperWatchers() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
     }
 
     public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {

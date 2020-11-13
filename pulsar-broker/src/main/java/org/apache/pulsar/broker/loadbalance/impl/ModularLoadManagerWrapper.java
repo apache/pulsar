@@ -79,7 +79,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
         }
         return String.format("http://%s", broker);
     }
-    
+
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
         return loadManager.getLoadBalancingMetrics();

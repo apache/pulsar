@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Set;
 
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -34,7 +33,7 @@ public interface BrokerFilter {
 
     /**
      * From the given set of available broker candidates, filter those using the load data.
-     * 
+     *
      * @param brokers
      *            The currently available brokers that have not already been filtered. This set may be modified by
      *            filter.
