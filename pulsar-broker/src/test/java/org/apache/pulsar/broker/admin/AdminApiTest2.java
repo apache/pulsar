@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 
@@ -71,6 +72,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -102,6 +104,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
         super.internalSetup();
 
         // create otherbroker to test redirect on calls that need
@@ -1341,6 +1345,19 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (PreconditionFailedException e) {
             assertTrue(e.getMessage().startsWith("Invalid bundle range"));
         }
+    }
+
+    @Test
+    public void testDedupApi() throws Exception {
+        String tenant = "prop-xyz2";
+        String namespace = tenant + "/test/ns1";
+        String topic = "persistent://" + namespace + "/t1";
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant(tenant, tenantInfo);
+        admin.namespaces().createNamespace(namespace, 10);
+        admin.topics().enableDeduplication(topic, true);
+        admin.topics().disableDeduplication(topic);
+        assertNull(admin.topics().getDeduplicationEnabled(topic));
     }
 
     @Test

@@ -49,6 +49,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -347,6 +348,67 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Get deduplication configuration of a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
+    public void getDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("cluster") String cluster,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isDeduplicationSet()) {
+            asyncResponse.resume(topicPolicies.getDeduplicationEnabled());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Set deduplication enabled on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
+    public void setDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("cluster") String cluster,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic,
+                             @ApiParam(value = "DeduplicationEnabled policies for the specified topic") Boolean enabled) {
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        internalSetDeduplicationEnabled(enabled).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated deduplication", ex);
+                asyncResponse.resume(ex);
+            }else if (ex != null) {
+                log.error("Failed updated deduplication", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Remove deduplication configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("cluster") String cluster,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        setDeduplicationEnabled(asyncResponse, cluster, tenant, namespace, encodedTopic, null);
+    }
 
     @GET
     @Path("{property}/{cluster}/{namespace}/{topic}/partitioned-internalStats")
