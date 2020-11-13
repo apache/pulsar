@@ -49,6 +49,8 @@ public class AggregatedNamespaceStats {
 
     public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
             ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
+    public StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(
+            ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     public StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
 
     public double storageWriteRate;
@@ -86,6 +88,7 @@ public class AggregatedNamespaceStats {
         msgBacklog += stats.msgBacklog;
 
         storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
+        storageLedgerWriteLatencyBuckets.addAll(stats.storageLedgerWriteLatencyBuckets);
         entrySizeBuckets.addAll(stats.entrySizeBuckets);
 
         stats.replicationStats.forEach((n, as) -> {
@@ -141,6 +144,7 @@ public class AggregatedNamespaceStats {
         subscriptionStats.clear();
 
         storageWriteLatencyBuckets.reset();
+        storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
     }
 }

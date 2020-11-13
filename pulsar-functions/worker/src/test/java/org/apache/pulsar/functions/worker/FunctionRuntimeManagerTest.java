@@ -871,6 +871,7 @@ public class FunctionRuntimeManagerTest {
                 = new WorkerConfig.KubernetesContainerFactory();
         kubernetesContainerFactory.setK8Uri("k8Uri");
         kubernetesContainerFactory.setJobNamespace("jobNamespace");
+        kubernetesContainerFactory.setJobName("jobName");
         kubernetesContainerFactory.setPulsarDockerImageName("pulsarDockerImageName");
         kubernetesContainerFactory.setImagePullPolicy("imagePullPolicy");
         kubernetesContainerFactory.setPulsarRootDir("pulsarRootDir");

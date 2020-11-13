@@ -81,13 +81,13 @@ public class SimpleResourceAllocationPolicies {
     }
 
     public boolean isPrimaryBroker(NamespaceName namespace, String broker) {
-		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return nsPolicy.isPresent() && nsPolicy.get().isPrimaryBroker(broker);
+        Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+        return nsPolicy.isPresent() && nsPolicy.get().isPrimaryBroker(broker);
     }
 
     public boolean isSecondaryBroker(NamespaceName namespace, String broker) {
-		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return nsPolicy.isPresent() && nsPolicy.get().isSecondaryBroker(broker);
+        Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+        return nsPolicy.isPresent() && nsPolicy.get().isSecondaryBroker(broker);
     }
 
     public boolean isSharedBroker(String broker) {
@@ -102,7 +102,7 @@ public class SimpleResourceAllocationPolicies {
     }
 
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {
-		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return nsPolicy.isPresent() && nsPolicy.get().shouldFailover(totalPrimaryCandidates);
+        Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+        return nsPolicy.isPresent() && nsPolicy.get().shouldFailover(totalPrimaryCandidates);
     }
 }

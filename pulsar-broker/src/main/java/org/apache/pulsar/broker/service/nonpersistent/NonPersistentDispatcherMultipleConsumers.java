@@ -193,7 +193,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         if (consumer != null) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, null);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
             consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
 

@@ -41,6 +41,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -119,9 +120,9 @@ public class FunctionConfigUtils {
             functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
                 Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
                         .setIsRegexPattern(consumerConf.isRegexPattern());
-                if (!StringUtils.isBlank(consumerConf.getSchemaType())) {
+                if (isNotBlank(consumerConf.getSchemaType())) {
                     bldr.setSchemaType(consumerConf.getSchemaType());
-                } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
+                } else if (isNotBlank(consumerConf.getSerdeClassName())) {
                     bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                 }
                 if (consumerConf.getReceiverQueueSize() != null) {
@@ -130,6 +131,9 @@ public class FunctionConfigUtils {
                 }
                 if (consumerConf.getSchemaProperties() != null) {
                     bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
+                }
+                if (consumerConf.getCryptoConfig() != null) {
+                    bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
@@ -208,15 +212,19 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
+            ProducerConfig producerConf = functionConfig.getProducerConfig();
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
+            if (producerConf.getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(producerConf.getMaxPendingMessages());
             }
-            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
             }
-            if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(functionConfig.getProducerConfig().getUseThreadLocalProducers());
+            if (producerConf.getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
+            }
+            if (producerConf.getCryptoConfig() != null) {
+                pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -331,14 +339,17 @@ public class FunctionConfigUtils {
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
-            if (!isEmpty(input.getValue().getSerdeClassName())) {
+            if (isNotEmpty(input.getValue().getSerdeClassName())) {
                 consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
             }
-            if (!isEmpty(input.getValue().getSchemaType())) {
+            if (isNotEmpty(input.getValue().getSchemaType())) {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
             }
             if (input.getValue().hasReceiverQueueSize()) {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
+            }
+            if (input.getValue().hasCryptoSpec()) {
+                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
@@ -366,14 +377,18 @@ public class FunctionConfigUtils {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
         if (functionDetails.getSink().getProducerSpec() != null) {
+            Function.ProducerSpec spec = functionDetails.getSink().getProducerSpec();
             ProducerConfig producerConfig = new ProducerConfig();
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(functionDetails.getSink().getProducerSpec().getMaxPendingMessages());
+            if (spec.getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
             }
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
             }
-            producerConfig.setUseThreadLocalProducers(functionDetails.getSink().getProducerSpec().getUseThreadLocalProducers());
+            if (spec.hasCryptoSpec()) {
+                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+            }
+            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
@@ -544,6 +559,9 @@ public class FunctionConfigUtils {
                 if (!isEmpty(conf.getSchemaType())) {
                     ValidatorUtils.validateSchema(conf.getSchemaType(), typeArgs[0], clsLoader, true);
                 }
+                if (conf.getCryptoConfig() != null) {
+                    ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(), clsLoader, false);
+                }
             });
         }
 
@@ -565,6 +583,9 @@ public class FunctionConfigUtils {
             ValidatorUtils.validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], clsLoader, false);
         }
 
+        if (functionConfig.getProducerConfig() != null && functionConfig.getProducerConfig().getCryptoConfig() != null) {
+            ValidatorUtils.validateCryptoKeyReader(functionConfig.getProducerConfig().getCryptoConfig(), clsLoader, true);
+        }
     }
 
     private static void doPythonChecks(FunctionConfig functionConfig) {
@@ -725,7 +746,23 @@ public class FunctionConfigUtils {
                     throw new IllegalArgumentException(
                         "Receiver queue size should be >= zero");
                 }
+
+                if (conf.getCryptoConfig() != null && isBlank(conf.getCryptoConfig().getCryptoKeyReaderClassName())) {
+                    throw new IllegalArgumentException(
+                            "CryptoKeyReader class name required");
+                }
             });
+        }
+
+        if (functionConfig.getProducerConfig() != null && functionConfig.getProducerConfig().getCryptoConfig() != null) {
+            if (isBlank(functionConfig.getProducerConfig().getCryptoConfig().getCryptoKeyReaderClassName())) {
+                throw new IllegalArgumentException("CryptoKeyReader class name required");
+            }
+
+            if (functionConfig.getProducerConfig().getCryptoConfig().getEncryptionKeys() == null
+                    || functionConfig.getProducerConfig().getCryptoConfig().getEncryptionKeys().length == 0) {
+                throw new IllegalArgumentException("Must provide encryption key name for crypto key reader");
+            }
         }
     }
 

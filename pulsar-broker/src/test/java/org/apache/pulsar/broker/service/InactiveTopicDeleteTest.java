@@ -23,9 +23,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import com.google.common.collect.Sets;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Consumer;
@@ -33,20 +35,31 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
 public class InactiveTopicDeleteTest extends BrokerTestBase {
 
+    @BeforeMethod
     protected void setup() throws Exception {
-        // No-op
+        resetConfig();
     }
 
+    @AfterMethod
     protected void cleanup() throws Exception {
-        // No-op
+        super.internalCleanup();
     }
 
     @Test
@@ -77,8 +90,88 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Thread.sleep(2000);
         Assert.assertFalse(admin.topics().getList("prop/ns-abc")
             .contains(topic));
+    }
 
-        super.internalCleanup();
+    @Test
+    public void testDeleteAndCleanZkNode() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        super.baseSetup();
+
+        final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
+        admin.topics().createPartitionedTopic(topic, 5);
+        pulsarClient.newProducer().topic(topic).create().close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+
+        Thread.sleep(2000);
+        Assert.assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc")
+            .contains(topic));
+
+        admin.topics().deleteSubscription(topic, "sub");
+        Thread.sleep(2000);
+        Assert.assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc")
+            .contains(topic));
+    }
+
+    @Test
+    public void testWhenSubPartitionNotDelete() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        super.baseSetup();
+
+        final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
+        final TopicName topicName = TopicName.get(topic);
+        admin.topics().createPartitionedTopic(topic, 5);
+        pulsarClient.newProducer().topic(topic).create().close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+        String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
+                , topicName.getDomain().value());
+
+        String partition0 = topicName.getPartition(0).getLocalName();
+        Set<String> cacheSet = mock(Set.class);
+        LocalZooKeeperCacheService localZooKeeperCacheService = spy(pulsar.getLocalZkCacheService());
+        ZooKeeperManagedLedgerCache zooKeeperManagedLedgerCache = spy(localZooKeeperCacheService.managedLedgerListCache());
+        doReturn(localZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
+        doReturn(zooKeeperManagedLedgerCache).when(localZooKeeperCacheService).managedLedgerListCache();
+        doReturn(cacheSet).when(zooKeeperManagedLedgerCache).get(managedPath);
+        doReturn(true).when(cacheSet).contains(argThat(x -> x.equals(partition0)));
+
+        admin.topics().deleteSubscription(topic, "sub");
+        Thread.sleep(2000);
+        // node should not be deleted
+        Assert.assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topic));
+        verify(cacheSet, times(5)).contains(partition0);
+    }
+
+    @Test
+    public void testNotEnabledDeleteZkNode() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        super.baseSetup();
+        final String namespace = "prop/ns-abc";
+        final String topic = "persistent://prop/ns-abc/testNotEnabledDeleteZkNode1";
+        final String topic2 = "persistent://prop/ns-abc/testNotEnabledDeleteZkNode2";
+
+        admin.topics().createPartitionedTopic(topic, 5);
+        admin.topics().createNonPartitionedTopic(topic2);
+        pulsarClient.newProducer().topic(topic).create().close();
+        pulsarClient.newProducer().topic(topic2).create().close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+        pulsarClient.newConsumer().topic(topic2).subscriptionName("sub2").subscribe().close();
+
+        Thread.sleep(2000);
+        Assert.assertTrue(admin.topics().getPartitionedTopicList(namespace).contains(topic));
+        Assert.assertTrue(admin.topics().getList(namespace).contains(topic2));
+
+        admin.topics().deleteSubscription(topic, "sub");
+        admin.topics().deleteSubscription(topic2, "sub2");
+        Thread.sleep(2000);
+        Assert.assertTrue(admin.topics().getPartitionedTopicList(namespace).contains(topic));
+        // BrokerDeleteInactivePartitionedTopicMetaDataEnabled is not enabled, so only NonPartitionedTopic will be cleaned
+        Assert.assertFalse(admin.topics().getList(namespace).contains(topic2));
     }
 
     @Test(timeOut = 20000)
@@ -88,7 +181,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         final String namespace3 = "prop/ns-abc3";
         List<String> namespaceList = Arrays.asList(namespace2, namespace3);
 
-        super.resetConfig();
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
@@ -161,8 +253,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         }
         assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get().get()).inactiveTopicPolicies
                 , defaultPolicy);
-
-        super.internalCleanup();
     }
 
     @Test(timeOut = 20000)
@@ -233,8 +323,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Thread.sleep(2000);
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
         Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3));
-
-        super.internalCleanup();
     }
 
     @Test
@@ -269,8 +357,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Thread.sleep(2000);
         Assert.assertFalse(admin.topics().getList("prop/ns-abc")
             .contains(topic));
-
-        super.internalCleanup();
     }
 
     @Test
@@ -300,7 +386,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
-        super.resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
@@ -336,13 +421,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             Thread.sleep(100);
         }
         assertNull(admin.topics().getInactiveTopicPolicies(topicName));
-
-        super.internalCleanup();
     }
 
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
-        super.resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
@@ -417,8 +499,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topic2, false).get().get()).inactiveTopicPolicies;
         assertEquals(nsPolicies.getMaxInactiveDurationSeconds(), 999);
-
-        super.internalCleanup();
     }
 
     @Test(timeOut = 30000)
@@ -482,7 +562,5 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Thread.sleep(2000);
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic3));
-
-        super.internalCleanup();
     }
 }

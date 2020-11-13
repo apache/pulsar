@@ -22,7 +22,6 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.ServiceConfiguration;

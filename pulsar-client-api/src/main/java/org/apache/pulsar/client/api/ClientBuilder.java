@@ -23,12 +23,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ClientBuilder extends Cloneable {
 
     /**

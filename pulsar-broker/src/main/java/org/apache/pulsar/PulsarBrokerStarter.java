@@ -24,26 +24,24 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.create;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
-import java.util.Date;
-import java.util.Arrays;
-import java.util.Optional;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Optional;
+import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -248,7 +246,7 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
                 checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = new BookieServer(bookieConfig, bookieStatsProvider.getStatsLogger(""));
+                bookieServer = new BookieServer(bookieConfig, bookieStatsProvider.getStatsLogger(""), BookieServiceInfo.NO_INFO);
             } else {
                 bookieServer = null;
             }

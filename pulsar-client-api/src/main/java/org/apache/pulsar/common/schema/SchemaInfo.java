@@ -31,10 +31,14 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Information about the schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

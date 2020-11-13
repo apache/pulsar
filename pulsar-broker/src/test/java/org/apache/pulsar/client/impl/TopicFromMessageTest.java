@@ -40,7 +40,7 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

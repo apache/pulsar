@@ -44,7 +44,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

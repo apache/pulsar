@@ -48,6 +48,7 @@ class TopicStats {
     long backlogQuotaLimit;
 
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
+    StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
     double storageWriteRate;
     double storageReadRate;
@@ -83,6 +84,7 @@ class TopicStats {
         replicationStats.clear();
         subscriptionStats.clear();
         storageWriteLatencyBuckets.reset();
+        storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
     }
 
@@ -122,6 +124,22 @@ class TopicStats {
                 stats.storageWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_sum",
                 stats.storageWriteLatencyBuckets.getSum());
+
+        long[] ledgerWritelatencyBuckets = stats.storageLedgerWriteLatencyBuckets.getBuckets();
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_0_5", ledgerWritelatencyBuckets[0]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1", ledgerWritelatencyBuckets[1]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_5", ledgerWritelatencyBuckets[2]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_10", ledgerWritelatencyBuckets[3]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_20", ledgerWritelatencyBuckets[4]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_50", ledgerWritelatencyBuckets[5]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_100", ledgerWritelatencyBuckets[6]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_200", ledgerWritelatencyBuckets[7]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1000", ledgerWritelatencyBuckets[8]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_overflow", ledgerWritelatencyBuckets[9]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_count",
+                stats.storageLedgerWriteLatencyBuckets.getCount());
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_sum",
+                stats.storageLedgerWriteLatencyBuckets.getSum());
 
         long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_128", entrySizeBuckets[0]);

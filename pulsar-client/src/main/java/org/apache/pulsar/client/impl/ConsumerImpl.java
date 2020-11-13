@@ -1172,19 +1172,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            if (isTxnMessage(msgMetadata)) {
-                BitSet ackBitSet = null;
-                if (ackSet != null && ackSet.size() > 0) {
-                    ackBitSet = BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet));
-                }
-                if (!ackBitSet.get(messageId.getBatchIndex())) {
-                    msgMetadata.recycle();
-                    return;
-                }
-                BatchMessageAcker batchMessageAcker = BatchMessageAcker.newAcker(ackBitSet);
-                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, batchMessageAcker);
-            }
-
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
@@ -1399,19 +1386,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleToDeadLetter = new ArrayList<>();
         }
 
-        BatchMessageAcker acker;
+        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         BitSetRecyclable ackBitSet = null;
         if (ackSet != null && ackSet.size() > 0) {
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
-            acker = BatchMessageAcker.newAcker(BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)));
-        } else {
-            acker = BatchMessageAcker.newAcker(batchSize);
         }
 
         int skippedMessages = 0;
         try {
-            int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
-            for (int i = startBatchIndex; i < batchSize; ++i) {
+            for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
@@ -1569,6 +1552,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 available = AVAILABLE_PERMITS_UPDATER.get(this);
             }
         }
+    }
+
+    public void increaseAvailablePermits(int delta) {
+        increaseAvailablePermits(cnx(), delta);
     }
 
     @Override
@@ -1748,6 +1735,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    public int clearIncomingMessagesAndGetMessageNumber() {
+        int messagesNumber = incomingMessages.size();
+        incomingMessages.clear();
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        unAckedMessageTracker.clear();
+        return messagesNumber;
     }
 
     @Override
@@ -2397,11 +2392,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             entryId = batchMessageId.getEntryId();
             if (ackType == AckType.Cumulative) {
                 batchMessageId.ackCumulative();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
-                batchMessageId.ackIndividual();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
         } else {
@@ -2416,7 +2410,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);
-        unAckedMessageTracker.remove(messageId);
+        if (ackType == AckType.Cumulative) {
+            unAckedMessageTracker.removeMessagesTill(messageId);
+        } else {
+            unAckedMessageTracker.remove(messageId);
+        }
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;

@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -251,7 +252,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId,
                                                      long sequenceId,
-                                                     long batchSize,
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
@@ -280,7 +280,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, List<PulsarApi.MessageIdData> messageIdDataList) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
@@ -307,7 +307,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, List<PulsarApi.MessageIdData> sendMessageIdList) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
         try {

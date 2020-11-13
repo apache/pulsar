@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -68,7 +67,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
