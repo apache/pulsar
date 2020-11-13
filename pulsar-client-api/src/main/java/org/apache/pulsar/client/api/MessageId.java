@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Opaque unique identifier of a single message
@@ -32,6 +34,8 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  * <p>Message ids are {@link Comparable} and a bigger message id will imply that a message was published "after"
  * the other one.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface MessageId extends Comparable<MessageId>, Serializable {
 
     /**

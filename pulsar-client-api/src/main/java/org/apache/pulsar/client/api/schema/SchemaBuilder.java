@@ -19,10 +19,14 @@
 package org.apache.pulsar.client.api.schema;
 
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder to build schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaBuilder {
 
     /**

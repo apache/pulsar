@@ -16,24 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
-
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
- * Serialize messages into bytes.
+ * Annotations used across the whole project.
  */
-@InterfaceAudience.Public
-@InterfaceStability.Stable
-@FunctionalInterface
-public interface SchemaWriter<T> {
-
-    /**
-     * Serialize the message into bytes.
-     *
-     * @param message the message for encode
-     * @return the serialized bytes
-     */
-    byte[] write(T message);
-}
+package org.apache.pulsar.common.classification;
