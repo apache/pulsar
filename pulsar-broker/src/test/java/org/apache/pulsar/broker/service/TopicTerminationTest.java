@@ -297,6 +297,42 @@ public class TopicTerminationTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 20000)
+    public void testSimpleTerminationReaderException() throws Exception {
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        MessageId msgId1 = producer.send("test-msg-1".getBytes());
+        MessageId msgId2 = producer.send("test-msg-2".getBytes());
+        MessageId msgId3 = producer.send("test-msg-3".getBytes());
+
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
+        assertEquals(lastMessageId, msgId3);
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
+
+        Message<byte[]> msg1 = reader.readNext();
+        assertEquals(msg1.getMessageId(), msgId1);
+
+        Message<byte[]> msg2 = reader.readNext();
+        assertEquals(msg2.getMessageId(), msgId2);
+
+        Message<byte[]> msg3 = reader.readNext();
+        assertEquals(msg3.getMessageId(), msgId3);
+
+        try {
+          Message<byte[]> msg4 = reader.readNext();
+          fail("Consumer should have thrown exception");
+        } catch (PulsarClientException.TopicTerminatedException e) {
+          // Expected
+        }
+
+        Thread.sleep(100);
+        assertTrue(reader.hasReachedEndOfTopic());
+    }
+
+    @Test(timeOut = 20000)
     public void testSimpleTerminationReaderListener() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
