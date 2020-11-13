@@ -82,6 +82,10 @@ class PulsarFriend {
         return *consumerImpl;
     }
 
+    static std::shared_ptr<ConsumerImpl> getConsumerImplPtr(Consumer consumer) {
+        return std::static_pointer_cast<ConsumerImpl>(consumer.impl_);
+    }
+
     static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
 
     static void setNegativeAckEnabled(Consumer consumer, bool enabled) {

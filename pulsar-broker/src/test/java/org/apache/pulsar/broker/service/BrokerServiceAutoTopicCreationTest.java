@@ -40,13 +40,13 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanupTest() throws Exception {
         pulsar.getAdminClient().namespaces().removeAutoTopicCreation("prop/ns-abc");
     }

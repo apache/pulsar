@@ -30,7 +30,11 @@ import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.

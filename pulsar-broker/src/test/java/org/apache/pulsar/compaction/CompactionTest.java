@@ -95,7 +95,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, Optional.empty(), null);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

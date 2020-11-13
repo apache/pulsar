@@ -107,7 +107,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             updateRates();
             // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
             if (subscription != null && subscription.getType() == PulsarApi.CommandSubscribe.SubType.Key_Shared) {
-                subscription.getDispatcher().acknowledgementWasProcessed();
+                subscription.getDispatcher().markDeletePositionMoveForward();
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted {} messages", topicName, subName, numMessagesExpired);
