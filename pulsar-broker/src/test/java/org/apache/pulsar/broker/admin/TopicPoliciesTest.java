@@ -1009,12 +1009,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
     }
 
-     @Test
+    @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
-             .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
+             .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(persistenceTopic)));
 
         SubscribeRate subscribeRate = new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, persistenceTopic);
@@ -1054,6 +1054,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeSubscribeRate(persistenceTopic);
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
                  .untilAsserted(() -> Assert.assertNull(admin.topics().getSubscribeRate(persistenceTopic)));
+
+        admin.topics().unload(persistenceTopic);
 
         PulsarClient pulsarClient4 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient5 = newPulsarClient(lookupUrl.toString(), 0);
