@@ -1455,6 +1455,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("namespace") String namespace,
                              @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOwnership(topicName, true);
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
         if (topicPolicies.isDeduplicationSet()) {
             asyncResponse.resume(topicPolicies.getDeduplicationEnabled());
@@ -1475,6 +1476,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("topic") @Encoded String encodedTopic,
                              @ApiParam(value = "DeduplicationEnabled policies for the specified topic") Boolean enabled) {
         validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOwnership(topicName, true);
         internalSetDeduplicationEnabled(enabled).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated deduplication", ex);

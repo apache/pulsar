@@ -102,6 +102,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
         super.internalSetup();
 
         // create otherbroker to test redirect on calls that need
@@ -1341,6 +1343,20 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (PreconditionFailedException e) {
             assertTrue(e.getMessage().startsWith("Invalid bundle range"));
         }
+    }
+
+    @Test
+    public void testDedupTopicOwnership() throws Exception {
+        String tenant = "prop-xyz2";
+        String namespace = tenant + "/dedupOwner";
+        String topic = "persistent://" + namespace + "/t1";
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant(tenant, tenantInfo);
+        admin.namespaces().createNamespace(namespace, 10);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        admin.topics().enableDeduplication(topic, true);
+        admin.topics().disableDeduplication(topic);
+        assertNull(admin.topics().getDeduplicationEnabled(topic));
     }
 
     @Test
