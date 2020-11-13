@@ -21,6 +21,8 @@ name: Pulsar Bot
 on:
   issue_comment:
     types: [created]
+  pull_request:
+    types: [closed]
 
 env:
   MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3

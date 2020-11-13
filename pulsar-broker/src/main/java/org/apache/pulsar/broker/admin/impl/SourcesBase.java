@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.*;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Example;
+import io.swagger.annotations.ExampleProperty;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;

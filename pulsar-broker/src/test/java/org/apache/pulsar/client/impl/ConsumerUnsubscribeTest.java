@@ -39,7 +39,7 @@ public class ConsumerUnsubscribeTest {
         mockBrokerService.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         mockBrokerService.stop();
     }

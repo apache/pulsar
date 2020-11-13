@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.api.transaction.Transaction;
+
 /**
  * Producer is used to publish messages on a topic.
  *
@@ -114,6 +116,19 @@ public interface Producer<T> extends Closeable {
      */
     <V> TypedMessageBuilder<V> newMessage(Schema<V> schema);
 
+    /**
+     * Create a new message builder with transaction.
+     *
+     * <p>After the transaction commit, it will be made visible to consumer.
+     *
+     * <p>After the transaction abort, it will never be visible to consumer.
+     *
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     * @see #newMessage()
+     *
+     * @since 2.7.0
+     */
+    TypedMessageBuilder<T> newMessage(Transaction txn);
     /**
      * Get the last sequence id that was published by this producer.
      *

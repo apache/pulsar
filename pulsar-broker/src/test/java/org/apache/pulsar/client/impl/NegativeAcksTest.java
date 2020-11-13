@@ -50,7 +50,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

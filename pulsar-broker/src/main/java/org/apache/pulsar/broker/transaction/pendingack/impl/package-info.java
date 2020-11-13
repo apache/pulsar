@@ -16,15 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance;
 
-/*
-    ResourceUnit represents any machine/unit which has resources that broker can use to serve its service units
+/**
+ * The implementation for processing pending acks in transactions.
  */
-public interface ResourceUnit extends Comparable<ResourceUnit> {
-    String getResourceId();
-
-    ResourceDescription getAvailableResource();
-
-    boolean canFit(ResourceDescription resourceDescription);
-}
+package org.apache.pulsar.broker.transaction.pendingack.impl;

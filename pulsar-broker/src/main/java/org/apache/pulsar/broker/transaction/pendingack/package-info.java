@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
-package prototest;
 
-message Test {
-    int32 num = 1;
-    string msf = 2;
-}
+/**
+ * Component for processing pending acks for transactions.
+ */
+package org.apache.pulsar.broker.transaction.pendingack;
