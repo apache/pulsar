@@ -267,7 +267,7 @@ public interface Schema<T> extends Cloneable{
      * @param schemaDefinition schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUFNATIVE(
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(
             SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.newProtobufNativeSchema(schemaDefinition);
     }
