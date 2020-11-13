@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -75,31 +76,45 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> startAsync() {
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
             return pulsarClient.getLookup().getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN)
-                .thenAccept(partitionMeta -> {
+                .thenCompose(partitionMeta -> {
+                    List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
                     }
                     if (partitionMeta.partitions > 0) {
                         handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
                         for (int i = 0; i < partitionMeta.partitions; i++) {
-                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(i, pulsarClient,
-                                    TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + i);
+                            CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+                            connectFutureList.add(connectFuture);
+                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                                    i, pulsarClient, getTCAssignTopicName(i), connectFuture);
                             handlers[i] = handler;
                             handlerMap.put(i, handler);
                         }
                     } else {
                         handlers = new TransactionMetaStoreHandler[1];
+                        CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+                        connectFutureList.add(connectFuture);
                         TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0, pulsarClient,
-                                TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+                                getTCAssignTopicName(-1), connectFuture);
                         handlers[0] = handler;
                         handlerMap.put(0, handler);
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
 
+                    return FutureUtil.waitForAll(connectFutureList);
                 });
         } else {
             return FutureUtil.failedFuture(new CoordinatorClientStateException("Can not start while current state is " + state));
+        }
+    }
+
+    private String getTCAssignTopicName(int partition) {
+        if (partition > 0) {
+            return TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
+        } else {
+            return TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString();
         }
     }
 
