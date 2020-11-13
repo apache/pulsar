@@ -21,12 +21,16 @@ package org.apache.pulsar.io.core;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.slf4j.Logger;
 
 /**
  * Interface for a connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConnectorContext {
 
     /**

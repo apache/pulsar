@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.io.IOException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Base type of exception thrown by Pulsar client.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
     private long sequenceId = -1;
