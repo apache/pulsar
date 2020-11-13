@@ -432,8 +432,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return acknowledgeAsync(messageId, null);
     }
 
-    // TODO: expose this method to consumer interface when the transaction feature is completed
-    // @Override
+    @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
                                                     Transaction txn) {
         TransactionImpl txnImpl = null;
@@ -449,8 +448,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return acknowledgeCumulativeAsync(messageId, null);
     }
 
-    // TODO: expose this method to consumer interface when the transaction feature is completed
-    // @Override
+    @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
