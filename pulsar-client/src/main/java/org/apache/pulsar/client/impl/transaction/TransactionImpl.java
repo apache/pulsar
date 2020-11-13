@@ -51,35 +51,19 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 @Getter
 public class TransactionImpl implements Transaction {
 
-    @Data
-    private static class TransactionalSendOp {
-        private final CompletableFuture<MessageId> sendFuture;
-        private final CompletableFuture<MessageId> transactionalSendFuture;
-    }
-
-    @Data
-    private static class TransactionalAckOp {
-        private final CompletableFuture<Void> ackFuture;
-        private final CompletableFuture<Void> transactionalAckFuture;
-    }
-
     private final PulsarClientImpl client;
     private final long transactionTimeoutMs;
     private final long txnIdLeastBits;
     private final long txnIdMostBits;
     private final AtomicLong sequenceId = new AtomicLong(0L);
-    private final LinkedHashMap<Long, TransactionalSendOp> sendOps;
+
     private final Set<String> producedTopics;
-    private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> registerPartitionFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
-    private final ArrayList<CompletableFuture<Void>> registerSubscriptionFutureList;
-    private final ArrayList<MessageId> sendMessageIdList;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -89,17 +73,13 @@ public class TransactionImpl implements Transaction {
         this.transactionTimeoutMs = transactionTimeoutMs;
         this.txnIdLeastBits = txnIdLeastBits;
         this.txnIdMostBits = txnIdMostBits;
-        this.sendOps = new LinkedHashMap<>();
+
         this.producedTopics = new HashSet<>();
-        this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
         this.tcClient = client.getTcClient();
 
-        sendFutureList = new ArrayList<>();
-        registerPartitionFutureList = new ArrayList<>();
-        ackFutureList = new ArrayList<>();
-        registerSubscriptionFutureList = new ArrayList<>();
-        sendMessageIdList = new ArrayList<>();
+        this.sendFutureList = new ArrayList<>();
+        this.ackFutureList = new ArrayList<>();
     }
 
     public long nextSequenceId() {
@@ -107,30 +87,37 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerProducedTopic(String topic) {
+    public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (producedTopics.add(topic)) {
             // we need to issue the request to TC to register the produced topic
-            registerPartitionFutureList.add(
-                    tcClient.addPublishPartitionToTxnAsync(
-                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
-            );
+            completableFuture = tcClient.addPublishPartitionToTxnAsync(
+                    new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
+        } else {
+            completableFuture.complete(null);
         }
+        return completableFuture;
     }
 
-    public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
-                                                                    CompletableFuture<MessageId> sendFuture) {
+    public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
         sendFutureList.add(sendFuture);
-        return sendFuture;
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerAckedTopic(String topic, String subscription) {
+    public synchronized CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (ackedTopics.add(topic)) {
             // we need to issue the request to TC to register the acked topic
-            registerSubscriptionFutureList.add(
-                    tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
-            );
+            completableFuture = tcClient.addSubscriptionToTxnAsync(
+                    new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
+        } else {
+            completableFuture.complete(null);
         }
+        return completableFuture;
+    }
+
+    public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
+        ackFutureList.add(ackFuture);
     }
 
     public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
@@ -140,13 +127,9 @@ public class TransactionImpl implements Transaction {
         cumulativeAckConsumers.put(consumer, 0);
     }
 
-    public synchronized CompletableFuture<Void> registerAckOp(CompletableFuture<Void> ackFuture) {
-        ackFutureList.add(ackFuture);
-        return ackFuture;
-    }
-
     @Override
     public CompletableFuture<Void> commit() {
+        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
@@ -170,7 +153,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-
+        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
@@ -204,9 +187,7 @@ public class TransactionImpl implements Transaction {
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(registerPartitionFutureList);
         futureList.addAll(sendFutureList);
-        futureList.addAll(registerSubscriptionFutureList);
         futureList.addAll(ackFutureList);
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }

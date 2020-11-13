@@ -488,9 +488,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private void markDeletePositionCheck(String topic, String subName, boolean equalsWithLastConfirm) throws Exception {
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             PersistentTopicInternalStats stats = null;
+            String checkTopic = TopicName.get(topic).getPartition(i).toString();
             for (int j = 0; j < 10; j++) {
-                topic = TopicName.get(topic).getPartition(i).toString();
-                stats = admin.topics().getInternalStats(topic, false);
+                stats = admin.topics().getInternalStats(checkTopic, false);
                 if (stats.lastConfirmedEntry.equals(stats.cursors.get(subName).markDeletePosition)) {
                     break;
                 }
