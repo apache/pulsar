@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -493,15 +494,15 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        TopicStats stats = admin.topics().getStats(topicName);
-
-        // Unacked messages count should be 0 for both consumers at this point
-        SubscriptionStats subStats = stats.subscriptions.get(subName);
-        assertEquals(subStats.msgBacklog, 0);
-
-        for (ConsumerStats cs : subStats.consumers) {
-            assertEquals(cs.unackedMessages, 0);
-        }
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            TopicStats stats = admin.topics().getStats(topicName);
+            // Unacked messages count should be 0 for both consumers at this point
+            SubscriptionStats subStats = stats.subscriptions.get(subName);
+            assertEquals(subStats.msgBacklog, 0);
+            for (ConsumerStats cs : subStats.consumers) {
+                assertEquals(cs.unackedMessages, 0);
+            }
+        });
 
         producer.close();
         consumer1.close();
