@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.common.util.RestException;
 
 /**
  * Definition of Pulsar policies.
@@ -234,5 +236,29 @@ public class Policies {
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
                 .add("offload_policies", offload_policies).toString();
+    }
+
+
+    private static final long MAX_BUNDLES = ((long) 1) << 32;
+
+    public static BundlesData getBundles(int numBundles) {
+        if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
+            throw new RestException(Status.BAD_REQUEST,
+                    "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+        }
+        Long maxVal = ((long) 1) << 32;
+        Long segSize = maxVal / numBundles;
+        List<String> partitions = Lists.newArrayList();
+        partitions.add(String.format("0x%08x", 0L));
+        Long curPartition = segSize;
+        for (int i = 0; i < numBundles; i++) {
+            if (i != numBundles - 1) {
+                partitions.add(String.format("0x%08x", curPartition));
+            } else {
+                partitions.add(String.format("0x%08x", maxVal - 1));
+            }
+            curPartition += segSize;
+        }
+        return new BundlesData(partitions);
     }
 }

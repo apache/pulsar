@@ -71,6 +71,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)

@@ -19,9 +19,10 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
+import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +36,6 @@ import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -343,23 +343,6 @@ public class PulsarClusterMetadataSetup {
         }
         ZooKeeper zkConnect = zkfactory.create(connection, SessionType.ReadWrite, sessionTimeout).get();
         return zkConnect;
-    }
-
-    private static BundlesData getBundles(int numBundles) {
-        Long maxVal = ((long) 1) << 32;
-        Long segSize = maxVal / numBundles;
-        List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0l));
-        Long curPartition = segSize;
-        for (int i = 0; i < numBundles; i++) {
-            if (i != numBundles - 1) {
-                partitions.add(String.format("0x%08x", curPartition));
-            } else {
-                partitions.add(String.format("0x%08x", maxVal - 1));
-            }
-            curPartition += segSize;
-        }
-        return new BundlesData(partitions);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);

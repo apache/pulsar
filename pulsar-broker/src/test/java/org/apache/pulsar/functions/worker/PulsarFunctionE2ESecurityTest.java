@@ -92,7 +92,7 @@ public class PulsarFunctionE2ESecurityTest {
     PulsarAdmin superUserAdmin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String TENANT = "external-repl-prop";
     final String TENANT2 = "tenant2";
 
@@ -156,7 +156,7 @@ public class PulsarFunctionE2ESecurityTest {
                 "token:" +  adminToken);
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         brokerServiceUrl = pulsar.getWebServiceAddress();
@@ -201,7 +201,7 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
-        while (!functionWorkerService.get().getLeaderService().isLeader()) {
+        while (!functionsWorkerService.getLeaderService().isLeader()) {
             Thread.sleep(1000);
         }
     }
@@ -216,7 +216,7 @@ public class PulsarFunctionE2ESecurityTest {
         bkEnsemble.stop();
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -253,7 +253,7 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
 
-        return new WorkerService(workerConfig);
+        return new PulsarWorkerService();
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {

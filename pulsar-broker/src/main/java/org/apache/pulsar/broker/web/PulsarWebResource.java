@@ -26,7 +26,6 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -42,8 +41,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
@@ -68,6 +65,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,26 +103,15 @@ public abstract class PulsarWebResource {
     }
 
     public static String path(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("/admin/");
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
+        return PolicyPath.path(parts);
     }
 
     public static String joinPath(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
+        return PolicyPath.joinPath(parts);
     }
 
     public static String splitPath(String source, int slice) {
-        Iterable<String> parts = Splitter.on('/').limit(slice).split(source);
-        Iterator<String> s = parts.iterator();
-        String result = "";
-        for (int i = 0; i < slice; i++) {
-            result = s.next();
-        }
-        return result;
+        return PolicyPath.splitPath(source, slice);
     }
 
     /**

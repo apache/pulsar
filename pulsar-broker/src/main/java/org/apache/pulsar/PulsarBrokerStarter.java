@@ -47,12 +47,12 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -125,6 +125,7 @@ public class PulsarBrokerStarter {
         private final StatsProvider bookieStatsProvider;
         private final ServerConfiguration bookieConfig;
         private final WorkerService functionsWorkerService;
+        private final WorkerConfig workerConfig;
 
         BrokerStarter(String[] args) throws Exception{
             StarterArguments starterArguments = new StarterArguments();
@@ -162,49 +163,18 @@ public class PulsarBrokerStarter {
 
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
-                WorkerConfig workerConfig;
-                if (isBlank(starterArguments.fnWorkerConfigFile)) {
-                    workerConfig = new WorkerConfig();
-                } else {
-                    workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
-                }
-                // worker talks to local broker
-                String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-                    brokerConfig.getAdvertisedAddress());
-                workerConfig.setWorkerHostname(hostname);
-                workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
-                workerConfig.setWorkerId(
-                    "c-" + brokerConfig.getClusterName()
-                        + "-fw-" + hostname
-                        + "-" + workerConfig.getWorkerPort());
-                // inherit broker authorization setting
-                workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
-                workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
-
-                workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
-                workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
-                workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
-                workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
-                workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
-
-                workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-                workerConfig.setTlsEnableHostnameVerification(false);
-                workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
-
-                // client in worker will use this config to authenticate with broker
-                workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
-                workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
-
-                // inherit super users
-                workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
-
-                functionsWorkerService = new WorkerService(workerConfig);
+                workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
+                    brokerConfig, starterArguments.fnWorkerConfigFile
+                );
+                functionsWorkerService = WorkerServiceLoader.load(workerConfig);
             } else {
+                workerConfig = null;
                 functionsWorkerService = null;
             }
 
             // init pulsar service
             pulsarService = new PulsarService(brokerConfig,
+                                              workerConfig,
                                               Optional.ofNullable(functionsWorkerService),
                                               (exitCode) -> {
                                                   log.info("Halting broker process with code {}",

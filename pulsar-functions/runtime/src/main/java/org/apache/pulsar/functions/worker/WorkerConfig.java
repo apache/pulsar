@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -51,7 +53,6 @@ import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
@@ -486,20 +487,29 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionAssignmentTopicName);
     }
 
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "The nar package for the function worker service"
+    )
+    private String functionsWorkerServiceNarPackage = "";
+
     public static WorkerConfig load(String yamlFile) throws IOException {
+        if (isBlank(yamlFile)) {
+            return new WorkerConfig();
+        }
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);
     }
 
     public String getWorkerId() {
-        if (StringUtils.isBlank(this.workerId)) {
+        if (isBlank(this.workerId)) {
             this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
         }
         return this.workerId;
     }
 
     public String getWorkerHostname() {
-        if (StringUtils.isBlank(this.workerHostname)) {
+        if (isBlank(this.workerHostname)) {
             this.workerHostname = unsafeLocalhostResolve();
         }
         return this.workerHostname;
