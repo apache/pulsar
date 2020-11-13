@@ -20,7 +20,11 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.google.protobuf.Descriptors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
@@ -29,6 +33,9 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Generic ProtobufNative schema.
+ */
 @Slf4j
 public class GenericProtobufNativeSchema extends AbstractGenericSchema {
 

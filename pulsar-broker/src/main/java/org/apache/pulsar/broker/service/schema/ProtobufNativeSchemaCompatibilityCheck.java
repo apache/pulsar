@@ -47,12 +47,12 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
             case FORWARD:
             case FULL_TRANSITIVE:
             case FULL:
-                CheckRootRootMessageChange(fromDescriptor, toDescriptor, strategy);
+                checkRootMessageChange(fromDescriptor, toDescriptor, strategy);
                 return;
             case ALWAYS_COMPATIBLE:
                 return;
             default:
-                throw new IncompatibleSchemaException("Unknown SchemaCompatibilityStrategy");
+                throw new IncompatibleSchemaException("Unknown SchemaCompatibilityStrategy.");
         }
     }
 
@@ -63,7 +63,8 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
         }
     }
 
-    private void CheckRootRootMessageChange(Descriptor fromDescriptor, Descriptor toDescriptor, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    private void checkRootMessageChange(Descriptor fromDescriptor, Descriptor toDescriptor,
+                                            SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
         if (!fromDescriptor.getFullName().equals(toDescriptor.getFullName())) {
             throw new IncompatibleSchemaException("Protobuf root message isn't allow change!");
         }

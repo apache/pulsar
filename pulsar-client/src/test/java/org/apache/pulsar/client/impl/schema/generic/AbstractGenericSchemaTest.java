@@ -32,14 +32,14 @@ import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit testing AbstractGenericSchema for non-avroBasedGenericSchema
+ * Unit testing AbstractGenericSchema for non-avroBasedGenericSchema.
  */
 @Slf4j
 public class AbstractGenericSchemaTest {
 
     @Test
     public void testGenericProtobufNativeSchema() {
-        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUFNATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
         GenericSchema decodeSchema = GenericProtobufNativeSchema.of(encodeSchema.getSchemaInfo());
 
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
@@ -49,12 +49,12 @@ public class AbstractGenericSchemaTest {
     public void testAutoProtobufNativeSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericProtobufNativeSchema = GenericProtobufNativeSchema.of(Schema.PROTOBUFNATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class).getSchemaInfo());
+        GenericSchema genericProtobufNativeSchema = GenericProtobufNativeSchema.of(Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericProtobufNativeSchema.getSchemaInfo()));
 
         // configure encode schema
-        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUFNATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
         // configure decode schema
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         decodeSchema.configureSchemaInfo("test-topic", "topic", encodeSchema.getSchemaInfo());
