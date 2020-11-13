@@ -75,8 +75,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 @PrepareForTest(PersistentTopics.class)
+@PowerMockIgnore("com.sun.management.*")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -135,7 +137,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

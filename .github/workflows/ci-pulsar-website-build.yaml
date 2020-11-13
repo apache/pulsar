@@ -42,6 +42,14 @@ jobs:
       - name: build
         run: mvn clean package -DskipTests -Pswagger
 
+      - name: clean disk
+        run: |
+          sudo swapoff -a
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
       - name: publish
         env:
           GH_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}

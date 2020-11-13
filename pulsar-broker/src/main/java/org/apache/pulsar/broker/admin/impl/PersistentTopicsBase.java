@@ -25,7 +25,6 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -1618,11 +1617,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                Preconditions.checkNotNull(repl);
+                checkNotNull(repl);
                 repl.skipMessages(numMessages).get();
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                checkNotNull(sub);
                 sub.skipMessages(numMessages).get();
             }
             log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages, topicName, subName);
@@ -2296,7 +2295,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Response generateResponseWithEntry(Entry entry) throws IOException {
-        Preconditions.checkNotNull(entry);
+        checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
@@ -2857,11 +2856,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                Preconditions.checkNotNull(repl);
+                checkNotNull(repl);
                 repl.expireMessages(expireTimeInSeconds);
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                Preconditions.checkNotNull(sub);
+                checkNotNull(sub);
                 sub.expireMessages(expireTimeInSeconds);
             }
             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
@@ -3108,7 +3107,7 @@ public class PersistentTopicsBase extends AdminResource {
                 sub = topic.createSubscription(subName, InitialPosition.Earliest, false).get();
             }
 
-            return Preconditions.checkNotNull(sub);
+            return checkNotNull(sub);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
         }
@@ -3121,7 +3120,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-            return Preconditions.checkNotNull(repl);
+            return checkNotNull(repl);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Replicator not found");
         }

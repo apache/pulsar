@@ -19,10 +19,14 @@
 package org.apache.pulsar.client.api.transaction;
 
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The class represents a transaction within Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface Transaction {
 
     /**

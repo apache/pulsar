@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
-package prototest;
-
-message Test {
-    int32 num = 1;
-    string msf = 2;
-}
+/**
+ * Annotations used across the whole project.
+ */
+package org.apache.pulsar.common.classification;

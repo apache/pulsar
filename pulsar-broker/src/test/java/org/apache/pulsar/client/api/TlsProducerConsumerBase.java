@@ -53,7 +53,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

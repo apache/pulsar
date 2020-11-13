@@ -299,7 +299,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);

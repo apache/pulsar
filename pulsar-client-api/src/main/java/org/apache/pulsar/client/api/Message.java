@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The message abstraction used in Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Message<T> {
 
     /**

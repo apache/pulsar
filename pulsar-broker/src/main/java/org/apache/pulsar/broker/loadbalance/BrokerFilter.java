@@ -46,6 +46,6 @@ public interface BrokerFilter {
      * @throws BrokerFilterException
      *            There was an error in the pipeline and the brokers should be reset to their original value
      */
-    public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
-                       throws BrokerFilterException;
+    void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
+            throws BrokerFilterException;
 }

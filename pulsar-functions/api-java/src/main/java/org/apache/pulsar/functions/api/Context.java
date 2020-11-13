@@ -24,6 +24,8 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.slf4j.Logger;
 
 import java.util.Collection;
@@ -37,6 +39,8 @@ import java.util.concurrent.CompletableFuture;
  * message, what are our operating constraints, etc can be accessed by the
  * executing function
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Context {
     /**
      * Access the record associated with the current input value.

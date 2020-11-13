@@ -19,7 +19,11 @@
 package org.apache.pulsar.functions.api.utils;
 
 import java.util.function.Function;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class IdentityFunction implements Function<Object, Object> {
     @Override
     public Object apply(Object o) {

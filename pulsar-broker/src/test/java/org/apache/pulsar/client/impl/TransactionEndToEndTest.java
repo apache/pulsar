@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -88,7 +89,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Thread.sleep(1000 * 3);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }
@@ -105,7 +106,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
-        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+        Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic(TOPIC_OUTPUT)
                 .subscriptionName("test")
@@ -118,7 +119,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatching(enableBatch)
                 .sendTimeout(0, TimeUnit.SECONDS);
         @Cleanup
-        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+        Producer<byte[]> producer = producerBuilder.create();
 
         Transaction txn1 = getTxn();
         Transaction txn2 = getTxn();
@@ -176,7 +177,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = getTxn();
 
         @Cleanup
-        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+        Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(TOPIC_OUTPUT)
                 .sendTimeout(0, TimeUnit.SECONDS)
@@ -189,7 +190,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         @Cleanup
-        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+        Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic(TOPIC_OUTPUT)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -236,7 +237,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
@@ -311,7 +312,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         final String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
         @Cleanup
-        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+        Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
@@ -320,7 +321,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscribe();
 
         @Cleanup
-        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+        Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
@@ -394,7 +395,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
@@ -477,7 +478,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     private Transaction getTxn() throws Exception {
-        return ((PulsarClientImpl) pulsarClient)
+        return pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
                 .build()
@@ -487,9 +488,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private void markDeletePositionCheck(String topic, String subName, boolean equalsWithLastConfirm) throws Exception {
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             PersistentTopicInternalStats stats = null;
+            String checkTopic = TopicName.get(topic).getPartition(i).toString();
             for (int j = 0; j < 10; j++) {
-                topic = TopicName.get(topic).getPartition(i).toString();
-                stats = admin.topics().getInternalStats(topic, false);
+                stats = admin.topics().getInternalStats(checkTopic, false);
                 if (stats.lastConfirmedEntry.equals(stats.cursors.get(subName).markDeletePosition)) {
                     break;
                 }
