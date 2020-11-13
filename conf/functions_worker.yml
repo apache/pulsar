@@ -114,7 +114,7 @@ topicCompactionFrequencySec: 1800
 functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
 functionRuntimeFactoryConfigs:
     # location of log files for functions
-    logDirectory: /tmp
+    logDirectory: logs/
     # change the jar location only when you put the java instance jar in a different location
     javaInstanceJarLocation:
     # change the python instance location only when you put the python instance jar in a different location

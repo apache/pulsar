@@ -22,7 +22,6 @@ package org.apache.pulsar.functions.instance;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.CollectorRegistry;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -30,7 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -46,6 +44,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
@@ -66,7 +65,6 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -233,7 +231,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             setup();
-            
+
             while (true) {
                 currentRecord = readInput();
 
@@ -317,7 +315,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         return fnClassLoader;
     }
-
 
     private void setupStateStore() throws Exception {
         this.stateManager = new InstanceStateManager();

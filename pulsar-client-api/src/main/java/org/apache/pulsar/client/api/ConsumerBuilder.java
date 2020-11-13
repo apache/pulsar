@@ -475,8 +475,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            the property key
      * @param value
      *            the property value
-     * @param key
-     * @param value
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> property(String key, String value);

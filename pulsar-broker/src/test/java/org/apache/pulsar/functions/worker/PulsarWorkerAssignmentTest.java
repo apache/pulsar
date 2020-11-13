@@ -122,7 +122,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() {
         log.info("--- Shutting down ---");
         try {

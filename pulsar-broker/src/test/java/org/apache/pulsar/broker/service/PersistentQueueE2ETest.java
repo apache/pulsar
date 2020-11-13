@@ -64,7 +64,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

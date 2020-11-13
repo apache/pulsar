@@ -65,7 +65,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         super.conf.setAuthenticationEnabled(true);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

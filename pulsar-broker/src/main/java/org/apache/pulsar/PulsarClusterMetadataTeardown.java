@@ -21,6 +21,9 @@ package org.apache.pulsar;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -36,10 +39,6 @@ import org.apache.zookeeper.ZKUtil;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Teardown the metadata for a existed Pulsar cluster

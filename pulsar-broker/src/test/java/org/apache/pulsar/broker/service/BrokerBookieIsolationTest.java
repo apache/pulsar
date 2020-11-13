@@ -96,7 +96,7 @@ public class BrokerBookieIsolationTest {
         bkEnsemble.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();

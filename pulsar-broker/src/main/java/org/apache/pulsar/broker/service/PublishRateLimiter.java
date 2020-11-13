@@ -23,7 +23,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 
 public interface PublishRateLimiter {
 
-    static PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
+    PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
 
     /**
      * checks and update state of current publish and marks if it has exceeded the rate-limiting threshold.

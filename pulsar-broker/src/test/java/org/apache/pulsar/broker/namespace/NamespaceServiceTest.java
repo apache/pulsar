@@ -93,7 +93,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

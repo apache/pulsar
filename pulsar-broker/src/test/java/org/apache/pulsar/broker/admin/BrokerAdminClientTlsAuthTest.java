@@ -82,7 +82,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setNumExecutorThreadPoolSize(5);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

@@ -203,7 +203,7 @@ public class ServerCnxTest {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         serverCnx.close();
         channel.close();
