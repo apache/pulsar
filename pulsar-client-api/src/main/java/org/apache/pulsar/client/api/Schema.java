@@ -257,7 +257,7 @@ public interface Schema<T> extends Cloneable{
      * @param clazz the Protobuf generated class to be used to extract the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUFNATIVE(Class<T> clazz) {
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
         return DefaultImplementation.newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
 
