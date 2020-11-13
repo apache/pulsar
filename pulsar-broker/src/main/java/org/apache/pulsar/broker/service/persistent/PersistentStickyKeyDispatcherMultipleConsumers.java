@@ -326,16 +326,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
         Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
-        PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
-        PositionImpl nextPositionOfTheMarkDeletePosition = ((ManagedLedgerImpl)cursor.getManagedLedger()).getNextValidPosition(mdp);
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
-        while (itr.hasNext()) {
-            Map.Entry<Consumer, PositionImpl> entry = itr.next();
-            if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
-                itr.remove();
-                hasConsumerRemovedFromTheRecentJoinedConsumers = true;
-            } else {
-                break;
+        PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
+        if (mdp != null) {
+            PositionImpl nextPositionOfTheMarkDeletePosition = ((ManagedLedgerImpl)cursor.getManagedLedger()).getNextValidPosition(mdp);
+            while (itr.hasNext()) {
+                Map.Entry<Consumer, PositionImpl> entry = itr.next();
+                if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
+                    itr.remove();
+                    hasConsumerRemovedFromTheRecentJoinedConsumers = true;
+                } else {
+                    break;
+                }
             }
         }
         return hasConsumerRemovedFromTheRecentJoinedConsumers;
