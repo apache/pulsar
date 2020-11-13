@@ -18319,24 +18319,8 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
+                "overLoaded": {
+                    "type": "boolean"
                 },
                 "msgThroughputIn": {
                     "type": "number",
@@ -18346,14 +18330,30 @@
                     "type": "number",
                     "format": "double"
                 },
-                "overLoaded": {
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "underLoaded": {
                     "type": "boolean"
                 },
                 "loadReportType": {
                     "type": "string"
                 },
-                "underLoaded": {
-                    "type": "boolean"
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -18534,10 +18534,10 @@
                     "type": "number",
                     "format": "double"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
                 "clientVersion": {
@@ -19461,10 +19461,10 @@
                         "type": "string"
                     }
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
                 "clientVersion": {

@@ -1432,29 +1432,18 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "redeliveryCount" : {
+        "topicName" : {
+          "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "sequenceId" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
         },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "publishTime" : {
           "type" : "integer",
@@ -1464,21 +1453,28 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "topicName" : {
-          "type" : "string"
-        },
         "replicated" : {
           "type" : "boolean"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
-        "producerName" : {
-          "type" : "string"
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
-        "replicatedFrom" : {
-          "type" : "string"
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "data" : {
           "type" : "array",
@@ -1493,6 +1489,10 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "value" : {
           "type" : "object"
