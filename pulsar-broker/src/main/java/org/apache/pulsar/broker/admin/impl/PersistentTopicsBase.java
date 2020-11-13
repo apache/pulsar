@@ -939,6 +939,16 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
+    protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer interval) {
+        if (interval != null && interval < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "interval must be 0 or more");
+        }
+        TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
+        policies.setDeduplicationSnapshotIntervalSeconds(interval);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, policies);
+
+    }
+
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
