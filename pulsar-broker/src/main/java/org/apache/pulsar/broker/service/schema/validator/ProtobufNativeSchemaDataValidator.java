@@ -31,7 +31,7 @@ public class ProtobufNativeSchemaDataValidator implements SchemaDataValidator {
         try {
             descriptor = ProtobufNativeSchemaUtils.deserialize(schemaData.getData());
         } catch (Exception e) {
-            throw new InvalidSchemaDataException("deserialize  ProtobufNative Schema failed", e);
+            throw new InvalidSchemaDataException("deserialize ProtobufNative Schema failed", e);
         }
         if (descriptor == null) {
             throw new InvalidSchemaDataException("protobuf root message Descriptor is null , please recheck rootMessageTypeName or rootFileDescriptorName conf. ");
