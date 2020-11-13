@@ -206,7 +206,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();

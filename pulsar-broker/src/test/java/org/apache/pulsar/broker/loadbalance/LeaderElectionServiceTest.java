@@ -69,7 +69,7 @@ public class LeaderElectionServiceTest {
         };
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         bkEnsemble.stop();
         log.info("---- bk stopped ----");
@@ -109,6 +109,7 @@ public class LeaderElectionServiceTest {
                 followerElectionService.isElected(),
                 followerElectionService.isLeader(),
                 followerElectionService.getCurrentLeader().getServiceUrl());
+        ses.shutdown();
     }
 
     @Test
@@ -154,6 +155,7 @@ public class LeaderElectionServiceTest {
                 .topic("persistent://" + tenant + "/" + namespace + "/1p")
                 .create();
         producer.getTopic();
+        pulsar.close();
 
     }
 

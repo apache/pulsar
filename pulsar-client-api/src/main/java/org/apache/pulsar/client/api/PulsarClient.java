@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
@@ -291,4 +293,23 @@ public interface PulsarClient extends Closeable {
      * @see #closeAsync()
      */
     boolean isClosed();
+
+    /**
+     * Create a transaction builder that can be used to configure
+     * and construct a transaction.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Transaction txn = client.newTransaction()
+     *                         .withTransactionTimeout(1, TimeUnit.MINUTES)
+     *                         .build().get();
+     * }</pre>
+     *
+     * @return a {@link TransactionBuilder} object to configure and construct
+     * the {@link org.apache.pulsar.client.api.transaction.Transaction} instance
+     *
+     * @since 2.7.0
+     */
+    TransactionBuilder newTransaction();
 }

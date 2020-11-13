@@ -47,7 +47,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

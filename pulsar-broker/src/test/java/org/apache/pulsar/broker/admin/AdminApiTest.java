@@ -187,7 +187,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         adminTls.close();
@@ -1282,6 +1282,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
+        executorService.shutdown();
     }
 
     @Test

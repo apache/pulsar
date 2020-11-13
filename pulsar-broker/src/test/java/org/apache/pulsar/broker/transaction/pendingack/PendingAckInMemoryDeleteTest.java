@@ -30,14 +30,13 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -101,7 +100,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         String subscriptionName = "test";
 
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
                 .enableBatchIndexAcknowledgment(true)
@@ -184,7 +183,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         String subscriptionName = "test";
 
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
                 .enableBatchIndexAcknowledgment(true)
@@ -297,7 +296,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     }
 
     private Transaction getTxn() throws Exception {
-        return ((PulsarClientImpl) pulsarClient)
+        return pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
                 .build()
