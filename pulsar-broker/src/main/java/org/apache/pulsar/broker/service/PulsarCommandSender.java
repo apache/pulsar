@@ -29,92 +29,50 @@ import java.util.List;
 
 public interface PulsarCommandSender {
 
-    default void sendPartitionMetadataResponse(PulsarApi.ServerError error, String errorMsg, long requestId) {
-        // No-op
-    }
+    void sendPartitionMetadataResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
 
-    default void sendPartitionMetadataResponse(int partitions, long requestId) {
-        // No-op
-    }
+    void sendPartitionMetadataResponse(int partitions, long requestId);
 
-    default void sendSuccessResponse(long requestId) {
-        // No-op
-    }
+    void sendSuccessResponse(long requestId);
 
-    default void sendErrorResponse(long requestId, PulsarApi.ServerError error, String message) {
-        // No-op
-    }
+    void sendErrorResponse(long requestId, PulsarApi.ServerError error, String message);
 
-    default void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion) {
-        // No-op
-    }
+    void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
-    default void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                     SchemaVersion schemaVersion) {
-        // No-op
-    }
+    void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
+                                     SchemaVersion schemaVersion);
 
-    default void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
-                                 long entryId) {
-        // No-op
-    }
+    void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
+                                 long entryId);
 
-    default void sendSendError(long producerId, long sequenceId, PulsarApi.ServerError error, String errorMsg) {
-        // No-op
-    }
+    void sendSendError(long producerId, long sequenceId, PulsarApi.ServerError error, String errorMsg);
 
-    default void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
-        // No-op
-    }
+    void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId);
 
-    default void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version) {
-        // No-op
-    }
+    void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
-    default void sendGetSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage) {
-        // No-op
-    }
+    void sendGetSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage);
 
-    default void sendGetOrCreateSchemaResponse(long requestId, SchemaVersion schemaVersion) {
-        // No-op
-    }
+    void sendGetOrCreateSchemaResponse(long requestId, SchemaVersion schemaVersion);
 
-    default void sendGetOrCreateSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage) {
-        // No-op
-    }
+    void sendGetOrCreateSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage);
 
-    default void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize) {
-        // No-op
-    }
+    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize);
 
-    default void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                            PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId, boolean proxyThroughServiceUrl) {
-        // No-op
-    }
+    void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
+                            PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId, boolean proxyThroughServiceUrl);
 
-    default void sendLookupResponse(PulsarApi.ServerError error, String errorMsg, long requestId) {
-        // No-op
-    }
+    void sendLookupResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
 
-    default void sendActiveConsumerChange(long consumerId, boolean isActive) {
-        // No-op
-    }
+    void sendActiveConsumerChange(long consumerId, boolean isActive);
 
-    default void sendSuccess(long requestId) {
-        // No-op
-    }
+    void sendSuccess(long requestId);
 
-    default void sendError(long requestId, PulsarApi.ServerError error, String message) {
-        // No-op
-    }
+    void sendError(long requestId, PulsarApi.ServerError error, String message);
 
-    default void sendReachedEndOfTopic(long consumerId) {
-        // No-op
-    }
+    void sendReachedEndOfTopic(long consumerId);
 
-    default Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
+    Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
             int partitionIdx, final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker) {
-        return ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
-    }
+            RedeliveryTracker redeliveryTracker);
 }

@@ -28,9 +28,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface TransportCnx {
 
-    default String getClientVersion() {
-        return null;
-    }
+    String getClientVersion();
 
     SocketAddress clientAddress();
 
@@ -38,76 +36,42 @@ public interface TransportCnx {
 
     PulsarCommandSender getCommandSender();
 
-    default boolean isBatchMessageCompatibleVersion() {
-        return true;
-    }
+    boolean isBatchMessageCompatibleVersion();
 
     /**
      * The security role for this connection
      * @return the role
      */
-    default String getAuthRole() {
-        return null;
-    }
+    String getAuthRole();
 
-    default AuthenticationDataSource getAuthenticationData() {
-        return null;
-    }
+    AuthenticationDataSource getAuthenticationData();
 
-    default boolean isActive() {
-        return true;
-    }
+    boolean isActive();
 
-    default boolean isWritable() {
-        return true;
-    }
+    boolean isWritable();
 
-    default void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        // No-op
-    }
+    void completedSendOperation(boolean isNonPersistentTopic, int msgSize);
 
-    default void removedProducer(Producer producer) {
-        // No-op
-    }
+    void removedProducer(Producer producer);
 
-    default void closeProducer(Producer producer) {
-        // No-op
-    }
+    void closeProducer(Producer producer);
 
-    default long getMessagePublishBufferSize() {
-        return Long.MAX_VALUE;
-    }
+    long getMessagePublishBufferSize();
 
-    default void cancelPublishRateLimiting() {
-        // No-op
-    }
+    void cancelPublishRateLimiting();
 
-    default void cancelPublishBufferLimiting() {
-        // No-op
-    }
+    void cancelPublishBufferLimiting();
 
-    default void disableCnxAutoRead() {
-        // No-op
-    }
+    void disableCnxAutoRead();
 
-    default void enableCnxAutoRead() {
-        // No-op
-    }
+    void enableCnxAutoRead();
 
-    default void execute(Runnable runnable) {
-        CompletableFuture.runAsync(runnable);
-    }
+    void execute(Runnable runnable);
 
-    default void removedConsumer(Consumer consumer) {
-        // No-op
-    }
+    void removedConsumer(Consumer consumer);
 
-    default void closeConsumer(Consumer consumer) {
-        // No-op
-    }
+    void closeConsumer(Consumer consumer);
 
-    default boolean isPreciseDispatcherFlowControl() {
-        return false;
-    }
+    boolean isPreciseDispatcherFlowControl();
 
 }
