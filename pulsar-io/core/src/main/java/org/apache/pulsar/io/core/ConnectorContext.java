@@ -92,7 +92,9 @@ public interface ConnectorContext {
      * @throws ClassCastException if the return type isn't a type
      * or interface of the actual returned store.
      */
-    <S extends StateStore> S getStateStore(String name);
+    default <S extends StateStore> S getStateStore(String name) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
     /**
      * Increment the builtin distributed counter referred by key.
