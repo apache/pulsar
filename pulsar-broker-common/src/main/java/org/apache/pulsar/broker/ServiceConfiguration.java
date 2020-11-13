@@ -205,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -317,9 +320,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Enable the deletion of inactive topics"
+        doc = "Enable the deletion of inactive topics.\n"
+        + "If only enable this option, will not clean the metadata of partitioned topic."
     )
     private boolean brokerDeleteInactiveTopicsEnabled = true;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
+            + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
+            + "it may appear that a partitioned topic has just been deleted but is automatically created as a non-partitioned topic."
+    )
+    private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for inactive topics"
@@ -409,6 +420,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of producer information that it's going to be persisted for deduplication purposes"
     )
     private int brokerDeduplicationMaxNumberOfProducers = 10000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
+    )
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "If this time interval is exceeded, a snapshot will be taken."
+            + "It will run simultaneously with `brokerDeduplicationEntriesInterval`"
+    )
+    private Integer brokerDeduplicationSnapshotIntervalSeconds = 120;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -689,6 +712,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new producers until the number of connected producers decrease."
             + " Using a value of 0, is disabling maxProducersPerTopic-limit check.")
     private int maxProducersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enforce producer to publish encrypted messages.(default disable).")
+    private boolean encryptionRequireOnProducer = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1058,6 +1086,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Bookie health check quarantined time in seconds"
     )
     private long bookkeeperClientHealthCheckQuarantineTimeInSeconds = 1800;
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "bookie quarantine ratio to avoid all clients quarantine " +
+                    "the high pressure bookie servers at the same time"
+    )
+    private double bookkeeperClientQuarantineRatio = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable rack-aware bookie selection policy. \n\nBK will chose bookies from"
@@ -1817,7 +1851,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Class name for transaction buffer provider"
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(

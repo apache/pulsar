@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -185,7 +186,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -1239,13 +1240,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -1);
+                new Long(-1));
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
@@ -1253,39 +1255,42 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                100);
+                new Long(100));
 
         // set another negative value to disable
         admin.namespaces().setOffloadThreshold(namespace, -2);
         assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -2);
+                new Long(-2));
 
         // set back to -1 and fall back to default
         admin.namespaces().setOffloadThreshold(namespace, -1);
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                -1);
+                new Long(-1));
 
         // cleanup
         admin.topics().delete(topicName.toString(), true);
@@ -1354,6 +1359,80 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             fail("should have failed");
         } catch (NotFoundException e) {
             // Expected
+        }
+    }
+
+    @Test
+    public void testRetentionPolicyValidation() throws Exception {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+
+        // should pass
+        admin.namespaces().setRetention(namespace, new RetentionPolicies());
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, -1));
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(1, 1));
+
+        // should not pass validation
+        assertInvalidRetentionPolicy(namespace, 1, 0);
+        assertInvalidRetentionPolicy(namespace, 0, 1);
+        assertInvalidRetentionPolicy(namespace, -1, 0);
+        assertInvalidRetentionPolicy(namespace, 0, -1);
+        assertInvalidRetentionPolicy(namespace, -2, 1);
+        assertInvalidRetentionPolicy(namespace, 1, -2);
+
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    private void assertInvalidRetentionPolicy(String namespace, int retentionTimeInMinutes, int retentionSizeInMB) {
+        try {
+            RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+            admin.namespaces().setRetention(namespace, retention);
+            fail("Validation should have failed for " + retention);
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getCause() instanceof BadRequestException);
+            assertTrue(e.getMessage().startsWith("Invalid retention policy"));
+        }
+    }
+
+    @Test
+    public void testRetentionPolicyValidationAsPartOfAllPolicies() throws Exception {
+        Policies policies = new Policies();
+        policies.replication_clusters = Sets.newHashSet(testLocalCluster);
+
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, 0, 0);
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, -1, -1);
+        assertValidRetentionPolicyAsPartOfAllPolicies(policies, 1, 1);
+
+        // should not pass validation
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, 0);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, 1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -1, 0);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
+        assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
+                                                               int retentionSizeInMB) throws PulsarAdminException {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+        policies.retention_policies = retention;
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    private void assertInvalidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
+                                                                 int retentionSizeInMB) {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        try {
+            RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+            policies.retention_policies = retention;
+            admin.namespaces().createNamespace(namespace, policies);
+            fail("Validation should have failed for " + retention);
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getCause() instanceof BadRequestException);
+            assertTrue(e.getMessage().startsWith("Invalid retention policy"));
         }
     }
 }

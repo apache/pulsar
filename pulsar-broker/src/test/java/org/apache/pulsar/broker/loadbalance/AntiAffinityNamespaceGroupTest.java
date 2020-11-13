@@ -144,7 +144,7 @@ public class AntiAffinityNamespaceGroupTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         executor.shutdown();
 

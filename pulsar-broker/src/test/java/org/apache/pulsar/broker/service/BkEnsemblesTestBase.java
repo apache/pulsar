@@ -77,6 +77,7 @@ public abstract class BkEnsemblesTestBase {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setZooKeeperOperationTimeoutSeconds(1);
 
             pulsar = new PulsarService(config);
             pulsar.start();
@@ -92,7 +93,7 @@ public abstract class BkEnsemblesTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void shutdown() throws Exception {
         try {
             admin.close();

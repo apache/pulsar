@@ -205,6 +205,10 @@ public class PulsarCluster {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
+    public String getCSConnString() {
+        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
+    }
+
     public Network getNetwork() {
         return network;
     }

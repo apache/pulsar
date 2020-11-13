@@ -120,7 +120,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -538,7 +538,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
         try {
             stopBroker();
-            pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
+            conf.setMaxConcurrentLookupRequest(1);
             startBroker();
             String lookupUrl = pulsar.getBrokerServiceUrl();
 
@@ -581,7 +581,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             // connection must be closed
             assertEquals(failed.get(), 1);
         } finally {
-            pulsar.getConfiguration().setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
+            conf.setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
             executor.shutdownNow();
         }
     }
@@ -612,8 +612,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         try {
             pulsar.getConfiguration().setAuthorizationEnabled(false);
             stopBroker();
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             startBroker();
+            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             String lookupUrl = pulsar.getBrokerServiceUrl();
 
             pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)

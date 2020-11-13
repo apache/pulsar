@@ -88,7 +88,7 @@ public class Reflections {
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("User class must have a no-arg constructor", e);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("User class must a public constructor", e);
+            throw new RuntimeException("User class must have a public constructor", e);
         } catch (InvocationTargetException e) {
             throw new RuntimeException("User class constructor throws exception", e);
         }
@@ -298,7 +298,6 @@ public class Reflections {
                     // CHECKSTYLE.OFF: EmptyStatement
                     int arrayDimension;
                     for (arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
-                        ;
                     }
                     // CHECKSTYLE.ON: EmptyStatement
 

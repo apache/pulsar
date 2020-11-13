@@ -80,6 +80,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -129,7 +130,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         };
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -820,6 +821,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads);
         Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
         consumer.close();
+        executor.shutdown();
     }
 
     @Test
@@ -1144,6 +1146,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test(timeOut = 2000)
@@ -1183,6 +1186,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test
@@ -2441,6 +2445,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(groups = "encryption")
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myecdsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2483,36 +2488,46 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Set<String> messageSet = Sets.newHashSet();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").subscriptionName("my-subscriber-name")
+        Consumer<byte[]> cryptoConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name")
                 .cryptoKeyReader(new EncKeyReader()).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").addEncryptionKey("client-ecdsa.pem")
+        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+                .subscribe();
+
+        Producer<byte[]> cryptoProducer = pulsarClient.newProducer()
+                .topic(topicName).addEncryptionKey("client-ecdsa.pem")
                 .cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            cryptoProducer.send(message.getBytes());
         }
 
         Message<byte[]> msg = null;
 
+        msg = normalConsumer.receive(500, TimeUnit.MILLISECONDS);
+        // should not able to read message using normal message.
+        assertNull(msg);
+
         for (int i = 0; i < totalMsg; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = cryptoConsumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
         // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
+        cryptoConsumer.acknowledgeCumulative(msg);
+        cryptoConsumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
     @Test(groups = "encryption")
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2556,6 +2571,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
+        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
@@ -2572,6 +2590,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         MessageImpl<byte[]> msg = null;
+
+        msg = (MessageImpl<byte[]>) normalConsumer.receive(500, TimeUnit.MILLISECONDS);
+        // should not able to read message using normal message.
+        assertNull(msg);
 
         for (int i = 0; i < totalMsg * 2; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
@@ -3016,6 +3038,73 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         latestConsumer.close();
         earliestConsumer.close();
 
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testMultiTopicsConsumerImplPause() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/partition-topic";
+
+        admin.topics().createPartitionedTopic(topicName, 1);
+
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .create();
+
+        // 1. produce 5 messages
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes(UTF_8));
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(1)
+                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .subscriptionName("test-multi-topic-consumer").subscribe();
+
+        int counter = 0;
+        for (; counter < 5; counter ++) {
+            assertEquals(consumer.receive().getData(), ("my-message-" + counter).getBytes());
+        }
+
+        // 2. pause multi-topic consumer
+        consumer.pause();
+
+        // 3. update partition
+        admin.topics().updatePartitionedTopic(topicName, 3);
+
+        // 4. wait for client to update partitions
+        while(((MultiTopicsConsumerImpl)consumer).getConsumers().size() <= 1) {
+            Thread.sleep(1);
+        }
+
+        // 5. produce 5 messages more
+        for (int i = 5; i < 10; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        while(consumer.receive(3, TimeUnit.SECONDS) != null) {
+            counter++;
+        }
+
+        assertTrue(counter < 10);
+        // 6. resume multi-topic consumer
+        consumer.resume();
+
+        // 7. continue consume
+        while(consumer.receive(3, TimeUnit.SECONDS) != null) {
+           counter++;
+        }
+        assertEquals(counter, 10);
+
+        producer.close();;
+        consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

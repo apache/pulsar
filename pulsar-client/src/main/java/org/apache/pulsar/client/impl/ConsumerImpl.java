@@ -89,7 +89,6 @@ import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
@@ -109,7 +108,6 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -400,14 +398,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
-
-        CompletableFuture<Message<T>> result = new CompletableFuture<>();
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
+        CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
         Message<T> message = null;
         try {
             lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
             if (message == null) {
                 pendingReceives.add(result);
+                cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -462,7 +461,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
-        CompletableFuture<Messages<T>> result = new CompletableFuture<>();
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
+        CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         try {
             lock.writeLock().lock();
             if (pendingBatchReceives == null) {
@@ -482,7 +482,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 result.complete(messages);
             } else {
-                pendingBatchReceives.add(OpBatchReceive.of(result));
+                OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
+                pendingBatchReceives.add(opBatchReceive);
+                cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
             }
         } finally {
             lock.writeLock().unlock();
@@ -1170,19 +1172,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            if (isTxnMessage(msgMetadata)) {
-                BitSet ackBitSet = null;
-                if (ackSet != null && ackSet.size() > 0) {
-                    ackBitSet = BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet));
-                }
-                if (!ackBitSet.get(messageId.getBatchIndex())) {
-                    msgMetadata.recycle();
-                    return;
-                }
-                BatchMessageAcker batchMessageAcker = BatchMessageAcker.newAcker(ackBitSet);
-                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, batchMessageAcker);
-            }
-
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
@@ -1196,7 +1185,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
-                if (!pendingReceives.isEmpty()) {
+                if (peekPendingReceive() != null) {
                     notifyPendingReceivedCallback(message, null);
                 } else if (enqueueMessageAndCheckBatchReceive(message)) {
                     if (hasPendingBatchReceive()) {
@@ -1349,7 +1338,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         // fetch receivedCallback from queue
-        final CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
+        final CompletableFuture<Message<T>> receivedFuture = pollPendingReceive();
         if (receivedFuture == null) {
             return;
         }
@@ -1382,7 +1371,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // call proper interceptor
         final Message<T> interceptMessage = beforeConsume(message);
         // return message to receivedCallback
-        listenerExecutor.execute(() -> receivedFuture.complete(interceptMessage));
+        completePendingReceive(receivedFuture, interceptMessage);
     }
 
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
@@ -1397,19 +1386,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleToDeadLetter = new ArrayList<>();
         }
 
-        BatchMessageAcker acker;
+        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         BitSetRecyclable ackBitSet = null;
         if (ackSet != null && ackSet.size() > 0) {
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
-            acker = BatchMessageAcker.newAcker(BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)));
-        } else {
-            acker = BatchMessageAcker.newAcker(batchSize);
         }
 
         int skippedMessages = 0;
         try {
-            int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
-            for (int i = startBatchIndex; i < batchSize; ++i) {
+            for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
@@ -1458,7 +1443,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 lock.readLock().lock();
                 try {
-                    if (!pendingReceives.isEmpty()) {
+                    if (peekPendingReceive() != null) {
                         notifyPendingReceivedCallback(message, null);
                     } else if (enqueueMessageAndCheckBatchReceive(message)) {
                         if (hasPendingBatchReceive()) {
@@ -1567,6 +1552,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 available = AVAILABLE_PERMITS_UPDATER.get(this);
             }
         }
+    }
+
+    public void increaseAvailablePermits(int delta) {
+        increaseAvailablePermits(cnx(), delta);
     }
 
     @Override
@@ -1746,6 +1735,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    public int clearIncomingMessagesAndGetMessageNumber() {
+        int messagesNumber = incomingMessages.size();
+        incomingMessages.clear();
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        unAckedMessageTracker.clear();
+        return messagesNumber;
     }
 
     @Override
@@ -2395,11 +2392,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             entryId = batchMessageId.getEntryId();
             if (ackType == AckType.Cumulative) {
                 batchMessageId.ackCumulative();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
             } else {
-                batchMessageId.ackIndividual();
-                bitSetRecyclable.set(0, batchMessageId.getAcker().getBitSetSize());
+                bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
         } else {
@@ -2414,7 +2410,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);
-        unAckedMessageTracker.remove(messageId);
+        if (ackType == AckType.Cumulative) {
+            unAckedMessageTracker.removeMessagesTill(messageId);
+        } else {
+            unAckedMessageTracker.remove(messageId);
+        }
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;

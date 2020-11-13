@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -219,6 +220,8 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)" )
+        protected String producerConfig;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -390,6 +393,10 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != output) {
                 functionConfig.setOutput(output);
+            }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
             }
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);

@@ -45,6 +45,7 @@ public class ConsumerConfig {
     @Builder.Default
     private Map<String, String> consumerProperties = new HashMap<>();
     private Integer receiverQueueSize;
+    private CryptoConfig cryptoConfig;
 
     public ConsumerConfig(String schemaType) {
         this.schemaType = schemaType;

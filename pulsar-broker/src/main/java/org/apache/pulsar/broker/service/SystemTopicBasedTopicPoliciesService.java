@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsarService;
-    private NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
+    private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
     private final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
@@ -130,6 +130,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 listener.onUpdate(policies);
             }
         }
+    }
+
+    @Override
+    public boolean cacheIsInitialized(TopicName topicName) {
+        return policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && policyCacheInitMap.get(topicName.getNamespaceObject());
     }
 
     @Override

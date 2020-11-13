@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
@@ -67,7 +66,7 @@ public class LeaderElectionService {
      * Interface which should be implemented by classes which are interested in the leader election. The listener gets
      * called when current broker becomes the leader.
      */
-    public static interface LeaderListener {
+    public interface LeaderListener {
         void brokerIsTheLeaderNow();
 
         void brokerIsAFollowerNow();

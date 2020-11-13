@@ -69,7 +69,7 @@ public class ResourceQuotaCache {
     }
 
     // generate path for a specified ServiceUnit, return root path if suName is null or empty
-    private static final String path(String suName) {
+    private static String path(String suName) {
         if (suName != null && !suName.isEmpty()) {
             return RESOURCE_QUOTA_ROOT + "/namespace/" + suName;
         } else {
