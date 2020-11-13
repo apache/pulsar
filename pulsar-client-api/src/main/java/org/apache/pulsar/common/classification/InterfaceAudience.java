@@ -16,40 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.common.classification;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.common.schema.SchemaInfo;
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
- * Schema Provider.
+ * Annotation to inform users of a package, class or method's intended audience.
  */
-@InterfaceAudience.Private
+@InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface SchemaInfoProvider {
+public class InterfaceAudience {
 
     /**
-     * Retrieve the schema info of a given <tt>schemaVersion</tt>.
-     *
-     * @param schemaVersion schema version
-     * @return schema info of the provided <tt>schemaVersion</tt>
+     * Intended for use by any project or application.
      */
-    CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion);
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Public {}
 
     /**
-     * Retrieve the latest schema info.
-     *
-     * @return the latest schema
+     * Intended for use only within the project(s) specified in the annotation.
+     * For example, "functions", "SQL".
      */
-    CompletableFuture<SchemaInfo> getLatestSchema();
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface LimitedPrivate {}
 
     /**
-     * Retrieve the topic name.
-     *
-     * @return the topic name
+     * Intended for use only within the project itself.
      */
-    String getTopicName();
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Private {}
+
+    private InterfaceAudience() {} // Audience can't exist on its own
 
 }

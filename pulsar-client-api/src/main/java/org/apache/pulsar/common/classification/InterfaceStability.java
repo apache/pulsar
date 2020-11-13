@@ -16,24 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.common.classification;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
+import java.lang.annotation.Documented;
 
 /**
- * Serialize messages into bytes.
+ * Annotation to inform users of how much to rely on a particular package,
+ * class or method not changing over time.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-@FunctionalInterface
-public interface SchemaWriter<T> {
+public class InterfaceStability {
+  /**
+   * Can evolve while retaining compatibility for minor release boundaries.;
+   * can break compatibility only at major release (ie. at m.0).
+   */
+  @Documented
+  public @interface Stable {}
 
-    /**
-     * Serialize the message into bytes.
-     *
-     * @param message the message for encode
-     * @return the serialized bytes
-     */
-    byte[] write(T message);
+  /**
+   * Evolving, but can break compatibility at minor release (i.e. m.x)
+   */
+  @Documented
+  public @interface Evolving {}
+
+  /**
+   * No guarantee is provided as to reliability or stability across any
+   * level of release granularity.
+   */
+  @Documented
+  public @interface Unstable {}
+
+  private InterfaceStability() {}
 }
