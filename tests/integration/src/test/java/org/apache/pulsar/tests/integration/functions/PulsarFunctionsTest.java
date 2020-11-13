@@ -900,7 +900,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         commandGenerator.setSourceTopic(inputTopicName);
         commandGenerator.setSinkTopic(outputTopicName);
         commandGenerator.setFunctionName("localRunTest");
-        commandGenerator.setBatchBuilder("DEFAULT");
         commandGenerator.setRuntime(runtime);
         switch (runtime) {
             case JAVA:

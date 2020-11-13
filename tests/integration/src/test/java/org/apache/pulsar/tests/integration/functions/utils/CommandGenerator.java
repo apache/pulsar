@@ -100,9 +100,6 @@ public class CommandGenerator {
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
         }
-        if (batchBuilder != null) {
-            commandBuilder.append("--batch-builder" + batchBuilder);
-        }
         switch (runtime){
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
