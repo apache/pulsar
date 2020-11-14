@@ -140,7 +140,9 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, use topic-leve policies, 1 second delay + 1 second interval
-        Thread.sleep(2000);
+        Awaitility.await().atMost(2100, TimeUnit.MILLISECONDS)
+                .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                        .getMarkDeletedPosition()).getEntryId() == msgNum - 1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
         PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
         assertEquals(position, markDeletedPosition);
@@ -148,7 +150,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         //remove topic-level policies, namespace-level should be used, interval becomes 2 seconds
         admin.topics().removeDeduplicationSnapshotInterval(topicName);
         producer.newMessage().value("msg").send();
-        Awaitility.await().between(1000, TimeUnit.MILLISECONDS, 2500, TimeUnit.MILLISECONDS)
+        //zk update time + interval time
+        Awaitility.await().atMost( 3000, TimeUnit.MILLISECONDS)
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
@@ -342,7 +345,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, 1 second delay + 1 second interval
-        Awaitility.await().atMost(2,TimeUnit.SECONDS).until(()-> ((PositionImpl) persistentTopic
+        Awaitility.await().atMost(2500,TimeUnit.MILLISECONDS).until(()-> ((PositionImpl) persistentTopic
                 .getMessageDeduplication().getManagedCursor().getMarkDeletedPosition()).getEntryId() == msgNum -1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
         PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
