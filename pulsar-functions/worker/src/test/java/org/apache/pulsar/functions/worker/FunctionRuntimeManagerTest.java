@@ -92,7 +92,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
         // test new assignment add functions
@@ -176,7 +176,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -264,7 +264,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -396,7 +396,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -582,7 +582,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
 
         doReturn(reader).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -646,7 +646,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -770,7 +770,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setFunctionAssignmentTopicName("assignments");
             new FunctionRuntimeManager(
                     workerConfig,
-                    mock(WorkerService.class),
+                    mock(PulsarWorkerService.class),
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
@@ -796,7 +796,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setFunctionAssignmentTopicName("assignments");
             new FunctionRuntimeManager(
                     workerConfig,
-                    mock(WorkerService.class),
+                    mock(PulsarWorkerService.class),
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
@@ -822,7 +822,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setFunctionAssignmentTopicName("assignments");
             new FunctionRuntimeManager(
                     workerConfig,
-                    mock(WorkerService.class),
+                    mock(PulsarWorkerService.class),
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
@@ -848,7 +848,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setFunctionAssignmentTopicName("assignments");
             FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                     workerConfig,
-                    mock(WorkerService.class),
+                    mock(PulsarWorkerService.class),
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
@@ -880,7 +880,7 @@ public class FunctionRuntimeManagerTest {
 
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
-                mock(WorkerService.class),
+                mock(PulsarWorkerService.class),
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
@@ -910,7 +910,7 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
-                mock(WorkerService.class),
+                mock(PulsarWorkerService.class),
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
@@ -936,7 +936,7 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
-                mock(WorkerService.class),
+                mock(PulsarWorkerService.class),
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),

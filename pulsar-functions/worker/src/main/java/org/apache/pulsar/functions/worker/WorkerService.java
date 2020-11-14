@@ -23,6 +23,12 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.worker.service.api.Functions;
+import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
+import org.apache.pulsar.functions.worker.service.api.Sinks;
+import org.apache.pulsar.functions.worker.service.api.Sources;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 
 /**
@@ -31,13 +37,19 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 public interface WorkerService {
 
     /**
+     * Return the worker config.
+     *
+     * @return worker config
+     */
+    WorkerConfig getWorkerConfig();
+
+    /**
      * Initialize the worker API service using the provided config.
      *
      * @param workerConfig the worker config
-     * @param runAsStandalone flag to run worker service as standalone.
      * @throws Exception when fail to initialize the worker API service.
      */
-    void initAsStandalone(WorkerConfig workerConfig, boolean runAsStandalone)
+    void initAsStandalone(WorkerConfig workerConfig)
         throws Exception;
 
     /**
@@ -72,5 +84,56 @@ public interface WorkerService {
      * Stop the worker API service.
      */
     void stop();
+
+    /**
+     * Check if the worker service is initialized or not.
+     *
+     * @return true if the worker service is initialized otherwise false.
+     */
+    boolean isInitialized();
+
+    /**
+     * Get the functions service.
+     *
+     * @return the functions service.
+     */
+    Functions<? extends WorkerService> getFunctions();
+
+    /**
+     * Get the functions service (v2).
+     *
+     * <p>This is a legacy API service for supporting v2.
+     *
+     * @return the functions service (v2).
+     */
+    FunctionsV2<? extends WorkerService> getFunctionsV2();
+
+    /**
+     * Get the sinks service.
+     *
+     * @return the sinks service.
+     */
+    Sinks<? extends WorkerService> getSinks();
+
+    /**
+     * Get the sources service.
+     *
+     * @return the sources service.
+     */
+    Sources<? extends WorkerService> getSources();
+
+    /**
+     * Get the worker service.
+     *
+     * @return the worker service.
+     */
+    Workers<? extends WorkerService> getWorkers();
+
+    /**
+     * Generate functions stats.
+     *
+     * @param out output stream
+     */
+    void generateFunctionsStats(SimpleTextOutputStream out);
 
 }

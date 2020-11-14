@@ -60,6 +60,17 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
+import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
+import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
+import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
+import org.apache.pulsar.functions.worker.service.api.Functions;
+import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
+import org.apache.pulsar.functions.worker.service.api.Sinks;
+import org.apache.pulsar.functions.worker.service.api.Sources;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -102,11 +113,23 @@ public class PulsarWorkerService implements WorkerService {
     private LeaderService leaderService;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private WorkerStatsManager workerStatsManager;
+    private Functions<PulsarWorkerService> functions;
+    private FunctionsV2<PulsarWorkerService> functionsV2;
+    private Sinks<PulsarWorkerService> sinks;
+    private Sources<PulsarWorkerService> sources;
+    private Workers<PulsarWorkerService> workers;
 
     public PulsarWorkerService() {
         this.statsUpdater = Executors
           .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+    }
+
+    @Override
+    public void generateFunctionsStats(SimpleTextOutputStream out) {
+        FunctionsStatsGenerator.generate(
+            this, out
+        );
     }
 
     @VisibleForTesting
@@ -116,13 +139,17 @@ public class PulsarWorkerService implements WorkerService {
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
         this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
+        this.functions = new FunctionsImpl(() -> PulsarWorkerService.this);
+        this.functionsV2 = new FunctionsImplV2(() -> PulsarWorkerService.this);
+        this.sinks = new SinksImpl(() -> PulsarWorkerService.this);
+        this.sources = new SourcesImpl(() -> PulsarWorkerService.this);
+        this.workers = new WorkerImpl(() -> PulsarWorkerService.this);
     }
 
     @Override
-    public void initAsStandalone(WorkerConfig workerConfig,
-                                 boolean runAsStandalone) throws Exception {
+    public void initAsStandalone(WorkerConfig workerConfig) throws Exception {
         URI dlogUri = initializeStandaloneWorkerService(workerConfig);
-        init(workerConfig, dlogUri, runAsStandalone);
+        init(workerConfig, dlogUri, true);
     }
 
     private static URI initializeStandaloneWorkerService(WorkerConfig workerConfig) throws Exception {

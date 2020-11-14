@@ -59,9 +59,9 @@ public class Worker {
     }
 
     protected void start() throws Exception {
-        workerService.initAsStandalone(workerConfig, true);
+        workerService.initAsStandalone(workerConfig);
         workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
-        server = new WorkerServer(workerService);
+        server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
         log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
         

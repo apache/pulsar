@@ -33,7 +33,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -51,19 +51,11 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.function.Supplier;
 
-public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
+public class FunctionsBase extends AdminResource {
 
-    private final FunctionsImpl functions;
-
-    public FunctionsBase() {
-        this.functions = new FunctionsImpl(this);
-    }
-
-    @Override
-    public WorkerService get() {
-        return pulsar().getWorkerService();
+    Functions<? extends WorkerService> functions() {
+        return pulsar().getWorkerService().getFunctions();
     }
 
     @POST
@@ -170,7 +162,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
 
-        functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+        functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
             functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
 
@@ -279,7 +271,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
-        functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+        functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
@@ -301,7 +293,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions.deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -323,7 +315,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions().getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -348,7 +340,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return functions.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return functions().getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -371,7 +363,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return functions().getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -394,7 +386,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return functions().getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -419,7 +411,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return functions.getFunctionsInstanceStats(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return functions().getFunctionsInstanceStats(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -438,7 +430,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return functions().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -467,7 +459,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @FormDataParam("dataStream") InputStream triggerStream,
             @ApiParam(value = "The specific topic name that the Pulsar Function consumes from which you want to inject the data to")
             final @FormDataParam("topic") String topic) {
-        return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId(), clientAuthData());
+        return functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -491,7 +483,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The stats key")
             final @PathParam("key") String key) {
-        return functions.getFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
+        return functions().getFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -511,7 +503,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                  final @PathParam("functionName") String functionName,
                                  final @PathParam("key") String key,
                                  final @FormDataParam("state") FunctionState stateJson) {
-        functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
+        functions().putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -533,7 +525,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted")
             final @PathParam("instanceId") String instanceId) {
-        functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        functions().restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -552,7 +544,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -573,7 +565,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped. ")
             final @PathParam("instanceId") String instanceId) {
-        functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        functions().stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -592,7 +584,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -613,7 +605,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances sre started. ")
             final @PathParam("instanceId") String instanceId) {
-        functions.startFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        functions().startFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -632,7 +624,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions.startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -644,7 +636,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path, clientAppId());
+        functions().uploadFunction(uploadedInputStream, path, clientAppId());
     }
 
     @GET
@@ -654,7 +646,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     )
     @Path("/download")
     public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path, clientAppId(), clientAuthData());
+        return functions().downloadFunction(path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -671,7 +663,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
 
-        return functions.downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions().downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -690,7 +682,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
      * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
      */
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return functions.getListOfConnectors();
+        return functions().getListOfConnectors();
     }
 
     @PUT
@@ -710,7 +702,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                                  final @FormDataParam("functionMetaData") InputStream uploadedInputStream,
                                                  final @FormDataParam("delete") boolean delete) {
 
-        functions.updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
+        functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
                 delete, uri.getRequestUri(), clientAppId());
     }
 }
