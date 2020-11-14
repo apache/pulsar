@@ -1659,10 +1659,6 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1671,14 +1667,19 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "topicName": {
                     "type": "string"
                 },
-                "producerName": {
-                    "type": "string"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1694,19 +1695,17 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "replicated": {
+                    "type": "boolean"
                 },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "keyBytes": {
                     "type": "array",
@@ -1715,11 +1714,12 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "replicatedFrom": {
-                    "type": "string"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "value": {
                     "type": "object"
