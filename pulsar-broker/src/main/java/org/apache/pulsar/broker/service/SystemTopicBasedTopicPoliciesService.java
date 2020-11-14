@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -88,6 +89,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             TopicPoliciesEvent.builder()
                                 .domain(topicName.getDomain().toString())
                                 .tenant(topicName.getTenant())
+                                .cluster(topicName.getCluster())
                                 .namespace(topicName.getNamespaceObject().getLocalName())
                                 .topic(topicName.getLocalName())
                                 .policies(policies)
@@ -274,9 +276,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
         if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
             TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
-            policiesCache.put(
-                    TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic()),
-                    event.getPolicies()
+            TopicName topic = StringUtils.isNotBlank(event.getCluster())
+                    ? TopicName.get(event.getDomain(), event.getTenant(), event.getCluster(), event.getNamespace(),
+                            event.getTopic())
+                    : TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+            policiesCache.put(topic, event.getPolicies()
             );
         }
     }

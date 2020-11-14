@@ -35,6 +35,7 @@ public class TopicPoliciesEvent {
 
     private String domain;
     private String tenant;
+    private String cluster;
     private String namespace;
     private String topic;
     private TopicPolicies policies;

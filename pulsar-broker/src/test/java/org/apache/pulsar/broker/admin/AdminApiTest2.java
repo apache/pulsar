@@ -1350,12 +1350,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testDedupApi() throws Exception {
         String tenant = "prop-xyz2";
-        String namespace = tenant + "/test/ns1";
+        String namespace = tenant + "/test/dedup";
         String topic = "persistent://" + namespace + "/t1";
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(tenant, tenantInfo);
         admin.namespaces().createNamespace(namespace, 10);
         admin.topics().enableDeduplication(topic, true);
+        assertNull(admin.topics().getDeduplicationEnabled(topic));
         admin.topics().disableDeduplication(topic);
         assertNull(admin.topics().getDeduplicationEnabled(topic));
     }
