@@ -1659,29 +1659,12 @@
         "Message": {
             "type": "object",
             "properties": {
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicatedFrom": {
+                    "type": "string"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "redeliveryCount": {
+                "sequenceId": {
                     "type": "integer",
-                    "format": "int32"
+                    "format": "int64"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1697,17 +1680,24 @@
                 "replicated": {
                     "type": "boolean"
                 },
-                "sequenceId": {
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
+                    "format": "int32"
                 },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "keyBytes": {
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1720,6 +1710,16 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "keyBytes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "producerName": {
+                    "type": "string"
                 },
                 "value": {
                     "type": "object"
