@@ -1659,12 +1659,12 @@
         "Message": {
             "type": "object",
             "properties": {
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1673,6 +1673,12 @@
                 "eventTime": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "topicName": {
                     "type": "string"
@@ -1683,21 +1689,10 @@
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "producerName": {
+                    "type": "string"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1711,15 +1706,20 @@
                         "format": "byte"
                     }
                 },
-                "keyBytes": {
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "producerName": {
-                    "type": "string"
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "value": {
                     "type": "object"
