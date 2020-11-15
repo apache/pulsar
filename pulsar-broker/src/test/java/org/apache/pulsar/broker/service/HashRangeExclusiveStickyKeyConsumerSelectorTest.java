@@ -24,7 +24,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -105,6 +107,32 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInvalidRangeTotal() {
         new HashRangeExclusiveStickyKeyConsumerSelector(0);
+    }
+
+    @Test
+    public void testGetConsumerRange() throws BrokerServiceException.ConsumerAssignException {
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
+        List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
+        List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
+        for (int index = 0; index < consumerName.size(); index++) {
+            Consumer consumer = mock(Consumer.class);
+            PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
+                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
+                    .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(range.get(index)[0])
+                            .setEnd(range.get(index)[1]).build())
+                    .build();
+            when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
+            when(consumer.consumerName()).thenReturn(consumerName.get(index));
+            Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
+            selector.addConsumer(consumer);
+        }
+
+        int index = 0;
+        for (Map.Entry<String, String> entry : selector.getConsumerRange().entrySet()) {
+            Assert.assertEquals(entry.getKey(), range.get(index)[0] + "--" + range.get(index)[1]);
+            Assert.assertEquals(entry.getValue(), consumerName.get(index));
+            index++;
+        }
     }
 
     @Test

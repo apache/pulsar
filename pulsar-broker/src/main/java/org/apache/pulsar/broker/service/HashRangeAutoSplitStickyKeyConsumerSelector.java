@@ -23,6 +23,7 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -112,6 +113,17 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
+    @Override
+    public Map<String, String> getConsumerRange() {
+        Map<String, String> result = new LinkedHashMap<>();
+        int start = 0;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            result.put(start + "--" + entry.getKey(), entry.getValue().consumerName());
+            start = entry.getKey() + 1;
+        }
+        return result;
+    }
+
     private int findBiggestRange() {
         int slots = 0;
         int busiestRange = rangeSize;
@@ -145,10 +157,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     private boolean is2Power(int num) {
         if(num < 2) return false;
         return (num & num - 1) == 0;
-    }
-
-    Map<Consumer, Integer> getConsumerRange() {
-        return Collections.unmodifiableMap(consumerRange);
     }
 
     Map<Integer, Consumer> getRangeConsumer() {

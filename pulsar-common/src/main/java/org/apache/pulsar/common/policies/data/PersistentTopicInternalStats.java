@@ -76,6 +76,8 @@ public class PersistentTopicInternalStats {
         public long numberOfEntriesSinceFirstNotAckedMessage;
         public int totalNonContiguousDeletedMessagesRange;
 
+        public Map<String, String> consumerRange;
+
         public Map<String, Long> properties;
     }
 }

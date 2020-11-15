@@ -1706,6 +1706,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursor.getProperties();
+            Subscription sub = subscriptions.get(Codec.decode(cursor.getName()));
+            if (sub.getType() == SubType.Key_Shared) {
+                cs.consumerRange = ((PersistentStickyKeyDispatcherMultipleConsumers)sub.getDispatcher()).getConsumerRange();
+            }
             stats.cursors.put(cursor.getName(), cs);
         });
         if (futures != null) {
