@@ -9984,7 +9984,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/TopicStats"
+                            "$ref": "#/definitions/NonPersistentTopicStats"
                         }
                     },
                     "307": {
@@ -17900,10 +17900,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -18319,41 +18319,41 @@
                     "type": "number",
                     "format": "double"
                 },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "underLoaded": {
+                    "type": "boolean"
                 },
                 "overLoaded": {
                     "type": "boolean"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
+                "loadReportType": {
+                    "type": "string"
+                },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
@@ -18534,16 +18534,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -19467,16 +19467,16 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }

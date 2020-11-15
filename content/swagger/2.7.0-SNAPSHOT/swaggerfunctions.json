@@ -1435,16 +1435,6 @@
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
         "orderingKey" : {
           "type" : "array",
           "items" : {
@@ -1452,13 +1442,45 @@
             "format" : "byte"
           }
         },
-        "producerName" : {
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
           "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
         },
-        "schemaVersion" : {
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1471,28 +1493,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "value" : {
           "type" : "object"
