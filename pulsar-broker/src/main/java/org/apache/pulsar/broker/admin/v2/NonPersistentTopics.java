@@ -309,7 +309,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
     })
-    public List<String> getListFromBundle(
+    public void getListFromBundle(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -327,29 +328,29 @@ public class NonPersistentTopics extends PersistentTopics {
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
         validateGlobalNamespaceOwnership(namespaceName);
 
-        if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                    bundleRange);
-            return null;
-        }
-
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(
-                namespaceName, policies.bundles, bundleRange, true, true);
-        try {
-            final List<String> topicList = Lists.newArrayList();
-            pulsar().getBrokerService().forEachTopic(topic -> {
-                TopicName topicName = TopicName.get(topic.getName());
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(topic.getName());
+        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag ->{
+            if(!flag){
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
+                        bundleRange);
+                asyncResponse.resume(null);
+            }else{
+                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
+                try {
+                    final List<String> topicList = Lists.newArrayList();
+                    pulsar().getBrokerService().forEachTopic(topic -> {
+                        TopicName topicName = TopicName.get(topic.getName());
+                        if (nsBundle.includes(topicName)) {
+                            topicList.add(topic.getName());
+                        }
+                    });
+                    asyncResponse.resume(topicList);
+                } catch (Exception e) {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
+                    asyncResponse.resume(new RestException(e));
                 }
-            });
-            return topicList;
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+            }
+        });
     }
-
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
