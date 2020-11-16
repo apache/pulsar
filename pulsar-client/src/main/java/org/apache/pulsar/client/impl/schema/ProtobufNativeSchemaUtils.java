@@ -33,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Protobuf-Native schema util used for serialize and deserialize
+ * Protobuf-Native schema util used for serialize/deserialize
  * between {@link com.google.protobuf.Descriptors.Descriptor} and
  * {@link org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData}.
  */
@@ -56,7 +56,7 @@ public class ProtobufNativeSchemaUtils {
             ProtobufNativeSchemaData schemaData = ProtobufNativeSchemaData.builder().fileDescriptorSet(fileDescriptorSet)
                     .rootFileDescriptorName(rootFileDescriptorName).rootMessageTypeName(rootMessageTypeName).build();
             schemaDataBytes = new ObjectMapper().writeValueAsBytes(schemaData);
-            logger.debug("descriptor : {} serialized to : {} ", descriptor.getFullName(), schemaDataBytes);
+            logger.debug("descriptor '{}' serialized to '{}'.", descriptor.getFullName(), schemaDataBytes);
         } catch (Exception e) {
             e.printStackTrace();
             throw new SchemaSerializationException(e);
@@ -76,7 +76,7 @@ public class ProtobufNativeSchemaUtils {
         if (unResolvedFileDescriptNames.length == 0) {
             fileDescriptorCache.put(fileDescriptor.getFullName(), fileDescriptor.toProto());
         } else {
-            throw new SchemaSerializationException(fileDescriptor.getFullName() + " can't resolve dependency :" + unResolvedFileDescriptNames);
+            throw new SchemaSerializationException(fileDescriptor.getFullName() + " can't resolve dependency '" + unResolvedFileDescriptNames + "'.");
         }
     }
 
@@ -88,9 +88,7 @@ public class ProtobufNativeSchemaUtils {
             Map<String, FileDescriptorProto> fileDescriptorProtoCache = new HashMap<>();
             Map<String, Descriptors.FileDescriptor> fileDescriptorCache = new HashMap<>();
             FileDescriptorSet fileDescriptorSet = FileDescriptorSet.parseFrom(schemaData.getFileDescriptorSet());
-            fileDescriptorSet.getFileList().forEach(fileDescriptorProto -> {
-                fileDescriptorProtoCache.put(fileDescriptorProto.getName(), fileDescriptorProto);
-            });
+            fileDescriptorSet.getFileList().forEach(fileDescriptorProto -> fileDescriptorProtoCache.put(fileDescriptorProto.getName(), fileDescriptorProto));
             FileDescriptorProto rootFileDescriptorProto = fileDescriptorProtoCache.get(schemaData.getRootFileDescriptorName());
 
             //recursively build FileDescriptor
@@ -105,7 +103,7 @@ public class ProtobufNativeSchemaUtils {
             for (int i = 1; i < paths.length; i++) {
                 descriptor = descriptor.findNestedTypeByName(paths[i]);
             }
-            logger.debug("deserialize : {} serialized to descriptor: {} ", schemaDataBytes, descriptor.getFullName());
+            logger.debug("deserialize '{}' to descriptor: '{}'.", schemaDataBytes, descriptor.getFullName());
         } catch (Exception e) {
             e.printStackTrace();
             throw new SchemaSerializationException(e);
@@ -126,7 +124,7 @@ public class ProtobufNativeSchemaUtils {
             if (fileDescriptorCache.containsKey(dependency)) {
                 return fileDescriptorCache.get(dependency);
             } else {
-                throw new SchemaSerializationException(fileDescriptorProto.getName() + "can't resolve  dependency '" + dependency + "'");
+                throw new SchemaSerializationException("'" + fileDescriptorProto.getName() + "' can't resolve  dependency '" + dependency + "'.");
             }
         }).toArray(Descriptors.FileDescriptor[]::new);
 
