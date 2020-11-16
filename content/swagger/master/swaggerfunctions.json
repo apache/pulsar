@@ -1432,13 +1432,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1447,32 +1440,26 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
         "topicName" : {
           "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "producerName" : {
           "type" : "string"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "replicatedFrom" : {
+          "type" : "string"
         },
-        "data" : {
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1486,13 +1473,26 @@
             "format" : "byte"
           }
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "data" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "value" : {
           "type" : "object"

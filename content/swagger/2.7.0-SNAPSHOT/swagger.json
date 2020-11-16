@@ -15520,13 +15520,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -16421,13 +16421,13 @@
             "type" : "string"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -16553,11 +16553,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
