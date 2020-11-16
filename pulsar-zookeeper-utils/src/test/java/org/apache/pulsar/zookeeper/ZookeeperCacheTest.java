@@ -36,7 +36,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.util.Collections;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -168,8 +167,8 @@ public class ZookeeperCacheTest {
             Thread.sleep(1);
         }
 
-        assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1", "z2")));
-        assertEquals(cache.get("/test"), new TreeSet<String>(Lists.newArrayList("z1", "z2")));
+        assertEquals(cache.get(), new TreeSet<>(Lists.newArrayList("z1", "z2")));
+        assertEquals(cache.get("/test"), new TreeSet<>(Lists.newArrayList("z1", "z2")));
         assertEquals(notificationCount.get(), 2);
 
         zkClient.delete("/test/z2", -1);
@@ -177,8 +176,8 @@ public class ZookeeperCacheTest {
             Thread.sleep(1);
         }
 
-        assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
-        assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
+        assertEquals(cache.get(), new TreeSet<>(Lists.newArrayList("z1")));
+        assertEquals(cache.get(), new TreeSet<>(Lists.newArrayList("z1")));
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
         zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN

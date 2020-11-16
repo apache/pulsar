@@ -40,7 +40,7 @@ public class MockedZooKeeperClientFactoryImpl implements ZooKeeperClientFactory 
         MockZooKeeper mockZooKeeper = MockZooKeeper.newInstance();
         createdInstances.add(mockZooKeeper);
         // not used for mock mode
-        List<ACL> dummyAclList = new ArrayList<ACL>(0);
+        List<ACL> dummyAclList = new ArrayList<>(0);
 
         try {
             ZkUtils.createFullPathOptimistic(mockZooKeeper, "/ledgers/available/192.168.1.1:" + 5000,

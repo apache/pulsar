@@ -18,27 +18,9 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
-
-import java.io.IOException;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Collections;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -57,14 +39,34 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Collections;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Per ZK client ZooKeeper cache supporting ZNode data and children list caches. A cache entry is identified, accessed
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
  * {@link Deserializer} argument.
- *
- * @param <T>
  */
 public abstract class ZooKeeperCache implements Watcher {
+
+    /**
+     *
+     * @param <T> the type of zookeeper content
+     */
     public static interface Deserializer<T> {
         T deserialize(String key, byte[] content) throws Exception;
     }
@@ -91,7 +93,7 @@ public abstract class ZooKeeperCache implements Watcher {
     private static final int DEFAULT_CACHE_EXPIRY_SECONDS = 300; //5 minutes
     private final int cacheExpirySeconds;
 
-    protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
+    protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<>(null);
 
     public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
         this(cacheName, zkSession, zkOperationTimeoutSeconds, executor, DEFAULT_CACHE_EXPIRY_SECONDS);
@@ -360,7 +362,7 @@ public abstract class ZooKeeperCache implements Watcher {
                             T obj = deserializer.deserialize(path, content);
                             // avoid using the zk-client thread to process the result
                             executor.execute(() -> zkFuture.complete(ImmutablePair
-                                    .of(new SimpleImmutableEntry<Object, Stat>(obj, stat), System.nanoTime())));
+                                    .of(new SimpleImmutableEntry<>(obj, stat), System.nanoTime())));
                         } catch (Exception e) {
                             executor.execute(() -> zkFuture.completeExceptionally(e));
                         }
@@ -405,7 +407,7 @@ public abstract class ZooKeeperCache implements Watcher {
                         try {
                             T obj = deserializer.deserialize(path, content);
                             dataCache.put(path, CompletableFuture.completedFuture(ImmutablePair
-                                    .of(new SimpleImmutableEntry<Object, Stat>(obj, stat), System.nanoTime())));
+                                    .of(new SimpleImmutableEntry<>(obj, stat), System.nanoTime())));
                         } catch (Exception e) {
                             log.warn("Failed to refresh zookeeper-cache for {}", path, e);
                         }
@@ -443,7 +445,6 @@ public abstract class ZooKeeperCache implements Watcher {
      * @param watcher
      * @return
      */
-    @SuppressWarnings("deprecation")
     public CompletableFuture<Set<String>> getChildrenAsync(String path, Watcher watcher) {
         return childrenCache.get(path, (p, executor) -> {
             CompletableFuture<Set<String>> future = new CompletableFuture<>();
@@ -479,7 +480,7 @@ public abstract class ZooKeeperCache implements Watcher {
                             return null;
                         });
                     } else {
-                        future.completeExceptionally(KeeperException.create(rc));
+                        future.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc)));
                     }
                 }, null);
             }));
