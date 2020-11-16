@@ -330,8 +330,6 @@ The Apache Software License, Version 2.0
  * Sundrio
     - io.sundr-builder-annotations-0.21.0.jar
     - io.sundr-resourcecify-annotations-0.21.0.jar
-    - io.sundr-sundr-codegen-0.21.0.jar
-    - io.sundr-sundr-core-0.21.0.jar
  * Guava
     - com.google.guava-guava-25.1-jre.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
