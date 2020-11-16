@@ -31,7 +31,7 @@ env:
 
 jobs:
 
-  sql:
+  shade-check:
     name:
     runs-on: ubuntu-latest
     timeout-minutes: 120
