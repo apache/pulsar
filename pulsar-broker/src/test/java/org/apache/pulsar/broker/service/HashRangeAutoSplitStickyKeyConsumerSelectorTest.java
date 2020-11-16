@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
-    public void testGetConsumerRange() throws BrokerServiceException.ConsumerAssignException {
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
         for (int index = 0; index < consumerName.size(); index++) {
@@ -44,11 +44,11 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
         }
 
         Map<String, List<String>> expectedResult = new HashMap<>();
-        expectedResult.put("consumer1", ImmutableList.of("49--64"));
-        expectedResult.put("consumer4", ImmutableList.of("33--48"));
-        expectedResult.put("consumer2", ImmutableList.of("17--32"));
-        expectedResult.put("consumer3", ImmutableList.of("0--16"));
-        for (Map.Entry<String, List<String>> entry : selector.getConsumerRange().entrySet()) {
+        expectedResult.put("consumer1", ImmutableList.of("[49, 64]"));
+        expectedResult.put("consumer4", ImmutableList.of("[33, 48]"));
+        expectedResult.put("consumer2", ImmutableList.of("[17, 32]"));
+        expectedResult.put("consumer3", ImmutableList.of("[0, 16]"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
             expectedResult.remove(entry.getKey());
         }

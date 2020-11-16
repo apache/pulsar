@@ -71,7 +71,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, List<String>> getConsumerRange() {
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
         Map<String, List<String>> result = new HashMap<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
@@ -80,7 +80,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             } else {
                 if (prev.getValue().equals(entry.getValue())) {
                     result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
-                            .add(prev.getKey() + "--" + entry.getKey());
+                            .add("[" + prev.getKey() + ", " + entry.getKey() + "]");
                 }
                 prev = null;
             }

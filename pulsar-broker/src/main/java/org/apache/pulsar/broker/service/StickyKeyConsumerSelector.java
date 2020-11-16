@@ -48,8 +48,8 @@ public interface StickyKeyConsumerSelector {
     Consumer select(byte[] stickyKey);
 
     /**
-     * Get range handled by each consumer
-     * @return A map where key is a consumer name and value is list of range it receiving message for.
+     * Get key hash ranges handled by each consumer
+     * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
-    Map<String, List<String>> getConsumerRange();
+    Map<String, List<String>> getConsumerKeyHashRanges();
 }

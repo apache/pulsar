@@ -115,12 +115,12 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, List<String>> getConsumerRange() {
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
         Map<String, List<String>> result = new HashMap<>();
         int start = 0;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
-                    .add(start + "--" + entry.getKey());
+                    .add("[" + start + ", " + entry.getKey() + "]");
             start = entry.getKey() + 1;
         }
         return result;

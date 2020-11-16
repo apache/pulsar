@@ -129,7 +129,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<String, List<String>> getConsumerRange() {
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
         Map<String, List<String>> result = new LinkedHashMap<>();
         rwLock.readLock().lock();
         try {
@@ -137,7 +137,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
                 for (Consumer consumer: entry.getValue()) {
                     result.computeIfAbsent(consumer.consumerName(), key -> new ArrayList<>())
-                            .add(start + "--" + entry.getKey());
+                            .add("[" + start + ", " + entry.getKey() + "]");
                 }
                 start = entry.getKey() + 1;
             }

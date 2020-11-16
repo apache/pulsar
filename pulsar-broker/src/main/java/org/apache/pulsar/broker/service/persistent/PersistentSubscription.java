@@ -901,8 +901,8 @@ public class PersistentSubscription implements Subscription {
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
-            Map<String, List<String>> consumerRanges = getType() == SubType.Key_Shared?
-                    ((PersistentStickyKeyDispatcherMultipleConsumers)dispatcher).getConsumerRange(): null;
+            Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared?
+                    ((PersistentStickyKeyDispatcherMultipleConsumers)dispatcher).getConsumerKeyHashRanges(): null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
@@ -915,8 +915,8 @@ public class PersistentSubscription implements Subscription {
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
-                if (consumerRanges != null && consumerRanges.containsKey(consumer.consumerName())) {
-                    consumerStats.keyHashRange = consumerRanges.get(consumer.consumerName());
+                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer.consumerName())) {
+                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer.consumerName());
                 }
             });
         }

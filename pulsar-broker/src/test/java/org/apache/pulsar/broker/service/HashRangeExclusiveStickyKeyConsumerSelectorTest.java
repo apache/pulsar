@@ -112,7 +112,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testGetConsumerRange() throws BrokerServiceException.ConsumerAssignException {
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
         List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
@@ -130,11 +130,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         }
 
         Map<String, List<String>> expectedResult = new HashMap<>();
-        expectedResult.put("consumer1", ImmutableList.of("0--2"));
-        expectedResult.put("consumer2", ImmutableList.of("3--7"));
-        expectedResult.put("consumer3", ImmutableList.of("9--12"));
-        expectedResult.put("consumer4", ImmutableList.of("15--20"));
-        for (Map.Entry<String, List<String>> entry : selector.getConsumerRange().entrySet()) {
+        expectedResult.put("consumer1", ImmutableList.of("[0, 2]"));
+        expectedResult.put("consumer2", ImmutableList.of("[3, 7]"));
+        expectedResult.put("consumer3", ImmutableList.of("[9, 12]"));
+        expectedResult.put("consumer4", ImmutableList.of("[15, 20]"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
             expectedResult.remove(entry.getKey());
         }
