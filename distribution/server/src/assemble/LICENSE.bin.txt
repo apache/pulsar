@@ -477,9 +477,6 @@ The Apache Software License, Version 2.0
     - org.apache.yetus-audience-annotations-0.5.0.jar
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
-  * Squareup
-    - com.squareup.okhttp3-logging-interceptor-3.14.3.jar
-    - com.squareup.okhttp3-okhttp-3.14.3.jar
   * Kubernetes Client
     - io.kubernetes-client-java-10.0.0.jar
     - io.kubernetes-client-java-api-10.0.0.jar
