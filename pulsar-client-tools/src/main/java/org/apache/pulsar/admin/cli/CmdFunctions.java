@@ -266,6 +266,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected Boolean retainOrdering;
+        @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
         @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
@@ -417,6 +419,10 @@ public class CmdFunctions extends CmdBase {
 
             if (null != retainOrdering) {
                 functionConfig.setRetainOrdering(retainOrdering);
+            }
+
+            if (isNotBlank(batchBuilder)) {
+                functionConfig.setBatchBuilder(batchBuilder);
             }
 
             if (null != forwardSourceMessageProperty) {
