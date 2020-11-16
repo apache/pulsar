@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -306,14 +307,13 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
-            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
+            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, previousMarkDeletePosition);
 
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
-
-            cursor.asyncDelete(positions, deleteCallback, positions);
+            cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
             if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
                     if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
@@ -355,11 +355,6 @@ public class PersistentSubscription implements Subscription {
             if(dispatcher != null){
                 dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
             }
-        }
-
-        // Signal the dispatchers to give chance to take extra actions
-        if(dispatcher != null){
-            dispatcher.acknowledgementWasProcessed();
         }
     }
 
@@ -414,10 +409,13 @@ public class PersistentSubscription implements Subscription {
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
         @Override
         public void markDeleteComplete(Object ctx) {
-            PositionImpl pos = (PositionImpl) ctx;
+            PositionImpl oldMD = (PositionImpl) ctx;
+            PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Mark deleted messages until position {}", topicName, subName, pos);
+                log.debug("[{}][{}] Mark deleted messages to position {} from position {}", topicName, subName, newMD, oldMD);
             }
+            // Signal the dispatchers to give chance to take extra actions
+            notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
         }
 
         @Override
@@ -435,6 +433,8 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
             }
+            // Signal the dispatchers to give chance to take extra actions
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) position);
         }
 
         @Override
@@ -442,6 +442,14 @@ public class PersistentSubscription implements Subscription {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
         }
     };
+
+    private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
+        PositionImpl oldMD = (PositionImpl) oldPosition;
+        PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+        if(dispatcher != null && newMD.compareTo(oldMD) > 0){
+            dispatcher.markDeletePositionMoveForward();
+        }
+    }
 
     @Override
     public String toString() {
@@ -926,6 +934,15 @@ public class PersistentSubscription implements Subscription {
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
+        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
+                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
+                recentlyJoinedConsumers.forEach((k, v) -> {
+                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                });
+            }
+        }
         return subStats;
     }
 

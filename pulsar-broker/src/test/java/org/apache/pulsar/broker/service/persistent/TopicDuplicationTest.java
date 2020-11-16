@@ -60,7 +60,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -206,6 +206,120 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertNotEquals(msgNum, markDeletedPosition.getEntryId());
             assertNotEquals(position, markDeletedPosition);
         }
+
+    }
+
+    @Test(timeOut = 30000)
+    public void testNamespacePolicyApi() throws Exception {
+        Integer interval = admin.namespaces().getDeduplicationSnapshotInterval(myNamespace);
+        assertNull(interval);
+        admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 100);
+        interval = admin.namespaces().getDeduplicationSnapshotInterval(myNamespace);
+        assertEquals(interval.intValue(), 100);
+        admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
+        interval = admin.namespaces().getDeduplicationSnapshotInterval(myNamespace);
+        assertNull(interval);
+
+        admin.namespaces().setDeduplicationSnapshotIntervalAsync(myNamespace, 200).get();
+        interval = admin.namespaces().getDeduplicationSnapshotIntervalAsync(myNamespace).get();
+        assertEquals(interval.intValue(), 200);
+        admin.namespaces().removeDeduplicationSnapshotIntervalAsync(myNamespace).get();
+        interval = admin.namespaces().getDeduplicationSnapshotIntervalAsync(myNamespace).get();
+        assertNull(interval);
+
+    }
+
+    @Test(timeOut = 30000)
+    private void testNamespacePolicyTakeSnapshot() throws Exception {
+        resetConfig();
+        conf.setBrokerDeduplicationEnabled(true);
+        conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
+        conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
+        conf.setBrokerDeduplicationEntriesInterval(20000);
+        super.internalCleanup();
+        super.internalSetup();
+        super.producerBaseSetup();
+
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String producerName = "my-producer";
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING).topic(topicName).enableBatching(false).producerName(producerName).create();
+        admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 1);
+
+        int msgNum = 50;
+        CountDownLatch countDownLatch = new CountDownLatch(msgNum);
+        for (int i = 0; i < msgNum; i++) {
+            producer.newMessage().value("msg" + i).sendAsync().whenComplete((res, e) -> countDownLatch.countDown());
+        }
+        countDownLatch.await();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                .getManagedLedger().getLastConfirmedEntry();
+        assertEquals(seqId, msgNum - 1);
+        assertEquals(position.getEntryId(), msgNum - 1);
+        //The first time, 1 second delay + 1 second interval
+        Thread.sleep(2000);
+        ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
+        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        assertEquals(position, markDeletedPosition);
+        //remove namespace-level policies, broker-level should be used
+        admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
+        Thread.sleep(2000);
+        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        assertNotEquals(msgNum - 1, markDeletedPosition.getEntryId());
+        assertNotEquals(position, markDeletedPosition.getEntryId());
+        //3 seconds total
+        Thread.sleep(1000);
+        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        assertEquals(msgNum - 1, markDeletedPosition.getEntryId());
+        assertEquals(position, markDeletedPosition);
+
+    }
+
+    @Test(timeOut = 30000)
+    private void testDisableNamespacePolicyTakeSnapshot() throws Exception {
+        resetConfig();
+        conf.setBrokerDeduplicationEnabled(true);
+        conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
+        conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
+        conf.setBrokerDeduplicationEntriesInterval(20000);
+        super.internalCleanup();
+        super.internalSetup();
+        super.producerBaseSetup();
+
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String producerName = "my-producer";
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING).topic(topicName).enableBatching(false).producerName(producerName).create();
+        //set value to 0
+        admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 0);
+
+        int msgNum = 50;
+        CountDownLatch countDownLatch = new CountDownLatch(msgNum);
+        for (int i = 0; i < msgNum; i++) {
+            producer.newMessage().value("msg" + i).sendAsync().whenComplete((res, e) -> countDownLatch.countDown());
+        }
+        countDownLatch.await();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
+        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+
+        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                .getManagedLedger().getLastConfirmedEntry();
+        assertEquals(seqId, msgNum - 1);
+        assertEquals(position.getEntryId(), msgNum - 1);
+        Thread.sleep(2000);
+
+        // take snapshot is disabled, so markDeletedPosition should not change
+        assertEquals(markDeletedPosition, managedCursor.getMarkDeletedPosition());
+        assertEquals(markDeletedPosition.getEntryId(), -1);
+        assertNotEquals(position, markDeletedPosition);
 
     }
 

@@ -20,10 +20,8 @@ package org.apache.pulsar.sql.presto;
 
 
 import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-
 import io.prestosql.spi.PrestoException;
 import java.util.List;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;

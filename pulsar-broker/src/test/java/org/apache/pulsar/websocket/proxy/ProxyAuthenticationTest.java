@@ -88,7 +88,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         ExecutorService executor = newFixedThreadPool(1);
         try {

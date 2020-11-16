@@ -49,7 +49,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

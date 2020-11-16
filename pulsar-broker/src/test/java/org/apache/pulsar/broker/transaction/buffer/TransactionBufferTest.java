@@ -70,7 +70,7 @@ public class TransactionBufferTest {
         this.buffer = this.provider.newTransactionBuffer().get();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.buffer.closeAsync();
     }
