@@ -24,6 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.security.Security;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -41,6 +43,8 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 @Slf4j
 public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
 
@@ -51,6 +55,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers = new LinkedList<>();
     private final TopicSchema topicSchema;
+    private ExecutorService consumerExecutor;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,
                         ClassLoader functionClassLoader) {
@@ -66,7 +71,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
-
+        consumerExecutor = Executors.newFixedThreadPool(configs.size(),new DefaultThreadFactory(String.format("%s-%s",sourceContext.getSourceName(), sourceContext.getInstanceId())));
         for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
@@ -82,7 +87,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
             }
             //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
-            cb.messageListener(this);
 
             if (conf.isRegexPattern) {
                 cb = cb.topicsPattern(topic);
@@ -117,6 +121,18 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
             Consumer<T> consumer = cb.subscribeAsync().join();
             inputConsumers.add(consumer);
+            consumerExecutor.execute(()-> {
+                while (consumer.isConnected()) {
+                    try {
+                        Message<T> message = consumer.receive();
+                        if (message != null) {
+                            received(consumer, message);
+                        }
+                    } catch (PulsarClientException ex) {
+                        log.error("Receive message from consumer :{} failed! ", consumer, ex);
+                    }
+                }
+            });
         }
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
@@ -158,6 +174,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 } catch (PulsarClientException e) {
                 }
             });
+        }
+        if (consumerExecutor != null) {
+            consumerExecutor.shutdownNow();
         }
     }
 
