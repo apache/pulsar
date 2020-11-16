@@ -115,7 +115,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(format(
-                        "field '%s' NULL Type code should not be reached ，"
+                        "field '%s' NULL type code should not be reached ，"
                                 + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
@@ -141,7 +141,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case ARRAY:
                 return new ArrayType(parseJsonPrestoType(fieldname, schema.getElementType()));
             case MAP:
-                //The key for an avro map must be a string
+                //The key for an avro map must be string.
                 TypeSignature valueType = parseJsonPrestoType(fieldname, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.
                         typeParameter(VarcharType.VARCHAR.getTypeSignature()),
@@ -154,8 +154,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                             .collect(toImmutableList()));
                 } else {
                     throw new UnsupportedOperationException(format(
-                            "field '%s' of record Type has no fields, "
-                                    + "please check avro schema definition. ", fieldname));
+                            "field '%s' of record type has no fields, "
+                                    + "please check schema definition. ", fieldname));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
@@ -164,10 +164,10 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                     }
                 }
                 throw new UnsupportedOperationException(format(
-                        "field '%s' of UNION type must contains not null type ", fieldname));
+                        "field '%s' of UNION type must contains not NULL type.", fieldname));
             default:
                 throw new UnsupportedOperationException(format(
-                        "Cannot convert from Schema type '%s' (%s) to Presto type",
+                        "Can't convert from schema type '%s' (%s) to presto type.",
                         schema.getType(), schema.getFullName()));
         }
     }

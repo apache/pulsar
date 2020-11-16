@@ -65,10 +65,11 @@ import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
 /**
- * copy from {@link io.prestosql.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345)
+ * Copy from {@link io.prestosql.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345)
  * with A little bit pulsar's extensions.
- * 1) support TIMESTAMP,DATE,TIME
- * 2) support RealType
+ * 1) support {@link io.prestosql.spi.type.TimestampType},{@link io.prestosql.spi.type.DateType}DATE,
+ *  * {@link io.prestosql.spi.type.TimeType}.
+ * 2) support {@link io.prestosql.spi.type.RealType}.
  */
 public class PulsarAvroColumnDecoder {
     private static final Set<Type> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(

@@ -76,16 +76,18 @@ import java.util.Map;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
- * with some pulsar's extensions:
- * 1) support array.
- * 2) support map.
- * 3) support row.
- * 3) support TIMESTAMP,DATE,TIME.
- * 4) support Real.
+ * Copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
+ * with some pulsar's extensions.
+ * 1) support {@link io.prestosql.spi.type.ArrayType}.
+ * 2) support {@link io.prestosql.spi.type.MapType}.
+ * 3) support {@link io.prestosql.spi.type.RowType}.
+ * 4) support {@link io.prestosql.spi.type.TimestampType},{@link io.prestosql.spi.type.DateType},
+ * {@link io.prestosql.spi.type.TimeType}.
+ * 5) support {@link io.prestosql.spi.type.RealType}.
  */
 public class PulsarJsonFieldDecoder
         implements JsonFieldDecoder {
+
     private final DecoderColumnHandle columnHandle;
     private final long minValue;
     private final long maxValue;
@@ -413,7 +415,7 @@ public class PulsarJsonFieldDecoder
 
             List<RowType.Field> fields = ((RowType) type).getFields();
 
-            checkState(value instanceof ObjectNode, "Json row node must  is ObjectNode type");
+            checkState(value instanceof ObjectNode, "Json row node must be ObjectNode type");
 
             for (RowType.Field field : fields) {
                 checkState(field.getName().isPresent(), "field name not found");

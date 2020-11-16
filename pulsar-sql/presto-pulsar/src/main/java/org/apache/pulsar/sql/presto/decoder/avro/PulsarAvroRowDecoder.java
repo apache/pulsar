@@ -66,7 +66,8 @@ public class PulsarAvroRowDecoder implements PulsarRowDecoder {
             GenericAvroRecord record = (GenericAvroRecord) genericAvroSchema.decode(byteBuf);
             avroRecord = record.getAvroRecord();
         } catch (Exception e) {
-            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding Avro record failed.", e);
+            e.printStackTrace();
+            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding avro record failed.", e);
         }
         return Optional.of(columnDecoders.entrySet().stream()
                 .collect(toImmutableMap(

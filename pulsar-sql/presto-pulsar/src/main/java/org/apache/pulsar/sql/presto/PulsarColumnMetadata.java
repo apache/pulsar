@@ -123,7 +123,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
 
     /**
-     * Decoder ExtraInfo for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
+     * Decoder extra info for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
      * used by {@link io.prestosql.decoder.RowDecoder}.
      */
     public static class DecoderExtraInfo {
@@ -136,11 +136,11 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
         public DecoderExtraInfo() {}
 
-        //equals ColumnName in general, may used as alias or embedded field future
+        //equals ColumnName in general, may used as alias or embedded field in future.
         private String mapping;
-        //reserved dataFormat for used by RowDecoder
+        //reserved dataFormat used by RowDecoder.
         private String dataFormat;
-        //reserved formatHint for used by RowDecoder
+        //reserved formatHint used by RowDecoder.
         private String formatHint;
 
         public String getMapping() {

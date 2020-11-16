@@ -58,7 +58,7 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
         if (columns.size() == 1) {
             return new PulsarPrimitiveRowDecoder(columns.iterator().next());
         } else {
-            throw new RuntimeException("Primitive type must has only one  ColumnHandle ");
+            throw new RuntimeException("Primitive type must has only one ColumnHandle.");
         }
     }
 
@@ -102,7 +102,7 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
             case TIMESTAMP:
                 return TimestampType.TIMESTAMP;
             default:
-                log.error("Cannot convert type: %s for %s", pulsarType, fieldName);
+                log.error("Can't convert type: %s for %s", pulsarType, fieldName);
                 return null;
         }
 
