@@ -419,6 +419,7 @@ The Apache Software License, Version 2.0
     - cpu-affinity-4.12.0.jar
     - http-server-4.12.0.jar
     - prometheus-metrics-provider-4.12.0.jar
+    - codahale-metrics-provider-4.12.0.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
