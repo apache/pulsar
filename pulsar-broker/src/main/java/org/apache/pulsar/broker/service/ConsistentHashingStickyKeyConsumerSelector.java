@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -31,7 +32,6 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -129,14 +129,16 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<String, String> getConsumerRange() {
-        Map<String, String> result = new LinkedHashMap<>();
+    public Map<String, List<String>> getConsumerRange() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
         rwLock.readLock().lock();
         try {
             int start = 0;
             for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
-                result.put(start + "--" + entry.getKey(), entry.getValue().stream().map(
-                        consumer -> consumer.consumerName()).collect(Collectors.joining(", ")));
+                for (Consumer consumer: entry.getValue()) {
+                    result.computeIfAbsent(consumer.consumerName(), key -> new ArrayList<>())
+                            .add(start + "--" + entry.getKey());
+                }
                 start = entry.getKey() + 1;
             }
         } finally {

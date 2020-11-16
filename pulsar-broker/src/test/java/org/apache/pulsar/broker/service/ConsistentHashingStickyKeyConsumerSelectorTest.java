@@ -25,10 +25,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -149,17 +151,15 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int index = 0;
-        List<String> expectedConsumerName = Arrays.asList("consumer1", "consumer1", "consumer3", "consumer3", "consumer2"
-                , "consumer3", "consumer2", "consumer2", "consumer1");
-        List<int[]> expectedRange = Arrays.asList(new int[] {0, 330121749}, new int[] {330121750, 618146114}, new int[] {618146115, 772640562},
-                new int[] {772640563, 938427575}, new int[] {938427576, 1094135919}, new int[] {1094135920, 1138613628}, new int[] {1138613629, 1342907082},
-                new int[] {1342907083, 1797637921}, new int[] {1797637922, 1976098885});
-        for (Map.Entry<String, String> entry : selector.getConsumerRange().entrySet()) {
-            Assert.assertEquals(entry.getKey(), expectedRange.get(index)[0] + "--" + expectedRange.get(index)[1]);
-            Assert.assertEquals(entry.getValue(), expectedConsumerName.get(index));
-            index++;
+        Map<String, Set<String>> expectedResult = new HashMap<>();
+        expectedResult.put("consumer1", ImmutableSet.of("0--330121749", "330121750--618146114", "1797637922--1976098885"));
+        expectedResult.put("consumer2", ImmutableSet.of("938427576--1094135919", "1138613629--1342907082", "1342907083--1797637921"));
+        expectedResult.put("consumer3", ImmutableSet.of("618146115--772640562", "772640563--938427575", "1094135920--1138613628"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerRange().entrySet()) {
+            Assert.assertEquals(entry.getValue().stream().collect(Collectors.toSet()), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
         }
+        Assert.assertEquals(expectedResult.size(), 0);
     }
 
 

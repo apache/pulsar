@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,14 +43,16 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int index = 0;
-        List<String> expectedConsumerName = Arrays.asList("consumer3", "consumer2", "consumer4", "consumer1");
-        List<int[]> expectedRange = Arrays.asList(new int[] {0, 16}, new int[] {17, 32}, new int[] {33, 48}, new int[] {49, 64});
-        for (Map.Entry<String, String> entry : selector.getConsumerRange().entrySet()) {
-            Assert.assertEquals(entry.getKey(), expectedRange.get(index)[0] + "--" + expectedRange.get(index)[1]);
-            Assert.assertEquals(entry.getValue(), expectedConsumerName.get(index));
-            index++;
+        Map<String, List<String>> expectedResult = new HashMap<>();
+        expectedResult.put("consumer1", ImmutableList.of("49--64"));
+        expectedResult.put("consumer4", ImmutableList.of("33--48"));
+        expectedResult.put("consumer2", ImmutableList.of("17--32"));
+        expectedResult.put("consumer3", ImmutableList.of("0--16"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerRange().entrySet()) {
+            Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
         }
+        Assert.assertEquals(expectedResult.size(), 0);
     }
 
 }

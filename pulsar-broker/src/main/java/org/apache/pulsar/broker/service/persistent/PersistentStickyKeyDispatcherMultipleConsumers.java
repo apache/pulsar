@@ -369,7 +369,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return recentlyJoinedConsumers;
     }
 
-    public Map<String, String> getConsumerRange() {
+    public Map<String, List<String>> getConsumerRange() {
         return selector.getConsumerRange();
     }
 

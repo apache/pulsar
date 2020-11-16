@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
@@ -25,6 +26,7 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -127,12 +129,16 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int index = 0;
-        for (Map.Entry<String, String> entry : selector.getConsumerRange().entrySet()) {
-            Assert.assertEquals(entry.getKey(), range.get(index)[0] + "--" + range.get(index)[1]);
-            Assert.assertEquals(entry.getValue(), consumerName.get(index));
-            index++;
+        Map<String, List<String>> expectedResult = new HashMap<>();
+        expectedResult.put("consumer1", ImmutableList.of("0--2"));
+        expectedResult.put("consumer2", ImmutableList.of("3--7"));
+        expectedResult.put("consumer3", ImmutableList.of("9--12"));
+        expectedResult.put("consumer4", ImmutableList.of("15--20"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerRange().entrySet()) {
+            Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
         }
+        Assert.assertEquals(expectedResult.size(), 0);
     }
 
     @Test

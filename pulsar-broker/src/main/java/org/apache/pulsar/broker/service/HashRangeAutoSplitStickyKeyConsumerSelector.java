@@ -21,9 +21,10 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -114,11 +115,12 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, String> getConsumerRange() {
-        Map<String, String> result = new LinkedHashMap<>();
+    public Map<String, List<String>> getConsumerRange() {
+        Map<String, List<String>> result = new HashMap<>();
         int start = 0;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            result.put(start + "--" + entry.getKey(), entry.getValue().consumerName());
+            result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
+                    .add(start + "--" + entry.getKey());
             start = entry.getKey() + 1;
         }
         return result;

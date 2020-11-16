@@ -21,8 +21,9 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -70,15 +71,16 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, String> getConsumerRange() {
-        Map<String, String> result = new LinkedHashMap<>();
+    public Map<String, List<String>> getConsumerRange() {
+        Map<String, List<String>> result = new HashMap<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             if (prev == null) {
                 prev = entry;
             } else {
                 if (prev.getValue().equals(entry.getValue())) {
-                    result.put(prev.getKey() + "--" + entry.getKey(), entry.getValue().consumerName());
+                    result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
+                            .add(prev.getKey() + "--" + entry.getKey());
                 }
                 prev = null;
             }
