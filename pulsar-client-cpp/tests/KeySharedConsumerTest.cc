@@ -127,6 +127,13 @@ class KeySharedConsumerTest : public ::testing::Test {
             numTotalMessages += kv.second;
         }
         ASSERT_EQ(numTotalMessages, expectedNumTotalMessages);
+
+        const double expectedMessagesPerConsumer = static_cast<double>(totalMessages) / consumers.size();
+        constexpr double PERCENT_ERROR = 0.50;
+        for (const auto& kv : messagesPerConsumer) {
+            int count = kv.second;
+            ASSERT_LT(fabs(count - expectedMessagesPerConsumer), expectedMessagesPerConsumer * PERCENT_ERROR);
+        }
     }
 
     Client client;
