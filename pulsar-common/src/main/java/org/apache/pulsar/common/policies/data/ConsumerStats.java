@@ -78,8 +78,8 @@ public class ConsumerStats {
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
 
-    /** Hash range assigned to this consumer if is Key_Shared sub mode. **/
-    public List<String> keyHashRange;
+    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
