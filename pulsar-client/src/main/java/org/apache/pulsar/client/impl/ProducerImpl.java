@@ -268,11 +268,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<?> message, Transaction txn) {
-        if (txn instanceof TransactionImpl) {
-            ((TransactionImpl) txn).registerProducedTopic(topic);
-        }
-
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
@@ -347,6 +343,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         });
         return future;
+    }
+
+    @Override
+    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        if (txn == null) {
+            return internalSendAsync(message);
+        } else {
+            return ((TransactionImpl) txn).registerProducedTopic(topic)
+                        .thenCompose(ignored -> internalSendAsync(message));
+        }
     }
 
     public void sendAsync(Message<?> message, SendCallback callback) {
@@ -1312,6 +1318,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         setState(State.Failed);
                         producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
+                        Timeout timeout = sendTimeout;
+                        if (timeout != null) {
+                            timeout.cancel();
+                            sendTimeout = null;
+                        }
                     }
 
                     return null;

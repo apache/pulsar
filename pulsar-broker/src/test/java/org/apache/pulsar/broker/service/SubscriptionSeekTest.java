@@ -65,7 +65,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

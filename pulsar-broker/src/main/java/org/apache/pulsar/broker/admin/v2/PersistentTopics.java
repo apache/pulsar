@@ -1227,7 +1227,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-    
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
@@ -1256,6 +1256,37 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/examinemessage")
+    @ApiOperation(value = "Examine a specific message on a topic by position relative to the earliest or the latest message.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic, the message position does not exist"),
+            @ApiResponse(code = 405, message = "If given partitioned topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public Response examineMessage(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(name = "initialPosition", value = "Relative start position to examine message." +
+                    "It can be 'latest' or 'earliest'",
+                    defaultValue = "latest",
+                    allowableValues = "latest, earliest"
+            )
+            @QueryParam("initialPosition") String initialPosition,
+            @ApiParam(value = "The position of messages (default 1)", defaultValue = "1")
+            @QueryParam("messagePosition") long messagePosition,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalExamineMessage(initialPosition, messagePosition, authoritative);
     }
 
     @GET

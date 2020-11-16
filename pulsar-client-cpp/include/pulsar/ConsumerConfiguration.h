@@ -29,6 +29,7 @@
 #include <pulsar/ConsumerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/InitialPosition.h>
+#include <pulsar/KeySharedPolicy.h>
 
 namespace pulsar {
 
@@ -89,6 +90,17 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     ConsumerConfiguration& setConsumerType(ConsumerType consumerType);
     ConsumerType getConsumerType() const;
+
+    /**
+     * Set KeyShared subscription policy for consumer.
+     *
+     * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * set a different KeyShared policy, you can set by following example:
+     *
+     * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
+     */
+    ConsumerConfiguration& setKeySharedPolicy(KeySharedPolicy keySharedPolicy);
+    KeySharedPolicy getKeySharedPolicy() const;
 
     /**
      * A message listener enables your application to configure how to process

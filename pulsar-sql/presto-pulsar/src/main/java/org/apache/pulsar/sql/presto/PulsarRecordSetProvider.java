@@ -19,7 +19,6 @@
 package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.collect.ImmutableList;
 import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.ConnectorRecordSetProvider;

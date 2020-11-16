@@ -119,7 +119,7 @@ public class TopicOwnerTest {
         Thread.sleep(1000);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void tearDown() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarServices[i].close();

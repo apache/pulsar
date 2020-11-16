@@ -79,7 +79,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void shutdown() throws Exception {
         super.shutdown();
 

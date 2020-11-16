@@ -79,7 +79,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

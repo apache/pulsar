@@ -44,7 +44,7 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

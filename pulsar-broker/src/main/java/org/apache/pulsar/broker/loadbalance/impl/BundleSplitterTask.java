@@ -43,7 +43,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     /**
      * Construct a BundleSplitterTask.
-     * 
+     *
      * @param pulsar
      *            Service to construct from.
      */
@@ -53,7 +53,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     /**
      * Determines which bundles should be split based on various thresholds.
-     * 
+     *
      * @param loadData
      *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
      *            leader broker).

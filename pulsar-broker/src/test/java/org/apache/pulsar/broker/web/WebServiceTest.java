@@ -325,6 +325,9 @@ public class WebServiceTest {
 
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
             boolean enableTls, boolean enableAuth, boolean allowInsecure, double rateLimit) throws Exception {
+        if (pulsar != null) {
+            throw new Exception("broker already started");
+        }
         Set<String> providers = new HashSet<>();
         providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
 
@@ -402,10 +405,13 @@ public class WebServiceTest {
 
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
-        try {
-            pulsar.close();
-        } catch (Exception e) {
-            Assert.fail("Got exception while closing the pulsar instance ", e);
+        if (pulsar != null) {
+            try {
+                pulsar.close();
+                pulsar = null;
+            } catch (Exception e) {
+                Assert.fail("Got exception while closing the pulsar instance ", e);
+            }
         }
     }
 
