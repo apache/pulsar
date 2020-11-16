@@ -19,31 +19,71 @@
 package org.apache.pulsar.functions.instance.state;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.options.Options;
-
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.Options;
+import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
  * This class accumulates the state updates from one function.
  *
  * <p>currently it exposes incr operations. but we can expose other key/values operations if needed.
  */
-public class StateContextImpl implements StateContext {
+public class BKStateStoreImpl implements DefaultStateStore {
 
+    private final String tenant;
+    private final String namespace;
+    private final String name;
+    private final String fqsn;
     private final Table<ByteBuf, ByteBuf> table;
 
-    public StateContextImpl(Table<ByteBuf, ByteBuf> table) {
+    public BKStateStoreImpl(String tenant, String namespace, String name,
+                            Table<ByteBuf, ByteBuf> table) {
+        this.tenant = tenant;
+        this.namespace = namespace;
+        this.name = name;
         this.table = table;
+        this.fqsn = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
     }
 
     @Override
-    public CompletableFuture<Void> incrCounter(String key, long amount) {
+    public String tenant() {
+        return tenant;
+    }
+
+    @Override
+    public String namespace() {
+        return namespace;
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public String fqsn() {
+        return fqsn;
+    }
+
+    @Override
+    public void init(StateStoreContext ctx) {
+    }
+
+    @Override
+    public void close() {
+        table.close();
+    }
+
+    @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
         // TODO: this can be optimized with a batch operation.
         return table.increment(
             Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
@@ -51,7 +91,30 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public CompletableFuture<Void> put(String key, ByteBuffer value) {
+    public void incrCounter(String key, long amount) {
+        try {
+            result(incrCounterAsync(key, amount));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        return table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8)));
+    }
+
+    @Override
+    public long getCounter(String key) {
+        try {
+            return result(getCounterAsync(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> putAsync(String key, ByteBuffer value) {
         if(value != null) {
             // Set position to off the buffer to the beginning.
             // If a user used an operation like ByteBuffer.allocate(4).putInt(count) to create a ByteBuffer to store to the state store
@@ -68,7 +131,16 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public CompletableFuture<Void> delete(String key) {
+    public void put(String key, ByteBuffer value) {
+        try {
+            result(putAsync(key, value));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteAsync(String key) {
         return table.delete(
                 Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
                 Options.delete()
@@ -76,7 +148,16 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public CompletableFuture<ByteBuffer> get(String key) {
+    public void delete(String key) {
+        try {
+            result(deleteAsync(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
+        }
+    }
+
+    @Override
+    public CompletableFuture<ByteBuffer> getAsync(String key) {
         return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
                 data -> {
                     try {
@@ -98,8 +179,11 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public CompletableFuture<Long> getCounter(String key) {
-        return table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8)));
+    public ByteBuffer get(String key) {
+        try {
+            return result(getAsync(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
+        }
     }
-
 }

@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -39,6 +41,8 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  *                              .build();
  * }</pre>
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface PulsarClient extends Closeable {
 
     /**

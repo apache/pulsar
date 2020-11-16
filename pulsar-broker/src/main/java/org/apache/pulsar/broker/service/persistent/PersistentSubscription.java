@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -933,6 +934,15 @@ public class PersistentSubscription implements Subscription {
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
+        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
+                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
+                recentlyJoinedConsumers.forEach((k, v) -> {
+                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                });
+            }
+        }
         return subStats;
     }
 

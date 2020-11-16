@@ -21,7 +21,11 @@ package org.apache.pulsar.common.policies.data;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Lists;
+
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 /**
@@ -91,8 +95,12 @@ public class SubscriptionStats {
     /** Mark that the subscription state is kept in sync across different regions. */
     public boolean isReplicated;
 
+    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
+    public Map<String, String> consumersAfterMarkDeletePosition;
+
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
+        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
     }
 
     public void reset() {
@@ -134,6 +142,7 @@ public class SubscriptionStats {
                 this.consumers.get(i).add(stats.consumers.get(i));
             }
         }
+        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         return this;
     }
 }

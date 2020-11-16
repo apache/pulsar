@@ -22,14 +22,17 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
  *
  * <p>All the operations on the consumer instance are thread safe.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Consumer<T> extends Closeable {
 
     /**

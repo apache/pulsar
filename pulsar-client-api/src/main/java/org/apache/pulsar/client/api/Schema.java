@@ -31,6 +31,8 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -39,6 +41,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Message schema definition.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Schema<T> extends Cloneable{
 
     /**

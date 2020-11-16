@@ -20,14 +20,17 @@ package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Producer is used to publish messages on a topic.
  *
  * <p>A single producer instance can be used across multiple threads.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Producer<T> extends Closeable {
 
     /**
