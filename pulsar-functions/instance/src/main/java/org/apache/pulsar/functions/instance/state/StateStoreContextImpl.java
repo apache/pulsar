@@ -16,15 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.compaction;
+package org.apache.pulsar.functions.instance.state;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.functions.api.StateStoreContext;
 
-public interface CompactedTopic {
-    CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId);
-    void asyncReadEntriesOrWait(ManagedCursor cursor, int numberOfEntriesToRead,
-                                ReadEntriesCallback callback, Object ctx);
+/**
+ * Default implementation of {@link StateStoreContext}.
+ */
+public class StateStoreContextImpl implements StateStoreContext {
 }

@@ -51,7 +51,4 @@
     <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/client/.*.java"/>
     <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/transaction/.*.java"/>
     <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/broker/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/compaction/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/utils/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/sql/.*.java"/>
 </suppressions>

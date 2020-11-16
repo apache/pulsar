@@ -16,15 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.compaction;
+package org.apache.pulsar.functions.instance.state;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.functions.api.StateStore;
 
-public interface CompactedTopic {
-    CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId);
-    void asyncReadEntriesOrWait(ManagedCursor cursor, int numberOfEntriesToRead,
-                                ReadEntriesCallback callback, Object ctx);
+/**
+ * A state manager that manages multiple state stores.
+ */
+public interface StateManager extends AutoCloseable {
+
+    /**
+     * Register the state store.
+     *
+     * @param store the state store to register.
+     */
+    void registerStore(StateStore store);
+
+    /**
+     * Get the state store with the given name.
+     *
+     * @param tenant the state store tenant.
+     * @param namespace the state store namespace.
+     * @param name the state store name.
+     * @return the state store with the given name.
+     */
+    StateStore getStore(String tenant, String namespace, String name);
+
+    void close();
+
 }

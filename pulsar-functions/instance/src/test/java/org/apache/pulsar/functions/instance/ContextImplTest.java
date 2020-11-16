@@ -45,7 +45,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
+import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.slf4j.Logger;
@@ -86,7 +87,7 @@ public class ContextImplTest {
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, null);
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager());
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -117,39 +118,39 @@ public class ContextImplTest {
 
     @Test
     public void testIncrCounterStateEnabled() throws Exception {
-        context.stateContext = mock(StateContextImpl.class);
+        context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.incrCounterAsync("test-key", 10L);
-        verify(context.stateContext, times(1)).incrCounter(eq("test-key"), eq(10L));
+        verify(context.defaultStateStore, times(1)).incrCounterAsync(eq("test-key"), eq(10L));
     }
 
     @Test
     public void testGetCounterStateEnabled() throws Exception {
-        context.stateContext = mock(StateContextImpl.class);
+        context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.getCounterAsync("test-key");
-        verify(context.stateContext, times(1)).getCounter(eq("test-key"));
+        verify(context.defaultStateStore, times(1)).getCounterAsync(eq("test-key"));
     }
 
     @Test
     public void testPutStateStateEnabled() throws Exception {
-        context.stateContext = mock(StateContextImpl.class);
+        context.defaultStateStore = mock(BKStateStoreImpl.class);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
         context.putStateAsync("test-key", buffer);
-        verify(context.stateContext, times(1)).put(eq("test-key"), same(buffer));
+        verify(context.defaultStateStore, times(1)).putAsync(eq("test-key"), same(buffer));
     }
 
     @Test
     public void testDeleteStateStateEnabled() throws Exception {
-        context.stateContext = mock(StateContextImpl.class);
+        context.defaultStateStore = mock(BKStateStoreImpl.class);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
         context.deleteStateAsync("test-key");
-        verify(context.stateContext, times(1)).delete(eq("test-key"));
+        verify(context.defaultStateStore, times(1)).deleteAsync(eq("test-key"));
     }
 
     @Test
     public void testGetStateStateEnabled() throws Exception {
-        context.stateContext = mock(StateContextImpl.class);
+        context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.getStateAsync("test-key");
-        verify(context.stateContext, times(1)).get(eq("test-key"));
+        verify(context.defaultStateStore, times(1)).getAsync(eq("test-key"));
     }
 
     @Test

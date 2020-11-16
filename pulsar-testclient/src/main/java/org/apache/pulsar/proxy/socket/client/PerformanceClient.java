@@ -36,9 +36,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,7 +168,9 @@ public class PerformanceClient {
             String topicName, String authPluginClassName, String authParams) throws InterruptedException, FileNotFoundException {
         ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
-        String produceBaseEndPoint = baseUrl + "ws/producer" + topicName;
+        String restPath = TopicName.get(topicName).getRestPath();
+        String produceBaseEndPoint = TopicName.get(topicName).isV2() ?
+                baseUrl + "ws/v2/producer/" + restPath : baseUrl + "ws/producer/" + restPath;
         for (int i = 0; i < numOfTopic; i++) {
             String topic = numOfTopic > 1 ? produceBaseEndPoint + String.valueOf(i) : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
