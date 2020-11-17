@@ -20,12 +20,11 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.Getter;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
-import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.proto.Function.ProducerSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.source.TopicSchema;
 
 import java.util.HashMap;
@@ -61,6 +60,13 @@ public class PulsarCluster {
             }
             if (producerSpec.getMaxPendingMessagesAcrossPartitions() != 0) {
                 this.producerBuilder.maxPendingMessagesAcrossPartitions(producerSpec.getMaxPendingMessagesAcrossPartitions());
+            }
+            if (producerSpec.getBatchBuilder() != null) {
+                if (producerSpec.getBatchBuilder().equals("KEY_BASED")) {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                } else {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.DEFAULT);
+                }
             }
             useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
         }
