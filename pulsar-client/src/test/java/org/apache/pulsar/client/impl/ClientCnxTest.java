@@ -21,16 +21,22 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
@@ -62,6 +68,8 @@ public class ClientCnxTest {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
         }
+
+        eventLoop.shutdownGracefully();
     }
 
     @Test
@@ -93,6 +101,54 @@ public class ClientCnxTest {
         } catch (Exception e) {
             fail("should not throw any error");
         }
+
+        eventLoop.shutdownGracefully();
     }
 
+    @Test
+    public void testGetLastMessageIdWithError() throws Exception {
+        ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, threadFactory);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+
+        Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
+        ctxField.setAccessible(true);
+        ctxField.set(cnx, ctx);
+
+        final long requestId = 100;
+
+        // set connection as SentConnectFrame
+        Field cnxField = ClientCnx.class.getDeclaredField("state");
+        cnxField.setAccessible(true);
+        cnxField.set(cnx, ClientCnx.State.SentConnectFrame);
+
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+
+        ByteBuf getLastIdCmd = Commands.newGetLastMessageId(5, requestId);
+        CompletableFuture<?> future = cnx.sendGetLastMessageId(getLastIdCmd, requestId);
+
+        // receive error
+        PulsarApi.CommandError commandError = PulsarApi.CommandError.newBuilder()
+            .setRequestId(requestId)
+            .setError(PulsarApi.ServerError.MetadataError)
+            .setMessage("failed to read")
+            .build();
+        cnx.handleError(commandError);
+
+        try {
+            future.get();
+            fail("Should have failed");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getClass(), BrokerMetadataException.class);
+        }
+
+        eventLoop.shutdownGracefully();
+    }
 }

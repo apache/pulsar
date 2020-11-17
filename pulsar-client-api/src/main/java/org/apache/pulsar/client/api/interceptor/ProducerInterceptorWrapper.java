@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api.interceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A wrapper for old style producer interceptor.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Stable
 public class ProducerInterceptorWrapper implements ProducerInterceptor {
     private final org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor;
 

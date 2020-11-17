@@ -125,7 +125,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -586,7 +585,8 @@ public class ServerCnx extends PulsarHandler {
                 // If the connection was already ready, it means we're doing a refresh
                 if (!StringUtils.isEmpty(authRole)) {
                     if (!authRole.equals(newAuthRole)) {
-                        log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
+                        log.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
+                                remoteAddress, authRole, newAuthRole);
                         ctx.close();
                     } else {
                         log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);

@@ -103,6 +103,7 @@ public class CmdTopics extends CmdBase {
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
+        jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
@@ -124,6 +125,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("enable-deduplication", new EnableDeduplication());
         jcommander.addCommand("disable-deduplication", new DisableDeduplication());
         jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+
+        jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
+        jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
+        jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
 
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
@@ -736,6 +741,39 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+
+    @Parameters(commandDescription = "Examine a specific message on a topic by position relative to the" +
+            " earliest or the latest message.")
+    private class ExamineMessages extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-i", "--initialPosition" },
+                description = "Relative start position to examine message." +
+                        "It can be 'latest' or 'earliest', default is latest")
+        private String initialPosition = "latest";
+
+        @Parameter(names = { "-m", "--messagePosition" },
+                description = "The position of messages (default 1)", required = false)
+        private long messagePosition = 1;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Message<byte[]> messages = topics.examineMessage(persistentTopic, initialPosition, messagePosition);
+            MessageIdImpl msgId = (MessageIdImpl) messages.getMessageId();
+            System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+
+            if (messages.getProperties().size() > 0) {
+                System.out.println("Tenants:");
+                print(messages.getProperties());
+            }
+
+            ByteBuf data = Unpooled.wrappedBuffer(messages.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
+        }
+    }
+
     @Parameters(commandDescription = "Get message by its ledgerId and entryId")
     private class GetMessageById extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -1072,6 +1110,51 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get deduplication snapshot interval for a topic")
+    private class GetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getDeduplicationSnapshotInterval(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set deduplication snapshot interval for a topic")
+    private class SetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-i", "--interval" }, description =
+                "Deduplication snapshot interval for topic in second, allowed range from 0 to Integer.MAX_VALUE", required = true)
+        private int interval;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (interval < 0) {
+                throw new ParameterException(String.format("Invalid interval '%d'. ", interval));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setDeduplicationSnapshotInterval(persistentTopic, interval);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove deduplication snapshot interval for a topic")
+    private class RemoveDeduplicationSnapshotInterval extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeDeduplicationSnapshotInterval(persistentTopic);
+        }
+    }
+
     @Parameters(commandDescription = "Get the retention policy for a topic")
     private class GetRetention extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -1225,6 +1308,14 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload service endpoint, only s3 requires this parameter")
         private String endpoint;
 
+        @Parameter(names = {"-i", "--aws-id"}
+                , description = "AWS Credential Id to use when using driver S3 or aws-s3")
+        private String awsId;
+
+        @Parameter(names = {"-s", "--aws-secret"}
+                , description = "AWS Credential Secret to use when using driver S3 or aws-s3")
+        private String awsSecret;
+
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
                 , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
         private int maxBlockSizeInBytes;
@@ -1244,7 +1335,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, maxBlockSizeInBytes
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
                     , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

@@ -21,18 +21,32 @@ package org.apache.pulsar.functions.instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
-import org.apache.bookkeeper.api.kv.Table;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.instance.state.DefaultStateStore;
+import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
@@ -46,15 +60,8 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -73,7 +80,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final Map<String, Object> secretsMap;
 
     @VisibleForTesting
-    StateContextImpl stateContext;
+    StateManager stateManager;
+    @VisibleForTesting
+    DefaultStateStore defaultStateStore;
+
     private Map<String, Object> userConfigs;
 
     private ComponentStatsManager statsManager;
@@ -95,7 +105,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       Table<ByteBuf, ByteBuf> stateTable) {
+                       StateManager stateManager) {
         this.config = config;
         this.logger = logger;
         this.statsManager = statsManager;
@@ -159,10 +169,12 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
         this.componentType = componentType;
-
-        if (null != stateTable) {
-            this.stateContext = new StateContextImpl(stateTable);
-        }
+        this.stateManager = stateManager;
+        this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName()
+        );
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -281,88 +293,84 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
     }
 
+    @Override
+    public <S extends StateStore> S getStateStore(String name) {
+        return getStateStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            name);
+    }
+
+    @Override
+    public <S extends StateStore> S getStateStore(String tenant, String ns, String name) {
+        return (S) stateManager.getStore(tenant, ns, name);
+    }
+
     private void ensureStateEnabled() {
-        checkState(null != stateContext, "State is not enabled.");
+        checkState(null != defaultStateStore, "State %s/%s/%s is not enabled.",
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName());
     }
 
     @Override
     public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
         ensureStateEnabled();
-        return stateContext.incrCounter(key, amount);
+        return defaultStateStore.incrCounterAsync(key, amount);
     }
 
     @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
-        try {
-            result(stateContext.incrCounter(key, amount));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
-        }
+        defaultStateStore.incrCounter(key, amount);
     }
 
     @Override
     public CompletableFuture<Long> getCounterAsync(String key) {
         ensureStateEnabled();
-        return stateContext.getCounter(key);
+        return defaultStateStore.getCounterAsync(key);
     }
 
     @Override
     public long getCounter(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.getCounter(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
-        }
+        return defaultStateStore.getCounter(key);
     }
 
     @Override
     public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
         ensureStateEnabled();
-        return stateContext.put(key, value);
+        return defaultStateStore.putAsync(key, value);
     }
 
     @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
-        try {
-            result(stateContext.put(key, value));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
-        }
+        defaultStateStore.put(key, value);
     }
 
     @Override
     public CompletableFuture<Void> deleteStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.delete(key);
+        return defaultStateStore.deleteAsync(key);
     }
 
     @Override
     public void deleteState(String key) {
         ensureStateEnabled();
-        try {
-            result(stateContext.delete(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
-        }
+        defaultStateStore.delete(key);
     }
 
     @Override
     public CompletableFuture<ByteBuffer> getStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.get(key);
+        return defaultStateStore.getAsync(key);
     }
 
     @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.get(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
-        }
+        return defaultStateStore.get(key);
     }
 
     @Override

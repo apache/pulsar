@@ -120,7 +120,7 @@ public class ClientDeduplicationFailureTest {
         admin.tenants().createTenant(tenant, tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();

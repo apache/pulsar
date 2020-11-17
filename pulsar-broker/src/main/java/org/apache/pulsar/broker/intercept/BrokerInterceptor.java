@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import com.google.common.annotations.Beta;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.ServletException;
@@ -36,7 +37,8 @@ import java.io.IOException;
  * <p>BrokerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Evolving
 public interface BrokerInterceptor extends AutoCloseable {
 
     /**

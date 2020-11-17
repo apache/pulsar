@@ -19,12 +19,9 @@
 package org.apache.pulsar.sql.presto;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-
 import java.util.List;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;

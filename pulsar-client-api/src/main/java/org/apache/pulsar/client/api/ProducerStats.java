@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Producer statistics recorded by client.
@@ -26,6 +28,8 @@ import java.io.Serializable;
  * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ProducerStats extends Serializable {
     /**
      * @return the number of messages published in the last interval

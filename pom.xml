@@ -98,18 +98,17 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.10.0</bookkeeper.version>
+    <bookkeeper.version>4.12.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
-    <jetty.version>9.4.31.v20200723</jetty.version>
+    <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
     <vertx.version>3.5.3</vertx.version>
-    <rocksdb.version>5.13.3</rocksdb.version>
+    <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
@@ -119,7 +118,7 @@ flexible messaging model and an intuitive client API.</description>
     <jackson.databind.version>2.11.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.5.21</swagger.version>
-    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
+    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
     <protobuf2.version>2.4.1</protobuf2.version>
@@ -147,7 +146,6 @@ flexible messaging model and an intuitive client API.</description>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
-    <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <scala-library.version>2.11.12</scala-library.version>
     <debezium.version>1.0.0.Final</debezium.version>
@@ -187,14 +185,15 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.14.3</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>6.14.3</testng.version>
-    <mockito.version>2.28.2</mockito.version>
-    <powermock.version>2.0.2</powermock.version>
+    <testng.version>7.3.0</testng.version>
+    <mockito.version>3.0.0</mockito.version>
+    <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
     <objenesis.version>3.1</objenesis.version>
+    <awaitility.version>4.0.2</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -212,7 +211,7 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <maven-archiver.version>2.5</maven-archiver.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
-    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <maven-checkstyle-plugin.version>3.1.1</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
@@ -241,6 +240,19 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
+        <exclusions>
+            <exclusion>
+                <groupId>org.yaml</groupId>
+                <artifactId>*</artifactId>
+            </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>${awaitility.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -299,6 +311,10 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>bookkeeper-server</artifactId>
         <version>${bookkeeper.version}</version>
         <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
             <groupId>org.slf4j</groupId>
@@ -429,7 +445,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jetty-util</artifactId>
         <version>${jetty.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
@@ -601,7 +617,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
@@ -927,37 +943,37 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-api</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.opencensus</groupId>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.elasticsearch.client</groupId>
         <artifactId>elasticsearch-rest-high-level-client</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${joda.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>net.jcip</groupId>
         <artifactId>jcip-annotations</artifactId>
         <version>${jcip.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.airlift</groupId>
         <artifactId>aircompressor</artifactId>
@@ -969,13 +985,13 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
         <groupId>org.objenesis</groupId>
         <artifactId>objenesis</artifactId>
         <version>${objenesis.version}</version>
       </dependency>
-    
+
     </dependencies>
   </dependencyManagement>
 
@@ -1032,6 +1048,10 @@ flexible messaging model and an intuitive client API.</description>
       <scope>test</scope>
       <classifier>tests</classifier>
       <exclusions>
+        <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
@@ -1284,7 +1304,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
           </excludes>
         </configuration>
-      </plugin>      
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -1383,7 +1403,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>${maven-assembly-plugin.version}</version>            
+          <version>${maven-assembly-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1571,16 +1591,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-discovery-service</module>
-        <module>pulsar-storm</module>
-        <module>pulsar-flink</module>
-        <module>pulsar-spark</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-client-kafka-compat</module>
         <module>pulsar-zookeeper</module>
-        <module>pulsar-log4j2-appender</module>
         <module>pulsar-sql</module>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
@@ -1598,9 +1613,6 @@ flexible messaging model and an intuitive client API.</description>
 
         <!-- kafka connect avro converter shaded, because version mismatch    -->
         <module>kafka-connect-avro-converter-shaded</module>
-
-        <!-- examples -->
-        <module>examples</module>
 
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>
@@ -1686,6 +1698,6 @@ flexible messaging model and an intuitive client API.</description>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
-  
+
 </project>
 

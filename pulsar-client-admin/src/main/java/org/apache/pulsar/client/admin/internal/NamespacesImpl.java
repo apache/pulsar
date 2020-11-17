@@ -146,6 +146,41 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public BundlesData getBundles(String namespace) throws PulsarAdminException {
+        try {
+            return getBundlesAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public  CompletableFuture<BundlesData> getBundlesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        String action = "bundles";
+        WebTarget path = namespacePath(ns, action);
+        final CompletableFuture<BundlesData> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<BundlesData>() {
+                    @Override
+                    public void completed(BundlesData bundles) {
+                        future.complete(bundles);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public CompletableFuture<List<String>> getTopicsAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         String action = ns.isV2() ? "topics" : "destinations";
@@ -1939,6 +1974,73 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public Integer getDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException {
+        try {
+            return getDeduplicationSnapshotIntervalAsync(namespace).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "deduplicationSnapshotInterval");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Integer>() {
+                    @Override
+                    public void completed(Integer interval) {
+                        future.complete(interval);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setDeduplicationSnapshotInterval(String namespace, Integer interval) throws PulsarAdminException {
+        try {
+            setDeduplicationSnapshotIntervalAsync(namespace, interval).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String namespace, Integer interval) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "deduplicationSnapshotInterval");
+        return asyncPostRequest(path, Entity.entity(interval, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException {
+        setDeduplicationSnapshotInterval(namespace, null);
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String namespace) {
+        return setDeduplicationSnapshotIntervalAsync(namespace, null);
+    }
+
+    @Override
     public int getMaxProducersPerTopic(String namespace) throws PulsarAdminException {
         try {
             return getMaxProducersPerTopicAsync(namespace).
@@ -2641,10 +2743,32 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeOffloadPolicies(String namespace) throws PulsarAdminException {
+        try {
+            removeOffloadPoliciesAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadPolicies");
         return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeOffloadPoliciesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "removeOffloadPolicies");
+        return asyncDeleteRequest(path);
     }
 
     @Override

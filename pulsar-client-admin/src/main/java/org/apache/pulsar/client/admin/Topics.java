@@ -2509,6 +2509,51 @@ public interface Topics {
     CompletableFuture<Void> removeMaxConsumersAsync(String topic);
 
     /**
+     * Get the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
+     * Set the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @param interval
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationSnapshotInterval(String topic, int interval) throws PulsarAdminException;
+
+    /**
+     * Set the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @param interval
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String topic, int interval);
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -2569,4 +2614,24 @@ public interface Topics {
      *              unexpected error
      */
     CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    Message<byte[]> examineMessage(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    CompletableFuture<Message<byte[]>> examineMessageAsync(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
 }

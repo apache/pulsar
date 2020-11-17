@@ -1030,6 +1030,54 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Message<byte[]> examineMessage(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException {
+        try {
+            return examineMessageAsync(topic, initialPosition, messagePosition)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Message<byte[]>> examineMessageAsync(String topic, String initialPosition,
+                                                                  long messagePosition) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "examinemessage")
+                .queryParam("initialPosition", initialPosition)
+                .queryParam("messagePosition", messagePosition);
+        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        try {
+                            List<Message<byte[]>> messages = getMessagesFromHttpResponse(tn.toString(), response);
+                            if (messages.size() > 0) {
+                                future.complete(messages.get(0));
+                            } else {
+                                future.complete(null);
+                            }
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
         CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
         getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
@@ -2664,6 +2712,82 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncDeleteRequest(path);
     }
 
+
+    @Override
+    public Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException {
+        try {
+            return getDeduplicationSnapshotIntervalAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "deduplicationSnapshotInterval");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Integer>() {
+                    @Override
+                    public void completed(Integer interval) {
+                        future.complete(interval);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setDeduplicationSnapshotInterval(String topic, int interval) throws PulsarAdminException {
+        try {
+            setDeduplicationSnapshotIntervalAsync(topic, interval).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String topic, int interval) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "deduplicationSnapshotInterval");
+        return asyncPostRequest(path, Entity.entity(interval, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeDeduplicationSnapshotInterval(String topic) throws PulsarAdminException {
+        try {
+            removeDeduplicationSnapshotIntervalAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "deduplicationSnapshotInterval");
+        return asyncDeleteRequest(path);
+    }
 
     @Override
     public SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException {

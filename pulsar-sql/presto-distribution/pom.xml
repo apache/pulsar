@@ -36,6 +36,7 @@
     <properties>
         <jersey.version>2.31</jersey.version>
         <presto.version>332</presto.version>
+        <jersey.version>2.31</jersey.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
         <objectsize.version>0.0.12</objectsize.version>
@@ -78,6 +79,36 @@
             <artifactId>jersey-hk2</artifactId>
             <version>${jersey.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+           <groupId>org.glassfish.jersey.containers</groupId>
+           <artifactId>jersey-container-servlet-core</artifactId>
+           <version>${jersey.version}</version>
+        </dependency>
+
+        <dependency>
+           <groupId>org.glassfish.jersey.containers</groupId>
+           <artifactId>jersey-container-servlet</artifactId>
+           <version>${jersey.version}</version>
+       </dependency>
+
         <dependency>
             <groupId>io.prestosql</groupId>
             <artifactId>presto-main</artifactId>
@@ -260,6 +291,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <attach>true</attach>

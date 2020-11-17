@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.collect.Sets;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -32,7 +31,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.testng.annotations.AfterClass;
 
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
@@ -53,6 +52,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     private TransactionBufferClient tbClient;
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
+    BrokerService[] brokerServices;
 
     @BeforeClass
     void init() throws Exception {
@@ -68,9 +68,23 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                 ((PulsarClientImpl) pulsarClient).getCnxPool());
     }
 
+    @AfterClass(alwaysRun = true)
+    public void shutdownClient() throws Exception {
+        if (tbClient != null) {
+            tbClient.close();
+        }
+        if (brokerServices != null) {
+            for (BrokerService bs : brokerServices) {
+                bs.close();
+            }
+            brokerServices = null;
+        }
+    }
+
     @Override
     public void afterPulsarStart() throws Exception {
         super.afterPulsarStart();
+        brokerServices = new BrokerService[pulsarServices.length];
         for (int i = 0; i < pulsarServices.length; i++) {
             Subscription mockSubscription = Mockito.mock(Subscription.class);
             Mockito.when(mockSubscription.endTxn(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt()))
@@ -87,6 +101,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
             BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i]));
+            brokerServices[i] = brokerService;
             Mockito.when(brokerService.getTopics()).thenReturn(topicMap);
             Mockito.when(pulsarServices[i].getBrokerService()).thenReturn(brokerService);
         }

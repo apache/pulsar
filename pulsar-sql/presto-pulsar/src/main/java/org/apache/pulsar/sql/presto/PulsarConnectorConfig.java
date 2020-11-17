@@ -27,7 +27,6 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.client.ClientBuilder;
-
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;

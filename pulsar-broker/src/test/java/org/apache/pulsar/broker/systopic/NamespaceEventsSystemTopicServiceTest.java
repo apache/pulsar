@@ -54,7 +54,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         prepareData();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

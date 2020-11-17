@@ -442,7 +442,7 @@ reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
 Lookup can be done with a REST call as described in the
-[admin API](admin-api-persistent-topics.md#lookup-of-topic)
+[admin API](admin-api-topics.md#lookup-of-topic)
 docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary

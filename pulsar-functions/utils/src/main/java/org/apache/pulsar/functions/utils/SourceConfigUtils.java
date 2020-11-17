@@ -28,7 +28,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -404,6 +403,10 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+        }
+
+        if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
+            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), classLoader, true);
         }
 
         if (typeArg.equals(TypeResolver.Unknown.class)) {

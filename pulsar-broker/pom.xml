@@ -78,14 +78,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc</artifactId>
-      <version>${project.version}</version>
-      <classifier>pkg</classifier>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-discovery-service</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -174,6 +166,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -344,6 +342,25 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>check-style</id>
+            <phase>verify</phase>
+            <configuration>
+              <configLocation>../buildtools/src/main/resources/pulsar/checkstyle-pulsar-broker.xml</configLocation>
+              <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+              <encoding>UTF-8</encoding>
+              <excludes>**/proto/*</excludes>
+            </configuration>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
