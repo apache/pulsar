@@ -64,7 +64,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         waitForZooKeeperWatchers();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -124,6 +124,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testTopicPolicyDisabled() throws Exception {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
+        stopBroker();
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));

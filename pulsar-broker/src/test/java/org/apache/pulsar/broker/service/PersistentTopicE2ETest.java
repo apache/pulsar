@@ -97,7 +97,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -913,6 +913,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
+        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);

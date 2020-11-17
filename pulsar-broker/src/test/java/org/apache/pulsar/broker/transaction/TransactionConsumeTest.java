@@ -71,7 +71,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }

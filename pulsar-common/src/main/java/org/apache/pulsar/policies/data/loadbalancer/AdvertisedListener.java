@@ -19,7 +19,6 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.net.URI;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

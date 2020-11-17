@@ -239,9 +239,15 @@ public class ReplicatorTestBase {
         admin2.close();
         admin3.close();
 
-        pulsar3.close();
-        pulsar2.close();
-        pulsar1.close();
+        if (pulsar3 != null) {
+            pulsar3.close();
+        }
+        if (pulsar2 != null) {
+            pulsar2.close();
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+        }
 
         bkEnsemble1.stop();
         bkEnsemble2.stop();
