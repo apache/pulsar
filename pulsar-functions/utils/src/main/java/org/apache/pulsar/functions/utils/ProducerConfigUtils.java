@@ -15,6 +15,9 @@ public class ProducerConfigUtils {
         if (conf.getUseThreadLocalProducers() != null) {
             pbldr.setUseThreadLocalProducers(conf.getUseThreadLocalProducers());
         }
+        if (conf.getBatchBuilder() != null) {
+            pbldr.setBatchBuilder(conf.getBatchBuilder());
+        }
 
         return pbldr.build();
     }
@@ -26,6 +29,9 @@ public class ProducerConfigUtils {
         }
         if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
             producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
+        }
+        if (spec.getBatchBuilder() != null) {
+            producerConfig.setBatchBuilder(spec.getBatchBuilder());
         }
         producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
         return producerConfig;
