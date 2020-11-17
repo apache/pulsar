@@ -1377,7 +1377,7 @@ public abstract class NamespacesBase extends AdminResource {
             algorithm = NamespaceBundleSplitAlgorithm.of(pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
         }
         if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.rangeEquallyDivide;
+            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
         }
         return algorithm;
     }

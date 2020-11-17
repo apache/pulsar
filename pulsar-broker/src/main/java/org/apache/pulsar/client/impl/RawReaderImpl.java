@@ -85,7 +85,7 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String, Long> properties) {
         return consumer.doAcknowledgeWithTxn(messageId, AckType.Cumulative, properties, null);
     }
 
@@ -142,7 +142,8 @@ public class RawReaderImpl implements RawReader {
             } else {
                 int numMsg;
                 try {
-                    MessageMetadata msgMetadata = Commands.parseMessageMetadata(messageAndCnx.msg.getHeadersAndPayload());
+                    MessageMetadata msgMetadata =
+                            Commands.parseMessageMetadata(messageAndCnx.msg.getHeadersAndPayload());
                     numMsg = msgMetadata.getNumMessagesInBatch();
                     msgMetadata.recycle();
                 } catch (Throwable t) {
@@ -203,10 +204,11 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
+        void messageReceived(MessageIdData messageId, int redeliveryCount,
+                             List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
-                          messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
+                        messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
             }
             incomingRawMessages.add(
                     new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
