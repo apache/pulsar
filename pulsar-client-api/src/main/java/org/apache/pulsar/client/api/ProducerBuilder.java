@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ProducerBuilder} is used to configure and create instances of {@link Producer}.
@@ -29,6 +31,8 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  * @see PulsarClient#newProducer()
  * @see PulsarClient#newProducer(Schema)
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ProducerBuilder<T> extends Cloneable {
 
     /**

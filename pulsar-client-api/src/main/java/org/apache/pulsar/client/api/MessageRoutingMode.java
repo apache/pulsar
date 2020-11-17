@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Default routing mode for messages to partition.
  *
  * <p>This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)}
  * on a particular message.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum MessageRoutingMode {
     /**
      * If no key is provided, The partitioned producer will randomly pick one single partition

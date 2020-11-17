@@ -33,11 +33,11 @@ namespace pulsar {
 
 DECLARE_LOG_OBJECT();
 
-AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr, HandlerBase& handler,
-                                                     uint64_t consumerId, long ackGroupingTimeMs,
-                                                     long ackGroupingMaxSize)
+AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr,
+                                                     const HandlerBasePtr& handlerPtr, uint64_t consumerId,
+                                                     long ackGroupingTimeMs, long ackGroupingMaxSize)
     : AckGroupingTracker(),
-      handler_(handler),
+      handlerWeakPtr_(handlerPtr),
       consumerId_(consumerId),
       nextCumulativeAckMsgId_(MessageId::earliest()),
       requireCumulativeAck_(false),
@@ -51,8 +51,9 @@ AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr, Ha
       mutexTimer_() {
     LOG_DEBUG("ACK grouping is enabled, grouping time " << ackGroupingTimeMs << "ms, grouping max size "
                                                         << ackGroupingMaxSize);
-    this->scheduleTimer();
 }
+
+void AckGroupingTrackerEnabled::start() { this->scheduleTimer(); }
 
 bool AckGroupingTrackerEnabled::isDuplicate(const MessageId& msgId) {
     {
@@ -94,7 +95,12 @@ void AckGroupingTrackerEnabled::close() {
 }
 
 void AckGroupingTrackerEnabled::flush() {
-    auto cnx = this->handler_.getCnx().lock();
+    auto handler = handlerWeakPtr_.lock();
+    if (!handler) {
+        LOG_WARN("Reference to the HandlerBase is not valid.");
+        return;
+    }
+    auto cnx = handler->getCnx().lock();
     if (cnx == nullptr) {
         LOG_DEBUG("Connection is not ready, grouping ACK failed.");
         return;
@@ -143,7 +149,8 @@ void AckGroupingTrackerEnabled::scheduleTimer() {
     std::lock_guard<std::mutex> lock(this->mutexTimer_);
     this->timer_ = this->executor_->createDeadlineTimer();
     this->timer_->expires_from_now(boost::posix_time::milliseconds(std::max(1L, this->ackGroupingTimeMs_)));
-    this->timer_->async_wait([this](const boost::system::error_code& ec) -> void {
+    auto self = shared_from_this();
+    this->timer_->async_wait([this, self](const boost::system::error_code& ec) -> void {
         if (!ec) {
             this->flush();
             this->scheduleTimer();

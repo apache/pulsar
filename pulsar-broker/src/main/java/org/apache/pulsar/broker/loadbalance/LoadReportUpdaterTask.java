@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import java.lang.Runnable;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;

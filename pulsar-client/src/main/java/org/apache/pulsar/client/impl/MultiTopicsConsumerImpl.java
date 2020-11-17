@@ -89,6 +89,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
     AtomicInteger allTopicPartitionsNumber;
 
+    private boolean paused = false;
+    private final Object pauseMutex = new Object();
     // timeout related to auto check and subscribe partition increasement
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
@@ -227,9 +229,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
                 // recursion and stack overflow
-                client.eventLoopGroup().execute(() -> {
-                    receiveMessageFromConsumer(consumer);
-                });
+                client.getInternalExecutorService().execute(() -> receiveMessageFromConsumer(consumer));
             }
         });
     }
@@ -245,10 +245,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-        CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
+        CompletableFuture<Message<T>> receivedFuture = pollPendingReceive();
         if (receivedFuture != null) {
             unAckedMessageTracker.add(topicMessage.getMessageId());
-            listenerExecutor.execute(() -> receivedFuture.complete(topicMessage));
+            completePendingReceive(receivedFuture, topicMessage);
         } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
             notifyPendingBatchReceivedCallBack();
         }
@@ -298,7 +298,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     break;
                 }
 
-                client.eventLoopGroup().execute(() -> {
+                client.getInternalExecutorService().execute(() -> {
                     receiveMessageFromConsumer(consumer);
                 });
             }
@@ -354,7 +354,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
-        CompletableFuture<Messages<T>> result = new CompletableFuture<>();
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
+        CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         try {
             lock.writeLock().lock();
             if (pendingBatchReceives == null) {
@@ -374,7 +375,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
                 result.complete(messages);
             } else {
-                pendingBatchReceives.add(OpBatchReceive.of(result));
+                OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
+                pendingBatchReceives.add(opBatchReceive);
+                cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
             }
             resumeReceivingFromPausedConsumersIfNeeded();
         } finally {
@@ -385,10 +388,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
-        CompletableFuture<Message<T>> result = new CompletableFuture<>();
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
+        CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
         Message<T> message = incomingMessages.poll();
         if (message == null) {
             pendingReceives.add(result);
+            cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
         } else {
             INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.getData().length);
             checkState(message instanceof TopicMessageImpl);
@@ -1076,12 +1081,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void pause() {
-        consumers.forEach((name, consumer) -> consumer.pause());
+        synchronized (pauseMutex) {
+            paused = true;
+            consumers.forEach((name, consumer) -> consumer.pause());
+        }
     }
 
     @Override
     public void resume() {
-        consumers.forEach((name, consumer) -> consumer.resume());
+        synchronized (pauseMutex) {
+            paused = false;
+            consumers.forEach((name, consumer) -> consumer.resume());
+        }
     }
 
     // This listener is triggered when topics partitions are updated.
@@ -1146,7 +1157,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             client.externalExecutorProvider().getExecutor(),
                             partitionIndex, true, subFuture, null, schema, interceptors,
                             true /* createTopicIfDoesNotExist */);
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        synchronized (pauseMutex) {
+                            if (paused) {
+                                newConsumer.pause();
+                            }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        }
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",
                                 topicName, newConsumer.getTopic(), partitionName);
@@ -1200,7 +1216,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             // schedule the next re-check task
             partitionsAutoUpdateTimeout = client.timer()
-                .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);
+                .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
         }
     };
 

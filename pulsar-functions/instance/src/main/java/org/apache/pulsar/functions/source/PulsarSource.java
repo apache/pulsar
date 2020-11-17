@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.security.Security;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -35,8 +36,10 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 @Slf4j
 public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
@@ -71,8 +74,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     topic, conf.getSchema(), conf.getSchema().getSchemaInfo());
 
             ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
-                    // consume message even if can't decrypt and deliver it along with encryption-ctx
-                    .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                     .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
                     .subscriptionType(pulsarSourceConfig.getSubscriptionType());
@@ -90,6 +91,12 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
             if (conf.getReceiverQueueSize() != null) {
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
+            }
+            if (conf.getCryptoKeyReader() != null) {
+                cb = cb.cryptoKeyReader(conf.getCryptoKeyReader());
+            }
+            if (conf.getConsumerCryptoFailureAction() != null) {
+                cb = cb.cryptoFailureAction(conf.getConsumerCryptoFailureAction());
             }
             cb = cb.properties(properties);
             if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
@@ -166,18 +173,32 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
         // Check new config with schema types or classnames
         pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
+            ConsumerConfig.ConsumerConfigBuilder<T> consumerConfBuilder =  ConsumerConfig.<T> builder().
+                    isRegexPattern(conf.isRegexPattern()).
+                    receiverQueueSize(conf.getReceiverQueueSize()).
+                    consumerProperties(conf.getConsumerProperties());
+
             Schema<T> schema;
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
             } else {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
             }
-            configs.put(topic,
-                    ConsumerConfig.<T> builder().
-                            schema(schema).
-                            isRegexPattern(conf.isRegexPattern()).
-                            receiverQueueSize(conf.getReceiverQueueSize()).
-                            consumerProperties(conf.getConsumerProperties()).build());
+            consumerConfBuilder.schema(schema);
+
+            if (conf.getCryptoConfig() != null) {
+                // add provider only if it's not in the JVM
+                if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                    Security.addProvider(new BouncyCastleProvider());
+                }
+
+                consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
+                consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
+                        conf.getCryptoConfig().getCryptoKeyReaderClassName(),
+                        conf.getCryptoConfig().getCryptoKeyReaderConfig(), functionClassLoader));
+            }
+
+            configs.put(topic, consumerConfBuilder.build());
         });
 
         return configs;
@@ -198,6 +219,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         private boolean isRegexPattern;
         private Integer receiverQueueSize;
         private Map<String, String> consumerProperties;
+        private CryptoKeyReader cryptoKeyReader;
+        private ConsumerCryptoFailureAction consumerCryptoFailureAction;
     }
-
 }

@@ -67,7 +67,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -224,6 +224,18 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer4.close();
     }
 
+    @Test(timeOut = testTimeout)
+    public void testPubRateOnNonPersistent() throws Exception {
+        internalCleanup();
+        conf.setMaxPublishRatePerTopicInBytes(10000L);
+        conf.setMaxPublishRatePerTopicInMessages(100);
+        Thread.sleep(500);
+        isTcpLookup = true;
+        super.internalSetup();
+        super.producerBaseSetup();
+        testBinaryProtoToGetTopicsOfNamespaceNonPersistent();
+    }
+    
 	// verify consumer create success, and works well.
     @Test(timeOut = testTimeout)
     public void testBinaryProtoToGetTopicsOfNamespaceNonPersistent() throws Exception {

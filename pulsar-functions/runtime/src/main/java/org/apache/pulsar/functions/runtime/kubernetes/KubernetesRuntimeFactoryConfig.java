@@ -39,6 +39,11 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected String jobNamespace;
     @FieldContext(
+            doc = "The Kubernetes pod name to run the function instances. It is set to"
+                + "`pf-<tenant>-<namespace>-<function_name>-<random_uuid(8)>` if this setting is left to be empty"
+        )
+    protected String jobName;
+    @FieldContext(
         doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
     )
     protected String pulsarDockerImageName;
@@ -151,5 +156,10 @@ public class KubernetesRuntimeFactoryConfig {
        doc = "The directory inside  the function pod where nar packages will be extracted"
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+
+    @FieldContext(
+            doc = "The classpath where function instance files stored"
+    )
+    private String functionInstanceClassPath = "";
 
 }

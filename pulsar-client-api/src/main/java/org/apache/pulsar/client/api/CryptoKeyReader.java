@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface that abstracts the access to a key store.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface CryptoKeyReader extends Serializable {
 
     /**

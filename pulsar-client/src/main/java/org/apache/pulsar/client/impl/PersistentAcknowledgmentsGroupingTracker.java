@@ -313,7 +313,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                null, properties, txnidLeastBits, txnidMostBits);
+                null, properties, txnidLeastBits, txnidMostBits, -1);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -534,7 +534,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
         } else {
             ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
-                    ackType, validationError, map, txnidLeastBits, txnidMostBits);
+                    ackType, validationError, map, txnidLeastBits, txnidMostBits, -1);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
             } else {

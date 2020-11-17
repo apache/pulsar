@@ -52,7 +52,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         internalSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         internalCleanup();
