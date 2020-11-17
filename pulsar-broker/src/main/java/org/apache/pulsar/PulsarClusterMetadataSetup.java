@@ -20,7 +20,6 @@ package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.getBundles;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.IOException;

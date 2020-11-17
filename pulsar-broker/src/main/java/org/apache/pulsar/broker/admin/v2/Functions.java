@@ -28,7 +28,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
+import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -46,23 +46,15 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.function.Supplier;
 
 @Path("/functions")
 @Api(value = "/functions", description = "Functions admin apis", tags = "functions", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Functions extends AdminResource implements Supplier<WorkerService> {
+public class Functions extends AdminResource {
 
-    private final FunctionsImplV2 functions;
-
-    public Functions() {
-        this.functions = new FunctionsImplV2(this);
-    }
-
-    @Override
-    public WorkerService get() {
-        return pulsar().getWorkerService();
+    FunctionsV2<? extends WorkerService> functions() {
+        return pulsar().getWorkerService().getFunctionsV2();
     }
 
     @POST
@@ -83,7 +75,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                      final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+        return functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionDetailsJson, clientAppId());
     }
 
@@ -104,7 +96,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+        return functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionDetailsJson, clientAppId());
     }
 
@@ -122,7 +114,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
-        return functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
+        return functions().deregisterFunction(tenant, namespace, functionName, clientAppId());
     }
 
     @GET
@@ -141,7 +133,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName) throws IOException {
 
-        return functions.getFunctionInfo(
+        return functions().getFunctionInfo(
                 tenant, namespace, functionName, clientAppId());
     }
 
@@ -162,7 +154,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
 
-        return functions.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(),
+        return functions().getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(),
                 clientAppId());
     }
 
@@ -180,7 +172,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionStatusV2(
+        return functions().getFunctionStatusV2(
                 tenant, namespace, functionName, uri.getRequestUri(), clientAppId());
     }
 
@@ -197,7 +189,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
-        return functions.listFunctions( tenant, namespace, clientAppId());
+        return functions().listFunctions( tenant, namespace, clientAppId());
     }
 
     @POST
@@ -219,7 +211,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                     final @FormDataParam("data") String triggerValue,
                                     final @FormDataParam("dataStream") InputStream triggerStream,
                                     final @FormDataParam("topic") String topic) {
-        return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId());
+        return functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId());
     }
 
     @GET
@@ -238,7 +230,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                      final @PathParam("namespace") String namespace,
                                      final @PathParam("functionName") String functionName,
                                      final @PathParam("key") String key) {
-        return functions.getFunctionState(tenant, namespace, functionName, key, clientAppId());
+        return functions().getFunctionState(tenant, namespace, functionName, key, clientAppId());
     }
 
     @POST
@@ -253,7 +245,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     public Response restartFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
                                     final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
+        return functions().restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
     }
 
     @POST
@@ -265,7 +257,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
-        return functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId());
+        return functions().restartFunctionInstances(tenant, namespace, functionName, clientAppId());
     }
 
     @POST
@@ -278,7 +270,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     public Response stopFunction(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
                                  final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
+        return functions().stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
     }
 
     @POST
@@ -290,7 +282,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
-        return functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId());
+        return functions().stopFunctionInstances(tenant, namespace, functionName, clientAppId());
     }
 
     @POST
@@ -302,7 +294,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("path") String path) {
-        return functions.uploadFunction(uploadedInputStream, path, clientAppId());
+        return functions().uploadFunction(uploadedInputStream, path, clientAppId());
     }
 
     @GET
@@ -312,7 +304,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     )
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path, clientAppId());
+        return functions().downloadFunction(path, clientAppId());
     }
 
     @GET
@@ -327,6 +319,6 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return functions.getListOfConnectors();
+        return functions().getListOfConnectors();
     }
 }

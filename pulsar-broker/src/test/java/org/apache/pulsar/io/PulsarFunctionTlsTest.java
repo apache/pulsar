@@ -61,7 +61,6 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -80,7 +79,7 @@ public class PulsarFunctionTlsTest {
     ServiceConfiguration config;
     WorkerConfig workerConfig;
     URL urlTls;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String workerId;
@@ -141,7 +140,7 @@ public class PulsarFunctionTlsTest {
         when(dataManager.containsFunction(any(), any(), any())).thenReturn(true);
         when(functionsWorkerService.getFunctionMetaDataManager()).thenReturn(dataManager);
 
-        workerServer = new WorkerServer(functionsWorkerService);
+        workerServer = new WorkerServer(functionsWorkerService, authenticationService);
         workerServer.start();
         Thread.sleep(2000);
         String functionTlsUrl = String.format("https://%s:%s",
@@ -169,7 +168,7 @@ public class PulsarFunctionTlsTest {
         functionsWorkerService.stop();
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws Exception {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws Exception {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
