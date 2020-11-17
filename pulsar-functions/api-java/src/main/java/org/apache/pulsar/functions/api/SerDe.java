@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * An interface for serializer/deserializer.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SerDe<T> {
     T deserialize(byte[] input);
     byte[] serialize(T input);

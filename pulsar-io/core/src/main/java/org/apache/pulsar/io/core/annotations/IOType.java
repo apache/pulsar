@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.io.core.annotations;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Type of the io connector.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum IOType {
 
     /**

@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * The compression type that can be specified on a {@link Producer}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum CompressionType {
     /** No compression. */
     NONE,

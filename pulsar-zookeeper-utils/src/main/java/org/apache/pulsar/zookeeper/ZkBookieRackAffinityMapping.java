@@ -33,6 +33,7 @@ import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -218,14 +219,10 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public void onUpdate(String path, BookiesRackConfiguration data, Stat stat) {
         if (rackawarePolicy != null) {
             LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", data.toString());
-            List<BookieSocketAddress> bookieAddressList = new ArrayList<>();
+            List<BookieId> bookieAddressList = new ArrayList<>();
             for (Map<String, BookieInfo> bookieMapping : data.values()) {
                 for (String addr : bookieMapping.keySet()) {
-                    try {
-                        bookieAddressList.add(new BookieSocketAddress(addr));
-                    } catch (UnknownHostException e) {
-                        throw new RuntimeException(e);
-                    }
+                    bookieAddressList.add(BookieId.parse(addr));
                 }
             }
             rackawarePolicy.onBookieRackChange(bookieAddressList);

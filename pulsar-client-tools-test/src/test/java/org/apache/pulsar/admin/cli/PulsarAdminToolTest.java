@@ -778,6 +778,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
 
+        cmdTopics.run(split("get-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1 -i 99"));
+        verify(mockTopics).setDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1", 99);
+
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));

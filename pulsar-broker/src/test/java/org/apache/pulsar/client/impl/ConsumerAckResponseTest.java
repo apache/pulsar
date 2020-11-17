@@ -54,9 +54,9 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         super.producerBaseSetup();
         doReturn(1L).when(transaction).getTxnIdLeastBits();
         doReturn(1L).when(transaction).getTxnIdMostBits();
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        doReturn(completableFuture).when(transaction).registerAckOp(any());
-        doNothing().when(transaction).registerAckedTopic(any(), any());
+        CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
+        doNothing().when(transaction).registerAckOp(any());
+        doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
 
         Thread.sleep(1000 * 3);
     }

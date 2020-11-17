@@ -1087,6 +1087,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long bookkeeperClientHealthCheckQuarantineTimeInSeconds = 1800;
     @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "bookie quarantine ratio to avoid all clients quarantine " +
+                    "the high pressure bookie servers at the same time"
+    )
+    private double bookkeeperClientQuarantineRatio = 1.0;
+    @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable rack-aware bookie selection policy. \n\nBK will chose bookies from"
             + " different racks when forming a new bookie ensemble")
