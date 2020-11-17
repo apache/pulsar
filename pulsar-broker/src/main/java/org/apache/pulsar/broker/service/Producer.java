@@ -457,11 +457,7 @@ public class Producer {
             entryId = -1L;
             batchSize = 0L;
             startTimeNs = -1L;
-            ledgerId = -1;
-            entryId = -1;
-            batchSize = 0;
             chunked = false;
-            startTimeNs = -1;
             recyclerHandle.recycle(this);
         }
     }
@@ -615,7 +611,7 @@ public class Producer {
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
         beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
-        topic.publishTxnMessage(txnID, headersAndPayload, batchSize,
+        topic.publishTxnMessage(txnID, headersAndPayload,
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime()));
     }

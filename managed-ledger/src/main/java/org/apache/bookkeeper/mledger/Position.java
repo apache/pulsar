@@ -18,12 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 /**
  * A Position is a pointer to a specific entry into the managed ledger.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface Position {
     /**
      * Get the position of the entry next to this one. The returned position might point to a non-existing, or not-yet

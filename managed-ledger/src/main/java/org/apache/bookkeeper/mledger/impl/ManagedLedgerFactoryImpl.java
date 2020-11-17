@@ -112,7 +112,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
-    private static final int StatsPeriodSeconds = 60;
+    public static final int StatsPeriodSeconds = 60;
 
     private static class PendingInitializeManagedLedger {
 

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.schema;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Types of supported schema for Pulsar messages.
  *
@@ -29,6 +32,8 @@ package org.apache.pulsar.common.schema;
  * add corresponding schema type into `pulsar-common/src/main/proto/PulsarApi.proto`
  * and `pulsar-broker/src/main/proto/SchemaRegistryFormat.proto`.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SchemaType {
     /**
      * No schema defined.

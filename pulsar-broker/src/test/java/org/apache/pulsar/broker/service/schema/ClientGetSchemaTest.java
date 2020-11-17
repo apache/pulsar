@@ -72,7 +72,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         producers.forEach(t -> {

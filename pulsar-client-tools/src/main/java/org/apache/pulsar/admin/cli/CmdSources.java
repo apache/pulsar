@@ -49,6 +49,7 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -113,7 +114,7 @@ public class CmdSources extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -270,6 +271,11 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_destinationTopicName;
         @Parameter(names = "--destination-topic-name", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
+        protected String producerConfig;
+
+        @Parameter(names = "--batch-builder", description = "BatchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
 
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
         protected String DEPRECATED_deserializationClassName;
@@ -346,11 +352,19 @@ public class CmdSources extends CmdBase {
             if (null != destinationTopicName) {
                 sourceConfig.setTopicName(destinationTopicName);
             }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                sourceConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
+            }
             if (null != deserializationClassName) {
                 sourceConfig.setSerdeClassName(deserializationClassName);
             }
             if (null != schemaType) {
                 sourceConfig.setSchemaType(schemaType);
+            }
+
+            if (null != batchBuilder) {
+                sourceConfig.setBatchBuilder(batchBuilder);
             }
 
             if (null != processingGuarantees) {

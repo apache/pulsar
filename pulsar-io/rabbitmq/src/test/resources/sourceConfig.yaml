@@ -31,6 +31,6 @@
 "handshakeTimeout": "10000",
 "requestedHeartbeat": "60",
 "prefetchCount": "0",
-"prefetchGlobal": "false"
-
+"prefetchGlobal": "false",
+"passive": "false"
 }

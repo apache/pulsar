@@ -58,14 +58,12 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
     @SuppressWarnings("checkstyle:MemberName")
-    public int message_ttl_in_seconds = 0;
+    public Integer message_ttl_in_seconds = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int subscription_expiration_time_minutes = 0;
     @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
-    public String antiAffinityGroup;
-
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
@@ -113,6 +111,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public OffloadPolicies offload_policies = null;
 
+    public Integer deduplicationSnapshotIntervalSeconds = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -124,7 +124,7 @@ public class Policies {
                 message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies, inactive_topic_policies,
                 subscription_auth_mode,
-                antiAffinityGroup, max_producers_per_topic,
+                max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
                 compaction_threshold, offload_threshold,
@@ -162,7 +162,6 @@ public class Policies {
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(inactive_topic_policies, other.inactive_topic_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
@@ -214,7 +213,6 @@ public class Policies {
                 .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
-                .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds)
                 .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
                 .add("retention_policies", retention_policies)

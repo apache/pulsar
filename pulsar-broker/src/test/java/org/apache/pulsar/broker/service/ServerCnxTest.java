@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -77,6 +78,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
@@ -201,7 +203,7 @@ public class ServerCnxTest {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         serverCnx.close();
         channel.close();
@@ -1346,6 +1348,41 @@ public class ServerCnxTest {
     }
 
     @Test(timeOut = 30000)
+    public void testProducerFailureOnEncryptionRequiredOnBroker() throws Exception {
+        // (a) Set encryption-required at broker level
+        pulsar.getConfig().setEncryptionRequireOnProducer(true);
+        resetChannel();
+        setChannelConnected();
+
+        // (b) Set encryption_required to false on policy
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        // Namespace policy doesn't require encryption
+        policies.encryption_required = false;
+        policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        policies.clusterDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        // test failure case: unencrypted producer cannot connect
+        ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 2 /* producer id */, 2 /* request id */,
+                "unencrypted-producer", false, null);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertEquals(response.getClass(), CommandError.class);
+        CommandError errorResponse = (CommandError) response;
+        assertEquals(errorResponse.getError(), ServerError.MetadataError);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 0);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
     public void testSendSuccessOnEncryptionRequiredTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1654,6 +1691,50 @@ public class ServerCnxTest {
 
         Object response = getResponse();
         assertTrue(response instanceof CommandSuccess);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testTopicIsNotReady() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // 1st subscribe command to load the topic
+        ByteBuf clientCommand1 = Commands.newSubscribe(successTopicName, successSubName, 1 /* consumer id */,
+                1 /* request id */, SubType.Shared, 0 /* priority level */, "c1" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand1);
+
+        Object response1 = getResponse();
+        assertEquals(response1.getClass(), CommandSuccess.class);
+        assertEquals(((CommandSuccess) response1).getRequestId(), 1);
+
+        // Force the checkTopicNsOwnership method to throw ServiceUnitNotReadyException
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        future.completeExceptionally(new ServiceUnitNotReadyException("Service unit is not ready"));
+        doReturn(future).when(brokerService).checkTopicNsOwnershipAsync(anyString());
+
+        // 2nd subscribe command when the service unit is not ready
+        ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, successSubName, 2 /* consumer id */,
+                2 /* request id */, SubType.Shared, 0 /* priority level */, "c2" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand2);
+
+        Object response2 = getResponse();
+        assertEquals(response2.getClass(), CommandError.class);
+        assertEquals(((CommandError) response2).getError(), ServerError.ServiceNotReady);
+        assertEquals(((CommandError) response2).getRequestId(), 2);
+
+        // Producer command when the service unit is not ready
+        ByteBuf clientCommand3 = Commands.newProducer(successTopicName, 1 /* producer id */, 3 /* request id */,
+                "p1" /* producer name */, Collections.emptyMap());
+        channel.writeInbound(clientCommand3);
+
+        Object response3 = getResponse();
+        assertEquals(response3.getClass(), CommandError.class);
+        assertEquals(((CommandError) response3).getError(), ServerError.ServiceNotReady);
+        assertEquals(((CommandError) response3).getRequestId(), 3);
 
         channel.finish();
     }

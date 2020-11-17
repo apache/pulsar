@@ -181,7 +181,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
                                             Map<String, Long> properties, TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties,
+                    txn == null ? -1 : txn.getTxnIdMostBits(),
+                    txn == null ? -1 : txn.getTxnIdLeastBits());
         } else if (ackType == AckType.Cumulative) {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
@@ -311,7 +313,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                null, properties, txnidLeastBits, txnidMostBits);
+                null, properties, txnidLeastBits, txnidMostBits, -1);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -532,7 +534,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
         } else {
             ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
-                    ackType, validationError, map, txnidLeastBits, txnidMostBits);
+                    ackType, validationError, map, txnidLeastBits, txnidMostBits, -1);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
             } else {

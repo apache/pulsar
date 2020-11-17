@@ -95,7 +95,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, Optional.empty(), null);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -133,7 +133,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
         // Compacted topic ledger should have same number of entry equals to number of unique key.
         Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
         Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);

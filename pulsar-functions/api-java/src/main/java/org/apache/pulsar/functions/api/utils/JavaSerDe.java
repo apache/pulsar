@@ -24,11 +24,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.SerDe;
 
 /**
  * Java Serialization based SerDe
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Slf4j
 public class JavaSerDe implements SerDe<Object> {
 

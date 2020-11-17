@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.utils.auth.tokens;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Charsets;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
@@ -30,7 +31,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,11 +41,8 @@ import java.security.KeyPair;
 import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -280,6 +277,7 @@ public class TokensCliUtils {
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander(arguments);
+        IUsageFormatter usageFormatter = new DefaultUsageFormatter(jcommander);
 
         CommandCreateSecretKey commandCreateSecretKey = new CommandCreateSecretKey();
         jcommander.addCommand("create-secret-key", commandCreateSecretKey);
@@ -306,7 +304,7 @@ public class TokensCliUtils {
         } catch (Exception e) {
             System.err.println(e);
             String chosenCommand = jcommander.getParsedCommand();
-            jcommander.usage(chosenCommand);
+            usageFormatter.usage(chosenCommand);
             System.exit(1);
         }
 

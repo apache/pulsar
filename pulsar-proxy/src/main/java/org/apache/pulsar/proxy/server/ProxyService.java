@@ -34,9 +34,7 @@ import lombok.Setter;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,7 +44,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -54,6 +51,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlets;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -119,6 +117,8 @@ public class ProxyService implements Closeable {
     private final Set<ProxyConnection> clientCnxs;
     @Getter
     private final Map<String, TopicStats> topicStats;
+    @Getter
+    private ProxyAdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws IOException {
@@ -152,6 +152,7 @@ public class ProxyService implements Closeable {
                 stats.calculate();
             });
         }, 60, TimeUnit.SECONDS);
+        this.proxyAdditionalServlets = ProxyAdditionalServlets.load(proxyConfig);
     }
 
     public void start() throws Exception {
@@ -234,6 +235,12 @@ public class ProxyService implements Closeable {
         if (statsExecutor != null) {
             statsExecutor.shutdown();
         }
+
+        if (proxyAdditionalServlets != null) {
+            proxyAdditionalServlets.close();
+            proxyAdditionalServlets = null;
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }

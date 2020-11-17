@@ -34,11 +34,10 @@
   <modules>
     <module>docker-images</module>
     <module>integration</module>
-    <module>pulsar-kafka-compat-client-test</module>
-    <module>pulsar-storm-test</module>
-    <module>pulsar-spark-test</module>
     <module>bc_2_0_0</module>
     <module>bc_2_0_1</module>
+    <module>pulsar-client-all-shade-test</module>
+    <module>pulsar-client-and-admin-shade-test</module>
   </modules>
   <build>
     <plugins>

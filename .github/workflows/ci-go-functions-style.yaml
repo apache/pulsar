@@ -32,6 +32,9 @@ on:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
 
+env:
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
   check-style:
 
@@ -42,10 +45,15 @@ jobs:
         go-version: [1.11, 1.12, 1.13, 1.14]
 
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation

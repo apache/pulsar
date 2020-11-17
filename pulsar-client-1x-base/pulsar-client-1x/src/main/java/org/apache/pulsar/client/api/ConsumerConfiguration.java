@@ -46,8 +46,6 @@ public class ConsumerConfiguration implements Serializable {
 
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
-    private boolean initializeSubscriptionOnLatest = true;
-
     private MessageListener<byte[]> messageListener;
 
     public ConsumerConfiguration() {
