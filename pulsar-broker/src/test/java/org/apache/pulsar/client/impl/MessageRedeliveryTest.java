@@ -62,7 +62,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

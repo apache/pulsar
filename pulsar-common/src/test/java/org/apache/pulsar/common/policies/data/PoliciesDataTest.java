@@ -76,11 +76,11 @@ public class PoliciesDataTest {
     public void bundlesPolicies() throws JsonGenerationException, JsonMappingException, IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String oldJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],"
-                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":0}";
+                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
         Policies policies = jsonMapper.readValue(oldJsonPolicy.getBytes(), Policies.class);
         assertEquals(policies, new Policies());
         String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":null,"
-                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":0}";
+                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
         OldPolicies oldPolicies = jsonMapper.readValue(newJsonPolicy.getBytes(), OldPolicies.class);
         assertEquals(oldPolicies, new OldPolicies());
     }

@@ -24,6 +24,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Data structure representing a schema information including its version.
@@ -33,6 +35,8 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
 @NoArgsConstructor
 @Accessors(chain = true)
 @Builder
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class SchemaInfoWithVersion {
 
     private long version;

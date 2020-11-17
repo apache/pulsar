@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -32,8 +31,10 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -66,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -75,8 +75,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 @PrepareForTest(PersistentTopics.class)
+@PowerMockIgnore("com.sun.management.*")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -135,7 +137,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -512,7 +514,34 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test()
+    @Test
+    public void testPeekWithSubscriptionNameNotExist() throws Exception {
+        final String topicName = "testTopic";
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                testTenant,
+                testNamespace,
+                topicName).toString();
+        final String subscriptionName = "sub";
+
+        admin.topics().createPartitionedTopic(topic, 3);
+
+        final String partitionedTopic = topic + "-partition-0";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < 100; ++i) {
+            producer.send("test" + i);
+        }
+
+        List<Message<byte[]>> messages = admin.topics()
+                .peekMessages(partitionedTopic, subscriptionName, 5);
+
+        Assert.assertEquals(messages.size(), 5);
+
+        producer.close();
+    }
+
+    @Test
     public void testGetLastMessageId() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
@@ -540,5 +569,43 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(admin.topics().getLastMessageId(topicName) instanceof MessageIdImpl);
 
+    }
+
+    @Test
+    public void testExamineMessage() throws Exception {
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/topic-123";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName + "-partition-0").create();
+
+        // Check examine message not allowed on partitioned topic.
+        try {
+            admin.topics().examineMessage(topicName, "earliest", 1);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(), "Examine messages on a partitioned topic is not allowed, please try examine message on specific topic partition");
+        }
+
+        producer.send("message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1).getData()), "message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 1).getData()), "message1");
+
+        producer.send("message2");
+        producer.send("message3");
+        producer.send("message4");
+        producer.send("message5");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1).getData()), "message1");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 2).getData()), "message2");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 3).getData()), "message3");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 4).getData()), "message4");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 5).getData()), "message5");
+
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 1).getData()), "message5");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 2).getData()), "message4");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 3).getData()), "message3");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 4).getData()), "message2");
+        Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 5).getData()), "message1");
     }
 }

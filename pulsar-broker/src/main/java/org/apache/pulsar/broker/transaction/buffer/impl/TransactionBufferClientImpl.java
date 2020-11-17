@@ -20,12 +20,14 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -45,13 +47,13 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         return new TransactionBufferClientImpl(handler);
     }
     @Override
-    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT);
+    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, List<MessageId> messageIdList) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT, messageIdList);
     }
 
     @Override
-    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT);
+    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, List<MessageId> messageIdList) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT, messageIdList);
     }
 
     @Override
@@ -64,4 +66,8 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT);
     }
 
+    @Override
+    public void close() {
+        tbHandler.close();
+    }
 }

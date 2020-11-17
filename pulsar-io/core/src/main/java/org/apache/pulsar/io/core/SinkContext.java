@@ -18,38 +18,17 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.slf4j.Logger;
-
-import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface for a sink connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
-public interface SinkContext {
-
-    /**
-     * The id of the instance that invokes this sink.
-     *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this sink.
-     *
-     * @return the number of instances that invoke this sink.
-     */
-    int getNumInstances();
-
-    /**
-     * Record a user defined metric
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface SinkContext extends ConnectorContext {
 
     /**
      * Get a list of all input topics
@@ -58,100 +37,9 @@ public interface SinkContext {
     Collection<String> getInputTopics();
 
     /**
-     * The tenant this sink belongs to
-     * @return the tenant this sink belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this sink belongs to
-     * @return the namespace this sink belongs to
-     */
-    String getNamespace();
-
-    /**
      * The name of the sink that we are executing
      * @return The Sink name
      */
     String getSinkName();
 
-    /**
-     * The logger object that can be used to log in a sink
-     * @return the logger object
-     */
-    Logger getLogger();
-
-    /**
-     * Get the secret associated with this key
-     * @param secretName The name of the secret
-     * @return The secret if anything was found or null
-     */
-    String getSecret(String secretName);
-
-    /**
-     * Increment the builtin distributed counter referred by key.
-     *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-
-    /**
-     * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
-     *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
-     */
-    CompletableFuture<Void> incrCounterAsync(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    CompletableFuture<Long> getCounterAsync(String key);
-
-    /**
-     * Update the state value for the key.
-     *
-     * @param key   name of the key
-     * @param value state value of the key
-     */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Update the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key   name of the key
-     * @param value state value of the key
-     */
-    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
-
-    /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    CompletableFuture<ByteBuffer> getStateAsync(String key);
 }

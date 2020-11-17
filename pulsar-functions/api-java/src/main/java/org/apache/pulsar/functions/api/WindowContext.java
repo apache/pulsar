@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -26,6 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface WindowContext {
 
     /**

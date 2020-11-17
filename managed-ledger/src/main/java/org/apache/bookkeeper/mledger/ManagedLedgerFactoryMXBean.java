@@ -18,9 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
+
 /**
  * JMX Bean interface for ManagedLedgerFactory stats.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedLedgerFactoryMXBean {
     /**
      * Get the number of currently opened managed ledgers on the factory.

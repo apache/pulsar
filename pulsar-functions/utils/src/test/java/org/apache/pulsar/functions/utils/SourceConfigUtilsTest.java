@@ -354,6 +354,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);

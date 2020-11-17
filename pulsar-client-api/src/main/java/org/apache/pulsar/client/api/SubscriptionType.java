@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Types of subscription supported by Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionType {
     /**
      * There can be only 1 consumer on the same topic with the same subscription name.

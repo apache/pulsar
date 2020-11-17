@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -74,6 +73,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             this.firstCallback = callback;
             batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
                     .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
+                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+            }
+            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
+                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            }
         }
 
         if (previousCallback != null) {
@@ -145,6 +150,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         lowestSequenceId = -1L;
         highestSequenceId = -1L;
         batchedMessageMetadataAndPayload = null;
+        currentTxnidMostBits = -1L;
+        currentTxnidLeastBits = -1L;
     }
 
     @Override
@@ -181,6 +188,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
         messageMetadata.setHighestSequenceId(highestSequenceId);
+        if (currentTxnidMostBits != -1) {
+            messageMetadata.setTxnidMostBits(currentTxnidMostBits);
+        }
+        if (currentTxnidLeastBits != -1) {
+            messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
+        }
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata.build(), encryptedPayload);
 

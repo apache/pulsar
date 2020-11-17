@@ -26,10 +26,10 @@ import java.util.Map;
  */
 public interface LoadReport {
 
-    public Map<ServiceUnit, ServiceRequest> getServiceUnitRequests();
+    Map<ServiceUnit, ServiceRequest> getServiceUnitRequests();
 
-    public ResourceUnit getResourceUnit();
+    ResourceUnit getResourceUnit();
 
-    public ResourceDescription getResourceUnitDescription();
+    ResourceDescription getResourceUnitDescription();
 
 }

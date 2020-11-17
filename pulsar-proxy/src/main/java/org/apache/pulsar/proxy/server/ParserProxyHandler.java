@@ -188,6 +188,8 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
             compBuf.addComponents(totalSizeBuf,buffer);
             compBuf.writerIndex(totalSizeBuf.capacity()+buffer.capacity());
 
+            // Release mssages
+            messages.forEach(RawMessage::release);
             //next handler
             ctx.fireChannelRead(compBuf);
         }

@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.validation.constraints.NotNull;
 
-import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -140,6 +139,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             if (!locator.isPresent()) {
                 result.complete(Collections.emptyList());
+                return;
             }
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
