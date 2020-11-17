@@ -39,6 +39,20 @@
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
     </dependency>
+    
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper-jute</artifactId>
+    </dependency>
+    
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-core</artifactId>
+    </dependency>
+    <dependency>
+       <groupId>org.xerial.snappy</groupId>
+       <artifactId>snappy-java</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -92,6 +106,10 @@
             <weaveDependency>
               <groupId>org.apache.zookeeper</groupId>
               <artifactId>zookeeper</artifactId>
+            </weaveDependency>
+            <weaveDependency>
+              <groupId>org.apache.zookeeper</groupId>
+              <artifactId>zookeeper-jute</artifactId>
             </weaveDependency>
           </weaveDependencies>
         </configuration>

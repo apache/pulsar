@@ -52,7 +52,16 @@
           <groupId>io.grpc</groupId>
           <artifactId>grpc-all</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.curator</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    
+    <dependency>
+         <groupId>org.apache.curator</groupId>
+         <artifactId>curator-recipes</artifactId>
     </dependency>
 
     <!-- `grpc-all` is excluded from `stream-storage-server` at root pom file -->
