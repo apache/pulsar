@@ -242,7 +242,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "The maximum number of tenants that each pulsar cluster can create." 
+        doc = "The maximum number of tenants that each pulsar cluster can create."
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
@@ -453,9 +453,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
-    
+
     @FieldContext(
-        category = CATEGORY_POLICIES, 
+        category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "The maximum number of namespaces that each tenant can create."
             + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
@@ -1723,7 +1723,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
 
     /**** --- WebSocket --- ****/

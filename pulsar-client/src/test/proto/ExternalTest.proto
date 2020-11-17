@@ -17,34 +17,12 @@
  * under the License.
  */
 syntax = "proto3";
-package proto;
-
-import "ExternalTest.proto";
+package proto.external;
 
 option java_package = "org.apache.pulsar.client.schema.proto";
-option java_outer_classname = "Test";
+option java_outer_classname = "ExternalTest";
 
-enum TestEnum {
-    SHARED = 0;
-    FAILOVER = 1;
-}
-
-message SubMessage {
-    string foo = 1;
-    double bar = 2;
-    message NestedMessage {
-        string url = 1;
-        string title = 2;
-        repeated string snippets = 3;
-    }
-}
-
-message TestMessage {
+message ExternalMessage {
     string stringField = 1;
     double doubleField = 2;
-    int32 intField = 6;
-    TestEnum testEnum = 4;
-    SubMessage nestedField = 5;
-    repeated string repeatedField = 10;
-    proto.external.ExternalMessage externalMessage = 11;
 }
