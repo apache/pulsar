@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,13 @@ public class ResponseHandlerFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
 
     private final String brokerAddress;
+    private final BrokerInterceptor interceptor;
+    private final boolean interceptorEnabled;
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
+        this.interceptor = pulsar.getBrokerInterceptor();
+        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
     }
 
     @Override
@@ -53,14 +58,16 @@ public class ResponseHandlerFilter implements Filter {
         chain.doFilter(request, response);
         ((HttpServletResponse) response).addHeader("broker-address", brokerAddress);
         if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
-            // invalidate current session from servlet-container if it received internal-server-error 
+            // invalidate current session from servlet-container if it received internal-server-error
             try {
                 ((HttpServletRequest) request).getSession(false).invalidate();
             } catch (Exception ignoreException) {
                 /* connection is already invalidated */
             }
         }
-
+        if (interceptorEnabled) {
+            interceptor.onWebserviceResponse(request, response);
+        }
     }
 
     @Override

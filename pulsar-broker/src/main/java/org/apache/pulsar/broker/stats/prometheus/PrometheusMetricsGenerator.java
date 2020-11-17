@@ -30,6 +30,7 @@ import java.util.Enumeration;
 
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
@@ -40,7 +41,6 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
@@ -70,9 +70,19 @@ public class PrometheusMetricsGenerator {
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return PlatformDependent.maxDirectMemory();
+                return io.netty.util.internal.PlatformDependent.maxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
+
+        // metric to export pulsar version info
+        Gauge.build("pulsar_version_info", "-")
+            .labelNames("version", "commit").create()
+            .setChild(new Child() {
+                @Override
+                public double get() {
+                    return 1.0;
+                }}, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+            .register(CollectorRegistry.defaultRegistry);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, OutputStream out) throws IOException {

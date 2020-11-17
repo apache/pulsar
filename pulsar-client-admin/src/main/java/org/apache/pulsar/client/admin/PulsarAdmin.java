@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Client;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.net.ServiceURI;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -189,7 +191,11 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        root = client.target(serviceUrl);
+        ServiceURI serviceUri = ServiceURI.create(serviceUrl);
+        root = client.target(String.format("%s://%s"
+                , serviceUri.getServiceScheme()
+                , serviceUri.getServiceHosts()[ThreadLocalRandom.current()
+                        .nextInt(serviceUri.getServiceHosts().length)]));
 
         this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
@@ -207,7 +213,7 @@ public class PulsarAdmin implements Closeable {
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
         this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);

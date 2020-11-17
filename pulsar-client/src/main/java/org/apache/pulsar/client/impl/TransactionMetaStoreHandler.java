@@ -23,10 +23,10 @@ import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ClientCnx.RequestTime;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -55,12 +56,25 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
 
+    private static class RequestTime {
+        final long creationTimeMs;
+        final long requestId;
+
+        public RequestTime(long creationTime, long requestId) {
+            this.creationTimeMs = creationTime;
+            this.requestId = requestId;
+        }
+    }
+
     private final boolean blockIfReachMaxPendingOps;
     private final Semaphore semaphore;
 
     private Timeout requestTimeout;
 
-    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic) {
+    private CompletableFuture<Void> connectFuture;
+
+    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
+                                       CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
@@ -76,6 +90,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 .create(),
             this);
         this.connectionHandler.grabCnx();
+        this.connectFuture = connectFuture;
     }
 
     @Override
@@ -83,6 +98,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
             transactionCoordinatorId, exception);
         setState(State.Failed);
+        this.connectFuture.completeExceptionally(exception);
     }
 
     @Override
@@ -94,6 +110,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         if (!changeToReadyState()) {
             cnx.channel().close();
         }
+        this.connectFuture.complete(null);
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
@@ -217,7 +234,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+    public CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> sendMessageIdList) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Commit txn {}", txnID);
         }
@@ -227,7 +244,16 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.COMMIT);
+        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        for (MessageId messageId : sendMessageIdList) {
+            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
+                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
+                    .build());
+        }
+        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                PulsarApi.TxnAction.COMMIT, messageIdDataList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
@@ -236,7 +262,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+    public CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> sendMessageIdList) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Abort txn {}", txnID);
         }
@@ -246,7 +272,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.ABORT);
+
+        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        for (MessageId messageId : sendMessageIdList) {
+            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
+                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
+                    .build());
+        }
+        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                PulsarApi.TxnAction.ABORT, messageIdDataList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));

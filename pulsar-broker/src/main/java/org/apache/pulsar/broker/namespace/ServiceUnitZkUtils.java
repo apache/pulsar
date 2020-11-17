@@ -66,12 +66,12 @@ public final class ServiceUnitZkUtils {
      */
     public static final String OWNER_INFO_ROOT = LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 
-    public static final String path(NamespaceBundle suname) {
+    public static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }
 
-    public static final NamespaceBundle suBundleFromPath(String path, NamespaceBundleFactory factory) {
+    public static NamespaceBundle suBundleFromPath(String path, NamespaceBundleFactory factory) {
         String[] parts = path.split("/");
         checkArgument(parts.length > 2);
         checkArgument(parts[1].equals("namespace"));
@@ -104,7 +104,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws PulsarServerException
      */
-    public static final void initZK(ZooKeeper zkc, String selfBrokerUrl) {
+    public static void initZK(ZooKeeper zkc, String selfBrokerUrl) {
         // initialize the zk client with values
         try {
             // check and create /namespace path
@@ -122,7 +122,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws Exception
      */
-    private static final void cleanupNamespaceNodes(ZooKeeper zkc, String root, String selfBrokerUrl) throws Exception {
+    private static void cleanupNamespaceNodes(ZooKeeper zkc, String root, String selfBrokerUrl) throws Exception {
         // we don't need a watch here since we are only cleaning up the stale ephemeral nodes from previous session
         try {
             for (String node : zkc.getChildren(root, false)) {
@@ -148,7 +148,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws Exception
      */
-    private static final void cleanupSingleNamespaceNode(ZooKeeper zkc, String path, String selfBrokerUrl)
+    private static void cleanupSingleNamespaceNode(ZooKeeper zkc, String path, String selfBrokerUrl)
             throws Exception {
         String brokerUrl = null;
         try {
@@ -178,8 +178,8 @@ public final class ServiceUnitZkUtils {
      *
      * @param zkc
      *            the <code>ZooKeeper</code> connected session object
-     * @param nsname
-     *            the name space name
+     * @param path
+     *            the namespace path
      * @param value
      *            the broker url that serves the name space.
      * @return
@@ -189,8 +189,8 @@ public final class ServiceUnitZkUtils {
      * @throws JsonMappingException
      * @throws JsonGenerationException
      */
-    public static final NamespaceEphemeralData acquireNameSpace(ZooKeeper zkc, String path,
-            NamespaceEphemeralData value)
+    public static NamespaceEphemeralData acquireNameSpace(ZooKeeper zkc, String path,
+                                                          NamespaceEphemeralData value)
             throws KeeperException, InterruptedException, JsonGenerationException, JsonMappingException, IOException {
 
         // the znode data to be written
@@ -201,7 +201,7 @@ public final class ServiceUnitZkUtils {
         return value;
     }
 
-    public static final BundlesData createBundlesIfAbsent(ZooKeeper zkc, String path, BundlesData initialBundles)
+    public static BundlesData createBundlesIfAbsent(ZooKeeper zkc, String path, BundlesData initialBundles)
             throws JsonGenerationException, JsonMappingException, IOException, KeeperException, InterruptedException {
         String data = jsonMapper.writeValueAsString(initialBundles);
 

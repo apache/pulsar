@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -366,6 +367,85 @@ public class PersistentTopics extends PersistentTopicsBase {
         });
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Get deduplicationSnapshotInterval config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isDeduplicationSnapshotIntervalSecondsSet()) {
+            asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Set deduplicationSnapshotInterval config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @ApiParam(value = "Interval to take deduplication snapshot for the specified topic")
+                                                            Integer interval) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetDeduplicationSnapshotInterval(interval).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set deduplicationSnapshotInterval", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set deduplicationSnapshotInterval", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
+    @ApiOperation(value = "Delete deduplicationSnapshotInterval config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
+                                                   @PathParam("tenant") String tenant,
+                                                   @PathParam("namespace") String namespace,
+                                                   @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetDeduplicationSnapshotInterval(null).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed delete deduplicationSnapshotInterval", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed delete deduplicationSnapshotInterval", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Delete max unacked messages per consumer config on a topic.")
@@ -686,10 +766,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully", defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Delete the topic's schema storage")
+            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force);
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -749,9 +831,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully", defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Delete the topic's schema storage")
+            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force);
+        internalDeleteTopic(authoritative, force, deleteSchema);
     }
 
     @GET
@@ -831,9 +915,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetInternalStats(authoritative);
+        return internalGetInternalStats(authoritative, metadata);
     }
 
     @GET
@@ -1211,10 +1296,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
-            MessageIdImpl messageId) {
+                    ResetCursorData resetCursorData) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative
+                    , new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
+                    , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
@@ -1248,6 +1335,37 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/examinemessage")
+    @ApiOperation(value = "Examine a specific message on a topic by position relative to the earliest or the latest message.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic, the message position does not exist"),
+            @ApiResponse(code = 405, message = "If given partitioned topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public Response examineMessage(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(name = "initialPosition", value = "Relative start position to examine message." +
+                    "It can be 'latest' or 'earliest'",
+                    defaultValue = "latest",
+                    allowableValues = "latest, earliest"
+            )
+            @QueryParam("initialPosition") String initialPosition,
+            @ApiParam(value = "The position of messages (default 1)", defaultValue = "1")
+            @QueryParam("messagePosition") long messagePosition,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalExamineMessage(initialPosition, messagePosition, authoritative);
     }
 
     @GET

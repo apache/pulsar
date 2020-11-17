@@ -451,10 +451,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws PulsarAdminException
      */
-    void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+    void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
+        deletePartitionedTopic(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic asynchronously.
@@ -466,10 +475,19 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
+        return deletePartitionedTopicAsync(topic, force, false);
+    }
 
     /**
      * Delete a partitioned topic.
@@ -507,6 +525,8 @@ public interface Topics {
      *            Topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -517,7 +537,14 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void delete(String topic, boolean force) throws PulsarAdminException;
+    void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
+
+    /**
+     * @see Topics#delete(String, boolean, boolean)
+     */
+    default void delete(String topic, boolean force) throws PulsarAdminException {
+        delete(topic, force, false);
+    }
 
     /**
      * Delete a topic asynchronously.
@@ -531,10 +558,19 @@ public interface Topics {
      *            topic name
      * @param force
      *            Delete topic forcefully
+     * @param deleteSchema
+     *            Delete topic's schema storage
      *
      * @return a future that can be used to track when the topic is deleted
      */
-    CompletableFuture<Void> deleteAsync(String topic, boolean force);
+    CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema);
+
+    /**
+     * @see Topics#deleteAsync(String, boolean, boolean)
+     */
+    default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
+        return deleteAsync(topic, force, false);
+    }
 
     /**
      * Delete a topic.
@@ -759,6 +795,26 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
+
+    /**
+     * Get the internal stats for the topic.
+     * <p/>
+     * Access the internal state of the topic
+     *
+     * @param topic
+     *            topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -775,7 +831,17 @@ public interface Topics {
      *
      * @param topic
      *            topic Name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return a future that can be used to track when the internal topic statistics are returned
+     */
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+
+    /**
+     * Get the internal stats for the topic asynchronously.
      *
+     * @param topic
+     *            topic Name
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
@@ -1238,6 +1304,18 @@ public interface Topics {
 
     /**
      * Reset cursor position on a topic subscription.
+     * <p/>
+     * and start consume messages from the next position of the reset position.
+     * @param topic
+     * @param subName
+     * @param messageId
+     * @param isExcluded
+     * @throws PulsarAdminException
+     */
+    void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;
+
+    /**
+     * Reset cursor position on a topic subscription.
      *
      * @param topic
      *            topic name
@@ -1247,6 +1325,18 @@ public interface Topics {
      *            reset subscription to position closest to time in ms since epoch
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, long timestamp);
+
+    /**
+     * Reset cursor position on a topic subscription.
+     * <p/>
+     * and start consume messages from the next position of the reset position.
+     * @param topic
+     * @param subName
+     * @param messageId
+     * @param isExcluded
+     * @return
+     */
+    CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded);
 
     /**
      * Reset cursor position on a topic subscription.
@@ -1730,7 +1820,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @throws PulsarAdminException
      */
     void setInactiveTopicPolicies(String topic
@@ -1739,7 +1829,7 @@ public interface Topics {
     /**
      * set inactive topic policies of a topic asynchronously.
      * @param topic
-     * @param maxNum
+     * @param inactiveTopicPolicies
      * @return
      */
     CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies);
@@ -2419,6 +2509,51 @@ public interface Topics {
     CompletableFuture<Void> removeMaxConsumersAsync(String topic);
 
     /**
+     * Get the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
+     * Set the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @param interval
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationSnapshotInterval(String topic, int interval) throws PulsarAdminException;
+
+    /**
+     * Set the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @param interval
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String topic, int interval);
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -2479,4 +2614,24 @@ public interface Topics {
      *              unexpected error
      */
     CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    Message<byte[]> examineMessage(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
+
+    /**
+     * Examine a specific message on a topic by position relative to the earliest or the latest message.
+     *
+     * @param topic Topic name
+     * @param initialPosition Relative start position to examine message. It can be 'latest' or 'earliest'
+     * @param messagePosition The position of messages (default 1)
+     */
+    CompletableFuture<Message<byte[]>> examineMessageAsync(String topic, String initialPosition, long messagePosition)
+            throws PulsarAdminException;
 }

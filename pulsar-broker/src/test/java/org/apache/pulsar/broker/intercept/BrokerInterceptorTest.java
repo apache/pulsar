@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -51,6 +50,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
+        this.conf.setDisableBrokerInterceptors(false);
+
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
         this.listener2 = mock(BrokerInterceptor.class);
@@ -73,7 +74,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         teardown();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.listeners.close();
 
@@ -86,10 +87,9 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testInitialize() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        listeners.initialize(conf);
-        verify(listener1, times(1)).initialize(same(conf));
-        verify(listener2, times(1)).initialize(same(conf));
+        listeners.initialize(pulsar);
+        verify(listener1, times(1)).initialize(same(pulsar));
+        verify(listener2, times(1)).initialize(same(pulsar));
     }
 
     @Test

@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -105,6 +109,36 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInvalidRangeTotal() {
         new HashRangeExclusiveStickyKeyConsumerSelector(0);
+    }
+
+    @Test
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
+        List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
+        List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
+        for (int index = 0; index < consumerName.size(); index++) {
+            Consumer consumer = mock(Consumer.class);
+            PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
+                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
+                    .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(range.get(index)[0])
+                            .setEnd(range.get(index)[1]).build())
+                    .build();
+            when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
+            when(consumer.consumerName()).thenReturn(consumerName.get(index));
+            Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
+            selector.addConsumer(consumer);
+        }
+
+        Map<String, List<String>> expectedResult = new HashMap<>();
+        expectedResult.put("consumer1", ImmutableList.of("[0, 2]"));
+        expectedResult.put("consumer2", ImmutableList.of("[3, 7]"));
+        expectedResult.put("consumer3", ImmutableList.of("[9, 12]"));
+        expectedResult.put("consumer4", ImmutableList.of("[15, 20]"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+            Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
+        }
+        Assert.assertEquals(expectedResult.size(), 0);
     }
 
     @Test

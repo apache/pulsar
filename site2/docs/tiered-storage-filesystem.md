@@ -178,36 +178,36 @@ Threshold value|Action
 
 Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.
 
-You can configure the threshold size using CLI tools, such as [pulsarctl](https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/) or pulsar-admin.
+You can configure the threshold size using CLI tools, such as pulsar-admin.
 
 #### Example
 
-This example sets the filesystem offloader threshold size to 10 MB using pulsarctl.
+This example sets the filesystem offloader threshold size to 10 MB using pulsar-admin.
 
 ```bash
-bin/pulsarctl namespaces set-offload-threshold --size 10M my-tenant/my-namespace
+pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 ```
 
 > #### Tip
 >
-> For more information about the `pulsarctl namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-set-offload-threshold-em-). 
+> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
 ### Configure filesystem offloader to run manually
 
 For individual topics, you can trigger filesystem offloader manually using one of the following methods:
 
-- Use REST endpoint 
+- Use REST endpoint.
 
-- Use CLI tools (such as pulsarctl or pulsar-admin). 
+- Use CLI tools (such as pulsar-admin). 
 
 To trigger via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.
 
 #### Example
 
-- This example triggers the filesystem offloader to run manually using pulsarctl.
+- This example triggers the filesystem offloader to run manually using pulsar-admin.
 
     ```bash
-    bin/pulsarctl topic offload persistent://my-tenant/my-namespace/topic1 10M
+    pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
     ``` 
 
     **Output**
@@ -218,12 +218,12 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
     > #### Tip
     >
-    > For more information about the `pulsarctl topic offload options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-em-). 
+    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
-- This example checks filesystem offloader status using pulsarctl.
+- This example checks filesystem offloader status using pulsar-admin.
 
     ```bash
-    bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+    pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -235,7 +235,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     To wait for the filesystem to complete the job, add the `-w` flag.
 
     ```bash
-    bin/pulsarctl topic offload-status -w persistent://my-tenant/my-namespace/topic1
+    pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -244,10 +244,10 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     Offload was a success
     ```
 
-    If there is an error in the offloading operation, the error is propagated to the `pulsarctl topic offload-status` command.
+    If there is an error in the offloading operation, the error is propagated to the `pulsar-admin topics offload-status` command.
 
     ```bash
-    bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+    pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -261,7 +261,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
     > #### Tip
     >
-    > For more information about the `pulsarctl topic offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-status-em-). 
+    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
 ## Tutorial
 

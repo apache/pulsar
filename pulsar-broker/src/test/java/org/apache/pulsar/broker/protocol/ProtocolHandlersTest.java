@@ -72,7 +72,7 @@ public class ProtocolHandlersTest {
         this.handlers = new ProtocolHandlers(this.handlerMap);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.handlers.close();
 

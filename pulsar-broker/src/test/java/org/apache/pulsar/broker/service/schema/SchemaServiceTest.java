@@ -96,7 +96,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

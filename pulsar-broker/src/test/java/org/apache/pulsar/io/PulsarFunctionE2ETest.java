@@ -299,7 +299,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);
@@ -983,7 +983,7 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1786,7 +1786,14 @@ public class PulsarFunctionE2ETest {
             checkArgument(matcher.matches());
             String name = matcher.group(1);
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
+            String numericValue = matcher.group(3);
+            if (numericValue.equalsIgnoreCase("-Inf")) {
+                m.value = Double.NEGATIVE_INFINITY;
+            } else if (numericValue.equalsIgnoreCase("+Inf")) {
+                m.value = Double.POSITIVE_INFINITY;
+            } else {
+                m.value = Double.valueOf(numericValue);
+            }
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

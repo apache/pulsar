@@ -75,7 +75,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -288,17 +288,17 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             .create();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 2);
-        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 2);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 2);
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 1);
-        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 1);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 1);
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 0);
-        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 0);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 0);
 
     }
 

@@ -32,8 +32,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -44,7 +42,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -62,7 +59,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

@@ -60,7 +60,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         this.conf.setClusterName("test");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -243,8 +243,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     /**
      * It verifies that dispatch-rate throttling with cluster-configuration
      *
-     * @param subscription
-     * @param dispatchRateType
      * @throws Exception
      */
     @Test()

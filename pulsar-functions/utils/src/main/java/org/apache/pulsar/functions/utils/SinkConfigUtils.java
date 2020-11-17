@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -55,6 +56,7 @@ import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
@@ -134,14 +136,17 @@ public class SinkConfigUtils {
             sinkConfig.getInputSpecs().forEach((topic, spec) -> {
                 Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
                         .setIsRegexPattern(spec.isRegexPattern());
-                if (!StringUtils.isBlank(spec.getSchemaType())) {
+                if (StringUtils.isNotBlank(spec.getSchemaType())) {
                     bldr.setSchemaType(spec.getSchemaType());
-                } else if (!StringUtils.isBlank(spec.getSerdeClassName())) {
+                } else if (StringUtils.isNotBlank(spec.getSerdeClassName())) {
                     bldr.setSerdeClassName(spec.getSerdeClassName());
                 }
                 if (spec.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(spec.getReceiverQueueSize()).build());
+                }
+                if (spec.getCryptoConfig() != null) {
+                    bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
                 bldr.putAllConsumerProperties(spec.getConsumerProperties());
                 sourceSpecBuilder.putInputSpecs(topic, bldr.build());
@@ -258,6 +263,9 @@ public class SinkConfigUtils {
             }
             if (input.getValue().hasReceiverQueueSize()) {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
+            }
+            if (input.getValue().hasCryptoSpec()) {
+                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
@@ -489,6 +497,9 @@ public class SinkConfigUtils {
                 }
                 if (!isEmpty(consumerSpec.getSchemaType())) {
                     ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, classLoader, true);
+                }
+                if (consumerSpec.getCryptoConfig() != null) {
+                    ValidatorUtils.validateCryptoKeyReader(consumerSpec.getCryptoConfig(), classLoader, false);
                 }
             }
         }

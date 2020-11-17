@@ -52,7 +52,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -119,7 +119,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
         // check the mark delete position was changed
         BatchMessageIdImpl ackedMessageId = (BatchMessageIdImpl) received.get(0);
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
         String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
         Assert.assertEquals(ackedMessageId.ledgerId + ":" + ackedMessageId.entryId, markDeletePosition);
 
