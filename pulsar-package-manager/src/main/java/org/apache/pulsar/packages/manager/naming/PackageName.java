@@ -27,8 +27,6 @@ import com.google.common.cache.LoadingCache;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * A package name has four parts, type, namespace, package-name, and version.
@@ -37,7 +35,8 @@ import org.apache.pulsar.common.naming.TopicName;
  */
 public class PackageName {
     private final PackageType type;
-    private final NamespaceName namespaceName;
+    private final String tenant;
+    private final String namespace;
     private final String name;
     private final String version;
     private final String completePackageName;
@@ -90,21 +89,29 @@ public class PackageName {
         if (parts.size() != 2) {
             throw new IllegalArgumentException("Invalid package name '" + packageName + "'");
         }
-        TopicName n = TopicName.get(parts.get(0));
-        this.namespaceName = n.getNamespaceObject();
-        this.name = n.getLocalName();
+        List<String> partsWithoutVersion = Splitter.on("/").splitToList(parts.get(0));
+        if (partsWithoutVersion.size() != 3) {
+            throw new IllegalArgumentException("Invalid package name '" + packageName + "'");
+        }
+        this.tenant = partsWithoutVersion.get(0);
+        this.namespace = partsWithoutVersion.get(1);
+        this.name = partsWithoutVersion.get(2);
         this.version = Strings.isNullOrEmpty(parts.get(1)) ? "latest" : parts.get(1);
-        this.completeName = String.format("%s/%s", namespaceName.toString(), name);
+        this.completeName = String.format("%s/%s/%s", tenant, namespace, name);
         this.completePackageName =
-            String.format("%s://%s/%s@%s", type.toString(), namespaceName.toString(), name, version);
+            String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
     }
 
     public PackageType getPkgType() {
         return this.type;
     }
 
-    public NamespaceName getNamespaceName() {
-        return this.namespaceName;
+    public String getTenant() {
+        return this.tenant;
+    }
+
+    public String getNamespace() {
+        return this.namespace;
     }
 
     public String getVersion() {
@@ -121,6 +128,10 @@ public class PackageName {
 
     public String toString() {
         return completePackageName;
+    }
+
+    public String toRestPath() {
+        return String.format("%s/%s/%s/%s/%s", type, tenant, namespace, name, version);
     }
 
     @Override

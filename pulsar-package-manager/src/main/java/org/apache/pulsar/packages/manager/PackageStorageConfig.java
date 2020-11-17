@@ -19,8 +19,21 @@
 
 package org.apache.pulsar.packages.manager;
 
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * An interface of package storage config.
  */
-public interface PackageStorageConfig {
+@Setter
+@Getter
+@Builder
+public class PackageStorageConfig {
+    int numReplicas;
+    String zkServers;
+    String ledgersRootPath;
+    String bookkeeperClientAuthenticationPlugin;
+    String bookkeeperClientAuthenticationParametersName;
+    String bookkeeperClientAuthenticationParameters;
 }

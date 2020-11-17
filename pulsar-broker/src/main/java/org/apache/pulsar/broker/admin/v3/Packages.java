@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.v3;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.pulsar.broker.admin.impl.PackageManagerBase;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.packages.manager.PackageMetadata;
 import org.apache.pulsar.packages.manager.naming.PackageName;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -35,8 +36,10 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import java.io.InputStream;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Path("/packages")
 @Api(value = "packages", tags = "packages")
@@ -54,7 +57,7 @@ public class Packages extends PackageManagerBase {
     }
 
     @GET
-    @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
+    @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
     public PackageMetadata getMeta(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
@@ -65,21 +68,26 @@ public class Packages extends PackageManagerBase {
         return internalGetMeta(type, tenant, namespace, packageName, version);
     }
 
-    @PUT
+    @POST
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadMeta(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
         final @PathParam("namespace") String namespace,
         final @PathParam("packageName") String packageName,
         final @PathParam("version") String version,
-        final @FormDataParam("metadata") PackageMetadata meta
+        final @FormDataParam("metadata") PackageMetadata metadata
     ) {
-        PackageMetadata metadata = PackageMetadata.builder().description("test").build();
-        internalUploadMeta(type, tenant, namespace, packageName, version, metadata);
+        if (metadata != null) {
+            metadata.setCreateTime(System.currentTimeMillis());
+            internalUploadMeta(type, tenant, namespace, packageName, version, metadata);
+        } else {
+            throw new RestException(Response.Status.BAD_REQUEST, "invalid package metadata");
+        }
     }
 
-    @POST
+    @PUT
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
     public void updateMeta(
         final @PathParam("type") String type,
@@ -87,9 +95,9 @@ public class Packages extends PackageManagerBase {
         final @PathParam("namespace") String namespace,
         final @PathParam("packageName") String packageName,
         final @PathParam("version") String version,
-        final @FormDataParam("metadata") PackageMetadata meta
+        final @FormDataParam("metadata") PackageMetadata metadata
     ) {
-        PackageMetadata metadata = PackageMetadata.builder().description("test").build();
+        metadata.setModificationTime(System.currentTimeMillis());
         internalUploadMeta(type, tenant, namespace, packageName, version, metadata);
     }
 
@@ -104,21 +112,21 @@ public class Packages extends PackageManagerBase {
         final @PathParam("packageName") String packageName,
         final @PathParam("version") String version,
         final @FormDataParam("metadata") PackageMetadata packageMetadata,
-        final @FormDataParam("data") InputStream uploadedInputStream) {
+        final @FormDataParam("file") InputStream uploadedInputStream) {
+        packageMetadata.setCreateTime(System.currentTimeMillis());
         internalUpload(type, tenant, namespace, packageName, version, packageMetadata, uploadedInputStream);
     }
 
     @GET
-    @Path("/download/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    public Response download(
+    @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
+    public StreamingOutput download(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
         final @PathParam("namespace") String namespace,
         final @PathParam("packageName") String packageName,
         final @PathParam("version") String version
     ) {
-        return Response.status(Response.Status.OK)
-            .entity(internalDownload(type, tenant, namespace, packageName, version)).build();
+        return internalDownload(type, tenant, namespace, packageName, version);
     }
 
     @DELETE
@@ -135,24 +143,24 @@ public class Packages extends PackageManagerBase {
     }
 
     @GET
-    @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    public List<PackageName> listPackageVersion(
+    @Path("/{type}/{tenant}/{namespace}/{packageName}")
+    public List<String> listPackageVersion(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
         final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version
+        final @PathParam("packageName") String packageName
     ) {
-        return internalList(type, tenant, namespace, packageName, version);
+        return internalList(type, tenant, namespace, packageName).stream()
+            .map(PackageName::getVersion).collect(Collectors.toList());
     }
 
     @GET
     @Path("/{type}/{tenant}/{namespace}")
-    public List<PackageName> listPackages(
+    public List<String> listPackages(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
         final @PathParam("namespace") String namespace
     ) {
-        return internalList(type, tenant, namespace);
+        return internalList(type, tenant, namespace).stream().map(PackageName::getName).collect(Collectors.toList());
     }
 }

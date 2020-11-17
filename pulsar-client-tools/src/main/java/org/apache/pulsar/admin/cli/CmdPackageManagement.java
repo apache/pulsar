@@ -18,18 +18,23 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.gson.Gson;
 import org.apache.pulsar.client.admin.PackageManagement;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.packages.manager.PackageMetadata;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Parameters(commandDescription = "Operations on package management")
 public class CmdPackageManagement extends CmdBase{
     private PackageManagement packageManagement;
 
     public CmdPackageManagement(PulsarAdmin admin) {
-        super("packages", admin);
+        super("package", admin);
         this.packageManagement = admin.packageManagement();
 
         jcommander.addCommand("metadata", new GetMetadataCmd());
@@ -47,7 +52,9 @@ public class CmdPackageManagement extends CmdBase{
 
         @Override
         void run() throws Exception {
-            print(packageManagement.getMetadata(packageName).toString());
+            print(packageName);
+
+            print(packageManagement.getMetadata(packageName));
         }
     }
 
@@ -59,26 +66,52 @@ public class CmdPackageManagement extends CmdBase{
         @Parameter(names = "--description", description=  "descriptions of a package", required = true)
         private String description;
 
-        @Parameter(names = "--contact", description = "")
+        @Parameter(names = "--contact", description = "contact info of a package")
         private String contact;
+
+        @DynamicParameter(names = {"--properties", "-P"},  description ="external information of a package")
+        private Map<String, String> properties = new HashMap<>();
 
         @Override
         void run() throws Exception {
-            packageManagement.updateMetadata(packageName,
-                PackageMetadata.builder().description(description).contact(contact).build());
+            print(packageName);
+            print(description);
+            print(contact);
+            print(new Gson().toJson(properties));
+            packageManagement.updateMetadata(packageName, PackageMetadata.builder()
+                .description(description).contact(contact).properties(properties).build());
         }
     }
+
     @Parameters(commandDescription = "Upload a package")
     private class Upload extends CliCommand {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
+
+        @Parameter(names = "--description", description=  "descriptions of a package", required = true)
+        private String description;
+
+        @Parameter(names = "--contact", description = "contact information of a package")
+        private String contact;
+
+        @DynamicParameter(names = {"--properties", "-P"},  description ="external infromations of a package")
+        private Map<String, String> properties = new HashMap<>();
 
         @Parameter(names = "--path", description = "descriptions of a package", required = true)
         private String path;
 
         @Override
         void run() throws Exception {
-            packageManagement.upload(packageName, path);
+            print(packageName);
+            print(description);
+            print(contact);
+            print(new Gson().toJson(properties));
+            print(path);
+            PackageMetadata metadata = PackageMetadata.builder()
+                .description(description)
+                .contact(contact)
+                .properties(properties).build();
+            packageManagement.upload(metadata, packageName, path);
         }
     }
 
@@ -87,35 +120,41 @@ public class CmdPackageManagement extends CmdBase{
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = "--path", description = "descriptions of a package", required = true)
+        @Parameter(names = "--path", description = "download destiny path of the package", required = true)
         private String path;
 
         @Override
         void run() throws Exception {
+            print(path);
             packageManagement.download(packageName, path);
         }
     }
 
     @Parameters(commandDescription = "List all versions of the given package")
     private class ListPackageVersions extends CliCommand {
-        @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
+        @Parameter(description = "the package name you want to query, don't need to specify the package version.\n" +
+            "type://tenant/namespace/packageName", required = true)
         private String packageName;
 
         @Override
         void run() throws Exception {
+            print(packageName);
             print(packageManagement.listPackageVersions(packageName).toString());
         }
     }
 
     @Parameters(commandDescription = "List all packages with given type in the specified namespace")
     private class ListPackages extends CliCommand {
-        @Parameter(description = "type of the package")
+        @Parameter(names = "--type", description = "type of the package", required = true)
         private String type;
-        @Parameter(description = "namespace of the package")
+
+        @Parameter(description = "namespace of the package", required = true)
         private String namespace;
 
         @Override
         void run() throws Exception {
+            print(type);
+            print(namespace);
             print(packageManagement.listPackages(type, namespace));
         }
     }

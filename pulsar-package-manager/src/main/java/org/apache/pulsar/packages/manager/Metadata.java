@@ -16,39 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.packages.manager;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-/**
- * Package metadata.
- */
 @Data
-@Builder(toBuilder = true)
-@AllArgsConstructor
 @NoArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
 @ApiModel(value = "metadata", description = "Package metadata information")
-@Setter
-@Getter
-public class PackageMetadata {
+public class Metadata {
     @ApiModelProperty(name = "description")
-    String description;
+    private String description = "";
     @ApiModelProperty(name = "contact")
-    String contact;
-    long createTime;
-    long modificationTime;
+    private String contact = "";
+
+    private long createTime = 0;
+    private long modificationTime = 0;
+
     @ApiModelProperty(name = "properties")
-    Map<String, String> properties;
+    private Map<String, String> properties;
 }

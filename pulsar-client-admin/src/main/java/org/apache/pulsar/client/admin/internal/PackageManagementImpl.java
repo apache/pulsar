@@ -18,73 +18,80 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import org.apache.pulsar.client.admin.PackageManagement;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.packages.manager.PackageMetadata;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
+import com.google.gson.Gson;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
-public class PackageManagementImpl extends BaseResource implements PackageManagement {
+import org.apache.pulsar.client.admin.PackageManagement;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.packages.manager.PackageMetadata;
+import org.apache.pulsar.packages.manager.naming.PackageName;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Dsl;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
+
+public class PackageManagementImpl extends ComponentResource implements PackageManagement {
 
     private final WebTarget packageManagement;
+    private final AsyncHttpClient httpClient;
 
-    public PackageManagementImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+    public PackageManagementImpl(WebTarget web, Authentication auth, AsyncHttpClient client, long readTimeoutMs) {
         super(auth, readTimeoutMs);
+        this.httpClient = client;
         this.packageManagement = web.path("/admin/v3/packages");
     }
 
     @Override
     public PackageMetadata getMetadata(String packageName) {
+        try {
+            return getMetadataAsync(packageName).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
     @Override
     public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
-        WebTarget path = packageManagement.path(packageName);
-        return asyncGetRequest(path);
+        WebTarget path = packageManagement.path(PackageName.get(packageName).toRestPath() + "/metadata");
+        final CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<PackageMetadata>() {
+            @Override
+            public void completed(PackageMetadata metadata) {
+                future.complete(metadata);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
     }
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) {
-        WebTarget path = packageManagement.path(packageName);
-
-    }
-
-    @Override
-    public CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata) {
-        WebTarget path = packageManagement.path(packageName);
-        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
-    }
-
-    @Override
-    public void upload(String packageName, String path) {
-        uploadAsync(packageName, path);
-    }
-
-    @Override
-    public CompletableFuture<Void> uploadAsync(String packageName, String path) {
-        return null;
-    }
-
-    @Override
-    public void download(String packageName, String path) {
-
-    }
-
-    @Override
-    public CompletableFuture<Void> downloadAsync(String packageName, String path) {
-        return null;
-    }
-
-    @Override
-    public List<String> listPackageVersions(String packageName) {
         try {
-            return listPackageVersionsAsync(packageName).get();
+            updateMetadataAsync(packageName, metadata).get();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
@@ -93,19 +100,164 @@ public class PackageManagementImpl extends BaseResource implements PackageManage
     }
 
     @Override
-    public CompletableFuture<List<String>> listPackageVersionsAsync(String packageName) {
-        WebTarget path = packageManagement.path();
-        return asyncGetRequest(path);
+    public CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata) {
+        WebTarget path = packageManagement.path(PackageName.get(packageName).toRestPath() + "/metadata");
+        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public List<String> listPackages(String type, String namespace) {
+    public void upload(PackageMetadata metadata, String packageName, String path) {
+        try {
+            uploadAsync(metadata, packageName, path).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            RequestBuilder builder = Dsl
+                .post(packageManagement.path(PackageName.get(packageName).toRestPath()).getUri().toASCIIString())
+                .addBodyPart(new FilePart("file", new File(path), MediaType.APPLICATION_OCTET_STREAM))
+                .addBodyPart(new StringPart("metadata", new Gson().toJson(metadata), MediaType.APPLICATION_JSON));
+            httpClient.executeRequest(addAuthHeaders(packageManagement, builder).build())
+                .toCompletableFuture()
+                .thenAccept(response -> {
+                    if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                        future.completeExceptionally(
+                            getApiException(Response
+                                .status(response.getStatusCode())
+                                .entity(response.getResponseBody())
+                                .build()));
+                    } else {
+                        future.complete(null);
+                    }
+                })
+                .exceptionally(throwable -> {
+                    future.completeExceptionally(getApiException(throwable));
+                    return null;
+                });
+        } catch (PulsarAdminException e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    @Override
+    public void download(String packageName, String path) {
+        try {
+            downloadAsync(packageName, path).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> downloadAsync(String packageName, String path) {
+        WebTarget webTarget = packageManagement.path(PackageName.get(packageName).toRestPath());
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        asyncGetRequest(webTarget, new InvocationCallback<Response>(){
+            @Override
+            public void completed(Response response) {
+                if (response.getStatusInfo().equals(Response.Status.OK)) {
+                    InputStream inputStream = response.readEntity(InputStream.class);
+                    Path destinyPath = Paths.get(path);
+                    try {
+                        Files.copy(inputStream, destinyPath);
+                        future.complete(null);
+                    } catch (IOException e) {
+                        future.completeExceptionally(e);
+                    }
+                } else {
+                    future.completeExceptionally(getApiException(response));
+                }
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public void delete(String packageName) {
+
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteAsync(String packageName) {
         return null;
     }
 
     @Override
+    public List<String> listPackageVersions(String packageName) {
+        try {
+            return listPackageVersionsAsync(packageName).get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public CompletableFuture<List<String>> listPackageVersionsAsync(String packageName) {
+        PackageName name = PackageName.get(packageName);
+        WebTarget path = packageManagement.path(String.format("%s/%s/%s/%s",
+            name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<List<String>>() {
+            @Override
+            public void completed(List<String> strings) {
+                System.out.println("get");
+                System.out.println(strings);
+                future.complete(strings);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public List<String> listPackages(String type, String namespace) {
+        try {
+            return listPackagesAsync(type, namespace).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
-        WebTarget path = packageManagement.path();
-        return asyncGetRequest(path);
+        WebTarget path = packageManagement.path(type + "/" + NamespaceName.get(namespace).toString());
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<List<String>>() {
+            @Override
+            public void completed(List<String> strings) {
+                System.out.println("get");
+                System.out.println(strings);
+                future.complete(strings);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
     }
 }

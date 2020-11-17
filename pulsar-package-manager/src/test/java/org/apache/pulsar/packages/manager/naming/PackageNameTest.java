@@ -39,7 +39,7 @@ public class PackageNameTest {
     public void testPartName(String type, String tenant, String ns, String name, String version) {
         PackageName packageName = PackageName.get(type, tenant, ns, name, version);
         Assert.assertEquals(packageName.getPkgType().toString(), type);
-        Assert.assertEquals(packageName.getNamespaceName(), NamespaceName.get(tenant, ns));
+//        Assert.assertEquals(packageName.getNamespaceName(), NamespaceName.get(tenant, ns));
         Assert.assertEquals(packageName.getName(), name);
         Assert.assertEquals(packageName.getVersion(), version);
         Assert.assertEquals(packageName.toString(), type + "://" + tenant + "/" + ns + "/" + name + "@" + version);
@@ -47,7 +47,7 @@ public class PackageNameTest {
         String longName = tenant + "/" + ns + "/" + name;
         PackageName packageName1 = PackageName.get(type, longName, version);
         Assert.assertEquals(packageName1.getPkgType().toString(), type);
-        Assert.assertEquals(packageName1.getNamespaceName(), NamespaceName.get(tenant, ns));
+//        Assert.assertEquals(packageName1.getNamespaceName(), NamespaceName.get(tenant, ns));
         Assert.assertEquals(packageName1.getName(), name);
         Assert.assertEquals(packageName1.getVersion(), version);
         Assert.assertEquals(packageName1.toString(), type + "://" + tenant + "/" + ns + "/" + name + "@" + version);
@@ -55,7 +55,7 @@ public class PackageNameTest {
         String fullName = type + "://" + tenant + "/" + ns + "/" + name + "@" + version;
         PackageName packageName2 = PackageName.get(fullName);
         Assert.assertEquals(packageName2.getPkgType().toString(), type);
-        Assert.assertEquals(packageName2.getNamespaceName(), NamespaceName.get(tenant, ns));
+//        Assert.assertEquals(packageName2.getNamespaceName(), NamespaceName.get(tenant, ns));
         Assert.assertEquals(packageName2.getName(), name);
         Assert.assertEquals(packageName2.getVersion(), version);
         Assert.assertEquals(packageName2.toString(), type + "://" + tenant + "/" + ns + "/" + name + "@" + version);

@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.packages.manager.PackageStorage;
+import org.apache.pulsar.packages.manager.PackageStorageConfig;
 import org.apache.pulsar.packages.manager.PackageStorageProvider;
 
 /**
@@ -28,7 +28,7 @@ import org.apache.pulsar.packages.manager.PackageStorageProvider;
  */
 public class BKPackageStorageProvider implements PackageStorageProvider {
     @Override
-    public PackageStorage getStorage(ServiceConfiguration config) {
+    public PackageStorage getStorage(PackageStorageConfig config) {
         return new BKPackageStorage(config);
     }
 }

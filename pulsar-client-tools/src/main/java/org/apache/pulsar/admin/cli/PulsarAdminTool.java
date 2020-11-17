@@ -142,6 +142,8 @@ public class PulsarAdminTool {
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);
         commandMap.put("sink", CmdSinks.class);
+
+        commandMap.put("package", CmdPackageManagement.class);
     }
 
     private void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {

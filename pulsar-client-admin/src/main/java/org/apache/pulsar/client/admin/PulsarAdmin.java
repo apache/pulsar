@@ -222,8 +222,8 @@ public class PulsarAdmin implements Closeable {
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
-        this.packageManagement = new PackageManagementImpl(root, auth, readTimeoutMs);
-
+        this.packageManagement = new PackageManagementImpl(root,
+            auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
         }

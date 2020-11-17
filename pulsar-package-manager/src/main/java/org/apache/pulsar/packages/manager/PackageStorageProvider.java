@@ -19,12 +19,9 @@
 
 package org.apache.pulsar.packages.manager;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * The provider provides a generic method to get a storage provider.
@@ -57,5 +54,5 @@ public interface PackageStorageProvider {
      * @param config storage configuration
      * @return
      */
-    PackageStorage getStorage(ServiceConfiguration config);
+    PackageStorage getStorage(PackageStorageConfig config);
 }

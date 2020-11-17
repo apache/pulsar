@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.packages.manager.PackageMetadata;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.packages.manager.PackageMetadata;
 
 /**
  * Admin interface for Package management REST APIs.
@@ -75,7 +75,7 @@ public interface PackageManagement {
      * @param path
      *          the upload file path
      */
-    void upload(String packageName, String path);
+    void upload(PackageMetadata metadata, String packageName, String path);
 
     /**
      * Upload a package to the package management service asynchronously.
@@ -86,7 +86,7 @@ public interface PackageManagement {
      *          the path you want to upload from
      * @return nothing
      */
-    CompletableFuture<Void> uploadAsync(String packageName, String path);
+    CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
 
     /**
      * Download a package from the package management service.
@@ -109,6 +109,9 @@ public interface PackageManagement {
      */
     CompletableFuture<Void> downloadAsync(String packageName, String path);
 
+    void delete(String packageName);
+
+    CompletableFuture<Void> deleteAsync(String packageName);
     /**
      * List all the versions of a package.
      *

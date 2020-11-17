@@ -42,12 +42,6 @@
         </dependency>
 
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
             <classifier>tests</classifier>
@@ -95,12 +89,6 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-broker-common</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 

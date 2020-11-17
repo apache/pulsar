@@ -128,6 +128,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.packages.manager.PackageManagerService;
 import org.apache.pulsar.packages.manager.PackageStorage;
+import org.apache.pulsar.packages.manager.PackageStorageConfig;
 import org.apache.pulsar.packages.manager.PackageStorageProvider;
 import org.apache.pulsar.packages.manager.impl.PackageImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
@@ -602,7 +603,14 @@ public class PulsarService implements AutoCloseable {
             // start package manager service
             LOG.info("setup package manager service");
             this.packageStorageProvider = PackageStorageProvider.newProvider(config.getPackageStorageProvider());
-            this.packageService = new PackageImpl(packageStorageProvider.getStorage(config));
+            PackageStorageConfig packageStorageConfig = PackageStorageConfig.builder()
+                .zkServers(config.getZookeeperServers())
+                .numReplicas(config.getPackageReplicas())
+                .ledgersRootPath(config.getPackageLedgerRootPath())
+                .bookkeeperClientAuthenticationPlugin(config.getBookkeeperClientAuthenticationPlugin())
+                .bookkeeperClientAuthenticationParametersName(config.getBookkeeperClientAuthenticationParametersName())
+                .bookkeeperClientAuthenticationParameters(config.getBookkeeperClientAuthenticationParameters()).build();
+            this.packageService = new PackageImpl(packageStorageProvider.getStorage(packageStorageConfig));
             LOG.info("package manager service is ready");
 
             // start function worker service if necessary

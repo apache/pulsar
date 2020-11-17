@@ -126,9 +126,9 @@ public class PackageManagerBase extends AdminResource {
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
         }
     }
-    protected List<PackageName> internalList(String type, String tenant, String namespace, String pacakgeName, String version) {
+    protected List<PackageName> internalList(String type, String tenant, String namespace, String pacakgeName) {
         try {
-            PackageName name = PackageName.get(type, tenant, namespace, pacakgeName, version);
+            PackageName name = PackageName.get(type, tenant, namespace, pacakgeName, "");
             return getPackageManager().list(name).get();
         } catch (IllegalArgumentException iae) {
             throw new RestException(Response.Status.PRECONDITION_FAILED, iae.getMessage());

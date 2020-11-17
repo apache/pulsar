@@ -25,9 +25,7 @@ import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.broker.ServiceConfiguration;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,10 +34,10 @@ import java.util.concurrent.ExecutionException;
 
 public class BKStorageRealTest {
     public static void main(String[] args) throws Exception {
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setZookeeperServers("localhost:2181");
-        BKPackageStorage storage = new BKPackageStorage(configuration);
-        System.out.println("Initialize done");
+//        ServiceConfiguration configuration = new ServiceConfiguration();
+//        configuration.setZookeeperServers("localhost:2181");
+//        BKPackageStorage storage = new BKPackageStorage(configuration);
+//        System.out.println("Initialize done");
 
 //        String logname = "test-3";
 //        if (ns.logExists(logname)) {
@@ -69,10 +67,10 @@ public class BKStorageRealTest {
 //        storage.closeAsync().get();
 
 //        Thread.sleep(1000);
-        String s = "hello test";
-        storage.writeAsync("/test/1111111", new ByteArrayInputStream(s.getBytes())).get();
-        storage.closeAsync().get();
-        System.out.println("write done");
+//        String s = "hello test";
+//        storage.writeAsync("/test/1111111", new ByteArrayInputStream(s.getBytes())).get();
+//        storage.closeAsync().get();
+//        System.out.println("write done");
     }
 
     public static void testWriteSync(Namespace namespace, String name) throws IOException, ExecutionException, InterruptedException {

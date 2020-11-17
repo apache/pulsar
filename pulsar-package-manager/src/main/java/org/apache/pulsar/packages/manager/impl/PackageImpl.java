@@ -31,14 +31,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.manager.Package;
 import org.apache.pulsar.packages.manager.PackageMetadata;
 import org.apache.pulsar.packages.manager.PackageStorage;
-import org.apache.pulsar.packages.manager.exception.PackageAlreadyExistsException;
-import org.apache.pulsar.packages.manager.exception.PackageMetaAlreadyExistsException;
 import org.apache.pulsar.packages.manager.exception.PackageMetaNotFoundException;
 import org.apache.pulsar.packages.manager.exception.PackageNotFoundException;
 import org.apache.pulsar.packages.manager.naming.PackageName;
@@ -107,18 +104,21 @@ public class PackageImpl implements Package {
     public CompletableFuture<Void> upload(PackageName packageName, PackageMetadata metadata, InputStream inputStream) {
         String metadataPath = getMetadataStoragePath(packageName);
         String packagePath = getPackageStoragePath(packageName);
-        return packageStorage.existAsync(metadataPath)
-            .thenCompose(metaExists -> metaExists
-                ? FutureUtil.failedFuture(
-                    new PackageMetaAlreadyExistsException(
-                        "The metadata of package " + packageName.toString() + " already exists"))
-                : packageStorage.existAsync(packagePath)).thenCompose(dataExists -> dataExists
-                ? FutureUtil.failedFuture(
-                    new PackageAlreadyExistsException("The package " + packageName.toString() + " already exists"))
-                : packageStorage
-                    .writeAsync(metadataPath,
-                        new ByteArrayInputStream(gson.toJson(metadata).getBytes(StandardCharsets.UTF_8))))
-                    .thenCompose(ignore -> packageStorage.writeAsync(packagePath, inputStream));
+        ByteArrayInputStream meta = new ByteArrayInputStream(gson.toJson(metadata).getBytes(StandardCharsets.UTF_8));
+        return packageStorage.writeAsync(metadataPath, meta)
+            .thenCompose(ignore -> packageStorage.writeAsync(packagePath, inputStream));
+//        return packageStorage.existAsync(metadataPath)
+//            .thenCompose(metaExists -> metaExists
+//                ? FutureUtil.failedFuture(
+//                    new PackageMetaAlreadyExistsException(
+//                        "The metadata of package " + packageName.toString() + " already exists"))
+//                : packageStorage.existAsync(packagePath)).thenCompose(dataExists -> dataExists
+//                ? FutureUtil.failedFuture(
+//                    new PackageAlreadyExistsException("The package " + packageName.toString() + " already exists"))
+//                : packageStorage
+//                    .writeAsync(metadataPath,
+//                        new ByteArrayInputStream(gson.toJson(metadata).getBytes(StandardCharsets.UTF_8))))
+//                    .thenCompose(ignore -> packageStorage.writeAsync(packagePath, inputStream));
     }
 
     @Override
@@ -183,17 +183,19 @@ public class PackageImpl implements Package {
     }
 
     private static String getPackageStoragePath(PackageName packageName) {
-        return String.format("%s/%s/%s/%s",
+        return String.format("%s/%s/%s/%s/%s",
             packageName.getPkgType().toString(),
-            packageName.getNamespaceName().toString(),
+            packageName.getTenant(),
+            packageName.getNamespace(),
             packageName.getName(),
             packageName.getVersion());
     }
 
     private static String getPackagePathWithoutVersion(PackageName packageName) {
-        return String.format("%s/%s/%s",
+        return String.format("%s/%s/%s/%s",
             packageName.getPkgType().toString(),
-            packageName.getNamespaceName().toString(),
+            packageName.getTenant(),
+            packageName.getNamespace(),
             packageName.getName());
     }
 }

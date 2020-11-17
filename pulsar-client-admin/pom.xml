@@ -66,6 +66,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.asynchttpclient</groupId>
+      <artifactId>async-http-client</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>javax.xml.bind</groupId>
       <artifactId>jaxb-api</artifactId>
       <exclusions>
@@ -96,10 +101,9 @@
       <artifactId>gson</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-manager</artifactId>
-      <version>2.7.0-SNAPSHOT</version>
-      <scope>compile</scope>
+      <version>${project.version}</version>
     </dependency>
 
   </dependencies>
