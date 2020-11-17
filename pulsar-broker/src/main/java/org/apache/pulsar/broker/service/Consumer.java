@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -218,7 +218,9 @@ public class Consumer {
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
             }
-            return ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+            final Promise<Void> writePromise = cnx.newPromise();
+            writePromise.setSuccess(null);
+            return writePromise;
         }
 
         // Note

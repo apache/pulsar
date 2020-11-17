@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -73,5 +74,7 @@ public interface TransportCnx {
     void closeConsumer(Consumer consumer);
 
     boolean isPreciseDispatcherFlowControl();
+
+    Promise<Void> newPromise();
 
 }

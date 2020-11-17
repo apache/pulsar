@@ -34,6 +34,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Promise;
 
 import java.net.SocketAddress;
 import java.util.List;
@@ -2102,6 +2103,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     public String getRole() {
         return authRole;
+    }
+
+    @Override
+    public Promise<Void> newPromise() {
+        return ctx.newPromise();
     }
 
     boolean hasConsumer(long consumerId) {
