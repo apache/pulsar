@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.transaction;
 
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
+
 import java.util.concurrent.CompletableFuture;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +29,7 @@ import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.BeforeClass;
-
-import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 
 /**
  * Transaction test base.

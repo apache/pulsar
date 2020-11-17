@@ -41,11 +41,11 @@ public class TransactionTest extends TransactionTestBase {
     /**
      * Transfer Business Mock Test
      *
-     * The `transfer topic` represent the transfer operation, it consist of `from account`, `to account` and amount.
-     * The `balance update topic` represent the account update record, it consist of account and amount.
+     * The `transfer topic` represents the transfer operation, it consist of `from account`, `to account` and amount.
+     * The `balance update topic` represents the account update record, it consist of account and amount.
      *
      * The transfer topic consumer receive transfer messages and produce two balance update messages,
-     * one represent `from account` balance update and one represent `to account` balance update.
+     * one represents `from account` balance update and one represents `to account` balance update.
      *
      * example:
      *
