@@ -15128,6 +15128,12 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "keyHashRanges" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
         "metadata" : {
           "type" : "object",
           "additionalProperties" : {
@@ -15528,16 +15534,19 @@
           "type" : "number",
           "format" : "double"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -15552,17 +15561,14 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
         }
       }
     },
@@ -16724,15 +16730,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
+        },
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -16767,11 +16773,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },

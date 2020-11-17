@@ -41,6 +41,7 @@
 <tr><td><code>requestedHeartbeat</code></td><td>int</td><td>false</td><td>60</td><td>The requested heartbeat timeout in seconds.</td></tr>
 <tr><td><code>prefetchCount</code></td><td>int</td><td>false</td><td>0</td><td>The maximum number of messages that the server delivers.<br /><br /> 0 means unlimited.</td></tr>
 <tr><td><code>prefetchGlobal</code></td><td>boolean</td><td>false</td><td>false</td><td>Whether the setting should be applied to the entire channel rather than each consumer.</td></tr>
+<tr><td><code>passive</code></td><td>boolean</td><td>false</td><td>false</td><td>Whether the rabbitmq consumer should create its own queue or bind to an existing one.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
@@ -61,7 +62,8 @@
     <span class="hljs-attr">"handshakeTimeout"</span>: <span class="hljs-string">"10000"</span>,
     <span class="hljs-attr">"requestedHeartbeat"</span>: <span class="hljs-string">"60"</span>,
     <span class="hljs-attr">"prefetchCount"</span>: <span class="hljs-string">"0"</span>,
-    <span class="hljs-attr">"prefetchGlobal"</span>: <span class="hljs-string">"false"</span>
+    <span class="hljs-attr">"prefetchGlobal"</span>: <span class="hljs-string">"false"</span>,
+    <span class="hljs-attr">"passive"</span>: <span class="hljs-string">"false"</span>
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -80,6 +82,7 @@
     <span class="hljs-attr">requestedHeartbeat:</span> <span class="hljs-number">60</span>
     <span class="hljs-attr">prefetchCount:</span> <span class="hljs-number">0</span>
     <span class="hljs-attr">prefetchGlobal:</span> <span class="hljs-string">"false"</span>
+    <span class="hljs-attr">passive:</span> <span class="hljs-string">"false"</span>
 </code></pre></li>
 </ul>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li><li><a href="#example">Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
