@@ -61,7 +61,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         Thread.sleep(1000 * 3);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -87,7 +87,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
             consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
             fail();
         } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
         }
         Message<Integer> message = consumer.receive();
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();

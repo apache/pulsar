@@ -65,14 +65,6 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>bouncy-castle-bc</artifactId>
-            <version>${project.version}</version>
-            <classifier>pkg</classifier>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -148,6 +140,10 @@
                                     <includes>
                                         <include>**</include>
                                     </includes>
+                                    <excludes>
+                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                                        <exclude>org/bouncycastle/**</exclude>
+                                    </excludes>
                                 </filter>
                             </filters>
                             <relocations>

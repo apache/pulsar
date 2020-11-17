@@ -29,6 +29,7 @@ public class ConsumerMessage {
     public String payload;
     public Map<String, String> properties;
     public String publishTime;
+    public int redeliveryCount;
     public String eventTime;
 
     public String key;

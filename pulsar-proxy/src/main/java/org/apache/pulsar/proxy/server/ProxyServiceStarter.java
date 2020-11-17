@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
@@ -76,97 +77,104 @@ public class ProxyServiceStarter {
     private boolean help = false;
 
     public ProxyServiceStarter(String[] args) throws Exception {
-        // setup handlers
-        removeHandlersForRootLogger();
-        install();
-
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
-        Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
-        });
-
-        JCommander jcommander = new JCommander();
         try {
-            jcommander.addObject(this);
-            jcommander.parse(args);
-            if (help || isBlank(configFile)) {
-                jcommander.usage();
-                return;
-            }
-        } catch (Exception e) {
-            jcommander.usage();
-            System.exit(-1);
-        }
 
-        // load config file
-        final ProxyConfiguration config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
+            // setup handlers
+            removeHandlersForRootLogger();
+            install();
 
-        if (!isBlank(zookeeperServers)) {
-            // Use zookeeperServers from command line
-            config.setZookeeperServers(zookeeperServers);
-        }
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+            Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
+                System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
+            });
 
-        if (!isBlank(globalZookeeperServers)) {
-            // Use globalZookeeperServers from command line
-            config.setConfigurationStoreServers(globalZookeeperServers);
-        }
-        if (!isBlank(configurationStoreServers)) {
-            // Use configurationStoreServers from command line
-            config.setConfigurationStoreServers(configurationStoreServers);
-        }
-
-        if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
-                || config.isAuthorizationEnabled()) {
-            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-            checkArgument(!isEmpty(config.getConfigurationStoreServers()),
-                    "configurationStoreServers must be provided");
-        }
-
-        if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
-                || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
-            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-        }
-
-        AuthenticationService authenticationService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(config));
-        // create proxy service
-        ProxyService proxyService = new ProxyService(config, authenticationService);
-        // create a web-service
-        final WebServer server = new WebServer(config, authenticationService);
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            JCommander jcommander = new JCommander();
             try {
-                proxyService.close();
-                server.stop();
+                jcommander.addObject(this);
+                jcommander.parse(args);
+                if (help || isBlank(configFile)) {
+                    jcommander.usage();
+                    return;
+                }
             } catch (Exception e) {
-                log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+                jcommander.usage();
+                System.exit(-1);
             }
-        }));
 
-        proxyService.start();
+            // load config file
+            final ProxyConfiguration config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-        // Setup metrics
-        DefaultExports.initialize();
-
-        // Report direct memory from Netty counters
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
+            if (!isBlank(zookeeperServers)) {
+                // Use zookeeperServers from command line
+                config.setZookeeperServers(zookeeperServers);
             }
-        }).register(CollectorRegistry.defaultRegistry);
 
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return PlatformDependent.maxDirectMemory();
+            if (!isBlank(globalZookeeperServers)) {
+                // Use globalZookeeperServers from command line
+                config.setConfigurationStoreServers(globalZookeeperServers);
             }
-        }).register(CollectorRegistry.defaultRegistry);
+            if (!isBlank(configurationStoreServers)) {
+                // Use configurationStoreServers from command line
+                config.setConfigurationStoreServers(configurationStoreServers);
+            }
 
-        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
+            if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
+                    || config.isAuthorizationEnabled()) {
+                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+                checkArgument(!isEmpty(config.getConfigurationStoreServers()),
+                        "configurationStoreServers must be provided");
+            }
 
-        // start web-service
-        server.start();
+            if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
+                    || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
+                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+            }
+
+            AuthenticationService authenticationService = new AuthenticationService(
+                    PulsarConfigurationLoader.convertFrom(config));
+            // create proxy service
+            ProxyService proxyService = new ProxyService(config, authenticationService);
+            // create a web-service
+            final WebServer server = new WebServer(config, authenticationService);
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    proxyService.close();
+                    server.stop();
+                } catch (Exception e) {
+                    log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+                }
+            }));
+
+            proxyService.start();
+
+            // Setup metrics
+            DefaultExports.initialize();
+
+            // Report direct memory from Netty counters
+            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+                @Override
+                public double get() {
+                    return getJvmDirectMemoryUsed();
+                }
+            }).register(CollectorRegistry.defaultRegistry);
+
+            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+                @Override
+                public double get() {
+                    return PlatformDependent.maxDirectMemory();
+                }
+            }).register(CollectorRegistry.defaultRegistry);
+
+            addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
+
+            // start web-service
+            server.start();
+
+        } catch (Exception e) {
+            log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
+            throw new PulsarServerException(e);
+        }
     }
 
     public static void main(String[] args) throws Exception {

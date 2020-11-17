@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockHeaderImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
@@ -123,14 +124,18 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected TieredStorageConfiguration getConfiguration(String bucket) {
         Map<String, String> metaData = new HashMap<String, String> ();
         metaData.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, provider.getDriver());
-        metaData.put(TieredStorageConfiguration.OFFLOADER_PROPERTY_PREFIX + TieredStorageConfiguration.METADATA_FIELD_REGION, "");
-        metaData.put(TieredStorageConfiguration.OFFLOADER_PROPERTY_PREFIX + TieredStorageConfiguration.METADATA_FIELD_BUCKET, bucket);
-        metaData.put(TieredStorageConfiguration.OFFLOADER_PROPERTY_PREFIX + TieredStorageConfiguration.METADATA_FIELD_ENDPOINT, "");
+        metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_REGION), "");
+        metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_BUCKET), bucket);
+        metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_ENDPOINT), "");
         
         TieredStorageConfiguration config = TieredStorageConfiguration.create(metaData);
         config.setProviderCredentials(getBlobStoreCredentials());
         
         return config;
+    }
+
+    private String getConfigKey(String field) {
+        return TieredStorageConfiguration.OFFLOADER_PROPERTY_PREFIX + StringUtils.capitalize(field);
     }
 
     protected ReadHandle buildReadHandle() throws Exception {

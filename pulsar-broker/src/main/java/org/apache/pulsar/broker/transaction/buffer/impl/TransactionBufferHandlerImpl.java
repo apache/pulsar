@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
@@ -27,18 +28,22 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -71,13 +76,21 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
+    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action, List<MessageId> messageIdList) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
-        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic, action);
+        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        for (MessageId messageId : messageIdList) {
+            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
+                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
+                    .build());
+        }
+        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic, action, messageIdDataList);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -299,5 +312,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 return new OpRequestSend(handle);
             }
         };
+    }
+
+    @Override
+    public void close() {
+        this.timer.stop();
     }
 }
