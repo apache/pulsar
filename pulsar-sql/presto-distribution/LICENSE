@@ -221,7 +221,9 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.11.1.jar
     - jackson-module-jsonSchema-2.11.1.jar
  * Guava
-    - guava-25.1-jre.jar
+    - guava-30.0-jre.jar
+    - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+    - failureaccess-1.0.1.jar
  * Google Guice
     - guice-4.2.3.jar
     - guice-multibindings-4.2.0.jar
@@ -304,7 +306,7 @@ The Apache Software License, Version 2.0
     - httpclient-4.5.5.jar
     - httpcore-4.4.9.jar
   * Error Prone Annotations
-    - error_prone_annotations-2.1.3.jar
+    - error_prone_annotations-2.3.4.jar
   * Esri Geometry API For Java
     - esri-geometry-api-2.2.2.jar
   * Failsafe
@@ -312,7 +314,7 @@ The Apache Software License, Version 2.0
   * Fastutil
     - fastutil-8.3.0.jar
   * J2ObjC Annotations
-    - j2objc-annotations-1.1.jar
+    - j2objc-annotations-1.3.jar
   * JSON Web Token Support For The JVM
     - jjwt-0.9.0.jar
   * Jmxutils
@@ -482,8 +484,6 @@ BSD License
    - jline-terminal-jna-3.12.1.jar
 
 MIT License
- * Animal Sniffer Annotations
-   - animal-sniffer-annotations-1.14.jar
  * PCollections
    - pcollections-2.1.2.jar
  * SLF4J
@@ -496,7 +496,7 @@ MIT License
  * JUL to SLF4J Bridge
    - jul-to-slf4j-1.7.25.jar
  * Checker Qual
-   - checker-qual-2.0.0.jar
+   - checker-qual-3.5.0.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
