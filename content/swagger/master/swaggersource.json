@@ -879,6 +879,9 @@
         },
         "cryptoConfig" : {
           "$ref" : "#/definitions/CryptoConfig"
+        },
+        "batchBuilder" : {
+          "type" : "string"
         }
       }
     },
@@ -960,6 +963,9 @@
         },
         "batchSourceConfig" : {
           "$ref" : "#/definitions/BatchSourceConfig"
+        },
+        "batchBuilder" : {
+          "type" : "string"
         }
       }
     },

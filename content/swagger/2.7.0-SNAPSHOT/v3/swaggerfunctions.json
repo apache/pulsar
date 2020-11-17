@@ -1347,6 +1347,9 @@
                 "retainKeyOrdering": {
                     "type": "boolean"
                 },
+                "batchBuilder": {
+                    "type": "string"
+                },
                 "forwardSourceMessageProperty": {
                     "type": "boolean"
                 },
@@ -1670,8 +1673,24 @@
                 "topicName": {
                     "type": "string"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1680,28 +1699,16 @@
                         "format": "byte"
                     }
                 },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1716,10 +1723,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "value": {
                     "type": "object"
@@ -1754,6 +1757,9 @@
                 },
                 "cryptoConfig": {
                     "$ref": "#/definitions/CryptoConfig"
+                },
+                "batchBuilder": {
+                    "type": "string"
                 }
             }
         },
