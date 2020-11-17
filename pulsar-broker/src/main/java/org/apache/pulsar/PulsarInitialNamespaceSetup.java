@@ -20,10 +20,9 @@ package org.apache.pulsar;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import java.util.List;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.zookeeper.ZooKeeper;
-
-import java.util.List;
 
 /**
  * Setup the initial namespace of the cluster without startup the Pulsar broker.

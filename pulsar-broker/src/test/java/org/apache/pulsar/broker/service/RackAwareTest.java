@@ -30,7 +30,7 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
-import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -79,7 +79,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void shutdown() throws Exception {
         super.shutdown();
 
@@ -108,7 +108,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
 
         // Create few ledgers and verify all of them should have a copy in the first bookie
-        BookieSocketAddress fistBookie = bookies.get(0).getLocalAddress();
+        BookieId fistBookie = bookies.get(0).getBookieId();
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
             log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
@@ -116,21 +116,6 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
         }
-    }
-
-    @Test(enabled = false)
-    public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
-        // Ignore test
-    }
-
-    @Test(enabled = false)
-    public void testSkipCorruptDataLedger() throws Exception {
-        // Ignore test
-    }
-
-    @Test(enabled = false)
-    public void testTopicWithWildCardChar() throws Exception {
-        // Ignore test
     }
 
     private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);

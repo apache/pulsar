@@ -61,7 +61,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(testTopic, 2);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

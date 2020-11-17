@@ -39,6 +39,7 @@ import java.util.Set;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.SettableFeatureProvider;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -64,8 +65,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
     private ZooKeeper localZkc;
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
-    Set<BookieSocketAddress> writableBookies = new HashSet<>();
-    Set<BookieSocketAddress> readOnlyBookies = new HashSet<>();
+    Set<BookieId> writableBookies = new HashSet<>();
+    Set<BookieId> readOnlyBookies = new HashSet<>();
     List<String> isolationGroups = new ArrayList<>();
 
     HashedWheelTimer timer;
@@ -77,10 +78,10 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         localZkS.start();
 
         localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
-        writableBookies.add(new BookieSocketAddress(BOOKIE1));
-        writableBookies.add(new BookieSocketAddress(BOOKIE2));
-        writableBookies.add(new BookieSocketAddress(BOOKIE3));
-        writableBookies.add(new BookieSocketAddress(BOOKIE4));
+        writableBookies.add(new BookieSocketAddress(BOOKIE1).toBookieId());
+        writableBookies.add(new BookieSocketAddress(BOOKIE2).toBookieId());
+        writableBookies.add(new BookieSocketAddress(BOOKIE3).toBookieId());
+        writableBookies.add(new BookieSocketAddress(BOOKIE4).toBookieId());
         isolationGroups.add("group1");
     }
 
@@ -116,16 +117,16 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
-        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
+        List<BookieId> ensemble = isolationPolicy.newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
 
         ensemble = isolationPolicy.newEnsemble(1, 1, 1, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE3)));
+        assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
 
         try {
             isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>());
@@ -134,11 +135,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
             // ok
         }
 
-        Set<BookieSocketAddress> bookieToExclude = new HashSet<>();
-        bookieToExclude.add(new BookieSocketAddress(BOOKIE1));
+        Set<BookieId> bookieToExclude = new HashSet<>();
+        bookieToExclude.add(new BookieSocketAddress(BOOKIE1).toBookieId());
         ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), bookieToExclude).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
 
         secondaryBookieGroup.put(BOOKIE4, new BookieInfo("rack0", null));
         bookieMapping.put("group2", secondaryBookieGroup);
@@ -150,8 +151,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), null).getResult();
 
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
 
         try {
             isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>());
@@ -162,18 +163,18 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         try {
             isolationPolicy.replaceBookie(3, 3, 3, Collections.emptyMap(), ensemble,
-                    new BookieSocketAddress(BOOKIE5), new HashSet<>());
+                    new BookieSocketAddress(BOOKIE5).toBookieId(), new HashSet<>());
             fail("should not pass");
         } catch (BKNotEnoughBookiesException e) {
             // ok
         }
         bookieToExclude = new HashSet<>();
-        bookieToExclude.add(new BookieSocketAddress(BOOKIE1));
+        bookieToExclude.add(new BookieSocketAddress(BOOKIE1).toBookieId());
 
         ensemble = isolationPolicy.newEnsemble(1, 1, 1, Collections.emptyMap(), bookieToExclude).getResult();
-        BookieSocketAddress chosenBookie = isolationPolicy.replaceBookie(1, 1, 1, Collections.emptyMap(),
+        BookieId chosenBookie = isolationPolicy.replaceBookie(1, 1, 1, Collections.emptyMap(),
                 ensemble, ensemble.get(0), new HashSet<>()).getResult();
-        assertEquals(new BookieSocketAddress(BOOKIE1), chosenBookie);
+        assertEquals(new BookieSocketAddress(BOOKIE1).toBookieId(), chosenBookie);
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
@@ -185,7 +186,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
-        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
         isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>());
@@ -201,9 +202,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         Thread.sleep(100);
 
-        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
+        List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
 
         try {
             isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>());
@@ -239,12 +240,12 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setZkServers("127.0.0.1" + ":" + localZkS.getZookeeperPort());
         bkClientConf.setZkTimeout(1000);
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
-        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
+        List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
 
         try {
             isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>());
@@ -265,9 +266,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         Thread.sleep(100);
 
         ensemble = isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
 
@@ -294,7 +295,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
-                NullStatsLogger.INSTANCE);
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
         isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>());
@@ -342,14 +343,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         });
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
-                NullStatsLogger.INSTANCE);
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        List<BookieSocketAddress> ensemble = isolationPolicy
+        List<BookieId> ensemble = isolationPolicy
                 .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
@@ -390,14 +391,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryIsolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
-                NullStatsLogger.INSTANCE);
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        List<BookieSocketAddress> ensemble = isolationPolicy
+        List<BookieId> ensemble = isolationPolicy
                 .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
@@ -435,11 +436,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                 secondaryIsolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
-                NullStatsLogger.INSTANCE);
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
         try {
-            List<BookieSocketAddress> ensemble = isolationPolicy
+            isolationPolicy
                     .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
             Assert.fail("Should have thrown BKNotEnoughBookiesException");
         } catch (BKNotEnoughBookiesException ne) {

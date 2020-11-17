@@ -64,7 +64,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -87,7 +87,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         @Override
         public void becameActive(Consumer<?> consumer, int partitionId) {
-            System.err.println("Became active -- " + name);
             try {
                 activeQueue.put(partitionId);
             } catch (InterruptedException e) {
@@ -96,7 +95,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         @Override
         public void becameInactive(Consumer<?> consumer, int partitionId) {
-            System.err.println("Became inactive -- " + name );
             try {
                 inActiveQueue.put(partitionId);
             } catch (InterruptedException e) {

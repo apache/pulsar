@@ -25,7 +25,6 @@ import java.util.Optional;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.zookeeper.ZooKeeper;
 
 /**

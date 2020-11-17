@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Set;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A plugin interface that allows you to intercept (and possibly mutate)
@@ -30,6 +32,8 @@ import java.util.Set;
  * <p>Exceptions thrown by interceptor methods will be caught, logged, but
  * not propagated further.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerInterceptor<T> extends AutoCloseable {
 
     /**

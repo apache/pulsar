@@ -118,7 +118,7 @@ public class SLAMonitoringTest {
         pulsarAdmin.tenants().createTenant("sla-monitor", adminConfig);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();

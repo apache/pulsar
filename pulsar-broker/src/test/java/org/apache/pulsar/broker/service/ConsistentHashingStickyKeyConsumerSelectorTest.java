@@ -21,10 +21,15 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -133,5 +138,29 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         Assert.assertEquals(selectionMap.get("c4").intValue(), N);
     }
+
+
+    @Test
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
+        List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3");
+        List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
+        for (int index = 0; index < consumerName.size(); index++) {
+            Consumer consumer = mock(Consumer.class);
+            when(consumer.consumerName()).thenReturn(consumerName.get(index));
+            selector.addConsumer(consumer);
+        }
+
+        Map<String, Set<String>> expectedResult = new HashMap<>();
+        expectedResult.put("consumer1", ImmutableSet.of("[0, 330121749]", "[330121750, 618146114]", "[1797637922, 1976098885]"));
+        expectedResult.put("consumer2", ImmutableSet.of("[938427576, 1094135919]", "[1138613629, 1342907082]", "[1342907083, 1797637921]"));
+        expectedResult.put("consumer3", ImmutableSet.of("[618146115, 772640562]", "[772640563, 938427575]", "[1094135920, 1138613628]"));
+        for (Map.Entry<String, List<String>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+            Assert.assertEquals(entry.getValue().stream().collect(Collectors.toSet()), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
+        }
+        Assert.assertEquals(expectedResult.size(), 0);
+    }
+
 
 }

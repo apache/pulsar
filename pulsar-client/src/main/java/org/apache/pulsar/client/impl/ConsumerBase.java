@@ -432,8 +432,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return acknowledgeAsync(messageId, null);
     }
 
-    // TODO: expose this method to consumer interface when the transaction feature is completed
-    // @Override
+    @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
                                                     Transaction txn) {
         TransactionImpl txnImpl = null;
@@ -449,8 +448,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return acknowledgeCumulativeAsync(messageId, null);
     }
 
-    // TODO: expose this method to consumer interface when the transaction feature is completed
-    // @Override
+    @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -473,20 +471,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
-        CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+        CompletableFuture<Void> ackFuture;
         if (txn != null) {
-            txn.registerAckedTopic(getTopic(), subscription);
-            return txn.registerAckOp(ackFuture);
+            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
+                    .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+            txn.registerAckOp(ackFuture);
         } else {
-            return ackFuture;
+            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
         }
+        return ackFuture;
     }
 
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
-        CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        if (txn != null && this instanceof ConsumerImpl) {
+        CompletableFuture<Void> ackFuture;
+        if (txn != null && (this instanceof ConsumerImpl)) {
             // it is okay that we register acked topic after sending the acknowledgements. because
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
@@ -494,13 +494,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 txn.registerCumulativeAckConsumer((ConsumerImpl<?>) this);
             }
 
-            txn.registerAckedTopic(getTopic(), subscription);
+            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
+                    .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
             // register the ackFuture as part of the transaction
             txn.registerAckOp(ackFuture);
             return ackFuture;
         } else {
-            return ackFuture;
+            ackFuture = doAcknowledge(messageId, ackType, properties, txn);
         }
+        return ackFuture;
     }
 
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
