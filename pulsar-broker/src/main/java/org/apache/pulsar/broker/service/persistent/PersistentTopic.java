@@ -2407,7 +2407,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private synchronized void closeFencedTopicForcefully() {
+    private void closeFencedTopicForcefully() {
         if (isFenced) {
             final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
             if (isClosingOrDeleting) {
