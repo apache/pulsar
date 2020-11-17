@@ -216,7 +216,7 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
             case GO:
-                throw new UnsupportedOperationException();
+                break;
         }
 
         this.authConfig = authConfig;
@@ -229,6 +229,15 @@ public class KubernetesRuntime implements Runtime {
 
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            // before we run the command, make sure the go executable with correct permissions
+            this.processArgs.add("chmod");
+            this.processArgs.add("777");
+            this.processArgs.add(this.originalCodeFileName);
+            this.processArgs.add("&&");
+        }
+
         // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
         // so that when we kill the pod, the signal will get propagated to the function code
         this.processArgs.add("exec");
