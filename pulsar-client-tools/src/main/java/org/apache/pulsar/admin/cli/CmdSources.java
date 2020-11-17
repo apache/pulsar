@@ -274,6 +274,9 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
         protected String producerConfig;
 
+        @Parameter(names = "--batch-builder", description = "BatchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
+
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
         protected String DEPRECATED_deserializationClassName;
         @Parameter(names = "--deserialization-classname", description = "The SerDe classname for the source")
@@ -358,6 +361,10 @@ public class CmdSources extends CmdBase {
             }
             if (null != schemaType) {
                 sourceConfig.setSchemaType(schemaType);
+            }
+
+            if (null != batchBuilder) {
+                sourceConfig.setBatchBuilder(batchBuilder);
             }
 
             if (null != processingGuarantees) {
