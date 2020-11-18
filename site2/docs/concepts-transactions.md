@@ -4,6 +4,10 @@ title: Transactions
 sidebar_label: Transaction Concepts
 ---
 
+Transactional semantics enable event streaming applications to consume, process, and produce messages in one atomic operation. In Pulsar, a producer or consumer can work with messages across multiple topics and partitions and ensure those messages are processed as a single unit. 
+
+The following concepts help you understand Pulsar transactions.
+
 ## Transaction coordinator and transaction log
 The transaction coordinator maintains the topics and subscriptions that interact in a transaction. When a transaction is committed, the transaction coordinator interacts with the topic owner broker to complete the transaction.
 
