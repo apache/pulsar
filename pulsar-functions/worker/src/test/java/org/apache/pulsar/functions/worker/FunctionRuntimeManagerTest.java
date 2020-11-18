@@ -30,6 +30,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -49,16 +50,24 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.IObjectFactory;
+import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -68,8 +77,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+@PrepareForTest({FunctionRuntimeManager.class, RuntimeFactory.class})
 @Slf4j
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 public class FunctionRuntimeManagerTest {
+
+    @ObjectFactory
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
+    }
 
     @Test
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {
@@ -651,6 +667,13 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         KubernetesRuntimeFactory kubernetesRuntimeFactory = mock(KubernetesRuntimeFactory.class);
+        doNothing().when(kubernetesRuntimeFactory).initialize(
+            any(WorkerConfig.class),
+            any(AuthenticationConfig.class),
+            any(SecretsProviderConfigurator.class),
+            any(),
+            any()
+        );
         doNothing().when(kubernetesRuntimeFactory).setupClient();
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
@@ -660,6 +683,10 @@ public class FunctionRuntimeManagerTest {
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
                 kubernetesRuntimeFactory, null, null, null, null));
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(anyString()))
+            .thenReturn(kubernetesRuntimeFactory);
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
