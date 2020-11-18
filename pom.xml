@@ -98,10 +98,11 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.10.0-rc-1</bookkeeper.version>
+    <bookkeeper.version>4.12.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
-    <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
+    <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
+    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
@@ -193,6 +194,7 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
     <objenesis.version>3.1</objenesis.version>
+    <awaitility.version>4.0.2</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -245,6 +247,13 @@ flexible messaging model and an intuitive client API.</description>
                 <artifactId>*</artifactId>
             </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>${awaitility.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>

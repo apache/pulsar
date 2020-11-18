@@ -37,4 +37,5 @@ public class ProducerConfig {
     private Integer maxPendingMessagesAcrossPartitions;
     private Boolean useThreadLocalProducers;
     private CryptoConfig cryptoConfig;
+    private String batchBuilder;
 }

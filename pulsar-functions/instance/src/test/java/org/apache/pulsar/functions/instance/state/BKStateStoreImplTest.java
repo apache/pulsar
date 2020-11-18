@@ -42,24 +42,39 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
 /**
- * Unit test {@link StateContextImpl}.
+ * Unit test {@link BKStateStoreImpl}.
  */
-public class StateContextImplTest {
+public class BKStateStoreImplTest {
+
+    private final String TENANT = "test-tenant";
+    private final String NS = "test-ns";
+    private final String NAME = "test-name";
+    private final String FQSN = "test-tenant/test-ns/test-name";
 
     private Table<ByteBuf, ByteBuf> mockTable;
-    private StateContextImpl stateContext;
+    private BKStateStoreImpl stateContext;
 
     @BeforeMethod
     public void setup() {
         this.mockTable = mock(Table.class);
-        this.stateContext = new StateContextImpl(mockTable);
+        this.stateContext = new BKStateStoreImpl(
+            TENANT, NS, NAME,
+            mockTable);
+    }
+
+    @Test
+    public void testGetter() {
+        assertEquals(stateContext.tenant(), TENANT);
+        assertEquals(stateContext.namespace(), NS);
+        assertEquals(stateContext.name(), NAME);
+        assertEquals(stateContext.fqsn(), FQSN);
     }
 
     @Test
     public void testIncr() throws Exception {
         when(mockTable.increment(any(ByteBuf.class), anyLong()))
             .thenReturn(FutureUtils.Void());
-        stateContext.incrCounter("test-key", 10L).get();
+        stateContext.incrCounter("test-key", 10L);
         verify(mockTable, times(1)).increment(
             eq(Unpooled.copiedBuffer("test-key", UTF_8)),
             eq(10L)
@@ -70,7 +85,7 @@ public class StateContextImplTest {
     public void testPut() throws Exception {
         when(mockTable.put(any(ByteBuf.class), any(ByteBuf.class)))
             .thenReturn(FutureUtils.Void());
-        stateContext.put("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8))).get();
+        stateContext.put("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
         verify(mockTable, times(1)).put(
             eq(Unpooled.copiedBuffer("test-key", UTF_8)),
             eq(Unpooled.copiedBuffer("test-value", UTF_8))
@@ -94,7 +109,7 @@ public class StateContextImplTest {
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(mockTable.get(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(returnedValue));
-        ByteBuffer result = stateContext.get("test-key").get();
+        ByteBuffer result = stateContext.get("test-key");
         assertEquals("test-value", new String(result.array(), UTF_8));
         verify(mockTable, times(1)).get(
             eq(Unpooled.copiedBuffer("test-key", UTF_8))
@@ -105,7 +120,7 @@ public class StateContextImplTest {
     public void testGetAmount() throws Exception {
         when(mockTable.getNumber(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(10L));
-        assertEquals((Long)10L, stateContext.getCounter("test-key").get());
+        assertEquals(10L, stateContext.getCounter("test-key"));
         verify(mockTable, times(1)).getNumber(
             eq(Unpooled.copiedBuffer("test-key", UTF_8))
         );
@@ -115,7 +130,7 @@ public class StateContextImplTest {
     public void testGetKeyNotPresent() throws Exception {
         when(mockTable.get(any(ByteBuf.class)))
                 .thenReturn(FutureUtils.value(null));
-        CompletableFuture<ByteBuffer> result = stateContext.get("test-key");
+        CompletableFuture<ByteBuffer> result = stateContext.getAsync("test-key");
         assertTrue(result != null);
         assertEquals(result.get(), null);
 

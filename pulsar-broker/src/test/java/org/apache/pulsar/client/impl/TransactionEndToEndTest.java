@@ -19,16 +19,33 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 
+import java.lang.reflect.Field;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -36,13 +53,17 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -309,7 +330,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     @Test
     public void txnMessageAckTest() throws Exception {
-        final String topic = TOPIC_MESSAGE_ACK_TEST;
+        String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient
@@ -374,8 +395,46 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
+            topic = TopicName.get(topic).getPartition(partition).toString();
+            boolean exist = false;
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-        markDeletePositionCheck(topic, subName, true);
+                Field field = BrokerService.class.getDeclaredField("topics");
+                field.setAccessible(true);
+                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                                .get(getPulsarServiceList().get(i).getBrokerService());
+                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+                if (topicFuture != null) {
+                    Optional<Topic> topicOptional = topicFuture.get();
+                    if (topicOptional.isPresent()) {
+                        PersistentSubscription persistentSubscription =
+                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                        Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
+                        Position lastConfirmedEntry = persistentSubscription.getCursor()
+                                .getManagedLedger().getLastConfirmedEntry();
+                        exist = true;
+                        if (!markDeletePosition.equals(lastConfirmedEntry)) {
+                            //this because of the transaction commit marker have't delete
+                            //delete commit marker after ack position
+                            //when delete commit marker operation is processing, next delete operation will not do again
+                            //when delete commit marker operation finish, it can run next delete commit marker operation
+                            //so this test may not delete all the position in this manageLedger.
+                            Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
+                                    .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                            //marker is the lastConfirmedEntry, after commit the marker will only be write in
+                            if (!markerPosition.equals(lastConfirmedEntry)) {
+                                log.error("Mark delete position is not commit marker position!");
+                                fail();
+                            }
+                        }
+                    }
+                }
+            }
+            assertTrue(exist);
+        }
 
         log.info("receive transaction messages count: {}", receiveCnt);
     }
@@ -501,6 +560,54 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             } else {
                 Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
             }
+        }
+    }
+
+    @Test
+    public void txnMetadataHandlerRecoverTest() throws Exception {
+        String topic = NAMESPACE1 + "/tc-metadata-handler-recover";
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Map<TxnID, List<MessageId>> txnIDListMap = new HashMap<>();
+
+        int txnCnt = 20;
+        int messageCnt = 10;
+        for (int i = 0; i < txnCnt; i++) {
+            TransactionImpl txn = (TransactionImpl) pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.MINUTES)
+                    .build().get();
+            List<MessageId> messageIds = new ArrayList<>();
+            for (int j = 0; j < messageCnt; j++) {
+                MessageId messageId = producer.newMessage(txn).value("Hello".getBytes()).sendAsync().get();
+                messageIds.add(messageId);
+            }
+            txnIDListMap.put(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()), messageIds);
+        }
+
+        pulsarClient.close();
+        PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
+
+        TransactionCoordinatorClient tcClient = recoverPulsarClient.getTcClient();
+        for (Map.Entry<TxnID, List<MessageId>> entry : txnIDListMap.entrySet()) {
+            tcClient.commit(entry.getKey(), entry.getValue());
+        }
+
+        Consumer<byte[]> consumer = recoverPulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        for (int i = 0; i < txnCnt * messageCnt; i++) {
+            Message<byte[]> message = consumer.receive();
+            Assert.assertNotNull(message);
         }
     }
 

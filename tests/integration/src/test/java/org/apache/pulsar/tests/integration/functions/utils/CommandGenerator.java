@@ -49,6 +49,7 @@ public class CommandGenerator {
     private Runtime runtime;
     private Integer parallelism;
     private String adminUrl;
+    private String batchBuilder;
     private Integer windowLengthCount;
     private Long windowLengthDurationMs;
     private Integer slidingIntervalCount;
@@ -154,6 +155,9 @@ public class CommandGenerator {
         if (logTopic != null) {
             commandBuilder.append(" --logTopic " + logTopic);
         }
+        if (batchBuilder != null) {
+            commandBuilder.append("--batch-builder" + batchBuilder);
+        }
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
         }
@@ -238,6 +242,9 @@ public class CommandGenerator {
         }
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        }
+        if (batchBuilder != null) {
+            commandBuilder.append("--batch-builder" + batchBuilder);
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);

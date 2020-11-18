@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -28,10 +26,13 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.concurrent.ExecutionException;
+
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Auto detect schema.
@@ -155,6 +156,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return GenericJsonSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
             case AVRO:
                 return GenericAvroSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+            case PROTOBUF_NATIVE:
+                return GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
                 throw new IllegalArgumentException("Currently auto consume works for type '"
                         + schemaInfo.getType() + "' is not supported yet");
@@ -199,6 +202,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return GenericJsonSchema.of(schemaInfo);
             case AVRO:
                 return GenericAvroSchema.of(schemaInfo);
+            case PROTOBUF_NATIVE:
+                return GenericProtobufNativeSchema.of(schemaInfo);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
                     KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);

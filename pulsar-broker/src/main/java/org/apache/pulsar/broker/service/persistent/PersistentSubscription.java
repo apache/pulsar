@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -479,6 +480,8 @@ public class PersistentSubscription implements Subscription {
             return "Failover";
         case Shared:
             return "Shared";
+        case Key_Shared:
+            return "Key_Shared";
         }
 
         return "Null";
@@ -898,6 +901,8 @@ public class PersistentSubscription implements Subscription {
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
+            Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared?
+                    ((PersistentStickyKeyDispatcherMultipleConsumers)dispatcher).getConsumerKeyHashRanges(): null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
@@ -910,6 +915,9 @@ public class PersistentSubscription implements Subscription {
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
+                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer.consumerName())) {
+                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer.consumerName());
+                }
             });
         }
 
@@ -933,6 +941,15 @@ public class PersistentSubscription implements Subscription {
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
+        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
+                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
+                recentlyJoinedConsumers.forEach((k, v) -> {
+                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                });
+            }
+        }
         return subStats;
     }
 

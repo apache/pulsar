@@ -22,8 +22,10 @@ import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -124,6 +126,25 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         } finally {
             rwLock.readLock().unlock();
         }
+    }
+
+    @Override
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        rwLock.readLock().lock();
+        try {
+            int start = 0;
+            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
+                for (Consumer consumer: entry.getValue()) {
+                    result.computeIfAbsent(consumer.consumerName(), key -> new ArrayList<>())
+                            .add("[" + start + ", " + entry.getKey() + "]");
+                }
+                start = entry.getKey() + 1;
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+        return result;
     }
 
     Map<Integer, List<Consumer>> getRangeConsumer() {

@@ -263,6 +263,14 @@ public class DefaultImplementation {
                 .invoke(null, schemaDefinition));
     }
 
+    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod(
+                        "org.apache.pulsar.client.impl.schema.ProtobufNativeSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
+    }
+
     public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod(
@@ -326,10 +334,22 @@ public class DefaultImplementation {
     }
 
     public static GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
-        return catchExceptions(
-            () -> (GenericSchema) getStaticMethod(
-                "org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
-                "of", SchemaInfo.class).invoke(null, schemaInfo));
+        switch (schemaInfo.getType()) {
+            case PROTOBUF_NATIVE:
+                return (GenericSchema) ReflectionUtils.catchExceptions(() -> {
+                    return (GenericSchema) ReflectionUtils.getStaticMethod(
+                            "org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema",
+                            "of", new Class[]{SchemaInfo.class}).invoke((Object) null, schemaInfo);
+                });
+            default:
+                return (GenericSchema) ReflectionUtils.catchExceptions(() -> {
+                    return (GenericSchema) ReflectionUtils.getStaticMethod(
+                            "org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
+                            "of", new Class[]{SchemaInfo.class}).invoke((Object) null, schemaInfo);
+
+                });
+        }
+
     }
 
     public static RecordSchemaBuilder newRecordSchemaBuilder(String name) {
