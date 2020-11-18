@@ -40,6 +40,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -86,7 +87,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -193,6 +194,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private volatile int maxUnackedMessagesOnSubscription = -1;
     private volatile boolean isClosingOrDeleting = false;
+
+    private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -396,7 +399,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // signal to managed ledger that we are ready to resume by creating a new ledger
                     ledger.readyToCreateNewLedger();
 
-                    isFenced = false;
+                    unfence();
                 }
 
             }
@@ -423,7 +426,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
 
             // fence topic when failed to write a message to BK
-            isFenced = true;
+            fence();
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             producers.values().forEach(producer -> futures.add(producer.disconnect()));
@@ -554,7 +557,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
+    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
             long startMessageRollbackDurationSec, boolean replicatedSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
@@ -611,9 +614,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         }
 
-        if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
+        if (cnx.clientAddress() != null && cnx.clientAddress().toString().contains(":")) {
             SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
-                    cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
+                    cnx.clientAddress().toString().split(":")[0], consumerName, consumerId);
             if (subscribeRateLimiter.isPresent() && !subscribeRateLimiter.get().subscribeAvailable(consumer) || !subscribeRateLimiter.get().tryAcquire(consumer)) {
                 log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
                         topic, subscriptionName, consumer, subscribeRateLimiter.get().getSubscribeRate(),
@@ -651,7 +654,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                                                 maxUnackedMessages, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
                 addConsumerToSubscription(subscription, consumer);
 
                 checkBackloggedCursors();
@@ -2382,6 +2385,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public boolean isSystemTopic() {
         return false;
+    }
+
+    private synchronized void fence() {
+        isFenced = true;
+        ScheduledFuture<?> monitoringTask = this.fencedTopicMonitoringTask;
+        if (monitoringTask == null || monitoringTask.isDone()) {
+            final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
+            if (timeout > 0) {
+                this.fencedTopicMonitoringTask = brokerService.executor().schedule(this::closeFencedTopicForcefully,
+                        timeout, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private synchronized void unfence() {
+        isFenced = false;
+        ScheduledFuture<?> monitoringTask = this.fencedTopicMonitoringTask;
+        if (monitoringTask != null && !monitoringTask.isDone()) {
+            monitoringTask.cancel(false);
+        }
+    }
+
+    private void closeFencedTopicForcefully() {
+        if (isFenced) {
+            final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
+            if (isClosingOrDeleting) {
+                log.warn("[{}] Topic remained fenced for {} seconds and is already closed (pendingWriteOps: {})", topic,
+                        timeout, pendingWriteOps.get());
+            } else {
+                log.error("[{}] Topic remained fenced for {} seconds, so close it (pendingWriteOps: {})", topic,
+                        timeout, pendingWriteOps.get());
+                close();
+            }
+        }
     }
 
     private void fenceTopicToCloseOrDelete() {
