@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -73,6 +72,6 @@ public interface PulsarCommandSender {
     void sendReachedEndOfTopic(long consumerId);
 
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-            int partitionIdx, final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
             RedeliveryTracker redeliveryTracker);
 }
