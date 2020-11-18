@@ -95,13 +95,15 @@ public class PulsarCluster {
 
         if (enablePrestoWorker) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+                .withNetwork(network)
+                .withNetworkAliases(PrestoWorkerContainer.NAME)
+                .withEnv("clusterName", clusterName)
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                .withEnv("pulsar.bookkeeper-explicit-interval", "10")
+                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         } else {
             prestoWorkerContainer = null;
         }
@@ -164,6 +166,7 @@ public class PulsarCluster {
                         .withEnv("AWS_SECRET_KEY", "secretkey");
                     if (spec.enablePrestoWorker) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
+                        brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
                     }
                     return brokerContainer;
                 }
