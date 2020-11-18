@@ -755,6 +755,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "If a topic remains fenced for this number of seconds, it will be closed forcefully.\n"
+                + " If it is set to 0 or a negative number, the fenced topic will not be closed."
+    )
+    private int topicFencingTimeoutSeconds = 0;
 
     /**** --- Messaging Protocols --- ****/
 
