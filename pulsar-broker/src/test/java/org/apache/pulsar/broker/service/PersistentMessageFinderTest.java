@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
 
@@ -197,6 +198,92 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         result.reset();
         c1.close();
         ledger.close();
+        factory.shutdown();
+    }
+
+    @Test
+    void testPersistentMessageFinderWithBrokerTimestampForMessage() throws Exception {
+        final String ledgerAndCursorName = "publishTime";
+        final String ledgerAndCursorNameForBrokerTimestampMessage = "brokerTimestamp";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        ledger.addEntry(createMessageWrittenToLedger("message1"));
+        // space apart message publish times
+        Thread.sleep(100);
+        ledger.addEntry(createMessageWrittenToLedger("message2"));
+        Thread.sleep(100);
+        Position position = ledger.addEntry(createMessageWrittenToLedger("message3"));
+        Thread.sleep(100);
+        long timestamp = System.currentTimeMillis();
+
+        Result result = new Result();
+
+        CompletableFuture<Void> future = findMessage(result, cursor, timestamp);
+        future.get();
+        assertNull(result.exception);
+        assertNotNull(result.position);
+        assertEquals(result.position, position);
+
+        List<Entry> entryList = cursor.readEntries(3);
+        for (Entry entry : entryList) {
+            // entry has no raw metadata if BrokerTimestampForMessage is disable
+            assertNull(Commands.parseRawMetadataIfExist(entry.getDataBuffer()));
+        }
+
+        result.reset();
+        cursor.close();
+        ledger.close();
+
+
+
+        ManagedLedgerConfig configNew = new ManagedLedgerConfig();
+        configNew.setBrokerTimestampForMessageEnable(true);
+        ManagedLedger ledgerNew = factory.open(ledgerAndCursorNameForBrokerTimestampMessage, configNew);
+        ManagedCursorImpl cursorNew = (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
+        // build message which has publish time first
+        byte[] msg1 = createMessageWrittenToLedger("message1");
+        byte[] msg2 = createMessageWrittenToLedger("message2");
+        byte[] msg3 = createMessageWrittenToLedger("message3");
+        Thread.sleep(10);
+        long timeAfterPublishTime = System.currentTimeMillis();
+        Thread.sleep(10);
+
+        ledgerNew.addEntry(msg1);
+        // space apart message publish times
+        Thread.sleep(100);
+        ledgerNew.addEntry(msg2);
+        Thread.sleep(100);
+        Position newPosition = ledgerNew.addEntry(msg3);
+        Thread.sleep(100);
+        long timeAfterBrokerTimestamp = System.currentTimeMillis();
+
+
+        CompletableFuture<Void> publishTimeFuture = findMessage(result, cursorNew, timeAfterPublishTime);
+        publishTimeFuture.get();
+        assertNull(result.exception);
+        // position should be null, since broker timestamp for message is bigger than timeAfterPublishTime
+        assertNull(result.position);
+
+        result.reset();
+
+        CompletableFuture<Void> brokerTimestampFuture = findMessage(result, cursorNew, timeAfterBrokerTimestamp);
+        brokerTimestampFuture.get();
+        assertNull(result.exception);
+        assertNotNull(result.position);
+        assertEquals(result.position, newPosition);
+
+        List<Entry> entryListNew = cursorNew.readEntries(4);
+        for (Entry entry : entryListNew) {
+            // entry should have raw metadata since BrokerTimestampForMessage is enable
+            PulsarApi.RawMessageMetadata rawMessageMetadata = Commands.parseRawMetadataIfExist(entry.getDataBuffer());
+            assertNotNull(rawMessageMetadata);
+            assertTrue(rawMessageMetadata.getBrokerTimestamp() > timeAfterPublishTime);
+        }
+
+        result.reset();
+        cursorNew.close();
+        ledgerNew.close();
         factory.shutdown();
     }
 
