@@ -281,6 +281,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // increment ref-count of data and release at the end of process:
                 // so, we can get chance to call entry.release
                 metadataAndPayload.retain();
+                // skip raw message metadata if consumer-client doesn't support raw message metadata
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v16.getNumber()) {
+                    Commands.skipRawMessageMetadataIfExist(metadataAndPayload);
+                }
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     Commands.skipChecksumIfPresent(metadataAndPayload);
