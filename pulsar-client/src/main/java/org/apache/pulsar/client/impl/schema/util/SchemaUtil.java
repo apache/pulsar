@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
+package org.apache.pulsar.client.impl.schema.util;
 
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -30,36 +30,31 @@ import java.lang.reflect.Field;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-/**
- * This is a base schema implementation for Avro Based `Struct` types.
- * A struct type is used for presenting records (objects) which
- * have multiple fields.
- *
- * <p>Currently Pulsar supports 3 `Struct` types -
- * {@link org.apache.pulsar.common.schema.SchemaType#AVRO},
- * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
- * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
- */
-@Deprecated
-public abstract class StructSchema<T> extends AbstractStructSchema<T> {
+public class SchemaUtil {
 
-    protected final Schema schema;
-
-    protected StructSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
-        this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
-        if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
-            this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
-                    schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
+    public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
+        if (schemaInfo != null) {
+            return Boolean.parseBoolean(schemaInfo.getProperties()
+                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
         }
+        return false;
     }
 
-    public Schema getAvroSchema() {
-        return schema;
+    public static Schema parseAvroSchema(String schemaJson) {
+        final Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
+        return parser.parse(schemaJson);
     }
 
+    public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
+        return SchemaInfo.builder()
+                .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
+                .properties(schemaDefinition.getProperties())
+                .name("")
+                .type(schemaType).build();
+    }
 
-    protected static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
+    public static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
 
         if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
@@ -89,7 +84,7 @@ public abstract class StructSchema<T> extends AbstractStructSchema<T> {
         }
     }
 
-    protected static Schema extractAvroSchema(SchemaDefinition schemaDefinition, Class pojo) {
+    public static Schema extractAvroSchema(SchemaDefinition schemaDefinition, Class pojo) {
         try {
             return parseAvroSchema(pojo.getDeclaredField("SCHEMA$").get(null).toString());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException ignored) {
@@ -97,19 +92,4 @@ public abstract class StructSchema<T> extends AbstractStructSchema<T> {
                     : ReflectData.get().getSchema(pojo);
         }
     }
-
-    protected static Schema parseAvroSchema(String schemaJson) {
-        final Schema.Parser parser = new Schema.Parser();
-        parser.setValidateDefaults(false);
-        return parser.parse(schemaJson);
-    }
-
-    public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
-        return SchemaInfo.builder()
-                .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
-                .properties(schemaDefinition.getProperties())
-                .name("")
-                .type(schemaType).build();
-    }
-
 }
