@@ -243,18 +243,29 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void txnAckTestNoBatchAndSharedSub() throws Exception {
-        txnAckTest(false, 1, SubscriptionType.Shared);
+    public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
+        txnAckTest(false, 1, SubscriptionType.Shared, 2);
     }
 
     @Test
-    public void txnAckTestBatchAndSharedSub() throws Exception {
-        txnAckTest(true, 200, SubscriptionType.Shared);
+    public void txnIndividualAckTestBatchAndSharedSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Shared, 2);
+    }
+
+    @Test
+    public void txnIndividualAckTestNoBatchAndFailoverSub() throws Exception {
+        txnAckTest(false, 1, SubscriptionType.Failover, 2);
+    }
+
+    //TODO: will not remove messageId in Failover unackMessageTracker, we should think about the redeliver problem
+    @Test
+    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Failover, 0);
     }
 
 
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
-                         SubscriptionType subscriptionType) throws Exception {
+                         SubscriptionType subscriptionType, long ackTimeout) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
         @Cleanup
@@ -263,7 +274,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
-                .ackTimeout(2, TimeUnit.SECONDS)
+                .ackTimeout(ackTimeout, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
@@ -290,7 +301,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000L);
 
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);

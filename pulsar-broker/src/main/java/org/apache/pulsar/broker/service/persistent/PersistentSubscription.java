@@ -391,7 +391,7 @@ public class PersistentSubscription implements Subscription {
                                                                     List<MutablePair<PositionImpl, Long>> positions) {
         if (pendingAckHandle == null) {
             return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
+                    new NotAllowedException("Broker does't support Transaction pending ack!"));
         }
 
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
@@ -1050,7 +1050,7 @@ public class PersistentSubscription implements Subscription {
         return cursor;
     }
 
-    public void syncBatchPositionBitSetForPendingAck(MutablePair<PositionImpl, Long> position) {
+    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 

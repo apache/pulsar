@@ -2403,6 +2403,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         BitSetRecyclable bitSetRecyclable = null;
         long ledgerId;
         long entryId;
+        ByteBuf cmd;
+        long requestId = client.newRequestId();
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
             bitSetRecyclable = BitSetRecyclable.create();
@@ -2416,15 +2418,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 bitSetRecyclable.set(0, batchMessageId.getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
+            cmd = Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType, validationError, properties,
+                    txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId, batchMessageId.getBatchSize());
         } else {
             MessageIdImpl singleMessage = (MessageIdImpl) messageId;
             ledgerId = singleMessage.getLedgerId();
             entryId = singleMessage.getEntryId();
+            cmd = Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType,
+                    validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
         }
-        long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newAck(consumerId, ledgerId, entryId,
-                bitSetRecyclable, ackType,
-                validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
+
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         ackRequests.put(requestId, op);

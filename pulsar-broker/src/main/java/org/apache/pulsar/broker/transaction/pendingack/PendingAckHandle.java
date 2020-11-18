@@ -103,7 +103,7 @@ public interface PendingAckHandle {
      *
      * @param position {@link Position} which position need to sync and carry it batch size
      */
-    void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position);
+    void syncBatchPositionAckSetForTransaction(PositionImpl position);
 
     /**
      * Judge the all ack set point have acked by normal ack and transaction pending ack.
