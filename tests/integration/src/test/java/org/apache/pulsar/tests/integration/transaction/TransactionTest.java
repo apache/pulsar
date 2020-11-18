@@ -71,7 +71,7 @@ public class TransactionTest extends TransactionTestBase {
      * 1. The balance update messages count should be double transfer message count.
      * 2. The balance update messages amount sum should be 0.
      */
-    @Test(dataProvider = "serviceUrls")
+    @Test(dataProvider = "ServiceUrls")
     public void transferNormalTest(String serviceUrl) throws Exception {
         log.info("transfer normal test start.");
         PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl).build();
