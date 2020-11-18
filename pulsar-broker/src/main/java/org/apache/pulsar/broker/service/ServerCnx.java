@@ -2185,11 +2185,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return features != null && features.getSupportsAuthRefresh();
     }
 
-    @Override
+
     boolean supportRawMessageMetadata() {
         return features != null && features.getSupportsRawMessageMetadata();
     }
 
+    @Override
     public String getClientVersion() {
         return clientVersion;
     }
