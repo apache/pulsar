@@ -16,35 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
-package proto;
+package org.apache.pulsar.common.protocol.schema;
 
-import "ExternalTest.proto";
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-option java_package = "org.apache.pulsar.client.schema.proto";
-option java_outer_classname = "Test";
+/**
+ * POJO class used for serialize to json-string for SchemaInfo.schema when SchemaType is SchemaType.PROTOBUF_NATIVE.
+ */
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ProtobufNativeSchemaData {
+    /**
+     * protobuf v3 FileDescriptorSet bytes.
+     **/
+    private byte[] fileDescriptorSet;
+    /**
+     * protobuf v3 rootMessageTypeName.
+     **/
+    private String rootMessageTypeName;
+    /**
+     * protobuf v3 rootFileDescriptorName.
+     **/
+    private String rootFileDescriptorName;
 
-enum TestEnum {
-    SHARED = 0;
-    FAILOVER = 1;
-}
-
-message SubMessage {
-    string foo = 1;
-    double bar = 2;
-    message NestedMessage {
-        string url = 1;
-        string title = 2;
-        repeated string snippets = 3;
-    }
-}
-
-message TestMessage {
-    string stringField = 1;
-    double doubleField = 2;
-    int32 intField = 6;
-    TestEnum testEnum = 4;
-    SubMessage nestedField = 5;
-    repeated string repeatedField = 10;
-    proto.external.ExternalMessage externalMessage = 11;
 }

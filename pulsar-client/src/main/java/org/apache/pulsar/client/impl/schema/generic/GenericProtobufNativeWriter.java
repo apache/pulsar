@@ -16,35 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
-package proto;
+package org.apache.pulsar.client.impl.schema.generic;
 
-import "ExternalTest.proto";
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-option java_package = "org.apache.pulsar.client.schema.proto";
-option java_outer_classname = "Test";
-
-enum TestEnum {
-    SHARED = 0;
-    FAILOVER = 1;
-}
-
-message SubMessage {
-    string foo = 1;
-    double bar = 2;
-    message NestedMessage {
-        string url = 1;
-        string title = 2;
-        repeated string snippets = 3;
+public class GenericProtobufNativeWriter implements SchemaWriter<GenericRecord> {
+    @Override
+    public byte[] write(GenericRecord message) {
+        return ((GenericProtobufNativeRecord) message).getProtobufRecord().toByteArray();
     }
-}
-
-message TestMessage {
-    string stringField = 1;
-    double doubleField = 2;
-    int32 intField = 6;
-    TestEnum testEnum = 4;
-    SubMessage nestedField = 5;
-    repeated string repeatedField = 10;
-    proto.external.ExternalMessage externalMessage = 11;
 }
