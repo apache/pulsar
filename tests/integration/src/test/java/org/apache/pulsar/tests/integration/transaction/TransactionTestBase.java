@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.transaction;
 
-import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
-
 import java.util.concurrent.CompletableFuture;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.containers.CSContainer;
+import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.BeforeClass;
@@ -51,12 +49,12 @@ public class TransactionTestBase extends PulsarTestSuite {
     }
 
     @BeforeClass
-    public void transactionMetadataInitialize() throws Exception {
-        ContainerExecResult result = pulsarCluster.getBrokers().iterator().next().execCmd(
+    public void transactionCoordinatorMetadataInitialize() throws Exception {
+        BrokerContainer brokerContainer = pulsarCluster.getBrokers().iterator().next();
+        ContainerExecResult result = brokerContainer.execCmd(
                 "/pulsar/bin/pulsar", "initialize-transaction-coordinator-metadata",
-                "-cs", CSContainer.NAME + ":" + CS_PORT,
+                "-cs", ZKContainer.NAME,
                 "-c", pulsarCluster.getClusterName());
-        log.info("transaction metadata initialize result {}", result.toString());
     }
 
     public void prepareTransferData(Producer<TransferOperation> transferProducer, int messageCnt) {
