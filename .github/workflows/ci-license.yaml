@@ -22,6 +22,7 @@ on:
   pull_request:
     branches:
       - master
+      - branch-2.6
   push:
     branches:
       - branch-*
@@ -53,6 +54,6 @@ jobs:
 
       - name: build and check license
         run: mvn -B -ntp -DskipTests license:check install
-          
+
       - name: license check
         run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
