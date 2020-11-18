@@ -36,21 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: macos-latest
-            TARGET: x86_64-apple-darwin
-            COMPILER: clang
-            LINKER: clang
-
-          - os: ubuntu-latest
-            TARGET: armv7-unknown-linux-musleabihf
-            COMPILER: arm-linux-gnueabihf-gcc-5
-            LINKER: gcc-5-arm-linux-gnueabihf
-
-          - os: ubuntu-latest
-            TARGET: x86_64-unknown-linux-musl
-            COMPILER: gcc
-            LINKER: gcc
+        os: [ubuntu-18.04, ubuntu-20.04, macos-10.15, windows-2019]
     timeout-minutes: 120
 
     steps:
