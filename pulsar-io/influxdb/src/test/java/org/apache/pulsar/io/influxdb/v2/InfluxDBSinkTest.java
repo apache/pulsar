@@ -28,10 +28,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AbstractStructSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
@@ -144,7 +144,7 @@ public class InfluxDBSinkTest {
         openWriteClose(jsonSchema);
     }
 
-    private void openWriteClose(StructSchema<Cpu> schema) throws Exception {
+    private void openWriteClose(AbstractStructSchema<Cpu> schema) throws Exception {
         // test open
         Map<String, Object> map = new HashMap();
         map.put("influxdbUrl", "http://localhost:9999");
