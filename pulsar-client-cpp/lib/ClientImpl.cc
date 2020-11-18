@@ -28,13 +28,12 @@
 #include "PatternMultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
 #include <sstream>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
 #include <regex>
+#include <random>
 #include <mutex>
 #ifdef USE_LOG4CXX
 #include "Log4CxxLogger.h"
@@ -46,14 +45,15 @@ namespace pulsar {
 
 static const char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-static const boost::random::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits));
-static boost::random::mt19937 randomEngine(std::chrono::system_clock::now().time_since_epoch().count());
+static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits));
+static std::mt19937 randomEngine =
+    std::mt19937(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
 std::string generateRandomName() {
     const int randomNameLength = 10;
 
     std::string randomName;
-    for(int i = 0; i < randomNameLength; ++i) {
+    for (int i = 0; i < randomNameLength; ++i) {
         randomName += hexDigits[hexDigitsDist(randomEngine)];
     }
     return randomName;
