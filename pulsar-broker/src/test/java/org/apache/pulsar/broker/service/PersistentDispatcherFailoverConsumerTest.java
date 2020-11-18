@@ -173,6 +173,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getNumber());
         when(serverCnx.ctx()).thenReturn(channelCtx);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+                .when(serverCnx).getCommandSender();
 
         serverCnxWithOldVersion = spy(new ServerCnx(pulsar));
         doReturn(true).when(serverCnxWithOldVersion).isActive();
@@ -182,6 +184,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
             .thenReturn(ProtocolVersion.v11.getNumber());
         when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
+                .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();

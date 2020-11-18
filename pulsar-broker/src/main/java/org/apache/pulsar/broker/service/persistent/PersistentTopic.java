@@ -84,7 +84,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -514,7 +514,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
+    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
             long startMessageRollbackDurationSec, boolean replicatedSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
@@ -571,9 +571,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         }
 
-        if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
+        if (cnx.clientAddress() != null && cnx.clientAddress().toString().contains(":")) {
             SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
-                    cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
+                    cnx.clientAddress().toString().split(":")[0], consumerName, consumerId);
             if (subscribeRateLimiter.isPresent() && !subscribeRateLimiter.get().subscribeAvailable(consumer) || !subscribeRateLimiter.get().tryAcquire(consumer)) {
                 log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
                         topic, subscriptionName, consumer, subscribeRateLimiter.get().getSubscribeRate(),
@@ -610,7 +610,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                                                 maxUnackedMessages, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
                 addConsumerToSubscription(subscription, consumer);
 
                 checkBackloggedCursors();

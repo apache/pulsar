@@ -199,6 +199,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+                .when(serverCnx).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();

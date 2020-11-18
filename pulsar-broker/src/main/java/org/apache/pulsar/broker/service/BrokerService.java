@@ -2260,8 +2260,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    private void foreachCnx(Consumer<ServerCnx> consumer) {
-        Set<ServerCnx> cnxSet = new HashSet<>();
+    private void foreachCnx(Consumer<TransportCnx> consumer) {
+        Set<TransportCnx> cnxSet = new HashSet<>();
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
             topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));

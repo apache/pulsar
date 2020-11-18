@@ -23,12 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
-
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -39,6 +33,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -53,10 +49,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
@@ -69,7 +63,7 @@ import org.slf4j.LoggerFactory;
 public class Consumer {
     private final Subscription subscription;
     private final SubType subType;
-    private final ServerCnx cnx;
+    private final TransportCnx cnx;
     private final String appId;
     private AuthenticationDataSource authenticationData;
     private final String topicName;
@@ -131,7 +125,7 @@ public class Consumer {
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
                     PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
 
@@ -191,18 +185,11 @@ public class Consumer {
     }
 
     void notifyActiveConsumerChange(Consumer activeConsumer) {
-        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
-            // if the client is older than `v12`, we don't need to send consumer group changes.
-            return;
-        }
-
         if (log.isDebugEnabled()) {
             log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
                 consumerId, topicName, subscription.getName(), activeConsumer);
         }
-        cnx.ctx().writeAndFlush(
-            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
-            cnx.ctx().voidPromise());
+        cnx.getCommandSender().sendActiveConsumerChange(consumerId, this == activeConsumer);
     }
 
     public boolean readCompacted() {
@@ -215,23 +202,21 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
                int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
-        final ChannelHandlerContext ctx = cnx.ctx();
-        final ChannelPromise writePromise = ctx.newPromise();
 
         if (entries.isEmpty() || totalMessages == 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         topicName, subscription, consumerId);
             }
-            writePromise.setSuccess();
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
             }
+            final Promise<Void> writePromise = cnx.newPromise();
+            writePromise.setSuccess(null);
             return writePromise;
         }
 
@@ -263,66 +248,8 @@ public class Consumer {
         bytesOutCounter.add(totalBytes);
         chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
-        ctx.channel().eventLoop().execute(() -> {
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
-                if (entry == null) {
-                    // Entry was filtered out
-                    continue;
-                }
-
-                int batchSize = batchSizes.getBatchSize(i);
-
-                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
-                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
-                            topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
-                    ctx.close();
-                    entry.release();
-                    continue;
-                }
-
-                MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(entry.getLedgerId())
-                    .setEntryId(entry.getEntryId())
-                    .setPartition(partitionIdx)
-                    .build();
-
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
-                metadataAndPayload.retain();
-                // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
-                    Commands.skipChecksumIfPresent(metadataAndPayload);
-                }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
-                }
-
-                int redeliveryCount = 0;
-                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
-                if (redeliveryTracker.contains(position)) {
-                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
-                }
-                ctx.write(cnx.newMessageAndIntercept(consumerId, messageId, redeliveryCount, metadataAndPayload,
-                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName), ctx.voidPromise());
-                messageId.recycle();
-                messageIdBuilder.recycle();
-                entry.release();
-            }
-
-            // Use an empty write here so that we can just tie the flush with the write promise for last entry
-            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
-            batchSizes.recyle();
-            if (batchIndexesAcks != null) {
-                batchIndexesAcks.recycle();
-            }
-        });
-
-        return writePromise;
+        return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
+                entries, batchSizes, batchIndexesAcks, redeliveryTracker);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
@@ -335,10 +262,6 @@ public class Consumer {
 
     public boolean isWritable() {
         return cnx.isWritable();
-    }
-
-    public void sendError(ByteBuf error) {
-        cnx.ctx().writeAndFlush(error).addListener(ChannelFutureListener.CLOSE);
     }
 
     /**
@@ -368,18 +291,15 @@ public class Consumer {
         }
     }
 
-    void doUnsubscribe(final long requestId) {
-        final ChannelHandlerContext ctx = cnx.ctx();
-
+    public void doUnsubscribe(final long requestId) {
         subscription.doUnsubscribe(this).thenAccept(v -> {
             log.info("Unsubscribed successfully from {}", subscription);
             cnx.removedConsumer(this);
-            ctx.writeAndFlush(Commands.newSuccess(requestId));
+            cnx.getCommandSender().sendSuccess(requestId);
         }).exceptionally(exception -> {
             log.warn("Unsubscribe failed for {}", subscription, exception);
-            ctx.writeAndFlush(
-                    Commands.newError(requestId, BrokerServiceException.getClientErrorCode(exception),
-                            exception.getCause().getMessage()));
+            cnx.getCommandSender().sendError(requestId, BrokerServiceException.getClientErrorCode(exception),
+                    exception.getCause().getMessage());
             return null;
         });
     }
@@ -439,7 +359,7 @@ public class Consumer {
         }
     }
 
-    void flowPermits(int additionalNumberOfMessages) {
+    public void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
@@ -489,11 +409,7 @@ public class Consumer {
     }
 
     public void reachedEndOfTopic() {
-        // Only send notification if the client understand the command
-        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9_VALUE) {
-            log.info("[{}] Notifying consumer that end of topic has been reached", this);
-            cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
-        }
+        cnx.getCommandSender().sendReachedEndOfTopic(consumerId);
     }
 
     /**
@@ -544,10 +460,6 @@ public class Consumer {
     public String toString() {
         return MoreObjects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
                 .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
-    }
-
-    public ChannelHandlerContext ctx() {
-        return cnx.ctx();
     }
 
     public void checkPermissions() {

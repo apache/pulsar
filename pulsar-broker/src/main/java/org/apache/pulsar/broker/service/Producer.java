@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
+import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
@@ -52,14 +53,13 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 
 /**
  * Represents a currently connected producer
  */
 public class Producer {
     private final Topic topic;
-    private final ServerCnx cnx;
+    private final TransportCnx cnx;
     private final String producerName;
     private final long epoch;
     private final boolean userProvidedProducerName;
@@ -88,7 +88,7 @@ public class Producer {
 
     private final SchemaVersion schemaVersion;
 
-    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName) {
         this.topic = topic;
@@ -140,41 +140,42 @@ public class Producer {
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
             boolean isChunked) {
-        beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
-        publishMessageToTopic(headersAndPayload, sequenceId, batchSize, isChunked);
+        if (checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize)) {
+            publishMessageToTopic(headersAndPayload, sequenceId, batchSize, isChunked);
+        }
     }
 
     public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
-           ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
+            ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
         if (lowestSequenceId > highestSequenceId) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
+            cnx.execute(() -> {
                 cnx.getCommandSender().sendSendError(producerId, highestSequenceId, ServerError.MetadataError,
                         "Invalid lowest or highest sequence id");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return;
         }
-        beforePublish(producerId, highestSequenceId, headersAndPayload, batchSize);
-        publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize, isChunked);
+        if (checkAndStartPublish(producerId, highestSequenceId, headersAndPayload, batchSize)) {
+            publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize, isChunked);
+        }
     }
 
-    public void beforePublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
+    public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
+            cnx.execute(() -> {
                 cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.PersistenceError,
                         "Producer is closed");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
-
-            return;
+            return false;
         }
 
         if (!verifyChecksum(headersAndPayload)) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
+            cnx.execute(() -> {
                 cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
-            return;
+            return false;
         }
 
         if (topic.isEncryptionRequired()) {
@@ -187,16 +188,17 @@ public class Producer {
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
-                cnx.ctx().channel().eventLoop().execute(() -> {
+                cnx.execute(() -> {
                     cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.MetadataError,
                             "Messages must be encrypted");
                     cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
                 });
-                return;
+                return false;
             }
         }
 
         startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
+        return true;
     }
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked) {
@@ -266,7 +268,7 @@ public class Producer {
 
     /**
      * Return the sequence id of
-     * @return
+     * @return the sequence id
      */
     public long getLastSequenceId() {
         if (isNonPersistentTopic) {
@@ -276,7 +278,7 @@ public class Producer {
         }
     }
 
-    public ServerCnx getCnx() {
+    public TransportCnx getCnx() {
         return this.cnx;
     }
 
@@ -354,7 +356,7 @@ public class Producer {
                 ServerError serverError = (exception instanceof TopicTerminatedException)
                         ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
 
-                producer.cnx.ctx().channel().eventLoop().execute(() -> {
+                producer.cnx.execute(() -> {
                     if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
@@ -374,7 +376,7 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
-                producer.cnx.ctx().channel().eventLoop().execute(this);
+                producer.cnx.execute(this);
             }
         }
 
@@ -417,7 +419,7 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                 int msgSize, long batchSize, boolean chunked, long startTimeNs) {
+                int msgSize, long batchSize, boolean chunked, long startTimeNs) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
@@ -439,7 +441,7 @@ public class Producer {
         }
 
         private static final Recycler<MessagePublishContext> RECYCLER = new Recycler<MessagePublishContext>() {
-            protected MessagePublishContext newObject(Recycler.Handle<MessagePublishContext> handle) {
+            protected MessagePublishContext newObject(Handle<MessagePublishContext> handle) {
                 return new MessagePublishContext(handle);
             }
         };
@@ -511,7 +513,7 @@ public class Producer {
         return closeFuture;
     }
 
-    void closeNow(boolean removeFromTopic) {
+    public void closeNow(boolean removeFromTopic) {
         if (removeFromTopic) {
             topic.removeProducer(this);
         }
@@ -532,7 +534,7 @@ public class Producer {
     public CompletableFuture<Void> disconnect() {
         if (!closeFuture.isDone()) {
             log.info("Disconnecting producer: {}", this);
-            cnx.ctx().executor().execute(() -> {
+            cnx.execute(() -> {
                 cnx.closeProducer(this);
                 closeNow(true);
             });
