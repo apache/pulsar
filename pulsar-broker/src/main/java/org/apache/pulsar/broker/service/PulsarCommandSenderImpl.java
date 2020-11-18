@@ -19,9 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -204,6 +211,104 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         command.getLookupTopicResponse().recycle();
         command.recycle();
         cnx.ctx().writeAndFlush(outBuf);
+    }
+
+    @Override
+    public void sendActiveConsumerChange(long consumerId, boolean isActive) {
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
+            return;
+        }
+        cnx.ctx().writeAndFlush(
+                Commands.newActiveConsumerChange(consumerId, isActive),
+                cnx.ctx().voidPromise());
+    }
+
+    @Override
+    public void sendSuccess(long requestId) {
+        cnx.ctx().writeAndFlush(Commands.newSuccess(requestId));
+    }
+
+    @Override
+    public void sendError(long requestId, PulsarApi.ServerError error, String message) {
+        cnx.ctx().writeAndFlush(Commands.newError(requestId, error, message));
+    }
+
+    @Override
+    public void sendReachedEndOfTopic(long consumerId) {
+        // Only send notification if the client understand the command
+        if (cnx.getRemoteEndpointProtocolVersion() >= PulsarApi.ProtocolVersion.v9_VALUE) {
+            log.info("[{}] Notifying consumer that end of topic has been reached", this);
+            cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
+        }
+    }
+
+    @Override
+    public ChannelPromise sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
+            int partitionIdx, final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+            RedeliveryTracker redeliveryTracker) {
+        final ChannelHandlerContext ctx = cnx.ctx();
+        final ChannelPromise writePromise = ctx.newPromise();
+        ctx.channel().eventLoop().execute(() -> {
+            for (int i = 0; i < entries.size(); i++) {
+                Entry entry = entries.get(i);
+                if (entry == null) {
+                    // Entry was filtered out
+                    continue;
+                }
+
+                int batchSize = batchSizes.getBatchSize(i);
+
+                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
+                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
+                            topicName, subscription,
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                    ctx.close();
+                    entry.release();
+                    continue;
+                }
+
+                MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
+                MessageIdData messageId = messageIdBuilder
+                        .setLedgerId(entry.getLedgerId())
+                        .setEntryId(entry.getEntryId())
+                        .setPartition(partitionIdx)
+                        .build();
+
+                ByteBuf metadataAndPayload = entry.getDataBuffer();
+                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
+                metadataAndPayload.retain();
+                // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
+                    Commands.skipChecksumIfPresent(metadataAndPayload);
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                }
+
+                int redeliveryCount = 0;
+                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                if (redeliveryTracker.contains(position)) {
+                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                }
+                ctx.write(cnx.newMessageAndIntercept(consumerId, messageId, redeliveryCount, metadataAndPayload,
+                        batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName), ctx.voidPromise());
+                messageId.recycle();
+                messageIdBuilder.recycle();
+                entry.release();
+            }
+
+            // Use an empty write here so that we can just tie the flush with the write promise for last entry
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
+            batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
+        });
+
+        return writePromise;
     }
 
     private void safeIntercept(PulsarApi.BaseCommand command, ServerCnx cnx) {

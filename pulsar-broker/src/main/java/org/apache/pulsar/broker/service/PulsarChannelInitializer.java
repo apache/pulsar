@@ -137,7 +137,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             try {
                 cnx.refreshAuthenticationCredentials();
             } catch (Throwable t) {
-                log.warn("[{}] Failed to refresh auth credentials", cnx.getRemoteAddress());
+                log.warn("[{}] Failed to refresh auth credentials", cnx.clientAddress());
             }
         });
     }
