@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
  * Joda -- org.joda-joda-convert-2.2.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
  * Gson
-    - com.google.code.gson-gson-2.8.2.jar
+    - com.google.code.gson-gson-2.8.6.jar
     - io.gsonfire-gson-fire-1.8.4.jar
  * Sundrio
     - io.sundr-builder-annotations-0.21.0.jar

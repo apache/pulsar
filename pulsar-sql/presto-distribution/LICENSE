@@ -431,7 +431,7 @@ The Apache Software License, Version 2.0
     - commons-lang-2.6.jar
     - commons-logging-1.2.jar
   * GSON
-    - gson-2.8.2.jar
+    - gson-2.8.6.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
     - jackson-module-parameter-names-2.11.1.jar
