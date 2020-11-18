@@ -1589,6 +1589,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        return connectionHandler.lastConnectionClosedTimestamp;
+    }
+
     private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
             ClientCnx currentCnx) {
 

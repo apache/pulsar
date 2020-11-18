@@ -19,13 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.Promise;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 
 import java.net.SocketAddress;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public interface TransportCnx {
 
