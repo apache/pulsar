@@ -52,12 +52,10 @@ public class TransactionTestBase extends PulsarTestSuite {
 
     @BeforeClass
     public void transactionMetadataInitialize() throws Exception {
-        String command = String.format(
-                "/pulsar/bin/pulsar initialize-transaction-coordinator-metadata -cs %s -c %s",
-                CSContainer.NAME + ":" + CS_PORT,
-                pulsarCluster.getClusterName());
-        log.info("transaction metadata initialize command {}", command);
-        ContainerExecResult result = pulsarCluster.getBrokers().iterator().next().execCmd(command);
+        ContainerExecResult result = pulsarCluster.getBrokers().iterator().next().execCmd(
+                "/pulsar/bin/pulsar", "initialize-transaction-coordinator-metadata",
+                "-cs", CSContainer.NAME + ":" + CS_PORT,
+                "-c", pulsarCluster.getClusterName());
         log.info("transaction metadata initialize result {}", result.toString());
     }
 
