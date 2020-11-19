@@ -102,11 +102,6 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
         return ProtobufNativeSchemaUtils.deserialize(this.schemaInfo.getSchema());
     }
 
-    @Override
-    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
-        throw new RuntimeException("ProtobufNativeSchema don't support schema versioning");
-    }
-
     public static <T extends GeneratedMessageV3> ProtobufNativeSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());
     }
