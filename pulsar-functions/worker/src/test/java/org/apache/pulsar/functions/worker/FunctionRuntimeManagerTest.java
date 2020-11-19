@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyString;
@@ -79,7 +80,12 @@ import java.util.concurrent.CompletableFuture;
 
 @PrepareForTest({FunctionRuntimeManager.class, RuntimeFactory.class})
 @Slf4j
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
+@PowerMockIgnore({
+    "javax.management.*",
+    "javax.ws.*",
+    "org.apache.logging.log4j.*",
+    "org.apache.pulsar.functions.runtime.thread"
+})
 public class FunctionRuntimeManagerTest {
 
     @ObjectFactory
@@ -111,6 +117,11 @@ public class FunctionRuntimeManagerTest {
         PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+            .thenReturn(new ThreadRuntimeFactory());
+
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
@@ -195,6 +206,10 @@ public class FunctionRuntimeManagerTest {
         PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+            .thenReturn(new ThreadRuntimeFactory());
 
         // test new assignment delete functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
@@ -283,6 +298,10 @@ public class FunctionRuntimeManagerTest {
         PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+            .thenReturn(new ThreadRuntimeFactory());
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -415,6 +434,10 @@ public class FunctionRuntimeManagerTest {
         PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+            .thenReturn(new ThreadRuntimeFactory());
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -603,6 +626,10 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         ErrorNotifier errorNotifier = mock(ErrorNotifier.class);
+
+        mockStatic(RuntimeFactory.class);
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+            .thenReturn(new ThreadRuntimeFactory());
 
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -873,6 +900,11 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
+
+            mockStatic(RuntimeFactory.class);
+            PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+                .thenReturn(new ThreadRuntimeFactory());
+
             FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                     workerConfig,
                     mock(PulsarWorkerService.class),
@@ -886,6 +918,7 @@ public class FunctionRuntimeManagerTest {
 
             assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
         } catch (Exception e) {
+            log.error("Failed to initialize the runtime manager : ", e);
             fail();
         }
     }
@@ -905,6 +938,19 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setKubernetesContainerFactory(kubernetesContainerFactory);
 
+        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(new KubernetesRuntimeFactory());
+        doNothing().when(mockedKubernetesRuntimeFactory).initialize(
+            any(WorkerConfig.class),
+            any(AuthenticationConfig.class),
+            any(SecretsProviderConfigurator.class),
+            any(),
+            any()
+        );
+        doNothing().when(mockedKubernetesRuntimeFactory).setupClient();
+        doReturn(true).when(mockedKubernetesRuntimeFactory).externallyManaged();
+        PowerMockito.whenNew(KubernetesRuntimeFactory.class)
+            .withNoArguments().thenReturn(mockedKubernetesRuntimeFactory);
+
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 mock(PulsarWorkerService.class),
@@ -916,7 +962,6 @@ public class FunctionRuntimeManagerTest {
                 mock(WorkerStatsManager.class),
                 mock(ErrorNotifier.class));
 
-        assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), KubernetesRuntimeFactory.class);
         KubernetesRuntimeFactory kubernetesRuntimeFactory = (KubernetesRuntimeFactory) functionRuntimeManager.getRuntimeFactory();
         assertEquals(kubernetesRuntimeFactory.getK8Uri(), "k8Uri");
         assertEquals(kubernetesRuntimeFactory.getJobNamespace(), "jobNamespace");
