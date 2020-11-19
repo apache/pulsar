@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A Reader can be used to scan through all the messages currently available in a topic.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Reader<T> extends Closeable {
 
     /**

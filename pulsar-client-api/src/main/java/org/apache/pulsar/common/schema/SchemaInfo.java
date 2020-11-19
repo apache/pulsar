@@ -31,10 +31,14 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Information about the schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -69,6 +73,7 @@ public class SchemaInfo {
             case AVRO:
             case JSON:
             case PROTOBUF:
+            case PROTOBUF_NATIVE:
                 return new String(schema, UTF_8);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =

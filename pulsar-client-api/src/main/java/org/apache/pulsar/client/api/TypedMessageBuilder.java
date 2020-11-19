@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Message builder that constructs a message to be published through a producer.
@@ -32,6 +34,8 @@ import java.util.concurrent.TimeUnit;
  * producer.newMessage().key(myKey).value(myValue).send();
  * </code></pre>
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface TypedMessageBuilder<T> extends Serializable {
 
     /**

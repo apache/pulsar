@@ -21,11 +21,15 @@ package org.apache.pulsar.client.api.transaction;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The transaction buffer client to commit and abort transactions on topics or subscription.
  * The transaction buffer client is used by transaction coordinator to end transactions.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public interface TransactionBufferClient {
 
     /**

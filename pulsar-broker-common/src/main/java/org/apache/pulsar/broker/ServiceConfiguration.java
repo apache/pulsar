@@ -242,7 +242,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "The maximum number of tenants that each pulsar cluster can create." 
+        doc = "The maximum number of tenants that each pulsar cluster can create."
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
@@ -453,9 +453,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
-    
+
     @FieldContext(
-        category = CATEGORY_POLICIES, 
+        category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "The maximum number of namespaces that each tenant can create."
             + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
@@ -827,6 +827,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "If a topic remains fenced for this number of seconds, it will be closed forcefully.\n"
+                + " If it is set to 0 or a negative number, the fenced topic will not be closed."
+    )
+    private int topicFencingTimeoutSeconds = 0;
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1086,6 +1092,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Bookie health check quarantined time in seconds"
     )
     private long bookkeeperClientHealthCheckQuarantineTimeInSeconds = 1800;
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "bookie quarantine ratio to avoid all clients quarantine " +
+                    "the high pressure bookie servers at the same time"
+    )
+    private double bookkeeperClientQuarantineRatio = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable rack-aware bookie selection policy. \n\nBK will chose bookies from"
@@ -1717,7 +1729,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
 
     /**** --- WebSocket --- ****/

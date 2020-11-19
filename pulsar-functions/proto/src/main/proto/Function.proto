@@ -108,6 +108,7 @@ message ProducerSpec {
     int32 maxPendingMessagesAcrossPartitions = 2;
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
+    string batchBuilder = 5;
 }
 
 message CryptoSpec {

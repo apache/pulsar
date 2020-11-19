@@ -298,7 +298,6 @@ public class Reflections {
                     // CHECKSTYLE.OFF: EmptyStatement
                     int arrayDimension;
                     for (arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
-                        ;
                     }
                     // CHECKSTYLE.ON: EmptyStatement
 

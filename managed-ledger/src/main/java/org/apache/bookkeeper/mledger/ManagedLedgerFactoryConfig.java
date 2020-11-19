@@ -19,10 +19,14 @@
 package org.apache.bookkeeper.mledger;
 
 import lombok.Data;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 @Data
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;

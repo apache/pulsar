@@ -19,9 +19,7 @@
 package org.apache.pulsar.compaction;
 
 import com.google.common.collect.ImmutableMap;
-
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -46,9 +43,9 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

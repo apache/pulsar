@@ -263,7 +263,6 @@ public interface NonPersistentTopics {
      * Get list of topics exist into given namespace asynchronously.
      *
      * @param namespace
-     * @param bundleRange
      * @return
      */
     CompletableFuture<List<String>> getListAsync(String namespace);
