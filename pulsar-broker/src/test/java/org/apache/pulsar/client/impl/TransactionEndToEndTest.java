@@ -244,28 +244,27 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
     @Test
     public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
-        txnAckTest(false, 1, SubscriptionType.Shared, 2);
+        txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
     @Test
     public void txnIndividualAckTestBatchAndSharedSub() throws Exception {
-        txnAckTest(true, 200, SubscriptionType.Shared, 2);
+        txnAckTest(true, 200, SubscriptionType.Shared);
     }
 
     @Test
     public void txnIndividualAckTestNoBatchAndFailoverSub() throws Exception {
-        txnAckTest(false, 1, SubscriptionType.Failover, 2);
+        txnAckTest(false, 1, SubscriptionType.Failover);
     }
 
-    //TODO: will not remove messageId in Failover unackMessageTracker, we should think about the redeliver problem
     @Test
     public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
-        txnAckTest(true, 200, SubscriptionType.Failover, 0);
+        txnAckTest(true, 200, SubscriptionType.Failover);
     }
 
 
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
-                         SubscriptionType subscriptionType, long ackTimeout) throws Exception {
+                         SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
         @Cleanup
@@ -274,8 +273,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
-                .ackTimeout(ackTimeout, TimeUnit.SECONDS)
-                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup

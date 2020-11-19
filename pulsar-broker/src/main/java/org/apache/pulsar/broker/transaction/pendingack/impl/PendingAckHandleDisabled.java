@@ -38,7 +38,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Long>> positions) {
+                                                                List<MutablePair<PositionImpl, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
