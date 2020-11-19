@@ -36,6 +36,7 @@ public class ConnectionHandler {
     protected final HandlerState state;
     protected final Backoff backoff;
     protected long epoch = 0L;
+    protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
         void connectionFailed(PulsarClientException exception);
@@ -110,6 +111,7 @@ public class ConnectionHandler {
 
     @VisibleForTesting
     public void connectionClosed(ClientCnx cnx) {
+        lastConnectionClosedTimestamp = System.currentTimeMillis();
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
