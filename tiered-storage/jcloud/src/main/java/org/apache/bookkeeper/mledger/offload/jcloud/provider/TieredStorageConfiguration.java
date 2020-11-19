@@ -70,6 +70,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     protected static final int MB = 1024 * 1024;
 
+    public static final String GCS_ACCOUNT_KEY_FILE_FIELD = "gcsManagedLedgerOffloadServiceAccountKeyFile";
     public static final String S3_ROLE_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
     public static final String S3_ROLE_SESSION_NAME_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
 

@@ -130,7 +130,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             continue;
                         } else if (entryId > lastEntry) {
                             log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                    nextExpectedId, entryId, lastEntry);
+                                     nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
                             inputStream.skip(length);

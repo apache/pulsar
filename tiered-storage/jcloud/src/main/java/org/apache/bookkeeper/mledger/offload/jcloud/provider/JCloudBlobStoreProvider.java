@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.GCS_ACCOUNT_KEY_FILE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
 
@@ -111,8 +112,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             if (config.getCredentials() == null) {
                 try {
                     String gcsKeyContent = Files.toString(
-                            new File(config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile")),
-                                     Charset.defaultCharset());
+                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)), Charset.defaultCharset());
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
                     log.error("Cannot read GCS service account credentials file: {}",
@@ -269,9 +269,11 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                 if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
                 } else {
-                    awsCredentials = new STSAssumeRoleSessionCredentialsProvider.Builder(
-                            config.getConfigProperty(S3_ROLE_FIELD),
-                            config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)).build().getCredentials();
+                    awsCredentials =
+                            new STSAssumeRoleSessionCredentialsProvider.Builder(
+                                    config.getConfigProperty(S3_ROLE_FIELD),
+                                    config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)
+                            ).build().getCredentials();
                 }
 
                 if (awsCredentials instanceof AWSSessionCredentials) {
