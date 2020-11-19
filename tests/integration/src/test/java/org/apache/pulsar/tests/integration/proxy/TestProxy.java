@@ -64,9 +64,7 @@ public class TestProxy extends PulsarTestSuite {
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         proxyViaURL = new ProxyContainer(clusterName, "proxy-via-url")
             .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
-            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
-            .withEnv("webSocketServiceEnabled", "true")
-            .withEnv("clusterName", clusterName);
+            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080");
 
         specBuilder.externalService("proxy-via-url", proxyViaURL);
 
@@ -143,73 +141,6 @@ public class TestProxy extends PulsarTestSuite {
         for (int i = 0; i < 10; i++) {
             // Ensure we the command works even if re-directs happen with a request body
             admin.topics().createSubscription(topic, "test-" + i, MessageId.earliest);
-        }
-    }
-
-    @Test
-    public void testWebSocket() throws Exception {
-
-        final String tenant = "proxy-test-" + randomName(10);
-        final String namespace = tenant + "/ns1";
-
-        @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
-                .build();
-
-        admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
-
-        admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
-
-        HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
-        MyWebSocket myWebSocket = new MyWebSocket();
-        Future<Session> sessionFuture =  webSocketClient.connect(myWebSocket,
-                URI.create(pulsarCluster.getHttpServiceUrl().replaceFirst("http", "ws")
-                        + "/ws/v2/producer/persistent/" + namespace + "/my-topic"));
-        sessionFuture.get().getRemote().sendString("{\n" +
-                "  \"payload\": \"SGVsbG8gV29ybGQ=\",\n" +
-                "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n" +
-                "  \"context\": \"1\"\n" +
-                "}");
-
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
-            String response = myWebSocket.getResponse();
-            log.info(response);
-            Assert.assertTrue(response.contains("ok"));
-        });
-    }
-
-    @WebSocket
-    public static class MyWebSocket implements WebSocketListener {
-        Queue<String> incomingMessages = new ArrayBlockingQueue<>(10);
-        @Override
-        public void onWebSocketBinary(byte[] bytes, int i, int i1) {
-        }
-
-        @Override
-        public void onWebSocketText(String s) {
-            incomingMessages.add(s);
-        }
-
-        @Override
-        public void onWebSocketClose(int i, String s) {
-        }
-
-        @Override
-        public void onWebSocketConnect(Session session) {
-
-        }
-
-        @Override
-        public void onWebSocketError(Throwable throwable) {
-
-        }
-
-        public String getResponse() {
-            return incomingMessages.poll();
         }
     }
 }
