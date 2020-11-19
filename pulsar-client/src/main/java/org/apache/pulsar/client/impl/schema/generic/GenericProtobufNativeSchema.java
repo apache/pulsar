@@ -18,20 +18,15 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericProtobufNativeReader.parseProtobufSchema;
+
 import com.google.protobuf.Descriptors;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
-import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Generic ProtobufNative schema.
@@ -53,13 +48,8 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
                 .stream()
                 .map(f -> new Field(f.getName(), f.getIndex()))
                 .collect(Collectors.toList());
-        setReader(new GenericProtobufNativeReader(descriptor));
+        setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
         setWriter(new GenericProtobufNativeWriter());
-    }
-
-    @Override
-    public List<Field> getFields() {
-        return fields;
     }
 
     @Override
@@ -67,32 +57,8 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         return new ProtobufNativeRecordBuilderImpl(this);
     }
 
-    @Override
-    protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
-        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
-        if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    schemaInfo);
-            Descriptors.Descriptor recordDescriptor = parseProtobufSchema(schemaInfo);
-            Descriptors.Descriptor readerSchemaDescriptor = useProvidedSchemaAsReaderSchema ? descriptor : recordDescriptor;
-            return new GenericProtobufNativeReader(
-                    readerSchemaDescriptor,
-                    schemaVersion.get());
-        } else {
-            log.warn("No schema found for version({}), use latest schema : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    this.schemaInfo);
-            return reader;
-        }
-    }
-
-    protected static Descriptors.Descriptor parseProtobufSchema(SchemaInfo schemaInfo) {
-        return ProtobufNativeSchemaUtils.deserialize(schemaInfo.getSchema());
-    }
-
     public static GenericSchema of(SchemaInfo schemaInfo) {
-        return new GenericProtobufNativeSchema(schemaInfo, true);
+        return new GenericProtobufNativeSchema(schemaInfo);
     }
 
     public static GenericSchema of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {

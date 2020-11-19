@@ -264,7 +264,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .ackTimeout(2, TimeUnit.SECONDS)
-                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup
