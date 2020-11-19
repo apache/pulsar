@@ -20,12 +20,7 @@ package org.apache.pulsar.tests.integration.proxy;
 
 import static org.testng.Assert.assertEquals;
 
-import java.net.URI;
 import java.util.Collections;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
@@ -39,13 +34,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.awaitility.Awaitility;
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketListener;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import org.slf4j.Logger;
@@ -64,7 +52,8 @@ public class TestProxy extends PulsarTestSuite {
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         proxyViaURL = new ProxyContainer(clusterName, "proxy-via-url")
             .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
-            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080");
+            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
+            .withEnv("clusterName", clusterName);
 
         specBuilder.externalService("proxy-via-url", proxyViaURL);
 
