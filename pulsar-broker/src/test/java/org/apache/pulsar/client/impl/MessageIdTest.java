@@ -71,7 +71,7 @@ public class MessageIdTest extends BrokerTestBase {
         baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();

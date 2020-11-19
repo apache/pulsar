@@ -22,10 +22,14 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import lombok.Data;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * An identifier for representing a transaction.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 @Data
 public class TxnID implements Serializable {
 

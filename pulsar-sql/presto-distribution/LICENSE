@@ -221,7 +221,9 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.11.1.jar
     - jackson-module-jsonSchema-2.11.1.jar
  * Guava
-    - guava-25.1-jre.jar
+    - guava-30.0-jre.jar
+    - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+    - failureaccess-1.0.1.jar
  * Google Guice
     - guice-4.2.3.jar
     - guice-multibindings-4.2.0.jar
@@ -235,18 +237,14 @@ The Apache Software License, Version 2.0
     - netty-codec-4.1.51.Final.jar
     - netty-codec-dns-4.1.51.Final.jar
     - netty-codec-http-4.1.51.Final.jar
-    - netty-codec-socks-4.1.51.Final.jar
     - netty-common-4.1.51.Final.jar
     - netty-handler-4.1.51.Final.jar
-    - netty-handler-proxy-4.1.51.Final.jar
     - netty-reactive-streams-2.0.4.jar
     - netty-resolver-4.1.51.Final.jar
     - netty-resolver-dns-4.1.51.Final.jar
-    - netty-tcnative-boringssl-static-2.0.30.Final.jar
+    - netty-tcnative-boringssl-static-2.0.33.Final.jar
     - netty-transport-4.1.51.Final.jar
-    - netty-transport-native-epoll-4.1.51.Final.jar
     - netty-transport-native-epoll-4.1.51.Final-linux-x86_64.jar
-    - netty-transport-native-kqueue-4.1.51.Final-osx-x86_64.jar
     - netty-transport-native-unix-common-4.1.51.Final.jar
     - netty-transport-native-unix-common-4.1.51.Final-linux-x86_64.jar
  * Joda Time
@@ -304,8 +302,11 @@ The Apache Software License, Version 2.0
     - stats-0.195.jar
     - trace-token-0.195.jar
     - units-1.6.jar
+   * Apache HTTP Client
+    - httpclient-4.5.5.jar
+    - httpcore-4.4.9.jar
   * Error Prone Annotations
-    - error_prone_annotations-2.1.3.jar
+    - error_prone_annotations-2.3.4.jar
   * Esri Geometry API For Java
     - esri-geometry-api-2.2.2.jar
   * Failsafe
@@ -313,7 +314,7 @@ The Apache Software License, Version 2.0
   * Fastutil
     - fastutil-8.3.0.jar
   * J2ObjC Annotations
-    - j2objc-annotations-1.1.jar
+    - j2objc-annotations-1.3.jar
   * JSON Web Token Support For The JVM
     - jjwt-0.9.0.jar
   * Jmxutils
@@ -386,7 +387,7 @@ The Apache Software License, Version 2.0
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
   * RocksDB JNI
-    - rocksdbjni-5.13.3.jar
+    - rocksdbjni-6.10.2.jar
   * SnakeYAML
     - snakeyaml-1.26.jar
   * Bean Validation API
@@ -409,17 +410,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.10.0.jar
-    - bookkeeper-common-allocator-4.10.0.jar
-    - bookkeeper-proto-4.10.0.jar
-    - bookkeeper-server-4.10.0.jar
-    - bookkeeper-stats-api-4.10.0.jar
-    - bookkeeper-tools-framework-4.10.0.jar
-    - circe-checksum-4.10.0.jar
-    - codahale-metrics-provider-4.10.0.jar
-    - cpu-affinity-4.10.0.jar
-    - http-server-4.10.0.jar
-    - prometheus-metrics-provider-4.10.0.jar
+    - bookkeeper-common-4.12.0.jar
+    - bookkeeper-common-allocator-4.12.0.jar
+    - bookkeeper-proto-4.12.0.jar
+    - bookkeeper-server-4.12.0.jar
+    - bookkeeper-stats-api-4.12.0.jar
+    - bookkeeper-tools-framework-4.12.0.jar
+    - circe-checksum-4.12.0.jar
+    - codahale-metrics-provider-4.12.0jar
+    - cpu-affinity-4.12.0.jar
+    - http-server-4.12.0.jar
+    - prometheus-metrics-provider-4.12.0.jar
+    - codahale-metrics-provider-4.12.0.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -427,21 +429,21 @@ The Apache Software License, Version 2.0
     - commons-configuration-1.10.jar
     - commons-io-2.5.jar
     - commons-lang-2.6.jar
-    - commons-logging-1.1.1.jar
+    - commons-logging-1.2.jar
   * GSON
-    - gson-2.8.2.jar
+    - gson-2.8.6.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
     - jackson-module-parameter-names-2.11.1.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
-    - jetty-http-9.4.31.v20200723.jar
-    - jetty-io-9.4.31.v20200723.jar
-    - jetty-security-9.4.31.v20200723.jar
-    - jetty-server-9.4.31.v20200723.jar
-    - jetty-servlet-9.4.31.v20200723.jar
-    - jetty-util-9.4.31.v20200723.jar
+    - jetty-http-9.4.33.v20201020.jar
+    - jetty-io-9.4.33.v20201020.jar
+    - jetty-security-9.4.33.v20201020.jar
+    - jetty-server-9.4.33.v20201020.jar
+    - jetty-servlet-9.4.33.v20201020.jar
+    - jetty-util-9.4.33.v20201020.jar
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
@@ -482,8 +484,6 @@ BSD License
    - jline-terminal-jna-3.12.1.jar
 
 MIT License
- * Animal Sniffer Annotations
-   - animal-sniffer-annotations-1.14.jar
  * PCollections
    - pcollections-2.1.2.jar
  * SLF4J
@@ -496,11 +496,11 @@ MIT License
  * JUL to SLF4J Bridge
    - jul-to-slf4j-1.7.25.jar
  * Checker Qual
-   - checker-qual-2.0.0.jar
+   - checker-qual-3.5.0.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
-    - osgi-resource-locator-1.0.1.jar
+    - osgi-resource-locator-1.0.3.jar
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -510,18 +510,22 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - javax.activation-api-1.2.0.jar
    - jakarta.activation-api-1.2.1.jar
  * HK2 - Dependency Injection Kernel
-   - hk2-api-2.5.0-b42.jar
-   - hk2-locator-2.5.0-b42.jar
-   - hk2-utils-2.5.0-b42.jar
+   - hk2-api-2.6.1.jar
+   - hk2-locator-2.6.1.jar
+   - hk2-utils-2.6.1.jar
+   - aopalliance-repackaged-2.6.1.jar
  * Jersey
     - jaxrs-0.195.jar
-    - jersey-client-2.26.jar
-    - jersey-container-servlet-2.26.jar
-    - jersey-container-servlet-core-2.26.jar
-    - jersey-hk2-2.26.jar
-    - jersey-media-jaxb-2.26.jar
-    - jersey-server-2.26.jar
-    - jersey-common-2.26.jar
+    - jersey-client-2.31.jar
+    - jersey-container-servlet-2.31.jar
+    - jersey-container-servlet-core-2.31.jar
+    - jersey-hk2-2.31.jar
+    - jersey-media-jaxb-2.31.jar
+    - jersey-server-2.31.jar
+    - jersey-common-2.31.jar
+    - jersey-entity-filtering-2.31.jar
+    - jersey-media-json-jackson-2.31.jar
+    - jersey-media-multipart-2.31.jar
  * JAXB
     - jaxb-api-2.3.1.jar
 
@@ -546,6 +550,9 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
  * jakarta.annotation-api-1.3.5.jar
+ * jakarta.inject-2.6.1.jar
+ * jakarta.validation-api-2.0.2.jar
+ * jakarta.ws.rs-api-2.1.6.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
@@ -561,4 +568,6 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bouncy-castle-bc-shaded-2.7.0-SNAPSHOT.jar
+-    - bcpkix-jdk15on-1.66.jar
+-    - bcprov-ext-jdk15on-1.66.jar
+-    - bcprov-jdk15on-1.66.jar

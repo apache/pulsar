@@ -84,10 +84,10 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private long tickDurationMillis = 1000;
 
     private int priorityLevel = 0;
-    
+
     // max pending chunked message to avoid sitting incomplete message into the queue and memory
     private int maxPendingChuckedMessage = 10;
-    
+
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
     private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
@@ -136,7 +136,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     public String getSingleTopic() {
-        checkArgument(topicNames.size() == 1);
+        checkArgument(topicNames.size() == 1, "topicNames needs to be = 1");
         return topicNames.iterator().next();
     }
 

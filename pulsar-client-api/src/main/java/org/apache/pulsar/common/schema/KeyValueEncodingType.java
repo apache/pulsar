@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.common.schema;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Encoding types of supported KeyValueSchema for Pulsar messages.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum KeyValueEncodingType {
     /**
      * Key is stored as message key, while value is stored as message payload.

@@ -64,21 +64,19 @@ public interface OffloadIndexBlockBuilder {
     OffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength);
 
     /**
-     * Finalize the immutable OffloadIndexBlock
+     * Finalize the immutable OffloadIndexBlock.
      */
     OffloadIndexBlock build();
 
     /**
-     * Construct OffloadIndex from an InputStream
+     * Construct OffloadIndex from an InputStream.
      */
     OffloadIndexBlock fromStream(InputStream is) throws IOException;
 
     /**
-     * create an OffloadIndexBlockBuilder
+     * create an OffloadIndexBlockBuilder.
      */
     static OffloadIndexBlockBuilder create() {
         return new OffloadIndexBlockBuilderImpl();
     }
-
-
 }

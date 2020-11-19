@@ -59,6 +59,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -198,6 +199,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+                .when(serverCnx).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
@@ -208,7 +211,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         setupMLAsyncCallbackMocks();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats
@@ -876,6 +879,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
         }
+        executor.shutdown();
     }
 
     @Test
@@ -1126,6 +1130,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             assertTrue(ee.getCause() instanceof BrokerServiceException.TopicFencedException);
             // Expected
         }
+        executor.shutdown();
     }
 
     @SuppressWarnings("unchecked")
@@ -1745,6 +1750,43 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(nonDeletableSubscription1, times(0)).delete();
         verify(deletableSubscription1, times(1)).delete();
         verify(nonDeletableSubscription2, times(0)).delete();
+    }
+
+    @Test
+    public void testTopicFencingTimeout() throws Exception {
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        Method fence = PersistentTopic.class.getDeclaredMethod("fence");
+        fence.setAccessible(true);
+        Method unfence = PersistentTopic.class.getDeclaredMethod("unfence");
+        unfence.setAccessible(true);
+
+        Field fencedTopicMonitoringTaskField = PersistentTopic.class.getDeclaredField("fencedTopicMonitoringTask");
+        fencedTopicMonitoringTaskField.setAccessible(true);
+        Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        Field isClosingOrDeletingField = PersistentTopic.class.getDeclaredField("isClosingOrDeleting");
+        isClosingOrDeletingField.setAccessible(true);
+
+        doReturn(10).when(svcConfig).getTopicFencingTimeoutSeconds();
+        fence.invoke(topic);
+        unfence.invoke(topic);
+        ScheduledFuture<?> fencedTopicMonitoringTask = (ScheduledFuture<?>) fencedTopicMonitoringTaskField.get(topic);
+        assertTrue(fencedTopicMonitoringTask.isDone());
+        assertTrue(fencedTopicMonitoringTask.isCancelled());
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
+
+        doReturn(1).when(svcConfig).getTopicFencingTimeoutSeconds();
+        fence.invoke(topic);
+        Thread.sleep(2000);
+        fencedTopicMonitoringTask = (ScheduledFuture<?>) fencedTopicMonitoringTaskField.get(topic);
+        assertTrue(fencedTopicMonitoringTask.isDone());
+        assertFalse(fencedTopicMonitoringTask.isCancelled());
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) throws IOException {

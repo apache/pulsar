@@ -64,8 +64,9 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
     <dependency>
@@ -131,13 +132,6 @@
     <dependency>
       <groupId>com.sun.activation</groupId>
       <artifactId>javax.activation</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bc-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>

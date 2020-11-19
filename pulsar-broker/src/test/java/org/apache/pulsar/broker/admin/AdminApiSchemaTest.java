@@ -60,7 +60,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

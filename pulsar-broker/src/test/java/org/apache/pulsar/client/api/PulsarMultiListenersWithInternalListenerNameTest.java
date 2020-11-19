@@ -93,7 +93,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         if (this.executorService != null) {

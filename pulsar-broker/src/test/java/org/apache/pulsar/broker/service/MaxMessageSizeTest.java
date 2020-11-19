@@ -82,7 +82,7 @@ public class MaxMessageSizeTest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() {
         try {
             pulsar.close();

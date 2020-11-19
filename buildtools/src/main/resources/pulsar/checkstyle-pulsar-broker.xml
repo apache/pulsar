@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<!DOCTYPE module PUBLIC
+        "-//Puppy Crawl//DTD Check Configuration 1.3//EN"
+        "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
+
+<!-- This is a checkstyle configuration file. For descriptions of
+what the following rules do, please see the checkstyle configuration
+page at http://checkstyle.sourceforge.net/config.html -->
+
+<module name="Checker">
+    <!--    TODO: gradually make this file same as checkstyle.xml then remove it -->
+
+    <module name="SuppressWarningsFilter"/>
+
+    <module name="FileTabCharacter">
+        <!-- Checks that there are no tab characters in the file. -->
+    </module>
+
+    <module name="RegexpSingleline">
+        <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
+        <property name="format" value="((//.*)|(\*.*))TODO\("/>
+        <property name="message" value="TODO comments must not include usernames."/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="\s+$"/>
+        <property name="message" value="Trailing whitespace"/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="Throwables.propagate\("/>
+        <property name="message" value="Throwables.propagate is deprecated"/>
+        <property name="severity" value="error"/>
+    </module>
+
+    <!-- Prevent *Tests.java as tools may not pick them up -->
+    <module name="RegexpOnFilename">
+        <property name="fileNamePattern" value=".*Tests\.java$"/>
+    </module>
+
+    <module name="SuppressionFilter">
+        <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
+    </module>
+
+    <!-- Check that every module has a package-info.java -->
+    <module name="JavadocPackage"/>
+
+    <!-- All Java AST specific tests live under TreeWalker module. -->
+    <module name="TreeWalker">
+
+        <!-- Allow use of comment to suppress javadocstyle -->
+        <module name="SuppressionCommentFilter">
+            <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+            <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+            <property name="checkFormat" value="$1"/>
+        </module>
+
+        <module name="SuppressWarningsHolder"/>
+
+        <module name="TodoComment">
+            <!-- Checks that disallowed strings are not used in comments.  -->
+            <property name="format" value="(FIXME)|(XXX)|(@author)"/>
+        </module>
+
+        <!--
+
+        IMPORT CHECKS
+
+        -->
+
+        <module name="RedundantImport">
+            <!-- Checks for redundant import statements. -->
+            <property name="severity" value="error"/>
+            <message key="import.redundancy"
+                     value="Redundant import {0}."/>
+        </module>
+
+        <module name="ImportOrder">
+            <property name="severity" value="error"/>
+            <!-- This ensures that static imports go first. -->
+            <property name="option" value="top"/>
+            <property name="sortStaticImportsAlphabetically" value="true"/>
+            <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
+            <message key="import.ordering"
+                     value="Import {0} appears after other imports that it should precede"/>
+        </module>
+
+        <module name="AvoidStarImport">
+            <property name="severity" value="error"/>
+        </module>
+
+        <module name="IllegalImport">
+            <property name="illegalPkgs"
+                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+        </module>
+
+        <module name="RedundantModifier">
+            <!-- Checks for redundant modifiers on various symbol definitions.
+              See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+            -->
+            <property name="tokens"
+                      value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
+        </module>
+
+        <!--
+            IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+            code and some useful code. So we need to fall back to Regexp.
+        -->
+        <module name="RegexpSinglelineJava">
+            <property name="format"
+                      value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
+        </module>
+
+        <!--
+             Require static importing from Preconditions.
+        -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="^import com.google.common.base.Preconditions;$"/>
+            <property name="message" value="Static import functions from Guava Preconditions"/>
+        </module>
+
+        <module name="UnusedImports">
+            <property name="severity" value="error"/>
+            <property name="processJavadoc" value="true"/>
+            <message key="import.unused"
+                     value="Unused import: {0}."/>
+        </module>
+    </module>
+</module>

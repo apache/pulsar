@@ -33,6 +33,7 @@ public class ReplicationMetrics {
     public double msgRateOut;
     public double msgThroughputOut;
     public double msgReplBacklog;
+    public double maxMsgReplDelayInSeconds;
     public int connected;
 
     public void reset() {
@@ -40,6 +41,7 @@ public class ReplicationMetrics {
         msgThroughputOut = 0;
         msgReplBacklog = 0;
         connected = 0;
+        maxMsgReplDelayInSeconds = 0;
     }
 
     public static ReplicationMetrics get() {
@@ -81,6 +83,7 @@ public class ReplicationMetrics {
         dMetrics.put("brk_repl_out_tp_rate", msgThroughputOut);
         dMetrics.put("brk_replication_backlog", msgReplBacklog);
         dMetrics.put("brk_repl_is_connected", connected);
+        dMetrics.put("brk_max_replication_delay_second", maxMsgReplDelayInSeconds);
 
         return dMetrics;
 

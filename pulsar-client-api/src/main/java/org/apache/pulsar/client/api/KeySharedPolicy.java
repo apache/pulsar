@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * KeyShared policy for KeyShared subscription.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;

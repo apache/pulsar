@@ -203,7 +203,7 @@ public class ServerCnxTest {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         serverCnx.close();
         channel.close();
@@ -1326,6 +1326,41 @@ public class ServerCnxTest {
         policies.topicDispatchRate = Maps.newHashMap();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        // test failure case: unencrypted producer cannot connect
+        ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 2 /* producer id */, 2 /* request id */,
+                "unencrypted-producer", false, null);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertEquals(response.getClass(), CommandError.class);
+        CommandError errorResponse = (CommandError) response;
+        assertEquals(errorResponse.getError(), ServerError.MetadataError);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 0);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerFailureOnEncryptionRequiredOnBroker() throws Exception {
+        // (a) Set encryption-required at broker level
+        pulsar.getConfig().setEncryptionRequireOnProducer(true);
+        resetChannel();
+        setChannelConnected();
+
+        // (b) Set encryption_required to false on policy
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        // Namespace policy doesn't require encryption
+        policies.encryption_required = false;
+        policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
         policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));

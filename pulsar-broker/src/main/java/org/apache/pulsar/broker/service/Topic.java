@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -31,10 +32,10 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -104,7 +105,7 @@ public interface Topic {
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
-    CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
+    CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
             long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
@@ -135,6 +136,8 @@ public interface Topic {
      * backlog.
      */
     void checkBackloggedCursors();
+
+    void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
 
@@ -239,10 +242,9 @@ public interface Topic {
      *
      * @param txnID Transaction Id
      * @param headersAndPayload Message data
-     * @param batchSize messages number in a batch
      * @param publishContext Publish context
      */
-    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext);
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
     /**
      * End the transaction in this topic.
@@ -251,6 +253,6 @@ public interface Topic {
      * @param txnAction Transaction action.
      * @return
      */
-    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction);
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList);
 
 }

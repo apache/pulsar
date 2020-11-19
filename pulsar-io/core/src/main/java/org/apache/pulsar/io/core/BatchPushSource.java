@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
 
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,6 +30,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  * because BatchPushSource can emit a record using the consume method that they
  * invoke whenever they have data to be published to Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public abstract class BatchPushSource<T> implements BatchSource<T> {
 
     private static class NullRecord implements Record {

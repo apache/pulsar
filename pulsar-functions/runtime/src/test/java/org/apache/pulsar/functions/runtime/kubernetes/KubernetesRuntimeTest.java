@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
@@ -58,6 +59,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertThrows;
 
 /**
  * Unit test of {@link ThreadRuntime}.
@@ -137,7 +139,7 @@ public class KubernetesRuntimeTest {
         }
 
         @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, FunctionDetails functionDetails) {
+        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
 
         }
     }
@@ -167,7 +169,7 @@ public class KubernetesRuntimeTest {
     public void setup() {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
-
+    
     @AfterMethod
     public void tearDown() {
         if (null != this.factory) {
@@ -184,6 +186,7 @@ public class KubernetesRuntimeTest {
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
+        kubernetesRuntimeFactoryConfig.setJobName(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
         kubernetesRuntimeFactoryConfig.setFunctionDockerImages(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
@@ -211,10 +214,10 @@ public class KubernetesRuntimeTest {
         workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Optional.empty(), manifestCustomizer);
+        factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(), Optional.empty(), manifestCustomizer);
         doNothing().when(factory).setupClient();
+        
         return factory;
-
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
@@ -318,17 +321,17 @@ public class KubernetesRuntimeTest {
     public void testResources() throws Exception {
 
         // test overcommit
-        testResouces(1, 1000, 1.0, 1.0);
-        testResouces(1, 1000, 2.0, 1.0);
-        testResouces(1, 1000, 1.0, 2.0);
-        testResouces(1, 1000, 1.5, 1.5);
-        testResouces(1, 1000, 1.3, 1.0);
+    	testResources(1, 1000, 1.0, 1.0);
+    	testResources(1, 1000, 2.0, 1.0);
+    	testResources(1, 1000, 1.0, 2.0);
+    	testResources(1, 1000, 1.5, 1.5);
+    	testResources(1, 1000, 1.3, 1.0);
 
         // test cpu rounding
-        testResouces(1.0 / 1.5, 1000, 1.3, 1.0);
+    	testResources(1.0 / 1.5, 1000, 1.3, 1.0);
     }
 
-    public void testResouces(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
+    public void testResources(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
 
         Function.Resources resources = Function.Resources.newBuilder()
                 .setRam(userMemoryRequest).setCpu(userCpuRequest).setDisk(10000L).build();
@@ -492,9 +495,9 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
-
+    
     @Test
-    public void testCreateJobName() throws Exception {
+    public void testCreateJobName() throws Exception {    
         verifyCreateJobNameWithBackwardCompatibility();
         verifyCreateJobNameWithUpperCaseFunctionName();
         verifyCreateJobNameWithDotFunctionName();
@@ -502,6 +505,10 @@ public class KubernetesRuntimeTest {
         verifyCreateJobNameWithInvalidMarksFunctionName();
         verifyCreateJobNameWithCollisionalFunctionName();
         verifyCreateJobNameWithCollisionalAndInvalidMarksFunctionName();
+        verifyCreateJobNameWithOverriddenK8sPodNameNoCollisionWithSameName();
+        verifyCreateJobNameWithOverriddenK8sPodName();
+        verifyCreateJobNameWithOverriddenK8sPodNameWithInvalidMarks();
+        verifyCreateJobNameWithNameOverMaxCharLimit();
     }
 
     FunctionDetails createFunctionDetails(final String functionName) {
@@ -536,57 +543,109 @@ public class KubernetesRuntimeTest {
     private void verifyCreateJobNameWithBackwardCompatibility() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails(TEST_NAME);
         final String bcJobName = bcCreateJobName(functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
-        final String jobName = KubernetesRuntime.createJobName(functionDetails);
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, null);
         assertEquals(bcJobName, jobName);
-        KubernetesRuntime.doChecks(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, null);
     }
 
     private void verifyCreateJobNameWithUpperCaseFunctionName() throws Exception {
         FunctionDetails functionDetails = createFunctionDetails("UpperCaseFunction");
-        final String jobName = KubernetesRuntime.createJobName(functionDetails);
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, null);
         assertEquals(jobName, "pf-tenant-namespace-uppercasefunction-f0c5ca9a");
-        KubernetesRuntime.doChecks(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, null);
     }
 
     private void verifyCreateJobNameWithDotFunctionName() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
-        final String jobName = KubernetesRuntime.createJobName(functionDetails);
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, null);
         assertEquals(jobName, "pf-tenant-namespace-clazz.testfunction");
-        KubernetesRuntime.doChecks(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, null);
     }
 
     private void verifyCreateJobNameWithDotAndUpperCaseFunctionName() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("Clazz.TestFunction");
-        final String jobName = KubernetesRuntime.createJobName(functionDetails);
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, null);
         assertEquals(jobName, "pf-tenant-namespace-clazz.testfunction-92ec5bf6");
-        KubernetesRuntime.doChecks(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, null);
     }
 
     private void verifyCreateJobNameWithInvalidMarksFunctionName() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("test_function*name");
-        final String jobName = KubernetesRuntime.createJobName(functionDetails);
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, null);
         assertEquals(jobName, "pf-tenant-namespace-test-function-name-b5a215ad");
-        KubernetesRuntime.doChecks(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, null);
+    }
+    
+    private void verifyCreateJobNameWithOverriddenK8sPodName() throws Exception {
+        final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, "custom-k8s-pod-name");
+        assertEquals(jobName, "custom-k8s-pod-name-dedfc7cf");
+        KubernetesRuntime.doChecks(functionDetails, "custom-k8s-pod-name");
+    }
+    
+    private void verifyCreateJobNameWithOverriddenK8sPodNameWithInvalidMarks() throws Exception {
+        final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
+        final String jobName = KubernetesRuntime.createJobName(functionDetails, "invalid_pod*name");
+        assertEquals(jobName, "invalid-pod-name-af8c3a6c");
+        KubernetesRuntime.doChecks(functionDetails, "invalid_pod*name");
+    }
+    
+    private void verifyCreateJobNameWithOverriddenK8sPodNameNoCollisionWithSameName() throws Exception {
+        final String CUSTOM_JOB_NAME = "custom-name";
+        final String FUNCTION_NAME = "clazz.testfunction";
+        
+    	final FunctionDetails functionDetails1 = createFunctionDetails(FUNCTION_NAME);
+        final String jobName1 = KubernetesRuntime.createJobName(functionDetails1, CUSTOM_JOB_NAME);
+        
+        // create a second function with the same name, but in different tenant/namespace to make sure collision does not
+        // happen. If tenant, namespace, and function name are the same kubernetes handles collision issues
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetailsBuilder.setTenant("tenantA");
+        functionDetailsBuilder.setNamespace("nsA");
+        functionDetailsBuilder.setName(FUNCTION_NAME);
+        final FunctionDetails functionDetails2 = functionDetailsBuilder.build();
+        final String jobName2 = KubernetesRuntime.createJobName(functionDetails2, CUSTOM_JOB_NAME);
+        
+        // create a third function with different name but in same tenant/namespace to make sure
+        // collision does not happen. If tenant, namespace, and function name are the same kubernetes handles collision issues
+        final FunctionDetails functionDetails3 = createFunctionDetails(FUNCTION_NAME + "-extra");
+        final String jobName3 = KubernetesRuntime.createJobName(functionDetails3, CUSTOM_JOB_NAME);
+
+        assertEquals(jobName1, CUSTOM_JOB_NAME + "-85ac54b0");
+        KubernetesRuntime.doChecks(functionDetails1, CUSTOM_JOB_NAME);
+
+        assertEquals(jobName2, CUSTOM_JOB_NAME + "-c66edfe1");
+        KubernetesRuntime.doChecks(functionDetails2, CUSTOM_JOB_NAME);
+        
+        assertEquals(jobName3, CUSTOM_JOB_NAME + "-0fc9c728");
+        KubernetesRuntime.doChecks(functionDetails3, CUSTOM_JOB_NAME);
+    }
+    
+    private void verifyCreateJobNameWithNameOverMaxCharLimit() throws Exception {
+        final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
+        assertThrows(RuntimeException.class, () -> KubernetesRuntime.doChecks(functionDetails, 
+        		"custom-k8s-pod-name-over-kuberenetes-max-character-limit-123456789"));
     }
 
     private void verifyCreateJobNameWithCollisionalFunctionName() throws Exception {
         final FunctionDetails functionDetail1 = createFunctionDetails("testfunction");
         final FunctionDetails functionDetail2 = createFunctionDetails("testFunction");
-        final String jobName1 = KubernetesRuntime.createJobName(functionDetail1);
-        final String jobName2 = KubernetesRuntime.createJobName(functionDetail2);
+        final String jobName1 = KubernetesRuntime.createJobName(functionDetail1, null);
+        final String jobName2 = KubernetesRuntime.createJobName(functionDetail2, null);
         assertNotEquals(jobName1, jobName2);
-        KubernetesRuntime.doChecks(functionDetail1);
-        KubernetesRuntime.doChecks(functionDetail2);
+        KubernetesRuntime.doChecks(functionDetail1, null);
+        KubernetesRuntime.doChecks(functionDetail2, null);
     }
 
     private void verifyCreateJobNameWithCollisionalAndInvalidMarksFunctionName() throws Exception {
         final FunctionDetails functionDetail1 = createFunctionDetails("test_function*name");
         final FunctionDetails functionDetail2 = createFunctionDetails("test+function*name");
-        final String jobName1 = KubernetesRuntime.createJobName(functionDetail1);
-        final String jobName2 = KubernetesRuntime.createJobName(functionDetail2);
+        final String jobName1 = KubernetesRuntime.createJobName(functionDetail1, null);
+        final String jobName2 = KubernetesRuntime.createJobName(functionDetail2, null);
         assertNotEquals(jobName1, jobName2);
-        KubernetesRuntime.doChecks(functionDetail1);
-        KubernetesRuntime.doChecks(functionDetail2);
+        KubernetesRuntime.doChecks(functionDetail1, null);
+        KubernetesRuntime.doChecks(functionDetail2, null);
     }
 
     @Test
@@ -595,6 +654,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
             JsonObject configObj = new JsonObject();
             configObj.addProperty("jobNamespace", "custom-ns");
+            configObj.addProperty("jobName", "custom-name");
 
             return fb.setCustomRuntimeOptions(configObj.toString());
         }));
@@ -606,6 +666,8 @@ public class KubernetesRuntimeTest {
 
         V1Service serviceSpec = container.createService();
         assertEquals(serviceSpec.getMetadata().getNamespace(), "default");
+        assertEquals(serviceSpec.getMetadata().getName(), "pf-" + TEST_TENANT + "-" + 
+        		TEST_NAMESPACE + "-" + TEST_NAME);
     }
 
     @Test
@@ -614,6 +676,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
             JsonObject configObj = new JsonObject();
             configObj.addProperty("jobNamespace", "custom-ns");
+            configObj.addProperty("jobName", "custom-name");
 
             JsonObject extraAnn = new JsonObject();
             extraAnn.addProperty("annotation", "test");
@@ -666,6 +729,7 @@ public class KubernetesRuntimeTest {
 
         V1Service serviceSpec = container.createService();
         assertEquals(serviceSpec.getMetadata().getNamespace(), "custom-ns");
+        assertEquals(serviceSpec.getMetadata().getName(), "custom-name-2deb2c2b");
         assertEquals(serviceSpec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(serviceSpec.getMetadata().getLabels().get("label"), "test");
 
@@ -696,4 +760,86 @@ public class KubernetesRuntimeTest {
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
+
+    InstanceConfig createGolangInstanceConfig() {
+        InstanceConfig config = new InstanceConfig();
+
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.GO, false));
+        config.setFunctionId(java.util.UUID.randomUUID().toString());
+        config.setFunctionVersion("1.0");
+        config.setInstanceId(0);
+        config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
+
+        return config;
+    }
+
+    @Test
+    public void testGolangConstructor() throws Exception {
+        InstanceConfig config = createGolangInstanceConfig();
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+
+        verifyGolangInstance(config);
+    }
+
+    private void verifyGolangInstance(InstanceConfig config) throws Exception {
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        List<String> args = container.getProcessArgs();
+
+        int totalArgs = 8;
+
+        assertEquals(args.size(), totalArgs,
+                "Actual args : " + StringUtils.join(args, " "));
+
+        HashMap goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$", ""), HashMap.class);
+
+        assertEquals(args.get(0), "chmod");
+        assertEquals(args.get(1), "777");
+        assertEquals(args.get(2), pulsarRootDir + "/" + userJarFile);
+        assertEquals(args.get(3), "&&");
+        assertEquals(args.get(4), "exec");
+        assertEquals(args.get(5), pulsarRootDir + "/" + userJarFile);
+        assertEquals(args.get(6), "-instance-conf");
+        assertEquals(goInstanceConfig.get("maxBufTuples"), 1024);
+        assertEquals(goInstanceConfig.get("maxMessageRetries"), 0);
+        assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
+        assertEquals(goInstanceConfig.get("parallelism"), 0);
+        assertEquals(goInstanceConfig.get("className"), "");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://sample/standalone/ns1/test_src");
+        assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
+        assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
+        assertEquals(goInstanceConfig.get("clusterName"), "standalone");
+        assertEquals(goInstanceConfig.get("nameSpace"), TEST_NAMESPACE);
+        assertEquals(goInstanceConfig.get("receiverQueueSize"), 0);
+        assertEquals(goInstanceConfig.get("tenant"), TEST_TENANT);
+        assertEquals(goInstanceConfig.get("logTopic"), TEST_NAME + "-log");
+        assertEquals(goInstanceConfig.get("processingGuarantees"), 0);
+        assertEquals(goInstanceConfig.get("autoAck"), false);
+        assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
+        assertEquals(goInstanceConfig.get("pulsarServiceURL"), pulsarServiceUrl);
+        assertEquals(goInstanceConfig.get("runtime"), 0);
+        assertEquals(goInstanceConfig.get("cpu"), 1.0);
+        assertEquals(goInstanceConfig.get("funcVersion"), "1.0");
+        assertEquals(goInstanceConfig.get("disk"), 10000);
+        assertEquals(goInstanceConfig.get("instanceID"), 0);
+        assertEquals(goInstanceConfig.get("cleanupSubscription"), false);
+        assertEquals(goInstanceConfig.get("port"), 0);
+        assertEquals(goInstanceConfig.get("subscriptionType"), 0);
+        assertEquals(goInstanceConfig.get("timeoutMs"), 0);
+        assertEquals(goInstanceConfig.get("subscriptionName"), "");
+        assertEquals(goInstanceConfig.get("name"), TEST_NAME);
+        assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
+        assertEquals(goInstanceConfig.get("deadLetterTopic"), "");
+
+        // check padding and xmx
+        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
+        assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(),
+                Math.round(RESOURCES.getRam() + (RESOURCES.getRam() * 0.1)));
+
+        // check cpu
+        assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+        assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+    }
+
 }

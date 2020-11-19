@@ -54,7 +54,6 @@
   <build>
     <plugins>
 
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -78,8 +77,6 @@
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
               </artifactItems>
-
-
             </configuration>
           </execution>
         </executions>
@@ -132,7 +129,7 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
-                  <include>jackarta.annotation:*</include>
+                  <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
@@ -155,8 +152,7 @@
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
-                  <!-- bouncycastle Provider dependencies-->
-                  <include>org.bouncycastle:*</include>
+                  <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
@@ -166,6 +162,10 @@
                   <includes>
                     <include>**</include>
                   </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
                 </filter>
               </filters>
               <relocations>
