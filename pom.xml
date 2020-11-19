@@ -180,6 +180,7 @@ flexible messaging model and an intuitive client API.</description>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <nsq-client.version>1.0</nsq-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>

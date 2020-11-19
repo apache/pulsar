@@ -42,11 +42,19 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     @Override
     public void checkPublishRate() {
         if (this.publishThrottlingEnabled && !publishRateExceeded) {
-            long currentPublishMsgRate = this.currentPublishMsgCount.sum();
-            long currentPublishByteRate = this.currentPublishByteCount.sum();
-            if ((this.publishMaxMessageRate > 0 && currentPublishMsgRate > this.publishMaxMessageRate)
-                    || (this.publishMaxByteRate > 0 && currentPublishByteRate > this.publishMaxByteRate)) {
-                publishRateExceeded = true;
+            if (this.publishMaxByteRate > 0) {
+                long currentPublishByteRate = this.currentPublishByteCount.sum();
+                if (currentPublishByteRate > this.publishMaxByteRate) {
+                    publishRateExceeded = true;
+                    return;
+                }
+            }
+
+            if (this.publishMaxMessageRate > 0) {
+                long currentPublishMsgRate = this.currentPublishMsgCount.sum();
+                if (currentPublishMsgRate > this.publishMaxMessageRate) {
+                    publishRateExceeded = true;
+                }
             }
         }
     }

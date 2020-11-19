@@ -1210,7 +1210,7 @@ $ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
 ```
 
 ### `get-retention`
-Get the retention policy for a namespace
+Get the retention policy that is applied to each topic within the specified namespace
 
 Usage
 ```bash
@@ -1218,7 +1218,7 @@ $ pulsar-admin namespaces get-retention tenant/namespace
 ```
 
 ### `set-retention`
-Set the retention policy for a namespace
+Set the retention policy for each topic within the specified namespace
 
 Usage
 ```bash
@@ -1228,7 +1228,7 @@ $ pulsar-admin namespaces set-retention tenant/namespace
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention||
+|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T) for each topic in the namespace. 0 means no retention and -1 means infinite size retention||
 |`-t`, `--time`|The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention||
 
 
