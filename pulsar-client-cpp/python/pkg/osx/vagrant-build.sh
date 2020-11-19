@@ -43,14 +43,10 @@ brew link --force boost-python3
 
 make clean
 rm CMakeCache.txt
-PYTHON_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))")
-PYTHON_LIB_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-PYTHON_VERSION=$(python3 -c "import sysconfig; print(sysconfig.get_python_version())")
-PYTHON_LIBRARY="$PYTHON_LIB_DIR/libpython$PYTHON_VERSION.dylib"
 cmake . -DBUILD_TESTS=OFF \
 		-DLINK_STATIC=ON  \
-		-DPYTHON_LIBRARY=$PYTHON_LIBRARY \
-        -DPYTHON_INCLUDE_DIR=$PYTHON_INCLUDE_DIR
+		-DPYTHON_LIBRARY=/usr/local/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7.dylib \
+        -DPYTHON_INCLUDE_DIR=/usr/local/Frameworks/Python.framework/Versions/3.7/include/python3.7m
 make _pulsar -j8
 pushd python
 python3 setup.py bdist_wheel
