@@ -66,7 +66,7 @@ public class LeaderElectionService {
      * Interface which should be implemented by classes which are interested in the leader election. The listener gets
      * called when current broker becomes the leader.
      */
-    public static interface LeaderListener {
+    public interface LeaderListener {
         void brokerIsTheLeaderNow();
 
         void brokerIsAFollowerNow();

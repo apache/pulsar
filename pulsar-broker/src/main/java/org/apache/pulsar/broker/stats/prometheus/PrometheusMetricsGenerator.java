@@ -41,7 +41,6 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
@@ -71,7 +70,7 @@ public class PrometheusMetricsGenerator {
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return PlatformDependent.maxDirectMemory();
+                return io.netty.util.internal.PlatformDependent.maxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
 

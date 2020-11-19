@@ -98,10 +98,11 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.11.1</bookkeeper.version>
+    <bookkeeper.version>4.12.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
-    <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
+    <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
+    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
@@ -118,7 +119,7 @@ flexible messaging model and an intuitive client API.</description>
     <jackson.databind.version>2.11.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.5.21</swagger.version>
-    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
+    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
     <protobuf2.version>2.4.1</protobuf2.version>
@@ -126,7 +127,7 @@ flexible messaging model and an intuitive client API.</description>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
-    <gson.version>2.8.2</gson.version>
+    <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
@@ -152,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
-    <guava.version>25.1-jre</guava.version>
+    <guava.version>30.0-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
@@ -179,6 +180,7 @@ flexible messaging model and an intuitive client API.</description>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <nsq-client.version>1.0</nsq-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -193,6 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
     <objenesis.version>3.1</objenesis.version>
+    <awaitility.version>4.0.2</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -210,7 +213,7 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <maven-archiver.version>2.5</maven-archiver.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
-    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <maven-checkstyle-plugin.version>3.1.1</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
@@ -245,6 +248,13 @@ flexible messaging model and an intuitive client API.</description>
                 <artifactId>*</artifactId>
             </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>${awaitility.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -437,7 +447,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jetty-util</artifactId>
         <version>${jetty.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
@@ -609,7 +619,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
@@ -935,37 +945,37 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-api</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.opencensus</groupId>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.elasticsearch.client</groupId>
         <artifactId>elasticsearch-rest-high-level-client</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${joda.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>net.jcip</groupId>
         <artifactId>jcip-annotations</artifactId>
         <version>${jcip.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.airlift</groupId>
         <artifactId>aircompressor</artifactId>
@@ -977,13 +987,13 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
         <groupId>org.objenesis</groupId>
         <artifactId>objenesis</artifactId>
         <version>${objenesis.version}</version>
       </dependency>
-    
+
     </dependencies>
   </dependencyManagement>
 
@@ -1296,7 +1306,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
           </excludes>
         </configuration>
-      </plugin>      
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -1395,7 +1405,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>${maven-assembly-plugin.version}</version>            
+          <version>${maven-assembly-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1690,6 +1700,6 @@ flexible messaging model and an intuitive client API.</description>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
-  
+
 </project>
 

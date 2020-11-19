@@ -30,7 +30,6 @@ import static io.prestosql.spi.type.TimeType.TIME;
 import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static io.prestosql.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
 import static io.prestosql.spi.type.TinyintType.TINYINT;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;

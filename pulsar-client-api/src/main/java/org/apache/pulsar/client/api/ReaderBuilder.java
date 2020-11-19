@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ReaderBuilder} is used to configure and create instances of {@link Reader}.
@@ -29,6 +31,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ReaderBuilder<T> extends Cloneable {
 
     /**

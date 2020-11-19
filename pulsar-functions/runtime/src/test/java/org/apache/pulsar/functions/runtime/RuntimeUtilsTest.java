@@ -106,7 +106,7 @@ public class RuntimeUtilsTest {
 
         List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650");
 
-        HashMap goInstanceConfig = new ObjectMapper().readValue(commands.get(2), HashMap.class);
+        HashMap goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
 
         Assert.assertEquals(commands.toArray().length, 3);
         Assert.assertEquals(commands.get(0), "config");
