@@ -70,6 +70,7 @@ public class TransactionMetaStoreTestBase {
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+            config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
             pulsarServices[i] = Mockito.spy(new PulsarService(config));
