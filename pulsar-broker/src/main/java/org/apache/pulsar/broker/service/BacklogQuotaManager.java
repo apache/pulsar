@@ -70,7 +70,7 @@ public class BacklogQuotaManager {
                     .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
-            log.error("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
+            log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }
@@ -87,7 +87,7 @@ public class BacklogQuotaManager {
                     .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
                     .orElseGet(() -> getBacklogQuota(topicName.getNamespace(),policyPath));
         } catch (Exception e) {
-            log.error("Failed to read policies data, will apply the default backlog quota: topicName={}", topicName, e);
+            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}", topicName, e);
         }
         return getBacklogQuota(topicName.getNamespace(),policyPath);
     }

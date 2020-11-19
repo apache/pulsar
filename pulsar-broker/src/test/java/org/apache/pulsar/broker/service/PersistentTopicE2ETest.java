@@ -97,7 +97,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -744,7 +744,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // Remove retention
-        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies(0, 10));
+        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies());
         Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
@@ -787,7 +787,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // Remove retention
-        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies(0, 10));
+        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies());
         Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
@@ -834,7 +834,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // Remove retention
-        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies(0, 10));
+        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies());
         Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
@@ -913,6 +913,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
+        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);

@@ -48,7 +48,7 @@ public class DistributedIdGeneratorTest {
         zkc = MockZooKeeper.newInstance();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() throws Exception {
         zkc.shutdown();
     }

@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
 import java.io.IOException;
@@ -39,13 +39,12 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -58,7 +57,6 @@ import com.beust.jcommander.internal.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.FastThreadLocal;
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * This class contains code which in shared between the two load manager implementations.
@@ -232,7 +230,7 @@ public class LoadManagerShared {
 
         // Collect JVM direct memory
         systemResourceUsage.directMemory.usage = (double) (getJvmDirectMemoryUsed() / MIBI);
-        systemResourceUsage.directMemory.limit = (double) (PlatformDependent.maxDirectMemory() / MIBI);
+        systemResourceUsage.directMemory.limit = (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI);
 
         return systemResourceUsage;
     }
@@ -421,14 +419,14 @@ public class LoadManagerShared {
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
-        ZooKeeperDataCache<Policies> policiesCache = pulsar.getConfigurationCache().policiesCache();
+        ZooKeeperDataCache<LocalPolicies> policiesCache = pulsar.getLocalZkCacheService().policiesCache();
 
-        policiesCache.getAsync(path(POLICIES, namespaceName)).thenAccept(policies -> {
-            if (!policies.isPresent() || StringUtils.isBlank(policies.get().antiAffinityGroup)) {
+        policiesCache.getAsync(joinPath(LOCAL_POLICIES_ROOT, namespaceName)).thenAccept(policies -> {
+            if (!policies.isPresent() || StringUtils.isBlank(policies.get().namespaceAntiAffinityGroup)) {
                 antiAffinityNsBrokersResult.complete(null);
                 return;
             }
-            final String antiAffinityGroup = policies.get().antiAffinityGroup;
+            final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
@@ -439,8 +437,8 @@ public class LoadManagerShared {
 
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     futures.add(future);
-                    policiesCache.getAsync(path(POLICIES, ns)).thenAccept(nsPolicies -> {
-                        if (nsPolicies.isPresent() && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().antiAffinityGroup)) {
+                    policiesCache.getAsync(joinPath(LOCAL_POLICIES_ROOT, ns)).thenAccept(nsPolicies -> {
+                        if (nsPolicies.isPresent() && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().namespaceAntiAffinityGroup)) {
                             brokerToAntiAffinityNamespaceCount.compute(broker,
                                     (brokerName, count) -> count == null ? 1 : count + 1);
                         }

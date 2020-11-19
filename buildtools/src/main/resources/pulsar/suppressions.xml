@@ -32,13 +32,23 @@
     <suppress checks="JavadocType" files=".*Impl\.java$" />
 
     <!-- suppress all checks in the generated directories -->
-    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java" />
-    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java" />
-    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java" />
+    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
+    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
+    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
 
     <!-- suppress all checks in the copied code -->
-    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java" />
-    
-    <suppress checks=".*" files="MLDataFormats.java" />
-    <suppress checks=".*" files="BitSetRecyclable.java" />
+    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
+
+    <suppress checks=".*" files="MLDataFormats.java"/>
+    <suppress checks=".*" files="BitSetRecyclable.java"/>
+    <suppress checks=".*" files="Schema.java"/>
+    <suppress checks="StaticVariableName" files="AuthData.java"/>
+    <suppress checks="MethodName" files="AuthenticationFactory.java"/>
+    <suppress checks="ConstantName" files="MessageId.java"/>
+    <suppress checks="MethodName" files="TopicsImpl.java"/>
+    <suppress checks="MemberName" files="TopicsImpl.java"/>
+    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/common/.*.java"/>
+    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/client/.*.java"/>
+    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/transaction/.*.java"/>
+    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/broker/.*.java"/>
 </suppressions>

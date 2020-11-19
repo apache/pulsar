@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.net.URI;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,7 +115,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 .enableTls(true).build();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

@@ -93,7 +93,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(conf.getBookkeeperClientAuthenticationParametersName(),
                     conf.getBookkeeperClientAuthenticationParameters());
         }
-        
+
         if (conf.isBookkeeperTLSClientAuthentication()) {
             bkConf.setTLSClientAuthentication(true);
             bkConf.setTLSCertificatePath(conf.getBookkeeperTLSCertificateFilePath());
@@ -130,6 +130,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setBookieErrorThresholdPerInterval(conf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
             bkConf.setBookieQuarantineTime((int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
                     TimeUnit.SECONDS);
+            bkConf.setBookieQuarantineRatio(conf.getBookkeeperClientQuarantineRatio());
         }
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
@@ -141,31 +142,31 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     public static void setDefaultEnsemblePlacementPolicy(
-        AtomicReference<ZooKeeperCache> rackawarePolicyZkCache,
-        AtomicReference<ZooKeeperCache> clientIsolationZkCache,
-        ClientConfiguration bkConf,
-        ServiceConfiguration conf,
-        ZooKeeper zkClient
+            AtomicReference<ZooKeeperCache> rackawarePolicyZkCache,
+            AtomicReference<ZooKeeperCache> clientIsolationZkCache,
+            ClientConfiguration bkConf,
+            ServiceConfiguration conf,
+            ZooKeeper zkClient
     ) {
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
             if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
                 bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
 
                 bkConf.setProperty(
-                    REPP_ENABLE_VALIDATION,
-                    conf.getProperties().getProperty(REPP_ENABLE_VALIDATION, "true")
+                        REPP_ENABLE_VALIDATION,
+                        conf.getProperties().getProperty(REPP_ENABLE_VALIDATION, "true")
                 );
                 bkConf.setProperty(
-                    REPP_REGIONS_TO_WRITE,
-                    conf.getProperties().getProperty(REPP_REGIONS_TO_WRITE, null)
+                        REPP_REGIONS_TO_WRITE,
+                        conf.getProperties().getProperty(REPP_REGIONS_TO_WRITE, null)
                 );
                 bkConf.setProperty(
-                    REPP_MINIMUM_REGIONS_FOR_DURABILITY,
-                    conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2")
+                        REPP_MINIMUM_REGIONS_FOR_DURABILITY,
+                        conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2")
                 );
                 bkConf.setProperty(
-                    REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,
-                    conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true")
+                        REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,
+                        conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true")
                 );
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
@@ -175,9 +176,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
 
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
-                conf.getProperties().getProperty(
-                    REPP_DNS_RESOLVER_CLASS,
-                    ZkBookieRackAffinityMapping.class.getName()));
+                    conf.getProperties().getProperty(
+                            REPP_DNS_RESOLVER_CLASS,
+                            ZkBookieRackAffinityMapping.class.getName()));
 
             ZooKeeperCache zkc = new ZooKeeperCache("bookies-racks", zkClient,
                     conf.getZooKeeperOperationTimeoutSeconds()) {
@@ -209,7 +210,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     private void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, ZooKeeper zkClient,
-            Class<? extends EnsemblePlacementPolicy> policyClass) {
+                                            Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         if (bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) == null) {
             ZooKeeperCache zkc = new ZooKeeperCache("bookies-rackaware", zkClient,
@@ -219,6 +220,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 zkc.stop();
             }
             bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.zkCache.get());
+        }
+        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+            bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
+                    ZkBookieRackAffinityMapping.class.getName()));
         }
     }
 

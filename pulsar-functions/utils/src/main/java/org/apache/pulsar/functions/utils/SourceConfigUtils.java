@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
@@ -148,15 +149,22 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
+            ProducerConfig conf = sourceConfig.getProducerConfig();
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
+            if (conf.getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(conf.getMaxPendingMessages());
             }
-            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            if (conf.getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions());
             }
-            if (sourceConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(sourceConfig.getProducerConfig().getUseThreadLocalProducers());
+            if (conf.getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(conf.getUseThreadLocalProducers());
+            }
+            if (conf.getCryptoConfig() != null) {
+                pbldr.setCryptoSpec(CryptoUtils.convert(conf.getCryptoConfig()));
+            }
+            if (conf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(conf.getBatchBuilder());
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -231,14 +239,21 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
+            Function.ProducerSpec spec = sinkSpec.getProducerSpec();
             ProducerConfig producerConfig = new ProducerConfig();
-            if (sinkSpec.getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(sinkSpec.getProducerSpec().getMaxPendingMessages());
+            if (spec.getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
             }
-            if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
             }
-            producerConfig.setUseThreadLocalProducers(sinkSpec.getProducerSpec().getUseThreadLocalProducers());
+            if (spec.hasCryptoSpec()) {
+                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+            }
+            if (spec.getBatchBuilder() != null) {
+                producerConfig.setBatchBuilder(spec.getBatchBuilder());
+            }
+            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
             sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
@@ -422,6 +437,10 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+        }
+
+        if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
+            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), classLoader, true);
         }
 
         if (typeArg.equals(TypeResolver.Unknown.class)) {

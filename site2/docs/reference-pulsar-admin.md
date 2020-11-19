@@ -2555,6 +2555,8 @@ Options
 |`-r`, `--region`|The long term storage region||
 |`-b`, `--bucket`|Bucket to place offloaded ledger into||
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||

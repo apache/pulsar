@@ -71,7 +71,8 @@ public class RuntimeUtils {
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
                                           int metricsPort,
-                                          String narExtractionDirectory) throws Exception {
+                                          String narExtractionDirectory,
+                                          String functionInstanceClassPath) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -80,7 +81,7 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory));
+                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory, functionInstanceClassPath));
         return cmd;
     }
 
@@ -227,7 +228,7 @@ public class RuntimeUtils {
         // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add(configContent);
+        args.add("'" + configContent + "'");
         return args;
     }
 
@@ -250,7 +251,8 @@ public class RuntimeUtils {
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
                                       int metricsPort,
-                                      String narExtractionDirectory) throws Exception {
+                                      String narExtractionDirectory,
+                                      String functionInstanceClassPath) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -272,15 +274,18 @@ public class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
 
-            // add complete classpath for broker/worker so that the function instance can load
-            // the functions instance dependencies separately from user code dependencies
-            String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
-            if (functionInstanceClasspath == null) {
-                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
-                functionInstanceClasspath = System.getProperty("java.class.path");
+            if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
+               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+            } else {
+                // add complete classpath for broker/worker so that the function instance can load
+                // the functions instance dependencies separately from user code dependencies
+                String systemFunctionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+                if (systemFunctionInstanceClasspath == null) {
+                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                    systemFunctionInstanceClasspath = System.getProperty("java.class.path");
+                }
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
-            args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClasspath));
-
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(

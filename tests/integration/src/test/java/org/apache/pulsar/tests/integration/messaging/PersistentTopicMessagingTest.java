@@ -63,4 +63,5 @@ public class PersistentTopicMessagingTest extends TopicMessagingBase {
     public void testPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
     }
+
 }

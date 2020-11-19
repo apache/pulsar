@@ -60,7 +60,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         this.conf.setClusterName("test");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

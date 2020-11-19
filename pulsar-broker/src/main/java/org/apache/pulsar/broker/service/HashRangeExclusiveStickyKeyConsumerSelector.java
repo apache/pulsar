@@ -21,11 +21,18 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+/**
+ * This is a sticky-key consumer selector based user provided range.
+ * User is responsible for making sure provided range for all consumers cover the rangeSize
+ * else there'll be chance that a key fall in a `whole` that not handled by any consumer.
+ */
 public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
     private final int rangeSize;
@@ -61,6 +68,24 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public Consumer select(byte[] stickyKey) {
         return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
+    }
+
+    @Override
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        Map<String, List<String>> result = new HashMap<>();
+        Map.Entry<Integer, Consumer> prev = null;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            if (prev == null) {
+                prev = entry;
+            } else {
+                if (prev.getValue().equals(entry.getValue())) {
+                    result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
+                            .add("[" + prev.getKey() + ", " + entry.getKey() + "]");
+                }
+                prev = null;
+            }
+        }
+        return result;
     }
 
     Consumer select(int hash) {
