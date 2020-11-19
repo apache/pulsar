@@ -1160,9 +1160,9 @@ public final class PulsarApi {
     int getAckSetCount();
     long getAckSet(int index);
     
-    // optional uint64 batch_size = 6;
+    // optional int32 batch_size = 6;
     boolean hasBatchSize();
-    long getBatchSize();
+    int getBatchSize();
   }
   public static final class MessageIdData extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -1253,13 +1253,13 @@ public final class PulsarApi {
       return ackSet_.get(index);
     }
     
-    // optional uint64 batch_size = 6;
+    // optional int32 batch_size = 6;
     public static final int BATCH_SIZE_FIELD_NUMBER = 6;
-    private long batchSize_;
+    private int batchSize_;
     public boolean hasBatchSize() {
       return ((bitField0_ & 0x00000010) == 0x00000010);
     }
-    public long getBatchSize() {
+    public int getBatchSize() {
       return batchSize_;
     }
     
@@ -1269,7 +1269,7 @@ public final class PulsarApi {
       partition_ = -1;
       batchIndex_ = -1;
       ackSet_ = java.util.Collections.emptyList();;
-      batchSize_ = 0L;
+      batchSize_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1312,7 +1312,7 @@ public final class PulsarApi {
         output.writeInt64(5, ackSet_.get(i));
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeUInt64(6, batchSize_);
+        output.writeInt32(6, batchSize_);
       }
     }
     
@@ -1349,7 +1349,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(6, batchSize_);
+          .computeInt32Size(6, batchSize_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -1474,7 +1474,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         ackSet_ = java.util.Collections.emptyList();;
         bitField0_ = (bitField0_ & ~0x00000010);
-        batchSize_ = 0L;
+        batchSize_ = 0;
         bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
@@ -1638,7 +1638,7 @@ public final class PulsarApi {
             }
             case 48: {
               bitField0_ |= 0x00000020;
-              batchSize_ = input.readUInt64();
+              batchSize_ = input.readInt32();
               break;
             }
           }
@@ -1776,15 +1776,15 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 batch_size = 6;
-      private long batchSize_ ;
+      // optional int32 batch_size = 6;
+      private int batchSize_ ;
       public boolean hasBatchSize() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
       }
-      public long getBatchSize() {
+      public int getBatchSize() {
         return batchSize_;
       }
-      public Builder setBatchSize(long value) {
+      public Builder setBatchSize(int value) {
         bitField0_ |= 0x00000020;
         batchSize_ = value;
         
@@ -1792,7 +1792,7 @@ public final class PulsarApi {
       }
       public Builder clearBatchSize() {
         bitField0_ = (bitField0_ & ~0x00000020);
-        batchSize_ = 0L;
+        batchSize_ = 0;
         
         return this;
       }

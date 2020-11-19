@@ -2396,7 +2396,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         pendingChunckedMessageCount--;
     }
 
-    private CompletableFuture<Void> doAcknowledgeForResponse(MessageId messageId, AckType ackType,
+    private CompletableFuture<Void> doTransactionAcknowledgeForResponse(MessageId messageId, AckType ackType,
                                                              ValidationError validationError,
                                                              Map<String, Long> properties, TxnID txnID) {
         CompletableFuture<Void> callBack = new CompletableFuture<>();

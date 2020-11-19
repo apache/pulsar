@@ -1144,12 +1144,12 @@ public class Commands {
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
-                properties, -1L, -1L, -1L, -1L);
+                properties, -1L, -1L, -1L, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
-                                 long txnIdMostBits, long requestId, long batchSize) {
+                                 long txnIdMostBits, long requestId, int batchSize) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(ackType);
@@ -1197,7 +1197,7 @@ public class Commands {
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
-                properties, txnIdLeastBits, txnIdMostBits, requestId, -1L);
+                properties, txnIdLeastBits, txnIdMostBits, requestId, -1);
     }
 
     public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
