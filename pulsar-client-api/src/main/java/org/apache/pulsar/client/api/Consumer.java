@@ -580,4 +580,9 @@ public interface Consumer<T> extends Closeable {
      * Resume requesting messages from the broker.
      */
     void resume();
+
+    /**
+     * @return The last disconnected timestamp of the consumer
+     */
+    long getLastDisconnectedTimestamp();
 }

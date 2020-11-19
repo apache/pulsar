@@ -36,6 +36,7 @@ public class ConnectionHandler {
     protected final HandlerState state;
     protected final Backoff backoff;
     protected long epoch = 0L;
+    protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
         void connectionFailed(PulsarClientException exception);
@@ -110,6 +111,11 @@ public class ConnectionHandler {
 
     @VisibleForTesting
     public void connectionClosed(ClientCnx cnx) {
+<<<<<<< HEAD
+=======
+        lastConnectionClosedTimestamp = System.currentTimeMillis();
+        state.client.getCnxPool().releaseConnection(cnx);
+>>>>>>> 50c4938e1c2... Expose last disconnected timestamp for producer and consumer. (#8605)
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
                 log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());

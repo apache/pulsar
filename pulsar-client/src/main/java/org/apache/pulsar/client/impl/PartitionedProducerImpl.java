@@ -27,11 +27,14 @@ import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
@@ -199,6 +202,16 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     public boolean isConnected() {
         // returns false if any of the partition is not connected
         return producers.stream().allMatch(ProducerImpl::isConnected);
+    }
+
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        long lastDisconnectedTimestamp = 0;
+        Optional<ProducerImpl<T>> p = producers.stream().max(Comparator.comparingLong(ProducerImpl::getLastDisconnectedTimestamp));
+        if (p.isPresent()) {
+            lastDisconnectedTimestamp = p.get().getLastDisconnectedTimestamp();
+        }
+        return lastDisconnectedTimestamp;
     }
 
     @Override
