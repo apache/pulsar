@@ -53,7 +53,7 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
                 }
             });
 
-    AbstractMultiVersionReader(SchemaReader<T> providerSchemaReader) {
+    public AbstractMultiVersionReader(SchemaReader<T> providerSchemaReader) {
         this.providerSchemaReader = providerSchemaReader;
     }
 
