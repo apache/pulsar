@@ -534,7 +534,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     /***** --- WebSocket --- ****/
     @FieldContext(
             category = CATEGORY_WEBSOCKET,
-            doc = "The directory to locate WebSocket servlet"
+            doc = "Enable or disable the WebSocket servlet"
     )
     private boolean webSocketServiceEnabled = false;
 
