@@ -35,7 +35,6 @@ import io.netty.util.ReferenceCountUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -563,7 +562,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (txn != null) {
-            return doAcknowledgeForResponse(messageId, ackType, null, properties,
+            return doTransactionAcknowledgeForResponse(messageId, ackType, null, properties,
                     new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
@@ -2397,8 +2396,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(MessageId messageId, AckType ackType,
-                                                             ValidationError validationError,
-                                                             Map<String, Long> properties, TxnID txnID) {
+                                                                        ValidationError validationError,
+                                                                        Map<String, Long> properties, TxnID txnID) {
         CompletableFuture<Void> callBack = new CompletableFuture<>();
         BitSetRecyclable bitSetRecyclable = null;
         long ledgerId;
