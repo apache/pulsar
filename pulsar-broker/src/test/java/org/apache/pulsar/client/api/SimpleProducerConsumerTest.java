@@ -36,6 +36,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import com.google.common.reflect.Reflection;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -71,9 +72,11 @@ import java.util.stream.Collectors;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -3517,5 +3520,41 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         message = consumer5.receive(1, TimeUnit.SECONDS);
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
         consumer5.close();
+    }
+
+    @Test
+    public void testGetLastDisconnectedTimestamp() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetLastDisconnectedTimestamp";
+        final String subName = "my-sub";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        Assert.assertEquals(producer.getLastDisconnectedTimestamp(), 0L);
+        Assert.assertEquals(consumer.getLastDisconnectedTimestamp(), 0L);
+
+        pulsar.close();
+
+        Assert.assertTrue(producer.getLastDisconnectedTimestamp() > 0);
+        Assert.assertTrue(consumer.getLastDisconnectedTimestamp() > 0);
+    }
+
+    @Test
+    public void testGetLastDisconnectedTimestampForPartitionedTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetLastDisconnectedTimestampForPartitionedTopic";
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        Assert.assertEquals(producer.getLastDisconnectedTimestamp(), 0L);
+        Assert.assertEquals(consumer.getLastDisconnectedTimestamp(), 0L);
+
+        pulsar.close();
+
+        Assert.assertTrue(producer.getLastDisconnectedTimestamp() > 0);
+        Assert.assertTrue(consumer.getLastDisconnectedTimestamp() > 0);
     }
 }

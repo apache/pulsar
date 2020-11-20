@@ -559,6 +559,11 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public long getLastDisconnectedTimestamp() {
+            return 0;
+        }
+
+        @Override
         public MessageId getLastMessageId() throws PulsarClientException {
             return null;
         }

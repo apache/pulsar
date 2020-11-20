@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1068,6 +1069,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public void resume() {
         consumers.forEach((name, consumer) -> consumer.resume());
+    }
+
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        long lastDisconnectedTimestamp = 0;
+        Optional<ConsumerImpl<T>> c = consumers.values().stream().max(Comparator.comparingLong(ConsumerImpl::getLastDisconnectedTimestamp));
+        if (c.isPresent()) {
+            lastDisconnectedTimestamp = c.get().getLastDisconnectedTimestamp();
+        }
+        return lastDisconnectedTimestamp;
     }
 
     // This listener is triggered when topics partitions are updated.
