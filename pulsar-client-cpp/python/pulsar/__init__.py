@@ -325,6 +325,20 @@ class AuthenticationAthenz(Authentication):
         _check_type(str, auth_params_string, 'auth_params_string')
         self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
 
+class AuthenticationOauth2(Authentication):
+    """
+    Oauth2 Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Oauth2 authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Oauth2 client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
 class Client:
     """
@@ -358,7 +372,7 @@ class Client:
 
         * `authentication`:
           Set the authentication provider to be used with the broker. For example:
-          `AuthenticationTls` or `AuthenticationAthenz`
+          `AuthenticationTls`, AuthenticaionToken, `AuthenticationAthenz`or `AuthenticationOauth2`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
