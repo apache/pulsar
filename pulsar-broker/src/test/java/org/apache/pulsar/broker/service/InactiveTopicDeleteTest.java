@@ -523,11 +523,13 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().setInactiveTopicPolicies(topic2, inactiveTopicPolicies);
 
         //wait for update
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> admin.topics().getInactiveTopicPolicies(topic2) != null);
         // topic should still exist
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
-                -> Assert.assertTrue(admin.topics().getList(namespace).contains(topic3)));
+        Thread.sleep(2000);
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic));
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic2));
+        Assert.assertTrue(admin.topics().getList(namespace).contains(topic3));
 
         // no backlog, trigger delete_when_subscriptions_caught_up
         admin.topics().skipAllMessages(topic2, topicToSub.remove(topic2));
