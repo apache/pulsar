@@ -1,0 +1,127 @@
+From 8099233310607fac0e3860f984af155dfa968bf5 Mon Sep 17 00:00:00 2001
+From: congbo <congbobo184@github.com>
+Date: Fri, 20 Nov 2020 19:46:32 +0800
+Subject: [PATCH 2/2] Fix the test
+
+---
+ .../apache/pulsar/broker/service/ServerCnx.java   |  1 -
+ .../TransactionMetadataStoreServiceTest.java      | 15 ++++++++-------
+ pulsar-transaction/common/pom.xml                 |  6 ------
+ pulsar-transaction/coordinator/pom.xml            |  4 ++--
+ .../coordinator/impl/MLTransactionLogImpl.java    |  1 +
+ 5 files changed, 11 insertions(+), 16 deletions(-)
+
+diff --git a/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/ServerCnx.java b/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/ServerCnx.java
+index e91d2d285dd..c5ef5fed766 100644
+--- a/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/ServerCnx.java
++++ b/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/ServerCnx.java
+@@ -37,7 +37,6 @@ import io.netty.handler.ssl.SslHandler;
+ import io.netty.util.concurrent.Promise;
+ 
+ import java.net.SocketAddress;
+-import java.util.List;
+ import java.util.Map;
+ import java.util.NoSuchElementException;
+ import java.util.Set;
+diff --git a/pulsar-broker/src/test/java/org/apache/pulsar/broker/service/TransactionMetadataStoreServiceTest.java b/pulsar-broker/src/test/java/org/apache/pulsar/broker/service/TransactionMetadataStoreServiceTest.java
+index 106b9a9a6c0..e9117b1cebf 100644
+--- a/pulsar-broker/src/test/java/org/apache/pulsar/broker/service/TransactionMetadataStoreServiceTest.java
++++ b/pulsar-broker/src/test/java/org/apache/pulsar/broker/service/TransactionMetadataStoreServiceTest.java
+@@ -19,11 +19,12 @@
+ package org.apache.pulsar.broker.service;
+ 
+ import org.apache.pulsar.broker.TransactionMetadataStoreService;
++import org.apache.pulsar.client.api.transaction.TxnID;
+ import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
+ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+-import org.apache.pulsar.transaction.coordinator.TxnMeta;
+-import org.apache.pulsar.client.api.transaction.TxnID;
+ import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
++import org.apache.pulsar.transaction.coordinator.TxnMeta;
++
+ import org.junit.Assert;
+ import org.testng.annotations.AfterMethod;
+ import org.testng.annotations.BeforeMethod;
+@@ -68,9 +69,9 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
+         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(1));
+         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(2));
+         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 3);
+-        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
+-        TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1)).get();
+-        TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2)).get();
++        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 0).get();
++        TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1), 0).get();
++        TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2), 0).get();
+         Assert.assertEquals(0, txnID0.getMostSigBits());
+         Assert.assertEquals(1, txnID1.getMostSigBits());
+         Assert.assertEquals(2, txnID2.getMostSigBits());
+@@ -85,7 +86,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
+         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
+         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
+-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
++        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 0).get();
+         List<String> partitions = new ArrayList<>();
+         partitions.add("ptn-0");
+         partitions.add("ptn-1");
+@@ -102,7 +103,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
+         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
+         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
+-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
++        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 0).get();
+         List<TransactionSubscription> partitions = new ArrayList<>();
+         partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
+         partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
+diff --git a/pulsar-transaction/common/pom.xml b/pulsar-transaction/common/pom.xml
+index e95491b981a..e3d4dc9b45d 100644
+--- a/pulsar-transaction/common/pom.xml
++++ b/pulsar-transaction/common/pom.xml
+@@ -43,12 +43,6 @@
+             <groupId>com.google.protobuf</groupId>
+             <artifactId>protobuf-java-util</artifactId>
+         </dependency>
+-        <dependency>
+-            <groupId>org.apache.zookeeper</groupId>
+-            <artifactId>zookeeper</artifactId>
+-            <classifier>tests</classifier>
+-            <scope>test</scope>
+-        </dependency>
+ 
+     </dependencies>
+     <build>
+diff --git a/pulsar-transaction/coordinator/pom.xml b/pulsar-transaction/coordinator/pom.xml
+index 815fe0b0f54..0595a7ed427 100644
+--- a/pulsar-transaction/coordinator/pom.xml
++++ b/pulsar-transaction/coordinator/pom.xml
+@@ -42,13 +42,13 @@
+         </dependency>
+ 
+         <dependency>
+-            <groupId>org.apache.pulsar</groupId>
++            <groupId>${project.groupId}</groupId>
+             <artifactId>managed-ledger</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+ 
+         <dependency>
+-            <groupId>org.apache.pulsar</groupId>
++            <groupId>${project.groupId}</groupId>
+             <artifactId>testmocks</artifactId>
+             <version>${project.version}</version>
+             <scope>test</scope>
+diff --git a/pulsar-transaction/coordinator/src/main/java/org/apache/pulsar/transaction/coordinator/impl/MLTransactionLogImpl.java b/pulsar-transaction/coordinator/src/main/java/org/apache/pulsar/transaction/coordinator/impl/MLTransactionLogImpl.java
+index f71274749d9..37434e7e375 100644
+--- a/pulsar-transaction/coordinator/src/main/java/org/apache/pulsar/transaction/coordinator/impl/MLTransactionLogImpl.java
++++ b/pulsar-transaction/coordinator/src/main/java/org/apache/pulsar/transaction/coordinator/impl/MLTransactionLogImpl.java
+@@ -60,6 +60,7 @@ public class MLTransactionLogImpl implements TransactionLog {
+ 
+     private final SpscArrayQueue<Entry> entryQueue;
+ 
++    //this is for replay
+     private final PositionImpl lastConfirmedEntry;
+ 
+     private final long tcId;
+-- 
+2.17.2 (Apple Git-113)
+
