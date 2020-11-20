@@ -292,7 +292,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     cmd.getSeek().recycle();
                 }
                 break;
-
+            case SEEK_RESPONSE:
+                checkArgument(cmd.hasSeekResponse());
+                handleSeekResponse(cmd.getSeekResponse());
+                cmd.getSeek().recycle();
+                break;
             case PING:
                 checkArgument(cmd.hasPing());
                 handlePing(cmd.getPing());
@@ -588,6 +592,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleSeek(CommandSeek seek) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleSeekResponse(PulsarApi.CommandSeekResponse seekResponse) {
         throw new UnsupportedOperationException();
     }
 

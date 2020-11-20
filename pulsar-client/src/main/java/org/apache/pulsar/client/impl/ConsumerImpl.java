@@ -1904,11 +1904,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         log.info("[{}][{}] Seek subscription to publish time {}", topic, subscription, timestamp);
 
-        cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
+        cnx.sendSeekRequestWithId(seek, requestId).thenAccept((seekResponse) -> {
             log.info("[{}][{}] Successfully reset subscription to publish time {}", topic, subscription, timestamp);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) MessageId.earliest);
+            MessageIdData messageIdData = seekResponse.getMessageIdData();
+            seekMessageId = new BatchMessageIdImpl(messageIdData.getLedgerId(), messageIdData.getEntryId(),
+                    messageIdData.getPartition(), -1);
+            log.info("[{}][{}] Successfully reset subscription to publish time {} and position {}",
+                    topic, subscription, timestamp, seekMessageId);
+
             duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
@@ -1965,7 +1970,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         log.info("[{}][{}] Seek subscription to message id {}", topic, subscription, messageId);
 
-        cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
+        cnx.sendSeekRequestWithId(seek, requestId).thenAccept((seekResponse) -> {
             log.info("[{}][{}] Successfully reset subscription to message id {}", topic, subscription, messageId);
             acknowledgmentsGroupingTracker.flushAndClean();
 

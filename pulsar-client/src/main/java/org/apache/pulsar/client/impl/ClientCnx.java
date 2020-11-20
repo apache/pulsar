@@ -80,6 +80,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeekResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
@@ -433,6 +434,27 @@ public class ClientCnx extends PulsarHandler {
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
+    }
+
+    CompletableFuture<CommandSeekResponse> sendSeekRequestWithId(ByteBuf cmd, long requestId) {
+        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command);
+    }
+
+    @Override
+    protected void handleSeekResponse(PulsarApi.CommandSeekResponse seekResponse) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received success Seek response from server: {}", ctx.channel(), seekResponse.getRequestId());
+        }
+        long requestId = seekResponse.getRequestId();
+
+        CompletableFuture<CommandSeekResponse> future = (CompletableFuture<CommandSeekResponse>) pendingRequests.remove(requestId);
+        if (future == null) {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+            return;
+        }
+        future.complete(seekResponse);
     }
 
     @Override
