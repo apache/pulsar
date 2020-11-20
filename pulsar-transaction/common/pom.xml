@@ -43,12 +43,6 @@
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
 
     </dependencies>
     <build>

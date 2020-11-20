@@ -60,6 +60,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final SpscArrayQueue<Entry> entryQueue;
 
+    //this is for replay
     private final PositionImpl lastConfirmedEntry;
 
     private final long tcId;

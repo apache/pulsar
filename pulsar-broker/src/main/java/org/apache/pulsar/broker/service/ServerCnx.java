@@ -37,7 +37,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
