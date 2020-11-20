@@ -464,6 +464,7 @@ Options
 |`--tls-allow-insecure`|Allow insecure tls connection|false|
 |`--tls-trust-cert-path`|The tls trust cert file path||
 |`--use-tls`|Use tls connection|false|
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `create`
@@ -509,6 +510,7 @@ Options
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `delete`
@@ -572,6 +574,7 @@ Options
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `get`

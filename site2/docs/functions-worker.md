@@ -99,6 +99,7 @@ If you want to enable security on functions workers, you *should*:
 - [Enable TLS transport encryption](#enable-tls-transport-encryption)
 - [Enable Authentication Provider](#enable-authentication-provider)
 - [Enable Authorization Provider](#enable-authorization-provider)
+- [Enable End-to-End Encryption](#enable-end-to-end-encryption)
 
 ##### Enable TLS transport encryption
 
@@ -179,6 +180,13 @@ superUserRoles:
   - role2
   - role3
 ```
+
+##### Enable End-to-End Encryption
+
+You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+
+To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption.md).
+
 
 #### BookKeeper Authentication
 
