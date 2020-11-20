@@ -21,7 +21,6 @@ package org.apache.pulsar.transaction.coordinator;
 import com.google.common.annotations.Beta;
 import java.util.List;
 
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
@@ -63,13 +62,6 @@ public interface TxnMeta {
     List<TransactionSubscription> ackedPartitions();
 
     /**
-     * Return the the positions of add entry to bookkeeper.
-     *
-     * @return the list of positions are stored in bookkeeper
-     */
-    List<Position> positions();
-
-    /**
      * Add the list of produced partitions to the transaction.
      *
      * @return transaction meta
@@ -102,16 +94,6 @@ public interface TxnMeta {
      */
     TxnMeta updateTxnStatus(TxnStatus newStatus,
                             TxnStatus expectedStatus) throws InvalidTxnStatusException;
-
-    /**
-     * Add the position of transaction is stored in bookeeper.
-     *
-     * @param position the transaction is stored position
-     * @return the transaction itself.
-     * @throws InvalidTxnStatusException if the transaction is not in the expected
-     *         status, or it can not be transitioned to the new status
-     */
-    TxnMeta addTxnPosition(Position position);
 
     /**
      * Check if the transaction is in an expected status.

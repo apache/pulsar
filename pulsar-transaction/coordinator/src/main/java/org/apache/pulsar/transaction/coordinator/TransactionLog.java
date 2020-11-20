@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Position;
@@ -49,13 +48,4 @@ public interface TransactionLog {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Position> append(TransactionMetadataEntry transactionMetadataEntry);
-
-    /**
-     * Delete the transaction operation log from bookkeeper by positions.
-     *
-     * @param positions {@link Position} entry position
-     * @return a future represents the result of this operation
-     */
-    CompletableFuture<Void> deletePosition(List<Position> positions);
-
 }

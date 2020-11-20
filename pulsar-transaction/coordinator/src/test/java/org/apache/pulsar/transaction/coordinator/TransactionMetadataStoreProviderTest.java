@@ -68,7 +68,7 @@ public class TransactionMetadataStoreProviderTest {
     @Test
     public void testGetTxnStatusNotFound() throws Exception {
         try {
-            this.store.getTxnStatusAsync(
+            this.store.getTxnStatus(
                 new TxnID(tcId.getId(), 12345L)).get();
             fail("Should fail to get txn status of a non-existent transaction");
         } catch (ExecutionException ee) {
@@ -78,67 +78,67 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testGetTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
-        this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // get the new status
-        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.COMMITTING);
     }
 
     @Test
     public void testUpdateTxnStatusNotExpectedStatus() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
         try {
-            this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING).get();
             fail("Should fail to update txn status if it is not in expected status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
         }
 
         // get the txn status, it should be changed.
-        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusCannotTransition() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
         try {
-            this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN).get();
             fail("Should fail to update txn status if it can not transition to the new status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
         }
 
         // get the txn status, it should be changed.
-        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testAddProducedPartition() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         List<String> partitions = new ArrayList<>();
@@ -147,9 +147,9 @@ public class TransactionMetadataStoreProviderTest {
         partitions.add("ptn-2");
 
         // add the list of partitions to the transaction
-        this.store.addProducedPartitionToTxnAsync(txnID, partitions).get();
+        this.store.addProducedPartitionToTxn(txnID, partitions).get();
 
-        TxnMeta txn = this.store.getTxnMetaAsync(txnID).get();
+        TxnMeta txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         assertEquals(txn.producedPartitions(), partitions);
 
@@ -158,9 +158,9 @@ public class TransactionMetadataStoreProviderTest {
         newPartitions.add("ptn-2");
         newPartitions.add("ptn-3");
         newPartitions.add("ptn-4");
-        this.store.addProducedPartitionToTxnAsync(txnID, newPartitions);
+        this.store.addProducedPartitionToTxn(txnID, newPartitions);
 
-        txn = this.store.getTxnMetaAsync(txnID).get();
+        txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         List<String> finalPartitions = new ArrayList<>();
         finalPartitions.add("ptn-0");
@@ -171,28 +171,28 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.producedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // add partitions should fail if it is already committing.
         List<String> newPartitions2 = new ArrayList<>();
         newPartitions2.add("ptn-5");
         newPartitions2.add("ptn-6");
         try {
-            this.store.addProducedPartitionToTxnAsync(txnID, newPartitions2).get();
+            this.store.addProducedPartitionToTxn(txnID, newPartitions2).get();
             fail("Should fail to add produced partitions if the transaction is not in OPEN status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
         }
 
-        txn = this.store.getTxnMetaAsync(txnID).get();
+        txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.COMMITTING);
         assertEquals(txn.producedPartitions(), finalPartitions);
     }
 
     @Test
     public void testAddAckedPartition() throws Exception {
-        TxnID txnID = this.store.newTransactionAsync(0L).get();
-        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
+        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         String topicPartition1 = "persistent://public/default/txn-ack-partition-0";
@@ -205,9 +205,9 @@ public class TransactionMetadataStoreProviderTest {
         partitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
 
         // add the list of partitions to the transaction
-        this.store.addAckedPartitionToTxnAsync(txnID, partitions).get();
+        this.store.addAckedPartitionToTxn(txnID, partitions).get();
 
-        TxnMeta txn = this.store.getTxnMetaAsync(txnID).get();
+        TxnMeta txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         assertEquals(txn.ackedPartitions().size(), partitions.size());
         for (TransactionSubscription partition : partitions) {
@@ -220,9 +220,9 @@ public class TransactionMetadataStoreProviderTest {
         newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
         newPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
         newPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
-        this.store.addAckedPartitionToTxnAsync(txnID, newPartitions).get();
+        this.store.addAckedPartitionToTxn(txnID, newPartitions).get();
 
-        txn = this.store.getTxnMetaAsync(txnID).get();
+        txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         List<TransactionSubscription> finalPartitions = new ArrayList<>();
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
@@ -234,7 +234,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // add partitions should fail if it is already committing.
 
@@ -242,13 +242,13 @@ public class TransactionMetadataStoreProviderTest {
         newPartitions2.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-7").build());
         newPartitions2.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-8").build());
         try {
-            this.store.addAckedPartitionToTxnAsync(txnID, newPartitions2).get();
+            this.store.addAckedPartitionToTxn(txnID, newPartitions2).get();
             fail("Should fail to add acked partitions if the transaction is not in OPEN status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
         }
 
-        txn = this.store.getTxnMetaAsync(txnID).get();
+        txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.COMMITTING);
         assertEquals(txn.ackedPartitions().size(), finalPartitions.size());
         for (TransactionSubscription partition : finalPartitions) {

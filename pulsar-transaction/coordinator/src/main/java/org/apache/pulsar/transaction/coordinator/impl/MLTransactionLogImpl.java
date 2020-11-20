@@ -41,7 +41,6 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLog;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
-
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
@@ -140,7 +139,6 @@ public class MLTransactionLogImpl implements TransactionLog {
         return completableFuture;
     }
 
-    @Override
     public CompletableFuture<Void> deletePosition(List<Position> positions) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         this.cursor.asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {

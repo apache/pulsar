@@ -84,6 +84,10 @@ public abstract class CoordinatorException extends Exception {
 
         private static final long serialVersionUID = 0L;
 
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
+
         public TransactionNotFoundException(TxnID txnID) {
             super("The transaction with this txdID `" + txnID + "`not found ");
         }

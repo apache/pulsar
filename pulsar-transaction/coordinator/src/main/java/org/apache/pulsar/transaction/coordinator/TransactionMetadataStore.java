@@ -33,24 +33,24 @@ import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 public interface TransactionMetadataStore {
 
     /**
-     * Query the {@link TxnStatus} of a given transaction <tt>txnId</tt>.
+     * Query the {@link TxnStatus} of a given transaction <tt>txnid</tt>.
      *
-     * @param txnID {@link TxnID} for get transaction status
+     * @param txnid transaction id
      * @return a future represents the result of this operation.
      *         it returns {@link TxnStatus} of the given transaction.
      */
-    default CompletableFuture<TxnStatus> getTxnStatusAsync(TxnID txnID) {
-        return getTxnMetaAsync(txnID).thenApply(TxnMeta::status);
+    default CompletableFuture<TxnStatus> getTxnStatus(TxnID txnid) {
+        return getTxnMeta(txnid).thenApply(txnMeta -> txnMeta.status());
     }
 
     /**
      * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
      *
-     * @param txnID {@link TxnID} for get transaction metadata
+     * @param txnid transaction id
      * @return a future represents the result of this operation.
      *         it returns {@link TxnMeta} of the given transaction.
      */
-    CompletableFuture<TxnMeta> getTxnMetaAsync(TxnID txnID);
+    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid);
 
     /**
      * Create a new transaction in the transaction metadata store.
@@ -60,27 +60,27 @@ public interface TransactionMetadataStore {
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransactionAsync(long timeoutInMills);
+    CompletableFuture<TxnID> newTransaction(long timeoutInMills);
 
     /**
-     * Add the produced partitions to transaction identified by <tt>txnId</tt>.
+     * Add the produced partitions to transaction identified by <tt>txnid</tt>.
      *
-     * @param txnID {@link TxnID} for add produced partition to transaction
+     * @param txnid transaction id
      * @param partitions the list of partitions that a transaction produces to
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> addProducedPartitionToTxnAsync(
-        TxnID txnID, List<String> partitions);
+    CompletableFuture<Void> addProducedPartitionToTxn(
+        TxnID txnid, List<String> partitions);
 
     /**
-     * Add the acked subscriptions to transaction identified by <tt>txnId</tt>.
+     * Add the acked partitions to transaction identified by <tt>txnid</tt>.
      *
-     * @param txnID {@link TxnID} for add acked subscription
-     * @param transactionSubscriptions the list of partitions that a transaction acknowledge to
-     * @return a future represents the result of this operation
+     * @param txnid transaction id
+     * @param partitions the list of partitions that a transaction acknowledge to
+     * @return a future represents the result of the operation
      */
-    CompletableFuture<Void> addAckedPartitionToTxnAsync(
-            TxnID txnID, List<TransactionSubscription> transactionSubscriptions);
+    CompletableFuture<Void> addAckedPartitionToTxn(
+        TxnID txnid, List<TransactionSubscription> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.
@@ -88,13 +88,13 @@ public interface TransactionMetadataStore {
      * <p>If the current transaction status is not <tt>expectedStatus</tt>, the
      * update will be failed.
      *
-     * @param txnID {@link TxnID} for update txn status
+     * @param txnid {@link TxnID} for update txn status
      * @param newStatus the new txn status that the transaction should be updated to
      * @param expectedStatus the expected status that the transaction should be
      * @return a future represents the result of the operation
      */
-    CompletableFuture<Void> updateTxnStatusAsync(
-        TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus);
+    CompletableFuture<Void> updateTxnStatus(
+        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
      * Get the transaction coordinator id.

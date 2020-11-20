@@ -1668,7 +1668,7 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
         }
         TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
-        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId)
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {

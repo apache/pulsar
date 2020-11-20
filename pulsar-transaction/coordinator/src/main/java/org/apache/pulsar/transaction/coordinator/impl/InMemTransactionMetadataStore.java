@@ -49,7 +49,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<TxnMeta> getTxnMetaAsync(TxnID txnid) {
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
         CompletableFuture<TxnMeta> getFuture = new CompletableFuture<>();
         TxnMetaImpl txn = transactions.get(txnid);
         if (null == txn) {
@@ -62,7 +62,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
+    public CompletableFuture<TxnID> newTransaction(long timeoutInMills) {
         TxnID txnID = new TxnID(
             tcID.getId(),
             localID.getAndIncrement()
@@ -73,8 +73,8 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> addProducedPartitionToTxnAsync(TxnID txnid, List<String> partitions) {
-        return getTxnMetaAsync(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnid, List<String> partitions) {
+        return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.addProducedPartitions(partitions);
                 return CompletableFuture.completedFuture(null);
@@ -87,8 +87,8 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnid, List<TransactionSubscription> partitions) {
-        return getTxnMetaAsync(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnid, List<TransactionSubscription> partitions) {
+        return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.addAckedPartitions(partitions);
                 return CompletableFuture.completedFuture(null);
@@ -101,8 +101,8 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatusAsync(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
-        return getTxnMetaAsync(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
+        return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.updateTxnStatus(newStatus, expectedStatus);
                 return CompletableFuture.completedFuture(null);

@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -42,11 +41,10 @@ import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 class TxnMetaImpl implements TxnMeta {
 
     private TxnID txnID;
-    private Set<String> producedPartitions = new HashSet<>();
-    private Set<TransactionSubscription> ackedPartitions = new HashSet<>();
+    private final Set<String> producedPartitions = new HashSet<>();
+    private final Set<TransactionSubscription> ackedPartitions = new HashSet<>();
     private volatile TxnStatus txnStatus = TxnStatus.OPEN;
-    private List<Position> positions = Collections.synchronizedList(new ArrayList<>());
-    private Handle<TxnMetaImpl> recycleHandle;
+    private final Handle<TxnMetaImpl> recycleHandle;
 
     private static final Recycler<TxnMetaImpl> RECYCLER = new Recycler<TxnMetaImpl>() {
         protected TxnMetaImpl newObject(Recycler.Handle<TxnMetaImpl> handle) {
@@ -70,17 +68,22 @@ class TxnMetaImpl implements TxnMeta {
         this.producedPartitions.clear();
         this.ackedPartitions.clear();
         this.txnStatus = TxnStatus.OPEN;
-        this.positions.clear();
 
         if (recycleHandle != null) {
             recycleHandle.recycle(this);
         }
     }
+
     @Override
     public TxnID id() {
         return txnID;
     }
 
+    /**
+     * Return the current status of the transaction.
+     *
+     * @return current status of the transaction.
+     */
     @Override
     public synchronized TxnStatus status() {
         return txnStatus;
@@ -108,10 +111,6 @@ class TxnMetaImpl implements TxnMeta {
         return returnedPartitions;
     }
 
-    @Override
-    public List<Position> positions() {
-        return positions;
-    }
     /**
      * Check if the transaction is in an expected status.
      *
@@ -175,12 +174,6 @@ class TxnMetaImpl implements TxnMeta {
                 "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }
         this.txnStatus = newStatus;
-        return this;
-    }
-
-    @Override
-    public TxnMeta addTxnPosition(Position position) {
-        positions.add(position);
         return this;
     }
 }

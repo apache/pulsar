@@ -140,12 +140,12 @@ public class TransactionMetadataStoreService {
         }
     }
 
-    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId) {
+    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransactionAsync(0L);
+        return store.newTransaction(timeoutInMills);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -154,7 +154,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.addProducedPartitionToTxnAsync(txnId, partitions);
+        return store.addProducedPartitionToTxn(txnId, partitions);
     }
 
     public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<TransactionSubscription> partitions) {
@@ -163,7 +163,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.addAckedPartitionToTxnAsync(txnId, partitions);
+        return store.addAckedPartitionToTxn(txnId, partitions);
     }
 
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnId) {
@@ -172,7 +172,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.getTxnMetaAsync(txnId);
+        return store.getTxnMeta(txnId);
     }
 
     public CompletableFuture<Void> updateTxnStatus(TxnID txnId, TxnStatus newStatus, TxnStatus expectedStatus) {
@@ -181,7 +181,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.updateTxnStatusAsync(txnId, newStatus, expectedStatus);
+        return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
     public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<MessageIdData> messageIdDataList) {

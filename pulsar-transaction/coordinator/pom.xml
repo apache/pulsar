@@ -41,12 +41,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
@@ -73,6 +67,13 @@
             <groupId>org.apache.pulsar</groupId>
             <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>testmocks</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
