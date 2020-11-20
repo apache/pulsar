@@ -93,6 +93,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeekResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
@@ -1381,6 +1382,19 @@ public class Commands {
             .setType(Type.GET_LAST_MESSAGE_ID_RESPONSE)
             .setGetLastMessageIdResponse(response.build()));
         response.recycle();
+        return res;
+    }
+
+    public static BaseCommand newSeekResponse(long requestId, MessageIdData messageIdData) {
+        CommandSeekResponse.Builder seekResponseBuilder = CommandSeekResponse.newBuilder();
+        seekResponseBuilder.setRequestId(requestId);
+        seekResponseBuilder.setMessageIdData(messageIdData);
+        CommandSeekResponse seekResponse =  seekResponseBuilder.build();
+
+        BaseCommand.Builder builder = BaseCommand.newBuilder();
+        BaseCommand res = builder.setType(Type.SEEK_RESPONSE).setSeekResponse(seekResponse).build();
+        seekResponseBuilder.recycle();
+        builder.recycle();
         return res;
     }
 
