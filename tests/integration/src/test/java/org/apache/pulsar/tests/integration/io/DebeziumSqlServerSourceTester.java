@@ -76,7 +76,7 @@ public class DebeziumSqlServerSourceTester extends SourceTester<DebeziumSqlServe
 
     @Override
     public void prepareSource() throws Exception {
-        URL inventorySql = Thread.currentThread().getContextClassLoader().getResource("debezium-sqlserver-init-inventory.sql");
+        URL inventorySql = DebeziumSqlServerSourceTester.class.getResource("debezium-sqlserver-init-inventory.sql");
         this.debeziumSqlServerContainer.execCmd("docker cp " + inventorySql + "  " + DebeziumSqlServerContainer.NAME + ":debezium-sqlserver-init/inventory.sql ");
         this.debeziumSqlServerContainer.execCmd("cat debezium-sqlserver-init/inventory.sql | docker exec -i " + DebeziumSqlServerContainer.NAME + " bash -c '/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD'");
         log.info("debezium sqlserver server already contains preconfigured data.");
