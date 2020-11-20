@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -183,6 +184,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public volatile int maxUnackedMessagesOnSubscription = -1;
     private volatile boolean isClosingOrDeleting = false;
+
+    private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -353,7 +356,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // signal to managed ledger that we are ready to resume by creating a new ledger
                     ledger.readyToCreateNewLedger();
 
-                    isFenced = false;
+                    unfence();
                 }
 
             }
@@ -380,7 +383,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
 
             // fence topic when failed to write a message to BK
-            isFenced = true;
+            fence();
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             producers.values().forEach(producer -> futures.add(producer.disconnect()));
@@ -2204,6 +2207,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public boolean isSystemTopic() {
         return false;
+    }
+
+    private synchronized void fence() {
+        isFenced = true;
+        ScheduledFuture<?> monitoringTask = this.fencedTopicMonitoringTask;
+        if (monitoringTask == null || monitoringTask.isDone()) {
+            final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
+            if (timeout > 0) {
+                this.fencedTopicMonitoringTask = brokerService.executor().schedule(this::closeFencedTopicForcefully,
+                        timeout, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private synchronized void unfence() {
+        isFenced = false;
+        ScheduledFuture<?> monitoringTask = this.fencedTopicMonitoringTask;
+        if (monitoringTask != null && !monitoringTask.isDone()) {
+            monitoringTask.cancel(false);
+        }
+    }
+
+    private void closeFencedTopicForcefully() {
+        if (isFenced) {
+            final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
+            if (isClosingOrDeleting) {
+                log.warn("[{}] Topic remained fenced for {} seconds and is already closed (pendingWriteOps: {})", topic,
+                        timeout, pendingWriteOps.get());
+            } else {
+                log.error("[{}] Topic remained fenced for {} seconds, so close it (pendingWriteOps: {})", topic,
+                        timeout, pendingWriteOps.get());
+                close();
+            }
+        }
     }
 
     private void fenceTopicToCloseOrDelete() {
