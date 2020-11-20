@@ -20,12 +20,8 @@ package org.apache.pulsar.tests.integration.proxy;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -47,7 +43,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.assertEquals;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 
 /**
  * Test cases for proxy.
@@ -64,6 +60,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
             .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
             .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
             .withEnv("webSocketServiceEnabled", "true")
+            .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
 
         specBuilder.externalService("proxy-via-url", proxyViaURL);
@@ -91,9 +88,10 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
         webSocketClient.start();
         MyWebSocket myWebSocket = new MyWebSocket();
+        String webSocketUri = proxyViaURL.getHttpServiceUrl().replaceFirst("http", "ws")
+                + "/ws/v2/producer/persistent/" + namespace + "/my-topic";
         Future<Session> sessionFuture =  webSocketClient.connect(myWebSocket,
-                URI.create(pulsarCluster.getHttpServiceUrl().replaceFirst("http", "ws")
-                        + "/ws/v2/producer/persistent/" + namespace + "/my-topic"));
+                URI.create(webSocketUri));
         sessionFuture.get().getRemote().sendString("{\n" +
                 "  \"payload\": \"SGVsbG8gV29ybGQ=\",\n" +
                 "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n" +

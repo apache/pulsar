@@ -119,7 +119,7 @@ public class TestProxy extends PulsarTestSuite {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .serviceHttpUrl(proxyViaURL.getHttpServiceUrl())
                 .build();
 
         admin.tenants().createTenant(tenant,
