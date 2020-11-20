@@ -38,6 +38,8 @@ import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
@@ -50,21 +52,14 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_
  */
 public class TestProxyWithWebSocket extends PulsarTestSuite {
     private final static Logger log = LoggerFactory.getLogger(TestProxyWithWebSocket.class);
-    private ProxyContainer proxyViaURL;
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
             String clusterName,
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        proxyViaURL = new ProxyContainer(clusterName, "proxy-via-url")
-            .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
-            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
-            .withEnv("webSocketServiceEnabled", "true")
-            .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
-            .withEnv("clusterName", clusterName);
-
-        specBuilder.externalService("proxy-via-url", proxyViaURL);
-
+        Map<String, String> envs = new HashMap<>();
+        envs.put("webSocketServiceEnabled", "true");
+        specBuilder.proxyEnvs(envs);
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
@@ -88,7 +83,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
         webSocketClient.start();
         MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = proxyViaURL.getHttpServiceUrl().replaceFirst("http", "ws")
+        String webSocketUri = pulsarCluster.getProxy().getHttpServiceUrl().replaceFirst("http", "ws")
                 + "/ws/v2/producer/persistent/" + namespace + "/my-topic";
         Future<Session> sessionFuture =  webSocketClient.connect(myWebSocket,
                 URI.create(webSocketUri));
@@ -100,7 +95,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             String response = myWebSocket.getResponse();
-            log.info(response);
+            Assert.assertNotNull(response);
             Assert.assertTrue(response.contains("ok"));
         });
     }

@@ -132,6 +132,9 @@ public class PulsarCluster {
             .withEnv("zookeeperServers", ZKContainer.NAME)
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
+        if (spec.proxyEnvs != null) {
+            spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
+        }
 
         // create bookies
         bookieContainers.putAll(

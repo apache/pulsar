@@ -126,4 +126,9 @@ public class PulsarClusterSpec {
      */
     @Default
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
+
+    /**
+     * Specify envs for proxy.
+     */
+    Map<String, String> proxyEnvs;
 }
