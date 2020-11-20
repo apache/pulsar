@@ -160,7 +160,7 @@ public class MLTransactionMetadataStore
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID);
         CompletableFuture<TxnMeta> completableFuture = new CompletableFuture<>();
         if (txnMetaListPair == null) {
-            completableFuture.completeExceptionally(new TransactionNotFoundException(txnID.toString()));
+            completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
             completableFuture.complete(txnMetaListPair.getLeft());
         }
@@ -326,7 +326,7 @@ public class MLTransactionMetadataStore
         CompletableFuture<Pair<TxnMeta, List<Position>>> completableFuture = new CompletableFuture<>();
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID);
         if (txnMetaListPair == null) {
-            completableFuture.completeExceptionally(new TransactionNotFoundException(txnID.toString()));
+            completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
             completableFuture.complete(txnMetaListPair);
         }
