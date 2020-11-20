@@ -228,7 +228,7 @@ public class RuntimeUtils {
         // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add(configContent);
+        args.add("'" + configContent + "'");
         return args;
     }
 

@@ -226,6 +226,9 @@ public class FunctionConfigUtils {
             if (producerConf.getCryptoConfig() != null) {
                 pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
             }
+            if (producerConf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(producerConf.getBatchBuilder());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -387,6 +390,9 @@ public class FunctionConfigUtils {
             }
             if (spec.hasCryptoSpec()) {
                 producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+            }
+            if (spec.getBatchBuilder() != null) {
+                producerConfig.setBatchBuilder(spec.getBatchBuilder());
             }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
             functionConfig.setProducerConfig(producerConfig);
