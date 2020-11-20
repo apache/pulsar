@@ -52,8 +52,19 @@ public class TestBasicPresto extends PulsarTestSuite {
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        PulsarClusterSpec.PulsarClusterSpecBuilder prestoSpec = specBuilder.enablePrestoWorker(true);
-        return super.beforeSetupCluster(clusterName, prestoSpec);
+        return super.beforeSetupCluster(clusterName, specBuilder.queryLastMessage(true));
+    }
+
+    @BeforeClass
+    public void setupPresto() throws Exception {
+        log.info("[setupPresto]");
+        pulsarCluster.startPrestoWorker();
+    }
+
+    @AfterClass
+    public void teardownPresto() {
+        log.info("tearing down...");
+        pulsarCluster.stopPrestoWorker();
     }
 
     @Test
@@ -160,7 +171,7 @@ public class TestBasicPresto extends PulsarTestSuite {
             returnedTimestamps.add(res.getTimestamp("__publish_time__"));
         }
 
-        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size() / 2);
+        assertThat(returnedTimestamps.size() + 1).isEqualTo(timestamps.size() / 2);
 
         // Try with a predicate that has a earlier time than any entry
         // Should return all rows

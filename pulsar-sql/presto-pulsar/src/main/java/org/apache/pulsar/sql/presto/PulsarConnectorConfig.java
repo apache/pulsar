@@ -340,7 +340,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return useV2Protocol;
     }
 
-    @Config("pulsar.bookkeeper-useV2Protocol")
+    @Config("pulsar.bookkeeper-use-v2-protocol")
     public PulsarConnectorConfig setUseV2Protocol(boolean useV2Protocol) {
         this.useV2Protocol = useV2Protocol;
         return this;
@@ -350,7 +350,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return explicitInterval;
     }
 
-    @Config("pulsar.bookkeeper-explicitInterval")
+    @Config("pulsar.bookkeeper-explicit-interval")
     public PulsarConnectorConfig setExplicitInterval(int explicitInterval) {
         this.explicitInterval = explicitInterval;
         return this;
