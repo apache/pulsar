@@ -89,6 +89,12 @@ public class PulsarClusterSpec {
     boolean enablePrestoWorker = false;
 
     /**
+     * Allow to query the last message
+     */
+    @Default
+    boolean queryLastMessage = false;
+
+    /**
      * Returns the function runtime type.
      *
      * @return the function runtime type.
