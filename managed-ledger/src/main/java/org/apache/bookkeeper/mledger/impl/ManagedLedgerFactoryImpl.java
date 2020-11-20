@@ -108,6 +108,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
+    private final ScheduledFuture<?> flushCursorsTask;
 
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
@@ -202,6 +203,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats, 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
+                config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
 
         this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
@@ -228,6 +231,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    private synchronized void flushCursors() {
+        ledgers.values().forEach(mlfuture -> {
+            if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
+                ManagedLedgerImpl ml = mlfuture.getNow(null);
+                if (ml != null) {
+                    ml.getCursors().forEach(c -> ((ManagedCursorImpl) c).flush());
+                }
+            }
+        });
     }
 
     private synchronized void refreshStats() {
@@ -483,6 +497,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
         statsTask.cancel(true);
+        flushCursorsTask.cancel(true);
 
         int numLedgers = ledgers.size();
         final CountDownLatch latch = new CountDownLatch(numLedgers);

@@ -170,6 +170,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
+    // The cursor is considered "dirty" when there are mark-delete updates that are only applied in memory,
+    // because of the rate limiting.
+    private volatile boolean isDirty = false;
 
     private boolean alwaysInactive = false;
 
@@ -1633,6 +1636,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+            isDirty = true;
             lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, properties, null, null);
             callback.markDeleteComplete(ctx);
             return;
@@ -2875,6 +2879,24 @@ public class ManagedCursorImpl implements ManagedCursor {
     void updateReadStats(int readEntriesCount, long readEntriesSize) {
         this.entriesReadCount += readEntriesCount;
         this.entriesReadSize += readEntriesSize;
+    }
+
+    void flush() {
+        if (!isDirty) {
+            return;
+        }
+
+        isDirty = false;
+        asyncMarkDelete(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
+            }
+        }, null);
     }
 
     private int applyMaxSizeCap(int maxEntries, long maxSizeBytes) {

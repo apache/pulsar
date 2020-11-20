@@ -63,6 +63,11 @@ public class ManagedLedgerFactoryConfig {
     private int prometheusStatsLatencyRolloverSeconds = 60;
 
     /**
+     * How frequently to flush the cursor positions that were accumulated due to rate limiting.
+     */
+    private int cursorPositionFlushSeconds = 60;
+
+    /**
      * cluster name for prometheus stats
      */
     private String clusterName;
