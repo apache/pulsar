@@ -575,6 +575,12 @@ message CommandSeek {
     optional uint64 message_publish_time = 4;
 }
 
+// Response for reset an existing consumer to a particular message id or timestamp
+message CommandSeekResponse {
+    required uint64 request_id  = 1;
+    required MessageIdData messageIdData = 2;
+}
+
 // Message sent by broker to client when a topic
 // has been forcefully terminated and there are no more
 // messages left to consume
@@ -923,6 +929,7 @@ message BaseCommand {
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
 
+        SEEK_RESPONSE = 62;
     }
 
 
@@ -997,4 +1004,5 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional CommandSeekResponse seekResponse = 62;
 }
