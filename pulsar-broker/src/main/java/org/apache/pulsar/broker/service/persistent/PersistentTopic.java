@@ -37,11 +37,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-<<<<<<< HEAD
-=======
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
->>>>>>> 0df5f6f111a... [broker] Close topics that remain fenced forcefully (#8561)
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
