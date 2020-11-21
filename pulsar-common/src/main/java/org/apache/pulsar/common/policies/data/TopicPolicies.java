@@ -56,6 +56,11 @@ public class TopicPolicies {
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
     private SubscribeRate subscribeRate = null;
+    private Integer deduplicationSnapshotIntervalSeconds = null;
+
+    public boolean isDeduplicationSnapshotIntervalSecondsSet(){
+        return deduplicationSnapshotIntervalSeconds != null;
+    }
 
     public boolean isInactiveTopicPoliciesSet() {
         return inactiveTopicPolicies != null;

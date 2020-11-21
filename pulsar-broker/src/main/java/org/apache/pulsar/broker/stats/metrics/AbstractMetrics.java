@@ -171,7 +171,7 @@ abstract class AbstractMetrics {
     }
 
     protected void populateBucketEntries(Map<String, Double> map, String mkey, double[] boundaries,
-            long[] bucketValues) {
+            long[] bucketValues, int period) {
 
         // bucket values should be one more that the boundaries to have the last element as OVERFLOW
         if (bucketValues != null && bucketValues.length != boundaries.length + 1) {
@@ -191,7 +191,7 @@ abstract class AbstractMetrics {
                 bucketKey = String.format("%s_OVERFLOW", mkey);
             }
 
-            value = (bucketValues == null) ? 0.0D : (double) bucketValues[i];
+            value = (bucketValues == null) ? 0.0D : ((double) bucketValues[i] / (period > 0 ? period : 1));
 
             Double val = map.getOrDefault(bucketKey, 0.0);
             map.put(bucketKey, val + value);

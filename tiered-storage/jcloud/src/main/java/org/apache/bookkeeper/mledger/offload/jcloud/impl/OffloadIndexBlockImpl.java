@@ -22,7 +22,6 @@ import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
@@ -42,12 +41,13 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
-import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
+import org.apache.bookkeeper.net.BookieId;
 
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
@@ -156,7 +156,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
-        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
+        ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
         out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)
@@ -188,9 +188,9 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private long ctime;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles =
-                new TreeMap<Long, ArrayList<BookieSocketAddress>>();
-
+        private TreeMap<Long, ArrayList<BookieId>> ensembles =
+                new TreeMap<Long, ArrayList<BookieId>>();
+        
         InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
             this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
             this.writeQuorumSize = ledgerMetadataFormat.getQuorumSize();
@@ -208,16 +208,21 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             }
 
             ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-                ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<BookieSocketAddress>();
+                ArrayList<BookieId> addressArrayList = new ArrayList<>();
                 segment.getEnsembleMemberList().forEach(address -> {
                     try {
-                        addressArrayList.add(new BookieSocketAddress(address));
-                    } catch (IOException e) {
+                        addressArrayList.add(BookieId.parse(address));
+                    } catch (IllegalArgumentException e) {
                         log.error("Exception when create BookieSocketAddress. ", e);
                     }
                 });
                 this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
             });
+        }
+
+        @Override
+        public long getLedgerId() {
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -277,12 +282,12 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         }
 
         @Override
-        public List<BookieSocketAddress> getEnsembleAt(long entryId) {
+        public List<BookieId> getEnsembleAt(long entryId) {
             return ensembles.get(ensembles.headMap(entryId + 1).lastKey());
         }
 
         @Override
-        public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
+        public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
             return this.ensembles;
         }
 

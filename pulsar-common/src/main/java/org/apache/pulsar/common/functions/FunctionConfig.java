@@ -95,8 +95,11 @@ public class FunctionConfig {
     private Boolean retainOrdering;
     // Do we want the same function instance to process all data keyed by the input topic's message key
     private Boolean retainKeyOrdering;
+    // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
+    private String batchBuilder;
     private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
+    private Map<String, ExternalPulsarConfig> externalPulsars;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
     // encapsulates how the secret is fetched by the underlying

@@ -211,7 +211,7 @@ if (NOT APPLE AND NOT MSVC)
     # we don't set options below to build _pulsar.so
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
-    add_compile_options(-fvisibility=hidden -Wl,--exclude-libs,ALL)
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
 endif ()
 
 if (LIB_ZSTD)

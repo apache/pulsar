@@ -480,6 +480,8 @@ public class PersistentSubscription implements Subscription {
             return "Failover";
         case Shared:
             return "Shared";
+        case Key_Shared:
+            return "Key_Shared";
         }
 
         return "Null";
@@ -899,6 +901,8 @@ public class PersistentSubscription implements Subscription {
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
+            Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared?
+                    ((PersistentStickyKeyDispatcherMultipleConsumers)dispatcher).getConsumerKeyHashRanges(): null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
@@ -911,6 +915,9 @@ public class PersistentSubscription implements Subscription {
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
+                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer.consumerName())) {
+                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer.consumerName());
+                }
             });
         }
 
