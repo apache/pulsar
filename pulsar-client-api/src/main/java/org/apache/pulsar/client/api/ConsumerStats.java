@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.Map;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -101,4 +103,16 @@ public interface ConsumerStats extends Serializable {
      * @return Total number of message acknowledgments failures on this consumer
      */
     long getTotalAcksFailed();
+
+    /**
+     * Get the size of receiver queue.
+     * @return
+     */
+    Integer getMsgNumInReceiverQueue();
+
+    /**
+     * Get the receiver queue size of sub-consumers.
+     * @return
+     */
+    Map<Long, Integer> getMsgNumInSubReceiverQueue();
 }
