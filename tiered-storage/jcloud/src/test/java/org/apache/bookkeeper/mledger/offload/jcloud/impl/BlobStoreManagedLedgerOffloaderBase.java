@@ -37,6 +37,11 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockHeaderImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
+<<<<<<< HEAD
+=======
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
+>>>>>>> 68759ff405b... [Tiered Storage] Fix merge conflicts introduced by PR #6335 (#8630)
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
@@ -98,14 +103,14 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
      * Get the credentials to use for the JCloud provider
      * based on the System properties.
      */
-    protected static Credentials getBlobStoreCredentials() {
+    protected static Supplier<Credentials> getBlobStoreCredentials() {
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
             /* To use this, must config credentials using "aws_access_key_id" as S3ID,
              *  and "aws_secret_access_key" as S3Key. And bucket should exist in default region. e.g.
              *      props.setProperty("S3ID", "AXXXXXXQ");
              *      props.setProperty("S3Key", "HXXXXXß");
              */
-            return new Credentials(System.getProperty("S3ID"), System.getProperty("S3Key"));
+            return () -> new Credentials(System.getProperty("S3ID"), System.getProperty("S3Key"));
                     
         } else if (Boolean.parseBoolean(System.getProperty("testRealGCS", "false"))) {
             /*
@@ -114,7 +119,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
              *        props.setProperty("GCSID", "5XXXXXXXXXX6-compute@developer.gserviceaccount.com");
              *        props.setProperty("GCSKey", "XXXXXX");
              */
-            return new Credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"));
+            return () -> new Credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"));
         } else {
             return null;
         }

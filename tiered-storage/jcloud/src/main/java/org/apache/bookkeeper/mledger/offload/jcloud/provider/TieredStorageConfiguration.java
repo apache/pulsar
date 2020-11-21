@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
 import org.jclouds.Constants;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
@@ -69,6 +70,10 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     protected static final int MB = 1024 * 1024;
 
+    public static final String GCS_ACCOUNT_KEY_FILE_FIELD = "gcsManagedLedgerOffloadServiceAccountKeyFile";
+    public static final String S3_ROLE_FIELD = "s3ManagedLedgerOffloadRole";
+    public static final String S3_ROLE_SESSION_NAME_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
+
     public static TieredStorageConfiguration create(Properties props) throws IOException {
         Map<String, String> map = new HashMap<String, String>();
         map.putAll(props.entrySet()
@@ -86,7 +91,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     @Getter
     private final Map<String, String> configProperties;
     @Getter
-    private Credentials credentials;
+    private Supplier<Credentials> credentials;
     private JCloudBlobStoreProvider provider;
 
     public TieredStorageConfiguration(Map<String, String> configProperties) {
@@ -221,14 +226,14 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return new Integer(MB);
     }
 
-    public Credentials getProviderCredentials() {
+    public Supplier<Credentials> getProviderCredentials() {
         if (credentials == null) {
             getProvider().buildCredentials(this);
         }
         return credentials;
     }
 
-    public void setProviderCredentials(Credentials credentials) {
+    public void setProviderCredentials(Supplier<Credentials> credentials) {
         this.credentials = credentials;
     }
 
