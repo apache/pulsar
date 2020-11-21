@@ -185,7 +185,9 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 if (!individualAckPositions.containsKey(position)) {
                     this.individualAckPositions.put(position, positions.get(i));
                 } else {
-                    andAckSet(this.individualAckPositions.get(position).getLeft(), position);
+                    MutablePair<PositionImpl, Long> positionPair = this.individualAckPositions.get(position);
+                    positionPair.setRight(positions.get(i).right);
+                    andAckSet(positionPair.getLeft(), position);
                 }
 
             } else {
@@ -308,19 +310,21 @@ public class PendingAckHandleImpl implements PendingAckHandle {
     }
 
     @Override
-    public synchronized void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position) {
+    public synchronized void syncBatchPositionAckSetForTransaction(PositionImpl position) {
         if (individualAckPositions == null) {
             individualAckPositions = new HashMap<>();
         }
-        if (!individualAckPositions.containsKey(position.left)) {
-            this.individualAckPositions.put(position.left, position);
+        //sync don't carry the batch size
+        //when one position is ack by transaction the batch size is for `and` operation.
+        if (!individualAckPositions.containsKey(position)) {
+            this.individualAckPositions.put(position, new MutablePair<>(position, 0L));
         } else {
-            andAckSet(this.individualAckPositions.get(position.left).left, position.left);
+            andAckSet(this.individualAckPositions.get(position).left, position);
         }
     }
 
     @Override
-    public synchronized boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
         if (!individualAckPositions.containsKey(position)) {
             return true;
         } else {
@@ -328,8 +332,10 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (position.hasAckSet()) {
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
                 if (bitSetRecyclable.isEmpty()) {
+                    bitSetRecyclable.recycle();
                     return true;
                 } else {
+                    bitSetRecyclable.recycle();
                     return false;
                 }
             } else {

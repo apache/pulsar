@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.service.Consumer;
@@ -71,7 +72,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,7 +133,7 @@ public class PersistentSubscription implements Subscription {
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
-            this.pendingAckHandle = null;
+            this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
     }
@@ -389,20 +389,10 @@ public class PersistentSubscription implements Subscription {
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(TxnID txnId,
                                                                     List<MutablePair<PositionImpl, Long>> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
@@ -1027,9 +1017,6 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(new Exception("Broker does't support Transaction pending ack!"));
-        }
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
         if (TxnAction.COMMIT.getNumber() == txnAction) {
             return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
@@ -1050,7 +1037,7 @@ public class PersistentSubscription implements Subscription {
         return cursor;
     }
 
-    public void syncBatchPositionBitSetForPendingAck(MutablePair<PositionImpl, Long> position) {
+    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 

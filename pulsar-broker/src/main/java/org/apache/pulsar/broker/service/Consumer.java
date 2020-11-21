@@ -355,9 +355,6 @@ public class Consumer {
     private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String,Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
         List<PositionImpl> checkBatchPositions = null;
-        if (isTransactionEnabled()) {
-            checkBatchPositions = new ArrayList<>();
-        }
         for (int i = 0; i < ack.getMessageIdCount(); i++) {
             MessageIdData msgId = ack.getMessageId(i);
             PositionImpl position;
@@ -366,21 +363,9 @@ public class Consumer {
                         SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
-                    checkBatchPositions.add(position);
-                    LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-                    if (batchSizePair == null) {
-                        String error = "Batch position [" + position + "] could not find " +
-                                "it's batch size from consumer pendingAcks!";
-                        log.warn(error);
-                        return FutureUtil.failedFuture(
-                                new BrokerServiceException.NotAllowedException(error));
-                    }
-                    ((PersistentSubscription) subscription)
-                            .syncBatchPositionBitSetForPendingAck(new MutablePair<>(position, batchSizePair.first));
-                    //check if the position can remove from the consumer pending acks.
-                    // the bit set is empty in pending ack handle.
-                    if (((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(position)) {
-                        removePendingAcks(position);
+                    if (Subscription.isIndividualAckMode(subType)) {
+                        ((PersistentSubscription) subscription)
+                                .syncBatchPositionBitSetForPendingAck(position);
                     }
                 }
             } else {
@@ -393,7 +378,21 @@ public class Consumer {
             checkAckValidationError(ack, position);
         }
         subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-        return CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(null);
+        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
+                //check if the position can remove from the consumer pending acks.
+                // the bit set is empty in pending ack handle.
+                if (((PositionImpl) position).getAckSet() != null) {
+                    if (((PersistentSubscription) subscription)
+                            .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
+                        removePendingAcks((PositionImpl) position);
+                    }
+                }
+            }));
+        }
+        return completableFuture;
     }
 
 
@@ -417,15 +416,11 @@ public class Consumer {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
             }
 
-            LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-            if (batchSizePair == null) {
-                String error = "Batch position [" + position + "] could not find " +
-                        "it's batch size from consumer pendingAcks!";
-                log.error(error);
-                return FutureUtil.failedFuture(
-                        new BrokerServiceException.NotAllowedException(error));
+            if (msgId.hasBatchIndex()) {
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
+            } else {
+                positionsAcked.add(new MutablePair<>(position, 0L));
             }
-            positionsAcked.add(new MutablePair<>(position, batchSizePair.first));
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
@@ -434,12 +429,17 @@ public class Consumer {
 
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked);
-        positionsAcked.forEach(positionLongMutablePair -> {
-            if (((PersistentSubscription) subscription)
-                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                removePendingAcks(positionLongMutablePair.left);
-            }
-        });
+        if (Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) ->
+                    positionsAcked.forEach(positionLongMutablePair -> {
+                        if (positionLongMutablePair.getLeft().getAckSet() != null) {
+                            if (((PersistentSubscription) subscription)
+                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
+                                removePendingAcks(positionLongMutablePair.left);
+                            }
+                        }
+                    }));
+        }
         return completableFuture;
     }
 
