@@ -320,7 +320,7 @@ class PythonInstance(object):
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
-        batching_type=batch_type,
+        # batching_type=batch_type,
         batching_max_publish_delay_ms=10,
         compression_type=pulsar.CompressionType.LZ4,
         # set send timeout to be infinity to prevent potential deadlock with consumer
