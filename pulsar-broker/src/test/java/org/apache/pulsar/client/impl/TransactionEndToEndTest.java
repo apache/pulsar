@@ -257,14 +257,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnAckTest(false, 1, SubscriptionType.Failover);
     }
 
-    //TODO: will not remove messageId in Failover unackMessageTracker, we should think about the redeliver problem
     @Test
     public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
         txnAckTest(true, 200, SubscriptionType.Failover);
     }
 
-
-    private void txnAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType) throws Exception {
+    private void txnAckTest(boolean batchEnable, int maxBatchSize,
+                         SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
         @Cleanup

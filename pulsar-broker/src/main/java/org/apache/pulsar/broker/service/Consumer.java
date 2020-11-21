@@ -399,7 +399,7 @@ public class Consumer {
     //this method is for individual ack carry the transaction
     private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
-        List<MutablePair<PositionImpl, Long>> positionsAcked = new ArrayList<>();
+        List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
 
         if (!isTransactionEnabled()) {
             return FutureUtil.failedFuture(
@@ -419,7 +419,7 @@ public class Consumer {
             if (msgId.hasBatchIndex()) {
                 positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
             } else {
-                positionsAcked.add(new MutablePair<>(position, 0L));
+                positionsAcked.add(new MutablePair<>(position, 0));
             }
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
@@ -465,7 +465,7 @@ public class Consumer {
     private CompletableFuture<Void> transactionIndividualAcknowledge(
             long txnidMostBits,
             long txnidLeastBits,
-            List<MutablePair<PositionImpl, Long>> positionList) {
+            List<MutablePair<PositionImpl, Integer>> positionList) {
         if (subscription instanceof PersistentSubscription) {
             TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
             return ((PersistentSubscription) subscription).transactionIndividualAcknowledge(txnID, positionList);

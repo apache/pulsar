@@ -388,7 +388,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(TxnID txnId,
-                                                                    List<MutablePair<PositionImpl, Long>> positions) {
+                                                                    List<MutablePair<PositionImpl, Integer>> positions) {
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
