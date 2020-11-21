@@ -319,7 +319,9 @@ public class PulsarStandalone implements AutoCloseable {
                                    });
         broker.start();
 
-        broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+        if (config.isTransactionCoordinatorEnabled()) {
+            broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+        }
 
         final String cluster = config.getClusterName();
 
