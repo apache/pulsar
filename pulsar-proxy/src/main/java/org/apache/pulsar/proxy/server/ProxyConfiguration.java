@@ -70,6 +70,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_PLUGIN = "proxy plugin";
+    @Category
+    private static final String CATEGORY_WEBSOCKET = "WebSocket";
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -522,6 +524,20 @@ public class ProxyConfiguration implements PulsarConfiguration {
             )
         }
     )
+
+    /***** --- WebSocket --- ****/
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Enable or disable the WebSocket servlet"
+    )
+    private boolean webSocketServiceEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Name of the cluster to which this broker belongs to"
+    )
+    private String clusterName;
+
     private Properties properties = new Properties();
 
     public Properties getProperties() {
