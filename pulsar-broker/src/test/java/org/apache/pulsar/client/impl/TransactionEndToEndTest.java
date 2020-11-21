@@ -150,7 +150,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
                 txn1MessageCnt ++;
             } else {
                 producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
@@ -264,7 +264,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .ackTimeout(2, TimeUnit.SECONDS)
-                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup

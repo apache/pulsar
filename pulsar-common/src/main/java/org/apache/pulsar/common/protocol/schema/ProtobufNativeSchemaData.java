@@ -16,21 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.common.protocol.schema;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * Configuration to aggregate various authentication params.
+ * POJO class used for serialize to json-string for SchemaInfo.schema when SchemaType is SchemaType.PROTOBUF_NATIVE.
  */
 @Data
 @Builder
-public class AuthenticationConfig {
-    private String clientAuthenticationPlugin;
-    private String clientAuthenticationParameters;
-    private String tlsTrustCertsFilePath;
-    private boolean useTls;
-    private boolean tlsAllowInsecureConnection;
-    private boolean tlsHostnameVerificationEnable;
+@AllArgsConstructor
+@NoArgsConstructor
+public class ProtobufNativeSchemaData {
+    /**
+     * protobuf v3 FileDescriptorSet bytes.
+     **/
+    private byte[] fileDescriptorSet;
+    /**
+     * protobuf v3 rootMessageTypeName.
+     **/
+    private String rootMessageTypeName;
+    /**
+     * protobuf v3 rootFileDescriptorName.
+     **/
+    private String rootFileDescriptorName;
+
 }

@@ -28,7 +28,6 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -41,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -77,7 +77,7 @@ public class TestAvroSchemaHandler {
         Schema schema1 = ReflectData.AllowNull.get().getSchema(Foo1.class);
         PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
         AvroSchemaHandler avroSchemaHandler = new AvroSchemaHandler(pulsarSqlSchemaInfoProvider,
-                StructSchema.parseSchemaInfo(SchemaDefinition.builder().withPojo(Foo2.class).build(), SchemaType.AVRO), columnHandles);
+                parseSchemaInfo(SchemaDefinition.builder().withPojo(Foo2.class).build(), SchemaType.AVRO), columnHandles);
         byte[] schemaVersion = new byte[8];
         for (int i = 0 ; i<8; i++) {
             schemaVersion[i] = 0;
@@ -100,7 +100,7 @@ public class TestAvroSchemaHandler {
         when(message.getData()).thenReturn(ByteBufAllocator.DEFAULT
                 .buffer(bytes.length, bytes.length).writeBytes(byteArrayOutputStream.toByteArray()));
         when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any()))
-                .thenReturn(completedFuture(StructSchema.parseSchemaInfo(SchemaDefinition.builder()
+                .thenReturn(completedFuture(parseSchemaInfo(SchemaDefinition.builder()
                         .withPojo(Foo1.class).build(), SchemaType.AVRO)));
 
         Object object  = ((GenericAvroRecord)avroSchemaHandler.deserialize(message.getData(),

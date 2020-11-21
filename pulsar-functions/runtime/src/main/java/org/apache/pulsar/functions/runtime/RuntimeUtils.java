@@ -35,7 +35,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -228,7 +228,7 @@ public class RuntimeUtils {
         // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add(configContent);
+        args.add("'" + configContent + "'");
         return args;
     }
 

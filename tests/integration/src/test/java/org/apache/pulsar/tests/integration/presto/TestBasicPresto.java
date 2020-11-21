@@ -27,9 +27,11 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import java.sql.Connection;
@@ -47,6 +49,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestBasicPresto extends PulsarTestSuite {
 
     private static final int NUM_OF_STOCKS = 10;
+
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        return super.beforeSetupCluster(clusterName, specBuilder.queryLastMessage(true));
+    }
 
     @BeforeClass
     public void setupPresto() throws Exception {
@@ -125,11 +132,11 @@ public class TestBasicPresto extends PulsarTestSuite {
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", containerExecResult.getStdout());
         String[] split = containerExecResult.getStdout().split("\n");
-        assertThat(split.length).isGreaterThan(NUM_OF_STOCKS - 2);
+        assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
 
         String[] split2 = containerExecResult.getStdout().split("\n|,");
 
-        for (int i = 0; i < NUM_OF_STOCKS - 2; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             assertThat(split2).contains("\"" + i + "\"");
             assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
             assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
@@ -164,7 +171,7 @@ public class TestBasicPresto extends PulsarTestSuite {
             returnedTimestamps.add(res.getTimestamp("__publish_time__"));
         }
 
-        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size() / 2);
+        assertThat(returnedTimestamps.size() + 1).isEqualTo(timestamps.size() / 2);
 
         // Try with a predicate that has a earlier time than any entry
         // Should return all rows
