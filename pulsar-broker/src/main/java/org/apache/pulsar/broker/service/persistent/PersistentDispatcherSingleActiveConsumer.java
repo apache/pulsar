@@ -467,7 +467,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 return;
             }
 
-            if (messagesToRedeliver.size() > 0) {
+            if (messagesToRedeliver != null && messagesToRedeliver.size() > 0) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages", name, messagesToRedeliver.size());
                 }

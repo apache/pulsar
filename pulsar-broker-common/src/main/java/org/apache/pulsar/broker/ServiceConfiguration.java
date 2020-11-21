@@ -1849,7 +1849,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "Enable transaction coordinator in broker"
     )
-    private boolean transactionCoordinatorEnabled = true;
+    private boolean transactionCoordinatorEnabled = false;
 
     @FieldContext(
         category = CATEGORY_TRANSACTION,

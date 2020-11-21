@@ -111,6 +111,7 @@ public class PersistentSubscriptionTest {
         executor = Executors.newSingleThreadExecutor();
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
@@ -184,10 +185,10 @@ public class PersistentSubscriptionTest {
             return null;
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
-        List<MutablePair<PositionImpl, Long>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair(new PositionImpl(1, 1), 0));
-        positionsPair.add(new MutablePair(new PositionImpl(1, 3), 0));
-        positionsPair.add(new MutablePair(new PositionImpl(1, 5), 0));
+        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
+        positionsPair.add(new MutablePair<>(new PositionImpl(1, 1), 0));
+        positionsPair.add(new MutablePair<>(new PositionImpl(1, 3), 0));
+        positionsPair.add(new MutablePair<>(new PositionImpl(1, 5), 0));
 
         doAnswer((invocationOnMock) -> {
             assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(),
@@ -222,10 +223,10 @@ public class PersistentSubscriptionTest {
 
     @Test
     public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
-        List<MutablePair<PositionImpl, Long>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
-        positionsPair.add(new MutablePair(new PositionImpl(2, 3), 0));
-        positionsPair.add(new MutablePair(new PositionImpl(2, 5), 0));
+        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
+        positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));
+        positionsPair.add(new MutablePair<>(new PositionImpl(2, 3), 0));
+        positionsPair.add(new MutablePair<>(new PositionImpl(2, 5), 0));
 
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])

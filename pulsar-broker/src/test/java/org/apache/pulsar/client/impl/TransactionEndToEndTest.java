@@ -243,15 +243,24 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void txnAckTestNoBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
     @Test
-    public void txnAckTestBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestBatchAndSharedSub() throws Exception {
         txnAckTest(true, 200, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnIndividualAckTestNoBatchAndFailoverSub() throws Exception {
+        txnAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Failover);
+    }
 
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
@@ -263,7 +272,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
-                .ackTimeout(2, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
@@ -289,7 +297,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000L);
 
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
