@@ -18,8 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.GCS_ACCOUNT_KEY_FILE_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
+
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
@@ -36,8 +42,8 @@ import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfig
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
 
 import org.apache.commons.lang3.StringUtils;
-import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
+import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.azureblob.AzureBlobProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
@@ -106,9 +112,8 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             if (config.getCredentials() == null) {
                 try {
                     String gcsKeyContent = Files.toString(
-                            new File(config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile")),
-                                     Charset.defaultCharset());
-                    config.setProviderCredentials(new GoogleCredentialsFromJson(gcsKeyContent).get());
+                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)), Charset.defaultCharset());
+                    config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
                     log.error("Cannot read GCS service account credentials file: {}",
                             config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile"));
@@ -139,7 +144,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             if (StringUtils.isEmpty(accountKey)) {
                 throw new IllegalArgumentException("Couldn't get the azure storage access key.");
             }
-            config.setProviderCredentials(new Credentials(accountName, accountKey));
+            config.setProviderCredentials(() -> new Credentials(accountName, accountKey));
         }
     },
 
@@ -246,8 +251,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         if (config.getProviderCredentials() != null) {
                 return contextBuilder
-                        .credentials(config.getProviderCredentials().identity,
-                                     config.getProviderCredentials().credential)
+                        .credentialsSupplier(config.getCredentials())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             } else {
@@ -262,16 +266,34 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         if (config.getCredentials() == null) {
             AWSCredentials awsCredentials = null;
             try {
-                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-                awsCredentials = creds.getCredentials();
+                if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
+                    awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
+                } else {
+                    awsCredentials =
+                            new STSAssumeRoleSessionCredentialsProvider.Builder(
+                                    config.getConfigProperty(S3_ROLE_FIELD),
+                                    config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)
+                            ).build().getCredentials();
+                }
+
+                if (awsCredentials instanceof AWSSessionCredentials) {
+                    // if we have session credentials, we need to send the session token
+                    // this allows us to support EC2 metadata credentials
+                    SessionCredentials sessionCredentials =  SessionCredentials.builder()
+                            .accessKeyId(awsCredentials.getAWSAccessKeyId())
+                            .secretAccessKey(awsCredentials.getAWSSecretKey())
+                            .sessionToken(((AWSSessionCredentials) awsCredentials).getSessionToken())
+                            .build();
+                    config.setProviderCredentials(() -> sessionCredentials);
+                } else {
+                    Credentials credentials = new Credentials(
+                            awsCredentials.getAWSAccessKeyId(), awsCredentials.getAWSSecretKey());
+                    config.setProviderCredentials(() -> credentials);
+                }
+
             } catch (Exception e) {
                 // allowed, some mock s3 service do not need credential
                 log.warn("Exception when get credentials for s3 ", e);
-            }
-            if (awsCredentials != null) {
-                config.setProviderCredentials(
-                        new Credentials(awsCredentials.getAWSAccessKeyId(),
-                                        awsCredentials.getAWSSecretKey()));
             }
         }
     };
