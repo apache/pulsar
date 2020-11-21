@@ -19,18 +19,14 @@
 
 package org.apache.pulsar.functions.runtime.thread;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -53,7 +49,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     @Getter
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
-    private PulsarClient pulsarClient;
+    private String pulsarServiceUrl;
+    private AuthenticationConfig authConfig;
     private String storageServiceUrl;
     private SecretsProvider defaultSecretsProvider;
     private CollectorRegistry collectorRegistry;
@@ -69,21 +66,13 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
-                                ClassLoader rootClassLoader) throws Exception {
-        initialize(threadGroupName, InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig),
+                                ClassLoader rootClassLoader) {
+        initialize(threadGroupName, pulsarServiceUrl, authConfig,
                 storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
-    @VisibleForTesting
-    public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
-                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                                String narExtractionDirectory, ClassLoader rootClassLoader) {
 
-        initialize(threadGroupName, pulsarClient, storageServiceUrl,
-                null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
-    }
-
-    private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
+    private void initialize(String threadGroupName, String pulsarServiceUrl, AuthenticationConfig authConfig, String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
                             CollectorRegistry collectorRegistry,  String narExtractionDirectory, ClassLoader rootClassLoader) {
         if (rootClassLoader == null) {
@@ -95,7 +84,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.defaultSecretsProvider = secretsProvider;
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
-        this.pulsarClient = pulsarClient;
+        this.pulsarServiceUrl = pulsarServiceUrl;
+        this.authConfig = authConfig;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
@@ -110,7 +100,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
 
         initialize(factoryConfig.getThreadGroupName(),
-                InstanceUtils.createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
+                workerConfig.getPulsarServiceUrl(), authenticationConfig,
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null);
     }
@@ -133,7 +123,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             fnCache,
             threadGroup,
             jarFile,
-            pulsarClient,
+            pulsarServiceUrl,
+            authConfig,
             storageServiceUrl,
             secretsProvider,
             collectorRegistry,
@@ -149,12 +140,6 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
         threadGroup.interrupt();
         fnCache.close();
-        try {
-            pulsarClient.close();
-        } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client when closing function container factory", e);
-        }
-
         // Shutdown instance cache
         InstanceCache.shutdown();
     }

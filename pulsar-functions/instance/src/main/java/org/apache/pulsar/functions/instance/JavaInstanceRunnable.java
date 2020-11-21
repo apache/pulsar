@@ -37,10 +37,10 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
@@ -85,7 +85,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final String jarFile;
 
     // input topic consumer & output topic producer
-    private final PulsarClientImpl client;
+    private PulsarClientImpl client;
+    private final String pulsarServiceUrl;
+    private final AuthenticationConfig authConfig;
     //private final Map<String, PulsarClient> pulsarClientMap;
 
     private LogAppender logAppender;
@@ -125,7 +127,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
-                                PulsarClient pulsarClient,
+                                String pulsarServiceUrl,
+                                AuthenticationConfig authConfig,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry,
@@ -133,7 +136,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
-        this.client = (PulsarClientImpl) pulsarClient;
+        this.pulsarServiceUrl = pulsarServiceUrl;
+        this.authConfig = authConfig;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -202,7 +206,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
-
+        this.client = (PulsarClientImpl) InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig);
         // start the state table
         setupStateStore();
 
@@ -463,6 +467,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getInstanceName());
             log.info("Unloading JAR files for function {}", instanceConfig);
             instanceCache = null;
+        }
+
+        if (null != client) {
+            client.closeAsync()
+                .exceptionally(cause -> {
+                    log.warn("Failed to close pulsar client", cause);
+                    return null;
+                });
+            client = null;
         }
     }
 
