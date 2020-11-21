@@ -129,7 +129,7 @@ $ pulsar-admin clusters update cluster-1 \
   --broker-url pulsar://my-cluster.org.com:3350
 ```
 
-<!--REST-->
+<!--REST API-->
 
 {@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster}
 
@@ -185,7 +185,7 @@ cluster-1
 cluster-2
 ```
 
-<!--RESR API-->
+<!--REST API-->
 
 {@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters}
 
