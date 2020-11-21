@@ -16,26 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.impl.common;
+package org.apache.pulsar.transaction.coordinator.util;
 
-import com.google.common.annotations.Beta;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
+
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTED;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTING;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTED;
+import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTING;
 
 /**
- * A enum represents the status of a transaction.
+ * An transaction util of {@link TransactionUtil}.
  */
-@Beta
-public enum TxnStatus {
-
-    // A new transaction is open.
-    OPEN,
-    // A transaction is in the progress of committing.
-    COMMITTING,
-    // A transaction is already committed.
-    COMMITTED,
-    // A transaction is in the progress of aborting.
-    ABORTING,
-    // A transaction is already aborted.
-    ABORTED;
+public class TransactionUtil {
 
     /**
      * Check if the a status can be transaction to a new status.
@@ -43,8 +36,7 @@ public enum TxnStatus {
      * @param newStatus the new status
      * @return true if the current status can be transitioning to.
      */
-    public boolean canTransitionTo(TxnStatus newStatus) {
-        TxnStatus currentStatus = this;
+    public static boolean canTransitionTo(TxnStatus currentStatus, TxnStatus newStatus) {
 
         switch (currentStatus) {
             case OPEN:

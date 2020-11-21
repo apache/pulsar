@@ -25,13 +25,13 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * An in-memory implementation of {@link TransactionMetadataStore}.
@@ -53,8 +53,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         CompletableFuture<TxnMeta> getFuture = new CompletableFuture<>();
         TxnMetaImpl txn = transactions.get(txnid);
         if (null == txn) {
-            getFuture.completeExceptionally(
-                new TransactionNotFoundException("Transaction not found :" + txnid));
+            getFuture.completeExceptionally(new TransactionNotFoundException(txnid));
         } else {
             getFuture.complete(txn);
         }
@@ -62,12 +61,12 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction() {
+    public CompletableFuture<TxnID> newTransaction(long timeoutInMills) {
         TxnID txnID = new TxnID(
             tcID.getId(),
             localID.getAndIncrement()
         );
-        TxnMetaImpl txn = new TxnMetaImpl(txnID);
+        TxnMetaImpl txn = TxnMetaImpl.create(txnID);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }
@@ -112,6 +111,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
                 return error;
             }
         });
+    }
+
+    @Override
+    public TransactionCoordinatorID getTransactionCoordinatorID() {
+        return tcID;
     }
 
     @Override
