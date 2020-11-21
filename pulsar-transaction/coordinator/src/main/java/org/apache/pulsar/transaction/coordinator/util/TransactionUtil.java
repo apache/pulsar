@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.transaction.coordinator.util;
 
-import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 
-import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTED;
-import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.ABORTING;
-import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTED;
-import static org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus.COMMITTING;
+import static org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus.ABORTED;
+import static org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus.ABORTING;
+import static org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus.COMMITTED;
+import static org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus.COMMITTING;
 
 /**
  * An transaction util of {@link TransactionUtil}.

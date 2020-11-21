@@ -22,8 +22,8 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.

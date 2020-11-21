@@ -20,5 +20,4 @@
 
 
 PROTOC=${PROTOC:-protoc}
-${PROTOC} --java_out=src/main/java src/main/proto/PulsarApi.proto
-${PROTOC} --java_out=src/main/java src/main/proto/PulsarMarkers.proto
+${PROTOC} --java_out=pulsar-transaction/coordinator/src/main/java pulsar-transaction/coordinator/src/main/proto/PulsarTransactionMetadata.proto

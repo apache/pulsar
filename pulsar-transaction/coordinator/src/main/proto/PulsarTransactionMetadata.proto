@@ -18,9 +18,9 @@
  */
 syntax = "proto2";
 
-import "src/main/proto/PulsarApi.proto";
+import "pulsar-common/src/main/proto/PulsarApi.proto";
 package pulsar.proto;
-option java_package = "org.apache.pulsar.common.api.proto";
+option java_package = "org.apache.pulsar.transaction.coordinator.proto";
 option optimize_for = LITE_RUNTIME;
 
 enum TxnStatus {

@@ -31,9 +31,6 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry;
-import org.apache.pulsar.common.api.proto.PulsarTransaction.TransactionMetadataEntry.TransactionMetadataOp;
-import org.apache.pulsar.common.api.proto.PulsarTransaction.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -44,6 +41,9 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry.TransactionMetadataOp;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,7 +185,7 @@ public class MLTransactionMetadataStore
                 .setTxnidLeastBits(leastSigBits)
                 .setStartTime(currentTimeMillis)
                 .setTimeoutMs(timeOut)
-                .setMetadataOp(TransactionMetadataOp.NEW)
+                .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
                 .setLastModificationTime(currentTimeMillis)
                 .build();
         return transactionLog.append(transactionMetadataEntry)

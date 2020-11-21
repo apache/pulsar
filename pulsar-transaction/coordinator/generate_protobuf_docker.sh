@@ -18,7 +18,25 @@
 # under the License.
 #
 
+# Fail script in case of errors
+set -e
 
-PROTOC=${PROTOC:-protoc}
-${PROTOC} --java_out=src/main/java src/main/proto/PulsarApi.proto
-${PROTOC} --java_out=src/main/java src/main/proto/PulsarMarkers.proto
+ROOT_DIR=$(git rev-parse --show-toplevel)
+COMMON_DIR=$ROOT_DIR/
+cd $COMMON_DIR
+
+BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
+
+IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
+
+echo $IMAGE
+
+# Force to pull image in case it was updated
+docker pull $IMAGE
+
+WORKDIR=/workdir
+docker run -i \
+    -v ${COMMON_DIR}:${WORKDIR} $IMAGE \
+    bash -c "cd ${WORKDIR}; PROTOC=/pulsar/protobuf/src/protoc ./pulsar-transaction/coordinator/generate_protobuf.sh"
+
