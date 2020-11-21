@@ -81,10 +81,26 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -q -B -ntp clean install -DskipTests
 
+      - name: build pulsar image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
+
+      - name: build pulsar-all image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
+
       - name: build artifacts and docker image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
-      - name: run integration tests
+      - name: run integration messaging tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-messaging.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+      - name: run integration proxy tests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+      - name: run integration proxy with WebSocket tests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests -DredirectTestOutputToFile=false
