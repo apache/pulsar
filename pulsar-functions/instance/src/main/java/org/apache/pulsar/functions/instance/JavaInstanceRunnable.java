@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.instance;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.CollectorRegistry;
@@ -37,6 +39,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -85,7 +88,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final String jarFile;
 
     // input topic consumer & output topic producer
-    private final PulsarClientImpl client;
+    private PulsarClientImpl client;
+    private final String pulsarServiceUrl;
+    private final AuthenticationConfig authConfig;
 
     private LogAppender logAppender;
 
@@ -124,7 +129,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
-                                PulsarClient pulsarClient,
+                                String pulsarServiceUrl,
+                                AuthenticationConfig authConfig,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry,
@@ -132,7 +138,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
-        this.client = (PulsarClientImpl) pulsarClient;
+        this.pulsarServiceUrl = pulsarServiceUrl;
+        this.authConfig = authConfig;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -201,6 +208,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
+        setupPulsarClient();
 
         // start the state table
         setupStateStore();
@@ -314,6 +322,26 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         return fnClassLoader;
+    }
+
+    private void setupPulsarClient() throws Exception {
+        ClientBuilder clientBuilder = null;
+        if (isNotBlank(pulsarServiceUrl)) {
+            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            if (authConfig != null) {
+                if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
+                        authConfig.getClientAuthenticationParameters());
+                }
+                clientBuilder.enableTls(authConfig.isUseTls());
+                clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
+                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
+            }
+            clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
+            this.client = (PulsarClientImpl) clientBuilder.build();
+        }
     }
 
     private void setupStateStore() throws Exception {
@@ -462,6 +490,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getInstanceName());
             log.info("Unloading JAR files for function {}", instanceConfig);
             instanceCache = null;
+        }
+
+        if (null != client) {
+            client.closeAsync()
+                .exceptionally(cause -> {
+                    log.warn("Failed to close pulsar client", cause);
+                    return null;
+                });
+            client = null;
         }
     }
 
