@@ -81,12 +81,19 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public MessageId send() throws PulsarClientException {
-        if (null != txn) {
-            // NOTE: it makes no sense to send a transactional message in a blocking way.
-            //       because #send only completes when a transaction is committed or aborted.
-            throw new IllegalStateException("Use sendAsync to send a transactional message");
+        try {
+            // enqueue the message to the buffer
+            CompletableFuture<MessageId> sendFuture = sendAsync();
+
+            if (!sendFuture.isDone()) {
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                producer.triggerFlush();
+            }
+
+            return sendFuture.get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
-        return producer.send(getMessage());
     }
 
     @Override

@@ -20,10 +20,9 @@ package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
-import org.apache.pulsar.client.api.transaction.Transaction;
 
 /**
  * Producer is used to publish messages on a topic.
@@ -190,4 +189,9 @@ public interface Producer<T> extends Closeable {
      * @return Whether the producer is currently connected to the broker
      */
     boolean isConnected();
+
+    /**
+     * @return The last disconnected timestamp of the producer
+     */
+    long getLastDisconnectedTimestamp();
 }

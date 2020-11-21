@@ -22,10 +22,9 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
-import org.apache.pulsar.client.api.transaction.Transaction;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
@@ -661,4 +660,9 @@ public interface Consumer<T> extends Closeable {
      * Resume requesting messages from the broker.
      */
     void resume();
+
+    /**
+     * @return The last disconnected timestamp of the consumer
+     */
+    long getLastDisconnectedTimestamp();
 }

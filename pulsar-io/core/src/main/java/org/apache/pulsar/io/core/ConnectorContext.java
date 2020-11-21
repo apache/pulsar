@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.StateStore;
 import org.slf4j.Logger;
 
 /**
@@ -80,6 +81,20 @@ public interface ConnectorContext {
      * @return The secret if anything was found or null
      */
     String getSecret(String secretName);
+
+    /**
+     * Get the state store with the provided store name.
+     *
+     * @param name the state store name
+     * @param <S> the type of interface of the store to return
+     * @return the state store instance.
+     *
+     * @throws ClassCastException if the return type isn't a type
+     * or interface of the actual returned store.
+     */
+    default <S extends StateStore> S getStateStore(String name) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
     /**
      * Increment the builtin distributed counter referred by key.

@@ -19,9 +19,9 @@
 package org.apache.pulsar.compaction;
 
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 
 public interface CompactedTopic {
     CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId);

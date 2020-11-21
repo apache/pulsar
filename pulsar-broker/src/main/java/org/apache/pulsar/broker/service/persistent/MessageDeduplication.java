@@ -491,12 +491,19 @@ public class MessageDeduplication {
 
     public void takeSnapshot() {
         Integer interval = null;
+        // try to get topic-level policies
+        TopicPolicies topicPolicies = topic.getTopicPolicies(TopicName.get(topic.getName()));
+        if (topicPolicies != null) {
+            interval = topicPolicies.getDeduplicationSnapshotIntervalSeconds();
+        }
         try {
-            //try to get namespace-level policies
-            final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
-            if (policies.isPresent()) {
-                interval = policies.get().deduplicationSnapshotIntervalSeconds;
+            //if topic-level policies not exists, try to get namespace-level policies
+            if (interval == null) {
+                final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                        .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
+                if (policies.isPresent()) {
+                    interval = policies.get().deduplicationSnapshotIntervalSeconds;
+                }
             }
         } catch (Exception e) {
             log.error("Failed to get namespace policies", e);
