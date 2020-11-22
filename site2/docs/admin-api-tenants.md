@@ -150,7 +150,7 @@ $ pulsar-admin tenants update my-tenant
 
 ```java
 
-admin.tenants().updateTenant(tenantName);
+admin.tenants().updateTenant(tenantName, tenantInfo);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
