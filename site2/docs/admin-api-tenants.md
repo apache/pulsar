@@ -66,7 +66,7 @@ $ pulsar-admin tenants create my-tenant \
 <!--JAVA-->
 
 ```java
-admin.tenants().createTenant(tenantName);
+admin.tenants().createTenant(tenantName, tenantInfo);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
