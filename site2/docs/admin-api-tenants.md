@@ -100,7 +100,7 @@ $ pulsar-admin tenants get my-tenant
 <!--JAVA-->
 
 ```java
-admin.tenants().getTenant(tenantName);
+admin.tenants().getTenantInfo(tenantName);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
