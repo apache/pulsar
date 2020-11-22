@@ -37,7 +37,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -129,7 +128,7 @@ import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1669,7 +1668,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
         }
         TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
-        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId)
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
@@ -1827,13 +1826,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     command.getRequestId(), remoteAddress, txnID);
         }
-        List<TransactionSubscription> subscriptionList = command.getSubscriptionList().stream()
-                .map(subscription -> TransactionSubscription.builder()
-                        .topic(subscription.getTopic())
-                        .subscription(subscription.getSubscription())
-                        .build())
-                .collect(Collectors.toList());
-        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID, subscriptionList)
+
+        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID,
+                MLTransactionMetadataStore.subscriptionToTxnSubscription(command.getSubscriptionList()))
                 .whenComplete(((v, ex) -> {
                     if (ex == null) {
                         if (log.isDebugEnabled()) {

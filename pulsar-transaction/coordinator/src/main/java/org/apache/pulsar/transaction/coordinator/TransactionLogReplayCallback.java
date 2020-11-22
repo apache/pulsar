@@ -16,22 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
+package org.apache.pulsar.transaction.coordinator;
 
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry;
 
 /**
- * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
+ * The callback of transaction log replay the transaction operate.
  */
-public class TransactionStatusException extends TransactionBufferException {
+public interface TransactionLogReplayCallback {
 
-    private static final long serialVersionUID = 0L;
+    /**
+     * Transaction log replay complete callback for transaction metadata store.
+     */
+    void replayComplete();
 
-    public TransactionStatusException(TxnID txnId,
-                                      TxnStatus expectedStatus,
-                                      TxnStatus actualStatus) {
-        super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
-            + "`, but is in status `" + actualStatus + "`");
-    }
+    /**
+     * Handle metadata entry.
+     *
+     * @param position the transaction operation position
+     * @param transactionMetadataEntry the metadata entry of transaction
+     */
+    void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
+
 }

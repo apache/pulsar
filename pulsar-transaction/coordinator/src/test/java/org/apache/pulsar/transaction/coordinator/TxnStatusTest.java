@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.impl.common;
+package org.apache.pulsar.transaction.coordinator;
+
+import com.google.common.collect.Sets;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.util.Set;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Sets;
-import java.util.Set;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 /**
  * Unit test {@link TxnStatus}.
@@ -103,13 +106,13 @@ public class TxnStatusTest {
                                         Set<TxnStatus> statusesCanNotTransactionTo) {
         statusesCanTransitionTo.forEach(newStatus -> {
             assertTrue(
-                status.canTransitionTo(newStatus),
+                    TransactionUtil.canTransitionTo(status, newStatus),
                 "Status `" + status + "` should be able to transition to `" + newStatus + "`"
             );
         });
         statusesCanNotTransactionTo.forEach(newStatus -> {
             assertFalse(
-                status.canTransitionTo(newStatus),
+                    TransactionUtil.canTransitionTo(status, newStatus),
                 "Status `" + status + "` should NOT be able to transition to `" + newStatus + "`"
             );
         });
