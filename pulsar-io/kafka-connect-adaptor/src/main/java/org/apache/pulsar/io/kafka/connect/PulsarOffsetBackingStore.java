@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka.connect;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang.StringUtils.isNotBlank;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -32,10 +33,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.kafka.connect.runtime.WorkerConfig;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.util.Callback;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -57,6 +62,15 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     private Producer<byte[]> producer;
     private Reader<byte[]> reader;
     private volatile CompletableFuture<Void> outstandingReadToEnd = null;
+    // authentication params
+    @Getter
+    private String authPlugin;
+    @Getter
+    private String authParam;
+    @Getter
+    private boolean allowTlsInsecureConnection;
+    @Getter
+    private String tlsTrustCertPath;
 
     @Override
     public void configure(WorkerConfig workerConfig) {
@@ -66,6 +80,10 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         checkArgument(!isBlank(serviceUrl), "Pulsar service url must be specified at `"
             + WorkerConfig.BOOTSTRAP_SERVERS_CONFIG + "`");
         this.data = new HashMap<>();
+        authPlugin = workerConfig.getString(PulsarKafkaWorkerConfig.AUTH_PLUGIN_CONFIG);
+        authParam = workerConfig.getString(PulsarKafkaWorkerConfig.AUTH_PLUGIN_PARAM_CONFIG);
+        allowTlsInsecureConnection = workerConfig.getBoolean(PulsarKafkaWorkerConfig.TLS_ALLOW_INSECURE_CONNECTION_CONFIG);
+        tlsTrustCertPath = workerConfig.getString(PulsarKafkaWorkerConfig.TLS_TRUST_CERT_CONFIG);
 
         log.info("Configure offset backing store on pulsar topic {} at cluster {}",
             topic, serviceUrl);
@@ -137,9 +155,15 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     @Override
     public void start() {
         try {
-            client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+            ClientBuilder pulsarClientBuilder = PulsarClient.builder().serviceUrl(serviceUrl);
+            if (isNotBlank(authPlugin)) {
+                pulsarClientBuilder.authentication(authPlugin, authParam);
+            }
+            if (isNotBlank(tlsTrustCertPath)) {
+                pulsarClientBuilder.tlsTrustCertsFilePath(tlsTrustCertPath);
+            }
+            pulsarClientBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            client = pulsarClientBuilder.build();
             log.info("Successfully created pulsar client to {}", serviceUrl);
             producer = client.newProducer(Schema.BYTES)
                 .topic(topic)

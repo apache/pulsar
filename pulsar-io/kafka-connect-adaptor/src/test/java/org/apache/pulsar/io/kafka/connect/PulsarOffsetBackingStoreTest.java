@@ -111,6 +111,30 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         testGetSet(true);
     }
 
+    @Test
+    public void testAuthentication() throws Exception {
+        this.topicName = "persistent://my-property/my-ns/offset-topic2";
+        Map<String, String> defaultProps = new HashMap<>();
+        defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
+        defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
+
+        // auth
+        String plugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        String param = "tlsCertFile:/cert.pem,tlsKeyFile:/key.pem";
+        String trustCert = "/trust.pem";
+        defaultProps.put(PulsarKafkaWorkerConfig.AUTH_PLUGIN_CONFIG, plugin);
+        defaultProps.put(PulsarKafkaWorkerConfig.AUTH_PLUGIN_PARAM_CONFIG, param);
+        defaultProps.put(PulsarKafkaWorkerConfig.TLS_ALLOW_INSECURE_CONNECTION_CONFIG, "false");
+        defaultProps.put(PulsarKafkaWorkerConfig.TLS_TRUST_CERT_CONFIG, trustCert);
+
+        PulsarKafkaWorkerConfig distributedConfig = new PulsarKafkaWorkerConfig(defaultProps);
+        PulsarOffsetBackingStore offsetBackingStore = new PulsarOffsetBackingStore();
+        offsetBackingStore.configure(distributedConfig);
+        assertEquals(offsetBackingStore.getAuthPlugin(), plugin);
+        assertEquals(offsetBackingStore.getAuthParam(), param);
+        assertEquals(offsetBackingStore.getTlsTrustCertPath(), trustCert);
+    }
+
     private void testGetSet(boolean testCallback) throws Exception {
         final int numKeys = 10;
         final List<ByteBuffer> keys = new ArrayList<>();

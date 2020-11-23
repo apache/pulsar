@@ -50,6 +50,30 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
     public static final String TOPIC_NAMESPACE_CONFIG = "topic.namespace";
     private static final String TOPIC_NAMESPACE_CONFIG_DOC = "namespace of topic name to store the output topics";
 
+    /**
+     * <code>pulsar.auth.plugin</code>
+     */
+    public static final String AUTH_PLUGIN_CONFIG = "pulsar.auth.plugin";
+    private static final String AUTH_PLUGIN_CONFIG_DOC = "Pulsar authentication plugin classname";
+
+    /**
+     * <code>pulsar.auth.plugin.param</code>
+     */
+    public static final String AUTH_PLUGIN_PARAM_CONFIG = "pulsar.auth.plugin.param";
+    private static final String AUTH_PLUGIN_PARAM_CONFIG_DOC = "Pulsar authentication plugin params.";
+
+    /**
+     * <code>pulsar.allowTlsInsecureConnection</code>
+     */
+    public static final String TLS_ALLOW_INSECURE_CONNECTION_CONFIG = "pulsar.tls.insecure.connection";
+    private static final String TLS_ALLOW_INSECURE_CONNECTION_CONFIG_DOC = "Accept self-signed certificates from brokers.";
+
+    /**
+     * <code>pulsar.tls.trust.store</code>
+     */
+    public static final String TLS_TRUST_CERT_CONFIG = "pulsar.tls.trust.cert";
+    private static final String TLS_TRUST_CERT_CONFIG_DOC = "Path for the TLS trust certificate store.";
+
     static {
         CONFIG = new ConfigDef()
             .define(OFFSET_STORAGE_TOPIC_CONFIG,
@@ -60,6 +84,26 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
                 Type.STRING,
                 Importance.HIGH,
                 PULSAR_SERVICE_URL_CONFIG_DOC)
+            .define(AUTH_PLUGIN_CONFIG,
+                Type.STRING,
+                null, null,
+                Importance.HIGH,
+                AUTH_PLUGIN_CONFIG_DOC)
+            .define(AUTH_PLUGIN_PARAM_CONFIG,
+                Type.STRING,
+                null, null,
+                Importance.LOW,
+                AUTH_PLUGIN_PARAM_CONFIG_DOC)
+            .define(TLS_ALLOW_INSECURE_CONNECTION_CONFIG,
+                Type.BOOLEAN,
+                false, null,
+                Importance.HIGH,
+                TLS_ALLOW_INSECURE_CONNECTION_CONFIG_DOC)
+            .define(TLS_TRUST_CERT_CONFIG,
+                Type.STRING,
+                null, null,
+                Importance.HIGH,
+                TLS_TRUST_CERT_CONFIG_DOC)
             .define(TOPIC_NAMESPACE_CONFIG,
                 Type.STRING,
                 "public/default",
