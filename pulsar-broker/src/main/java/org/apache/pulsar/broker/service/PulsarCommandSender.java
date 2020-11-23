@@ -76,4 +76,6 @@ public interface PulsarCommandSender {
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
             int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
             RedeliveryTracker redeliveryTracker);
+
+    void sendSeekResponse(long requestId, PulsarApi.MessageIdData messageIdData);
 }

@@ -314,6 +314,16 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         return writePromise;
     }
 
+    @Override
+    public void sendSeekResponse(long requestId, MessageIdData messageIdData) {
+        PulsarApi.BaseCommand command = Commands.newSeekResponse(requestId, messageIdData);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        command.getPartitionMetadataResponse().recycle();
+        command.recycle();
+        cnx.ctx().writeAndFlush(outBuf);
+    }
+
     private void safeIntercept(PulsarApi.BaseCommand command, ServerCnx cnx) {
         try {
             this.interceptor.onPulsarCommand(command, cnx);

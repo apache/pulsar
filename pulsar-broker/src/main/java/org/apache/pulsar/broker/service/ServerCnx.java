@@ -1369,10 +1369,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     msgIdData.getEntryId(), ackSet);
 
 
-            subscription.resetCursor(position).thenRun(() -> {
+            subscription.resetCursor(position).thenAccept((messageIdData) -> {
                 log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
                         subscription.getTopic().getName(), subscription.getName(), position);
-                commandSender.sendSuccessResponse(requestId);
+                commandSender.sendSeekResponse(requestId, messageIdData);
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
                 commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
@@ -1384,10 +1384,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             Subscription subscription = consumer.getSubscription();
             long timestamp = seek.getMessagePublishTime();
 
-            subscription.resetCursor(timestamp).thenRun(() -> {
+            subscription.resetCursor(timestamp).thenAccept((messageIdData) -> {
                 log.info("[{}] [{}][{}] Reset subscription to publish time {}", remoteAddress,
                         subscription.getTopic().getName(), subscription.getName(), timestamp);
-                commandSender.sendSuccessResponse(requestId);
+                commandSender.sendSeekResponse(requestId, messageIdData);
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
                 commandSender.sendErrorResponse(requestId, ServerError.UnknownError,

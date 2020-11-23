@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 
 public interface Subscription {
@@ -74,9 +75,9 @@ public interface Subscription {
 
     CompletableFuture<Void> skipMessages(int numMessagesToSkip);
 
-    CompletableFuture<Void> resetCursor(long timestamp);
+    CompletableFuture<MessageIdData> resetCursor(long timestamp);
 
-    CompletableFuture<Void> resetCursor(Position position);
+    CompletableFuture<MessageIdData> resetCursor(Position position);
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 

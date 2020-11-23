@@ -66,6 +66,7 @@ import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1170,4 +1171,76 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testReaderHasMessageAvailableAfterSeekTime() throws Exception {
+        final int numOfMessage = 10;
+        final String topicName = "persistent://my-property/my-ns/HasMessageAvailableAfterSeekTime";
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .create();
+
+        long midTime = Long.MAX_VALUE;
+        long sendAfterMidTime = 0;
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes("utf-8"));
+            long currentTime = System.currentTimeMillis();
+            if (i == numOfMessage / 2) {
+                Thread.sleep(2);
+                midTime = currentTime;
+            }
+            if (currentTime > midTime) {
+                sendAfterMidTime ++;
+            }
+        }
+
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .subscriptionName("test-sub-name")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .consumerName("seek-consumer")
+                .receiverQueueSize(1)
+                .topic(topicName)
+                .startMessageIdInclusive()
+                .subscribe();
+
+
+        // seek timestamp after the publish time of last message, should not receive no message
+        consumer.seek(Long.MAX_VALUE);
+        // wait for re-connect
+        Thread.sleep(500);
+        Message message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(message);
+
+        // seek timestamp before the publish time of last message, should receive message if has
+        consumer.seek(0);
+        Thread.sleep(500);
+        int readNumber = 0;
+        while(true) {
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            assertTrue(new String(message.getData(), "utf-8").equals(String.format("msg num %d", readNumber)));
+            readNumber ++;
+        }
+        assertTrue(readNumber == numOfMessage);
+
+        // seek the middle timestamp
+        consumer.seek(midTime);
+        // wait for re-connect
+        Thread.sleep(500);
+
+        readNumber = 0;
+        while(true) {
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            readNumber ++;
+        }
+        assertTrue(readNumber == sendAfterMidTime);
+
+        consumer.close();
+        producer.close();
+    }
 }

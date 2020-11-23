@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -536,8 +538,8 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(long timestamp) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public CompletableFuture<MessageIdData> resetCursor(long timestamp) {
+        CompletableFuture<MessageIdData> future = new CompletableFuture<>();
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor);
 
         if (log.isDebugEnabled()) {
@@ -582,13 +584,13 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public CompletableFuture<MessageIdData> resetCursor(Position position) {
+        CompletableFuture<MessageIdData> future = new CompletableFuture<>();
         resetCursor(position, future);
         return future;
     }
 
-    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
+    private void resetCursor(Position finalPosition, CompletableFuture<MessageIdData> future) {
         if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
             future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
             return;
@@ -633,7 +635,13 @@ public class PersistentSubscription implements Subscription {
                             dispatcher.cursorIsReset();
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        future.complete(null);
+                        PositionImpl position = (PositionImpl) ctx;
+                        MessageIdData messageIdData = MessageIdData.newBuilder()
+                                .setLedgerId(position.getLedgerId())
+                                .setEntryId(position.getEntryId())
+                                .addAllAckSet(SafeCollectionUtils.longArrayToList(position.getAckSet()))
+                                .build();
+                        future.complete(messageIdData);
                     }
 
                     @Override

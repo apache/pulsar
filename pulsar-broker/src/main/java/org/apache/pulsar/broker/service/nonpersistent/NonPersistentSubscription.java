@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -250,7 +251,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(long timestamp) {
+    public CompletableFuture<MessageIdData> resetCursor(long timestamp) {
         // No-op
         return CompletableFuture.completedFuture(null);
     }
@@ -475,7 +476,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(Position position) {
+    public CompletableFuture<MessageIdData> resetCursor(Position position) {
         return CompletableFuture.completedFuture(null);
     }
 

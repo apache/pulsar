@@ -168,8 +168,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
         consumer.seek(MessageId.earliest);
-        Message<String> receiveBeforEarliest = consumer.receive();
-        assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
+        Message<String> receiveBeforeEarliest = consumer.receive();
+        assertEquals(receiveBeforeEarliest.getValue(), messages.get(0));
         consumer.seek(MessageId.latest);
         Message<String> receiveAfterLatest = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(receiveAfterLatest);

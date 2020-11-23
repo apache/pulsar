@@ -1467,4 +1467,68 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         producer.close();
     }
+
+    @Test
+    public void testReaderHasMessageAvailableAfterSeekTime() throws Exception {
+        final int numOfMessage = 10;
+        final String topicName = "persistent://my-property/my-ns/HasMessageAvailableAfterSeekTime";
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .create();
+
+        long midTime = Long.MAX_VALUE;
+        long sendAfterMidTime = 0;
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes("utf-8"));
+            long currentTime = System.currentTimeMillis();
+            if (i == numOfMessage / 2) {
+                Thread.sleep(2);
+                midTime = currentTime;
+            }
+            if (currentTime > midTime) {
+                sendAfterMidTime ++;
+            }
+        }
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        // seek timestamp after the publish time of last message, then hasMessageAvailable will give false
+        reader.seek(Long.MAX_VALUE);
+        // wait for re-connect
+        Thread.sleep(500);
+        assertFalse(reader.hasMessageAvailable());
+
+        // seek timestamp before the publish time of last message, then hasMessageAvailable will give true
+        reader.seek(0);
+        // wait for re-connect
+        Thread.sleep(500);
+        int readNumber = 0;
+        while(reader.hasMessageAvailable()) {
+            Message message = reader.readNext();
+            assertTrue(new String(message.getData(), "utf-8").equals(String.format("msg num %d", readNumber)));
+            readNumber ++;
+        }
+        assertTrue(readNumber == numOfMessage);
+
+
+
+        // seek the middle timestamp
+        reader.seek(midTime);
+        // wait for re-connect
+        Thread.sleep(500);
+
+        readNumber = 0;
+        while(reader.hasMessageAvailable()) {
+            reader.readNext();
+            readNumber ++;
+        }
+        assertTrue(readNumber == sendAfterMidTime);
+
+        producer.close();
+        reader.close();
+    }
 }
