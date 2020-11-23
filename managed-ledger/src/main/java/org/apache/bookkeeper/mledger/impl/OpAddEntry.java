@@ -109,7 +109,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
 
             ByteBuf duplicateBuffer = data.retainedDuplicate();
-            if (ml.getConfig().isBrokerTimestampForMessageEnable()) {
+            if (ml.getConfig().isRawMetadataEnable()) {
                 duplicateBuffer = Commands.addRawMessageMetadata(duplicateBuffer);
                 dataWithRawMetadata = duplicateBuffer.retainedDuplicate();
             }
@@ -180,7 +180,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = null;
-            if (ml.getConfig().isBrokerTimestampForMessageEnable()) {
+            if (ml.getConfig().isRawMetadataEnable()) {
                 entry =  EntryImpl.create(ledger.getId(), entryId, dataWithRawMetadata);
             } else {
                 entry = EntryImpl.create(ledger.getId(), entryId, data);

@@ -645,4 +645,8 @@ public class ManagedLedgerConfig {
     public void setBrokerTimestampForMessageEnable(boolean brokerTimestampForMessageEnable) {
         this.brokerTimestampForMessageEnable = brokerTimestampForMessageEnable;
     }
+
+    public boolean isRawMetadataEnable() {
+        return this.brokerTimestampForMessageEnable;
+    }
 }
