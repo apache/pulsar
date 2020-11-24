@@ -25,13 +25,14 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
+import lombok.val;
+import lombok.var;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -42,11 +43,12 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1610,7 +1612,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(
                 names = {"--driver", "-d"},
                 description = "Driver to use to offload old data to long term storage, " +
-                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                        "(Possible values: S3, aws-s3, google-cloud-storage, filesystem, azureblob)",
                 required = true)
         private String driver;
 
@@ -1670,7 +1672,14 @@ public class CmdNamespaces extends CmdBase {
                 required = false)
         private String offloadAfterThresholdStr;
 
-        private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
+        @Parameter(
+                names = {"--offloadedReadPriority", "-orp"},
+                description = "read priority for offloaded messages",
+                required = false
+        )
+        private String offloadReadPriorityStr;
+
+        private final String[] DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
 
         public boolean driverSupported(String driver) {
             return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
@@ -1704,7 +1713,7 @@ public class CmdNamespaces extends CmdBase {
             if (!driverSupported(driver)) {
                 throw new ParameterException(
                         "The driver " + driver + " is not supported, " +
-                                "(Possible values: S3, aws-s3, google-cloud-storage).");
+                                "(Possible values: " + String.join(",", DRIVER_NAMES) + ").");
             }
 
             if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
@@ -1752,6 +1761,22 @@ public class CmdNamespaces extends CmdBase {
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis);
+
+            var offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
+
+            if (this.offloadReadPriorityStr != null) {
+                try {
+                    val parsedOffloadedReadPriority = OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
+                    offloadedReadPriority = parsedOffloadedReadPriority;
+                } catch (Exception e) {
+                    throw new ParameterException("--offloadedReadPriority parameter must be one of " +
+                            Arrays.stream(OffloadedReadPriority.values())
+                                    .map(OffloadedReadPriority::toString)
+                                    .collect(Collectors.joining(",")));
+                }
+            }
+            offloadPolicies.setManagedLedgerOffloadedReadPriority(offloadedReadPriority);
+
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -28,17 +27,17 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
+import lombok.val;
+import lombok.var;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -1332,11 +1331,35 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
 
+        @Parameter(
+                names = {"--offloadedReadPriority", "-orp"},
+                description = "read priority for offloaded messages",
+                required = false
+        )
+        private String offloadReadPriorityStr;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
                     , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
+
+
+            var offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
+
+            if (this.offloadReadPriorityStr != null) {
+                try {
+                    val parsedOffloadedReadPriority = OffloadPolicies.OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
+                    offloadedReadPriority = parsedOffloadedReadPriority;
+                } catch (Exception e) {
+                    throw new ParameterException("--offloadedReadPriority parameter must be one of " +
+                            Arrays.stream(OffloadPolicies.OffloadedReadPriority.values())
+                                    .map(OffloadPolicies.OffloadedReadPriority::toString)
+                                    .collect(Collectors.joining(",")));
+                }
+            }
+            offloadPolicies.setManagedLedgerOffloadedReadPriority(offloadedReadPriority);
+
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
     }
