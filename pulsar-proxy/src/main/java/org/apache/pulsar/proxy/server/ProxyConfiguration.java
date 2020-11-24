@@ -148,6 +148,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean proxyProtocolEnabled;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
