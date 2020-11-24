@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import com.google.common.collect.Maps;
 import java.util.Arrays;
 import java.util.Map;
-
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Maps;
 
 public class NamespaceStats {
 

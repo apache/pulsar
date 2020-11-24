@@ -19,10 +19,9 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Lists;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
 /**
  * Algorithm interface for namespace bundle split.

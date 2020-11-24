@@ -22,7 +22,6 @@ import static org.apache.pulsar.client.internal.ReflectionUtils.catchExceptions;
 import static org.apache.pulsar.client.internal.ReflectionUtils.getConstructor;
 import static org.apache.pulsar.client.internal.ReflectionUtils.getStaticMethod;
 import static org.apache.pulsar.client.internal.ReflectionUtils.newClassInstance;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
-
 import java.io.IOException;
 import java.time.Clock;
 import java.util.Collections;
@@ -33,9 +32,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;

@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry;
 
