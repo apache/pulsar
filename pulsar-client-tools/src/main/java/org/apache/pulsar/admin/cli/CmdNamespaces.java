@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.val;
 import lombok.var;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
@@ -1757,17 +1756,11 @@ public class CmdNamespaces extends CmdBase {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
-
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
-                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadAfterElapsedInMillis);
-
             var offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
 
             if (this.offloadReadPriorityStr != null) {
                 try {
-                    val parsedOffloadedReadPriority = OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
-                    offloadedReadPriority = parsedOffloadedReadPriority;
+                    offloadedReadPriority = OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
                 } catch (Exception e) {
                     throw new ParameterException("--offloadedReadPriority parameter must be one of " +
                             Arrays.stream(OffloadedReadPriority.values())
@@ -1775,7 +1768,10 @@ public class CmdNamespaces extends CmdBase {
                                     .collect(Collectors.joining(",")));
                 }
             }
-            offloadPolicies.setManagedLedgerOffloadedReadPriority(offloadedReadPriority);
+
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
+                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
+                    offloadAfterElapsedInMillis, offloadedReadPriority);
 
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
