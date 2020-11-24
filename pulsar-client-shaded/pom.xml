@@ -115,6 +115,7 @@
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
                   <include>com.google.guava:guava</include>
+                  <include>com.google.guava:failureaccess</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
