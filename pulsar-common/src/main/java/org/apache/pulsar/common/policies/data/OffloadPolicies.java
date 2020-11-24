@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
-
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
@@ -35,6 +34,8 @@ import java.util.Properties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Definition of the offload policies.
@@ -43,9 +44,48 @@ import org.apache.commons.lang3.StringUtils;
 @Data
 public class OffloadPolicies implements Serializable {
 
+    @InterfaceAudience.Public
+    @InterfaceStability.Stable
+    public enum OffloadedReadPriority {
+        /**
+         * For offloaded messages, readers can only read from bookkeeper.
+         */
+        BOOKKEEPER_ONLY("bookkeeper-only"),
+        /**
+         * For offloaded messages, readers will try to read from bookkeeper at first,
+         * if failed then read from offloaded storage.
+         */
+        BOOKKEEPER_FIRST("bookkeeper-first"),
+        /**
+         * For offloaded messages, readers can only read from offloaded storage.
+         */
+        OFFLOADED_ONLY("offloaded-only"),
+        /**
+         * For offloaded messages, readers will try to read from offloaded storage first,
+         * if failed then read from bookkeeper.
+         */
+        OFFLOADED_FIRST("offloaded-first");
+
+        private final String name;
+
+        OffloadedReadPriority(String name) {
+            this.name = name;
+        }
+
+        public boolean equalsName(String otherName) {
+            return name.equals(otherName);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
     private final static long serialVersionUID = 0L;
 
     private final static List<Field> CONFIGURATION_FIELDS;
+
     static {
         CONFIGURATION_FIELDS = new ArrayList<>();
         Class<OffloadPolicies> clazz = OffloadPolicies.class;
@@ -69,6 +109,7 @@ public class OffloadPolicies implements Serializable {
     public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
+    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.OFFLOADED_FIRST;
 
     // common config
     @Configuration
@@ -83,6 +124,8 @@ public class OffloadPolicies implements Serializable {
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
     @Configuration
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+    @Configuration
+    private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -252,6 +295,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(
+                managedLedgerOffloadedReadPriority,
                 managedLedgerOffloadDriver,
                 managedLedgerOffloadMaxThreads,
                 managedLedgerOffloadPrefetchRounds,
@@ -287,17 +331,18 @@ public class OffloadPolicies implements Serializable {
             return false;
         }
         OffloadPolicies other = (OffloadPolicies) obj;
-        return Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
+        return Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
+                && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
                 && Objects.equals(managedLedgerOffloadPrefetchRounds, other.getManagedLedgerOffloadPrefetchRounds())
                 && Objects.equals(managedLedgerOffloadThresholdInBytes,
-                    other.getManagedLedgerOffloadThresholdInBytes())
+                other.getManagedLedgerOffloadThresholdInBytes())
                 && Objects.equals(managedLedgerOffloadDeletionLagInMillis,
-                    other.getManagedLedgerOffloadDeletionLagInMillis())
+                other.getManagedLedgerOffloadDeletionLagInMillis())
                 && Objects.equals(s3ManagedLedgerOffloadRegion, other.getS3ManagedLedgerOffloadRegion())
                 && Objects.equals(s3ManagedLedgerOffloadBucket, other.getS3ManagedLedgerOffloadBucket())
                 && Objects.equals(s3ManagedLedgerOffloadServiceEndpoint,
-                    other.getS3ManagedLedgerOffloadServiceEndpoint())
+                other.getS3ManagedLedgerOffloadServiceEndpoint())
                 && Objects.equals(s3ManagedLedgerOffloadMaxBlockSizeInBytes,
                     other.getS3ManagedLedgerOffloadMaxBlockSizeInBytes())
                 && Objects.equals(s3ManagedLedgerOffloadReadBufferSizeInBytes,
@@ -327,6 +372,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                .add("managedLedgerOffloadedReadPriority", managedLedgerOffloadedReadPriority)
                 .add("managedLedgerOffloadDriver", managedLedgerOffloadDriver)
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
                 .add("managedLedgerOffloadPrefetchRounds", managedLedgerOffloadPrefetchRounds)
@@ -357,7 +403,7 @@ public class OffloadPolicies implements Serializable {
 
     public Properties toProperties() {
         Properties properties = new Properties();
-
+        setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
         setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
         setProperty(properties, "managedLedgerOffloadMaxThreads",
