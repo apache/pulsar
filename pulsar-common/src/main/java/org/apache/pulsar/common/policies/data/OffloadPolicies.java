@@ -179,7 +179,7 @@ public class OffloadPolicies implements Serializable {
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
                                          String credentialId, String credentialSecret,
                                          Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
-                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
+                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis, OffloadedReadPriority readPriority) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
@@ -190,6 +190,7 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadServiceEndpoint(endpoint);
         offloadPolicies.setManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
         offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
+        offloadPolicies.setManagedLedgerOffloadedReadPriority(readPriority);
 
         if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
             if (credentialId != null) {
