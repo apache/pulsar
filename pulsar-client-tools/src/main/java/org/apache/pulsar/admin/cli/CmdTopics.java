@@ -1346,17 +1346,18 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-
             var offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
 
             if (this.offloadReadPriorityStr != null) {
                 try {
-                    offloadedReadPriority = OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
+                    offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
+                    System.out.println("offloadedReadPriority = " + offloadedReadPriority);
                 } catch (Exception e) {
                     throw new ParameterException("--offloadedReadPriority parameter must be one of " +
                             Arrays.stream(OffloadedReadPriority.values())
                                     .map(OffloadedReadPriority::toString)
-                                    .collect(Collectors.joining(",")));
+                                    .collect(Collectors.joining(","))
+                            + " but got: " + this.offloadReadPriorityStr, e);
                 }
             }
 

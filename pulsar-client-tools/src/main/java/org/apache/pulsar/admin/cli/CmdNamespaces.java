@@ -1760,12 +1760,14 @@ public class CmdNamespaces extends CmdBase {
 
             if (this.offloadReadPriorityStr != null) {
                 try {
-                    offloadedReadPriority = OffloadedReadPriority.valueOf(this.offloadReadPriorityStr);
+                    offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
+                    System.out.println("offloadedReadPriority = " + offloadedReadPriority);
                 } catch (Exception e) {
                     throw new ParameterException("--offloadedReadPriority parameter must be one of " +
                             Arrays.stream(OffloadedReadPriority.values())
                                     .map(OffloadedReadPriority::toString)
-                                    .collect(Collectors.joining(",")));
+                                    .collect(Collectors.joining(","))
+                            + " but got: " + this.offloadReadPriorityStr, e);
                 }
             }
 
