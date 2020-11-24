@@ -74,7 +74,7 @@ public class RateLimiter implements AutoCloseable{
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
                        final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
-        this(service, permits, rateTime, timeUnit, null, false);
+        this(service, permits, rateTime, timeUnit, permitUpdater, false);
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
