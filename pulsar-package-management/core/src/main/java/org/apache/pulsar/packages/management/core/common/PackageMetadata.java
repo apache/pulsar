@@ -19,9 +19,6 @@
 
 package org.apache.pulsar.packages.management.core.common;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,17 +34,12 @@ import lombok.Setter;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
-@ApiModel(value = "metadata", description = "Package metadata information")
 @Setter
 @Getter
 public class PackageMetadata {
-    @ApiModelProperty(name = "description")
     String description;
-    @ApiModelProperty(name = "contact")
     String contact;
     long createTime;
     long modificationTime;
-    @ApiModelProperty(name = "properties")
     Map<String, String> properties;
 }

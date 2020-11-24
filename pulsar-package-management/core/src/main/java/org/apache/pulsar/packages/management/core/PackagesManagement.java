@@ -31,6 +31,15 @@ import org.apache.pulsar.packages.management.core.common.PackageType;
  */
 public interface PackagesManagement {
     /**
+     * Initialize the packages management service with the given storage.
+     *
+     * @param storage
+     *          the storage used to saving packages
+     * @return
+     */
+    CompletableFuture<Void> initialize(PackagesStorage storage);
+
+    /**
      * Get the metadata of a package.
      *
      * @param packageName package name
