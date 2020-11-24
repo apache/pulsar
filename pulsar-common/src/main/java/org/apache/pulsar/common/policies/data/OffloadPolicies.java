@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -79,6 +80,20 @@ public class OffloadPolicies implements Serializable {
         @Override
         public String toString() {
             return name;
+        }
+
+        public static OffloadedReadPriority fromString(String str) {
+            for (OffloadedReadPriority value : OffloadedReadPriority.values()) {
+                if (value.name.equals(str)) {
+                    return value;
+                }
+            }
+
+            throw new IllegalArgumentException("--offloadedReadPriority parameter must be one of "
+                    + Arrays.stream(OffloadedReadPriority.values())
+                    .map(OffloadedReadPriority::toString)
+                    .collect(Collectors.joining(","))
+                    + " but got: " + str);
         }
     }
 
