@@ -1,6 +1,6 @@
 ---
 id: transactions-api
-title: Transactions API(Developer Preview)
+title: Transactions API (Developer Preview)
 sidebar_label: Transactions API
 ---
 
