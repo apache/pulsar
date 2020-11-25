@@ -131,7 +131,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            return BLOB_STORE_BUILDER.getBlobStore(config);
+            ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+            contextBuilder.overrides(config.getOverrides());
+
+            if (config.getProviderCredentials() != null) {
+                Credentials credentials = config.getProviderCredentials().get();
+                return contextBuilder
+                        .credentials(credentials.identity, credentials.credential)
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            } else {
+                log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+                return contextBuilder
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            }
         }
 
         @Override
@@ -254,11 +268,12 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         .credentialsSupplier(config.getCredentials())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
-            } else {
-                return contextBuilder
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            }
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        }
 
     };
 
