@@ -60,6 +60,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
         } catch (Exception e) {
             LOG.error("Stats executor error", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -72,8 +73,15 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             });
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkGC()).get();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+            pulsar.getBrokerService().forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    MessageId messageId = ((AbstractTopic) topic).getLastMessageId().get();
+                    LOG.info("Last message id for "+topic.getName()+" is "+messageId);
+                }
+            });
         } catch (Exception e) {
             LOG.error("GC executor error", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -83,6 +91,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
             LOG.error("Error running message expiry check", e);
+            throw new RuntimeException(e);
         }
     }
 
