@@ -140,7 +140,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * Clear all items
+     * Clear all items.
      */
     public void clear() {
         this.buffer.clear();
