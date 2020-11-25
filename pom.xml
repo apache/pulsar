@@ -1630,6 +1630,10 @@ flexible messaging model and an intuitive client API.</description>
         <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 
@@ -1675,6 +1679,10 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 
