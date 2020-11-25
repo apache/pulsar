@@ -1,5 +1,5 @@
 ---
-id: transaction
+id: transactions
 title: Transactions
 sidebar_label: Transaction Concepts
 ---

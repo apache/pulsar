@@ -55,10 +55,10 @@
      "tiered-storage-gcs",
      "tiered-storage-filesystem"
   ],
-  "Transaction": [
-    "transaction",
-    "transaction-guarantee",
-    "transaction-api"
+  "Transactions": [
+    "transactions",
+    "transactions-guarantee",
+    "transactions-api"
   ],
     "Kubernetes (Helm)": [
       "helm-overview",
