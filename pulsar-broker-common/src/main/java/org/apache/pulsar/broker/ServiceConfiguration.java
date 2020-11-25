@@ -165,7 +165,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
-    private boolean proxyProtocolEnabled;
+    private boolean haProxyProtocolEnabled;
 
     @FieldContext(
         category = CATEGORY_SERVER,

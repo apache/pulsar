@@ -127,7 +127,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             ch.pipeline().addLast(TLS_HANDLER,
                     new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
         }
-        if (proxyService.getConfiguration().isProxyProtocolEnabled()) {
+        if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(

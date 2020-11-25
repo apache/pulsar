@@ -119,7 +119,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
 
-        if (pulsar.getConfiguration().isProxyProtocolEnabled()) {
+        if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(

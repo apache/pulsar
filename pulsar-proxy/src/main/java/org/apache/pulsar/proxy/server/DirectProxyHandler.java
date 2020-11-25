@@ -150,7 +150,7 @@ public class DirectProxyHandler {
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
             }
 
-            if (config.isProxyProtocolEnabled()) {
+            if (config.isHaProxyProtocolEnabled()) {
                 if (proxyConnection.hasHAProxyMessage()) {
                     outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
                 } else {

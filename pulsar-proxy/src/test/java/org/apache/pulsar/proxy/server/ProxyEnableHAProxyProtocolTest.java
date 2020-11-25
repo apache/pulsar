@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -54,13 +53,13 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
-        conf.setProxyProtocolEnabled(true);
+        conf.setHaProxyProtocolEnabled(true);
         internalSetup();
 
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
-        proxyConfig.setProxyProtocolEnabled(true);
+        proxyConfig.setHaProxyProtocolEnabled(true);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig))));

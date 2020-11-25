@@ -42,7 +42,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setProxyProtocolEnabled(true);
+        conf.setHaProxyProtocolEnabled(true);
         super.baseSetup();
     }
 
