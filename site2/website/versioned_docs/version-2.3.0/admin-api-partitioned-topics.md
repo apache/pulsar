@@ -35,7 +35,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
 
 #### Java
 
@@ -97,7 +97,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
 
 #### Java
 
@@ -129,7 +129,7 @@ $ pulsar-admin topics update-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
 
 #### Java
 
@@ -151,7 +151,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
 
 #### Java
 
@@ -173,7 +173,7 @@ persistent://tenant/namespace/topic2
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getPartitionedTopicList}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList}
 
 #### Java
 
@@ -261,7 +261,7 @@ $ pulsar-admin topics partitioned-stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
 
 #### Java
 
@@ -348,7 +348,7 @@ $ pulsar-admin topics stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
 #### Java
 
