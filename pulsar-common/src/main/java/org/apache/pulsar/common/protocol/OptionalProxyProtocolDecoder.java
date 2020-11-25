@@ -37,7 +37,8 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf) {
-            ProtocolDetectionResult<HAProxyProtocolVersion> result = HAProxyMessageDecoder.detectProtocol((ByteBuf) msg);
+            ProtocolDetectionResult<HAProxyProtocolVersion> result =
+                    HAProxyMessageDecoder.detectProtocol((ByteBuf) msg);
             if (result.state() == ProtocolDetectionState.DETECTED) {
                 ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
                 ctx.pipeline().remove(this);

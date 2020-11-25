@@ -23,13 +23,10 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -41,11 +38,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.InetSocketAddress;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.doReturn;
 
@@ -124,33 +117,4 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         Assert.assertEquals(topicStats.publishers.get(0).getAddress(),
                 ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
     }
-
-    @Test
-    public void testExternalProxy() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
-        final String topicName = "persistent://sample/test/local/testExternalProxy";
-        final String subName = "my-subscriber-name";
-        @Cleanup
-        PulsarClient proxyClient = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).connectionsPerBroker(1)
-                .build();
-        PulsarClientImpl client = (PulsarClientImpl) proxyClient;
-        CompletableFuture<ClientCnx> cnx = client.getCnxPool().getConnection(
-                InetSocketAddress.createUnresolved("localhost", proxyService.getListenPort().get()),InetSocketAddress.createUnresolved("localhost", pulsar.getBrokerService().getListenPort().get()));
-        // Simulate the proxy protcol message
-        cnx.get().ctx().channel().writeAndFlush(Unpooled.copiedBuffer("PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes()));
-
-        proxyClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscribe();
-
-        TopicStats topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.subscriptions.size(), 1);
-        SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subName);
-        Assert.assertEquals(subscriptionStats.consumers.size(), 1);
-        Assert.assertEquals(subscriptionStats.consumers.get(0).getAddress(), "198.51.100.22:35646");
-
-        proxyClient.newProducer().topic(topicName).create();
-        topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.publishers.size(), 1);
-        Assert.assertEquals(topicStats.publishers.get(0).getAddress(), "198.51.100.22:35646");
-    }
-
 }

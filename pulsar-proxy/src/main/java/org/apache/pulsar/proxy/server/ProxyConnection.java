@@ -171,7 +171,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
-        System.out.println(haProxyMessage);
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
             return;
