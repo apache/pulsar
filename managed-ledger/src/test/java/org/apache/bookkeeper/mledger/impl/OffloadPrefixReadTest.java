@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -155,14 +157,14 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
                 secondLedger.getOffloadContext().getUidLsb());
 
-//        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
-//        int i = 0;
-//        for (Entry e : cursor.readEntries(10)) {
-//            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
-//        }
-//        // For offloaded first and not deleted ledgers, they should be read from bookkeeper.
-//        verify(offloader,never())
-//                .readOffloaded(anyLong(),any(),anyMap());
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        int i = 0;
+        for (Entry e : cursor.readEntries(10)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+        // For offloaded first and not deleted ledgers, they should be read from bookkeeper.
+        verify(offloader, never())
+                .readOffloaded(anyLong(), any(), anyMap());
 
         // Delete offladed message from bookkeeper
         assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
@@ -175,20 +177,17 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         // assert bk ledger is deleted
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
-        Assert.assertTrue(firstLedger.getOffloadContext().getBookkeeperDeleted());
-        Assert.assertTrue(secondLedger.getOffloadContext().getBookkeeperDeleted());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
-//        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+        for (Entry e : cursor.readEntries(10)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
 
-
-//        for (Entry e : cursor.readEntries(10)) {
-//            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
-//        }
-//
-//        // Ledgers deleted from bookkeeper, now should read from offloader
-//        verify(offloader, times(2))
-//                .readOffloaded(anyLong(), any(), anyMap());
-//        verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
+        // Ledgers deleted from bookkeeper, now should read from offloader
+        verify(offloader, atLeastOnce())
+                .readOffloaded(anyLong(), any(), anyMap());
+        verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
     }
 

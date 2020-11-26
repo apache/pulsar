@@ -1544,12 +1544,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .getManagedLedgerOffloadedReadPriority() == OffloadedReadPriority.BOOKKEEPER_FIRST
                     && info != null && info.hasOffloadContext()
                     && !info.getOffloadContext().getBookkeeperDeleted()) {
-                System.out.println("read from xx bookkeeper1");
                 openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute();
 
             } else if (info != null && info.hasOffloadContext() && info.getOffloadContext().getComplete()) {
-                System.out.println("read from xx offloaded");
 
                 UUID uid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
                 // TODO: improve this to load ledger offloader by driver name recorded in metadata
@@ -1558,7 +1556,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid,
                         offloadDriverMetadata);
             } else {
-                System.out.println("read from xx bookkeeper2");
                 openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute();
             }
@@ -2047,8 +2044,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws Exception
      */
     void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
-        log.warn("logger: {}", log.getClass());
-        log.debug("heiheihei");
+        log.info("hehehe");
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
             scheduleDeferredTrimming(promise);
