@@ -1102,7 +1102,6 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
-            -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
