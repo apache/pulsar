@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -53,7 +54,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final ManagedLedger managedLedger;
 
-    private final static String TRANSACTION_LOG_PREFIX = NamespaceName.SYSTEM_NAMESPACE + "/transaction-log-";
+    public final static String TRANSACTION_LOG_PREFIX = NamespaceName.SYSTEM_NAMESPACE + "/transaction-log-";
 
     private final ManagedCursor cursor;
 
@@ -64,17 +65,21 @@ public class MLTransactionLogImpl implements TransactionLog {
     //this is for replay
     private final PositionImpl lastConfirmedEntry;
 
+    private PositionImpl currentLoadPosition;
+
     private final long tcId;
 
     private final String topicName;
 
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
-                                ManagedLedgerFactory managedLedgerFactory) throws Exception {
+                                ManagedLedgerFactory managedLedgerFactory,
+                                ManagedLedgerConfig managedLedgerConfig) throws Exception {
         this.topicName = TRANSACTION_LOG_PREFIX + tcID;
         this.tcId = tcID.getId();
-        this.managedLedger = managedLedgerFactory.open(topicName);
+        this.managedLedger = managedLedgerFactory.open(topicName, managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
+        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
@@ -165,9 +170,8 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     class TransactionLogReplayer {
 
-        private FillEntryQueueCallback fillEntryQueueCallback;
-        private long currentLoadEntryId;
-        private TransactionLogReplayCallback transactionLogReplayCallback;
+        private final FillEntryQueueCallback fillEntryQueueCallback;
+        private final TransactionLogReplayCallback transactionLogReplayCallback;
 
         TransactionLogReplayer(TransactionLogReplayCallback transactionLogReplayCallback) {
             this.fillEntryQueueCallback = new FillEntryQueueCallback();
@@ -175,16 +179,13 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
 
         public void start() {
-            if (((PositionImpl) cursor.getMarkDeletedPosition()).compareTo(lastConfirmedEntry) == 0) {
-                this.transactionLogReplayCallback.replayComplete();
-                return;
-            }
-            while (currentLoadEntryId < lastConfirmedEntry.getEntryId()) {
+
+            while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
                 fillEntryQueueCallback.fillQueue();
                 Entry entry = entryQueue.poll();
                 if (entry != null) {
                     ByteBuf buffer = entry.getDataBuffer();
-                    currentLoadEntryId = entry.getEntryId();
+                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                     ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
                     TransactionMetadataEntry.Builder transactionMetadataEntryBuilder =
                             TransactionMetadataEntry.newBuilder();
@@ -215,7 +216,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
-        private AtomicLong outstandingReadsRequests = new AtomicLong(0);
+        private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
         void fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
