@@ -2204,6 +2204,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (position.getEntryId() == -1) {
             completableFuture
                     .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+            return completableFuture;
         }
         ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override

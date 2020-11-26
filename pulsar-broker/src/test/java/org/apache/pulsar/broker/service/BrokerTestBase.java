@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
+import org.apache.pulsar.client.api.MessageId;
 
 /**
  */
@@ -73,12 +74,6 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             });
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkGC()).get();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-            pulsar.getBrokerService().forEachTopic(topic -> {
-                if (topic instanceof AbstractTopic) {
-                    MessageId messageId = ((AbstractTopic) topic).getLastMessageId().get();
-                    LOG.info("Last message id for "+topic.getName()+" is "+messageId);
-                }
-            });
         } catch (Exception e) {
             LOG.error("GC executor error", e);
             throw new RuntimeException(e);

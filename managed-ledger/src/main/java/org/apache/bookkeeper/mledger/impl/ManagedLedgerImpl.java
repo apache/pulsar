@@ -2078,15 +2078,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
                 boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
-                if (log.isDebugEnabled()) {
-                    log.debug(
+                if (log.isInfoEnabled()) {
+                    log.info(
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
                                     + "expired: {} -- over-quota: {} -- current-ledger: {}",
                             name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
                             overRetentionQuota, currentLedger.getId());
                 }
                 if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                    log.info("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
                 } else if (expired) {
@@ -3154,6 +3154,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public int getWaitingCursorsCount() {
         return waitingCursors.size();
+    }
+    
+    public Long getCurrentLedgerId() {
+        return currentLedger != null ? currentLedger.getId() : null;
     }
 
     public int getPendingAddEntriesCount() {
