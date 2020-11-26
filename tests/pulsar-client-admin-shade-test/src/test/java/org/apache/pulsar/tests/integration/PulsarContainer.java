@@ -1,4 +1,4 @@
-package org.apache.pulsar.tests.integration; /**
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,6 +16,7 @@ package org.apache.pulsar.tests.integration; /**
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.tests.integration;
 
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
