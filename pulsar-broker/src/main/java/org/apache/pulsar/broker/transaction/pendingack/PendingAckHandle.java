@@ -54,7 +54,7 @@ public interface PendingAckHandle {
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Long>> positions);
+    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
 
     /**
      * Acknowledge message(s) for an ongoing transaction.
@@ -103,7 +103,7 @@ public interface PendingAckHandle {
      *
      * @param position {@link Position} which position need to sync and carry it batch size
      */
-    void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position);
+    void syncBatchPositionAckSetForTransaction(PositionImpl position);
 
     /**
      * Judge the all ack set point have acked by normal ack and transaction pending ack.

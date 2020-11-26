@@ -108,6 +108,10 @@ public interface Dispatcher {
         return 0;
     }
 
+    default void clearDelayedMessages() {
+        //No-op
+    }
+
     default void cursorIsReset() {
         //No-op
     }

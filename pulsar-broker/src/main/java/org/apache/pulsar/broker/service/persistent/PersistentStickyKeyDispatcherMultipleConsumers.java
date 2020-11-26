@@ -369,6 +369,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return recentlyJoinedConsumers;
     }
 
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        return selector.getConsumerKeyHashRanges();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 
 }

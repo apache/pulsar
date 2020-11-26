@@ -139,6 +139,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         return size;
     }
 
+    /**
+     * Clear all items.
+     */
+    public void clear() {
+        this.buffer.clear();
+        this.size = 0;
+    }
+
     private void increaseCapacity() {
         // For bigger sizes, increase by 50%
         this.capacity += (capacity <= 256 ? capacity : capacity / 2);

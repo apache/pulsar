@@ -115,6 +115,7 @@ public class TransactionTestBase {
             conf.setAdvertisedAddress("localhost");
             conf.setWebServicePort(Optional.of(0));
             conf.setWebServicePortTls(Optional.of(0));
+            conf.setTransactionCoordinatorEnabled(true);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));

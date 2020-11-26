@@ -1143,12 +1143,13 @@ public class Commands {
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
-        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, -1, -1, -1);
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
+                properties, -1L, -1L, -1L, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
-                                 long txnIdMostBits, long requestId) {
+                                 long txnIdMostBits, long requestId, int batchSize) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(ackType);
@@ -1158,6 +1159,10 @@ public class Commands {
         if (ackSet != null) {
             messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
             ackSet.recycle();
+        }
+
+        if (batchSize >= 0) {
+            messageIdDataBuilder.setBatchSize(batchSize);
         }
         MessageIdData messageIdData = messageIdDataBuilder.build();
         ackBuilder.addMessageId(messageIdData);
@@ -1186,6 +1191,13 @@ public class Commands {
         messageIdDataBuilder.recycle();
         messageIdData.recycle();
         return res;
+    }
+
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
+                                 ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                 long txnIdMostBits, long requestId) {
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
+                properties, txnIdLeastBits, txnIdMostBits, requestId, -1);
     }
 
     public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {

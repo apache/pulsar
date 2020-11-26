@@ -451,6 +451,7 @@ public final class PulsarApi {
       LocalDate(17, 17),
       LocalTime(18, 18),
       LocalDateTime(19, 19),
+      ProtobufNative(20, 20),
       ;
       
       public static final int None_VALUE = 0;
@@ -473,6 +474,7 @@ public final class PulsarApi {
       public static final int LocalDate_VALUE = 17;
       public static final int LocalTime_VALUE = 18;
       public static final int LocalDateTime_VALUE = 19;
+      public static final int ProtobufNative_VALUE = 20;
       
       
       public final int getNumber() { return value; }
@@ -499,6 +501,7 @@ public final class PulsarApi {
           case 17: return LocalDate;
           case 18: return LocalTime;
           case 19: return LocalDateTime;
+          case 20: return ProtobufNative;
           default: return null;
         }
       }
@@ -1156,6 +1159,10 @@ public final class PulsarApi {
     java.util.List<java.lang.Long> getAckSetList();
     int getAckSetCount();
     long getAckSet(int index);
+    
+    // optional int32 batch_size = 6;
+    boolean hasBatchSize();
+    int getBatchSize();
   }
   public static final class MessageIdData extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -1246,12 +1253,23 @@ public final class PulsarApi {
       return ackSet_.get(index);
     }
     
+    // optional int32 batch_size = 6;
+    public static final int BATCH_SIZE_FIELD_NUMBER = 6;
+    private int batchSize_;
+    public boolean hasBatchSize() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public int getBatchSize() {
+      return batchSize_;
+    }
+    
     private void initFields() {
       ledgerId_ = 0L;
       entryId_ = 0L;
       partition_ = -1;
       batchIndex_ = -1;
       ackSet_ = java.util.Collections.emptyList();;
+      batchSize_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1293,6 +1311,9 @@ public final class PulsarApi {
       for (int i = 0; i < ackSet_.size(); i++) {
         output.writeInt64(5, ackSet_.get(i));
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeInt32(6, batchSize_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -1325,6 +1346,10 @@ public final class PulsarApi {
         }
         size += dataSize;
         size += 1 * getAckSetList().size();
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(6, batchSize_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -1449,6 +1474,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         ackSet_ = java.util.Collections.emptyList();;
         bitField0_ = (bitField0_ & ~0x00000010);
+        batchSize_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -1503,6 +1530,10 @@ public final class PulsarApi {
           bitField0_ = (bitField0_ & ~0x00000010);
         }
         result.ackSet_ = ackSet_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.batchSize_ = batchSize_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -1530,6 +1561,9 @@ public final class PulsarApi {
             ackSet_.addAll(other.ackSet_);
           }
           
+        }
+        if (other.hasBatchSize()) {
+          setBatchSize(other.getBatchSize());
         }
         return this;
       }
@@ -1600,6 +1634,11 @@ public final class PulsarApi {
                 addAckSet(input.readInt64());
               }
               input.popLimit(limit);
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              batchSize_ = input.readInt32();
               break;
             }
           }
@@ -1733,6 +1772,27 @@ public final class PulsarApi {
       public Builder clearAckSet() {
         ackSet_ = java.util.Collections.emptyList();;
         bitField0_ = (bitField0_ & ~0x00000010);
+        
+        return this;
+      }
+      
+      // optional int32 batch_size = 6;
+      private int batchSize_ ;
+      public boolean hasBatchSize() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public int getBatchSize() {
+        return batchSize_;
+      }
+      public Builder setBatchSize(int value) {
+        bitField0_ |= 0x00000020;
+        batchSize_ = value;
+        
+        return this;
+      }
+      public Builder clearBatchSize() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        batchSize_ = 0;
         
         return this;
       }

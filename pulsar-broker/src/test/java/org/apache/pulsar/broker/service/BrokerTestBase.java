@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -38,6 +39,15 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
 
     public void baseSetup() throws Exception {
         super.internalSetup();
+        baseSetupCommon();
+    }
+
+    public void baseSetup(ServiceConfiguration serviceConfiguration) throws Exception {
+        super.internalSetup(serviceConfiguration);
+        baseSetupCommon();
+    }
+
+    private void baseSetupCommon() throws Exception {
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
         admin.tenants().createTenant("prop",
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));

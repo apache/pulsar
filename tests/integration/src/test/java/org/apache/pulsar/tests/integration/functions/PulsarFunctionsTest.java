@@ -26,6 +26,7 @@ import net.jodah.failsafe.RetryPolicy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -981,6 +982,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
                 @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                         .topic(inputTopicName)
+                        .enableBatching(true)
+                        .batcherBuilder(BatcherBuilder.DEFAULT)
                         .create();
 
                 for (int i = 0; i < numMessages; i++) {

@@ -34,9 +34,9 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Promise;
 
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -128,11 +128,11 @@ import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServerCnx extends PulsarHandler {
+public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
@@ -1668,7 +1668,7 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
         }
         TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
-        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId)
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
@@ -1826,13 +1826,9 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     command.getRequestId(), remoteAddress, txnID);
         }
-        List<TransactionSubscription> subscriptionList = command.getSubscriptionList().stream()
-                .map(subscription -> TransactionSubscription.builder()
-                        .topic(subscription.getTopic())
-                        .subscription(subscription.getSubscription())
-                        .build())
-                .collect(Collectors.toList());
-        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID, subscriptionList)
+
+        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID,
+                MLTransactionMetadataStore.subscriptionToTxnSubscription(command.getSubscriptionList()))
                 .whenComplete(((v, ex) -> {
                     if (ex == null) {
                         if (log.isDebugEnabled()) {
@@ -1885,6 +1881,7 @@ public class ServerCnx extends PulsarHandler {
 
     }
 
+    @Override
     public void closeConsumer(Consumer consumer) {
         // removes consumer-connection from map and send close command to consumer
         if (log.isDebugEnabled()) {
@@ -1907,10 +1904,12 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
+    @Override
     public SocketAddress clientAddress() {
         return remoteAddress;
     }
 
+    @Override
     public void removedConsumer(Consumer consumer) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Removed consumer: {}", remoteAddress, consumer);
@@ -1919,6 +1918,7 @@ public class ServerCnx extends PulsarHandler {
         consumers.remove(consumer.consumerId());
     }
 
+    @Override
     public void removedProducer(Producer producer) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Removed producer: {}", remoteAddress, producer);
@@ -1926,10 +1926,12 @@ public class ServerCnx extends PulsarHandler {
         producers.remove(producer.getProducerId());
     }
 
+    @Override
     public boolean isActive() {
         return isActive;
     }
 
+    @Override
     public boolean isWritable() {
         return ctx.channel().isWritable();
     }
@@ -1962,6 +1964,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    @Override
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, -msgSize);
         if (--pendingSendRequest == resumeReadsThreshold) {
@@ -1975,6 +1978,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    @Override
     public void enableCnxAutoRead() {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
@@ -1988,21 +1992,22 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    @Override
     public void disableCnxAutoRead() {
         if (ctx != null && ctx.channel().config().isAutoRead() ) {
             ctx.channel().config().setAutoRead(false);
         }
     }
 
-    @VisibleForTesting
-    void cancelPublishRateLimiting() {
+    @Override
+    public void cancelPublishRateLimiting() {
         if (autoReadDisabledRateLimiting) {
             autoReadDisabledRateLimiting = false;
         }
     }
 
-    @VisibleForTesting
-    void cancelPublishBufferLimiting() {
+    @Override
+    public void cancelPublishBufferLimiting() {
         if (autoReadDisabledPublishBufferLimiting) {
             autoReadDisabledPublishBufferLimiting = false;
         }
@@ -2077,7 +2082,7 @@ public class ServerCnx extends PulsarHandler {
     /**
      * Helper method for testability
      *
-     * @return
+     * @return the connection state
      */
     public State getState() {
         return state;
@@ -2095,10 +2100,16 @@ public class ServerCnx extends PulsarHandler {
         return authRole;
     }
 
+    @Override
+    public Promise<Void> newPromise() {
+        return ctx.newPromise();
+    }
+
     boolean hasConsumer(long consumerId) {
         return consumers.containsKey(consumerId);
     }
 
+    @Override
     public boolean isBatchMessageCompatibleVersion() {
         return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
     }
@@ -2107,10 +2118,12 @@ public class ServerCnx extends PulsarHandler {
         return features != null && features.getSupportsAuthRefresh();
     }
 
+    @Override
     public String getClientVersion() {
         return clientVersion;
     }
 
+    @Override
     public long getMessagePublishBufferSize() {
         return this.messagePublishBufferSize;
     }
@@ -2125,6 +2138,7 @@ public class ServerCnx extends PulsarHandler {
         this.autoReadDisabledRateLimiting = isLimiting;
     }
 
+    @Override
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
     }
@@ -2133,6 +2147,7 @@ public class ServerCnx extends PulsarHandler {
         return authState;
     }
 
+    @Override
     public AuthenticationDataSource getAuthenticationData() {
         return originalAuthData != null ? originalAuthData : authenticationData;
     }
@@ -2145,6 +2160,7 @@ public class ServerCnx extends PulsarHandler {
         return authenticationProvider;
     }
 
+    @Override
     public String getAuthRole() {
         return authRole;
     }
@@ -2161,7 +2177,13 @@ public class ServerCnx extends PulsarHandler {
         return producers;
     }
 
+    @Override
     public PulsarCommandSender getCommandSender() {
         return commandSender;
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+        ctx.channel().eventLoop().execute(runnable);
     }
 }

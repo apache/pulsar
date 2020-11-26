@@ -20,12 +20,17 @@ package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
+
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -36,7 +41,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvide
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,12 +140,12 @@ public class TransactionMetadataStoreService {
         }
     }
 
-    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId) {
+    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransaction();
+        return store.newTransaction(timeoutInMills);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -179,14 +184,14 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<PulsarApi.MessageIdData> messageIdDataList) {
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<MessageIdData> messageIdDataList) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
-            case PulsarApi.TxnAction.COMMIT_VALUE:
+            case TxnAction.COMMIT_VALUE:
                 newStatus = TxnStatus.COMMITTING;
                 break;
-            case PulsarApi.TxnAction.ABORT_VALUE:
+            case TxnAction.ABORT_VALUE:
                 newStatus = TxnStatus.ABORTING;
                 break;
             default:
@@ -210,7 +215,7 @@ public class TransactionMetadataStoreService {
     }
 
     private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction,
-                                                              List<PulsarApi.MessageIdData> messageIdDataList) {
+                                                              List<MessageIdData> messageIdDataList) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -221,10 +226,10 @@ public class TransactionMetadataStoreService {
 
             txnMeta.ackedPartitions().forEach(tbSub -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
-                if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                if (TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnSubscription(
                             tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
-                } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                } else if (TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnSubscription(
                             tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
                 } else {
@@ -234,7 +239,7 @@ public class TransactionMetadataStoreService {
             });
 
             List<MessageId> messageIdList = new ArrayList<>();
-            for (PulsarApi.MessageIdData messageIdData : messageIdDataList) {
+            for (MessageIdData messageIdData : messageIdDataList) {
                 messageIdList.add(new MessageIdImpl(
                         messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
                 messageIdData.recycle();
@@ -242,12 +247,12 @@ public class TransactionMetadataStoreService {
 
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
-                if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                if (TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
                             messageIdList.stream().filter(
                                     msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
                                             TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
-                } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                } else if (TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
                             messageIdList.stream().filter(
                                     msg -> ((MessageIdImpl) msg).getPartitionIndex() ==

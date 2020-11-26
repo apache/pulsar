@@ -170,6 +170,22 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                         .maxNumBytes(-100)
                         .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), false, 30
+                },
+                // Only timeout present
+                {
+                    BatchReceivePolicy.builder()
+                            .maxNumMessages(0)
+                            .maxNumBytes(0)
+                            .timeout(50, TimeUnit.MILLISECONDS)
+                            .build(), false, 30
+                },
+                // Only timeout present
+                {
+                        BatchReceivePolicy.builder()
+                                .maxNumMessages(-1)
+                                .maxNumBytes(-1)
+                                .timeout(50, TimeUnit.MILLISECONDS)
+                                .build(), false, 30
                 }
         };
     }

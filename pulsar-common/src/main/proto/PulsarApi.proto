@@ -44,6 +44,7 @@ message Schema {
         LocalDate = 17;
         LocalTime = 18;
         LocalDateTime = 19;
+        ProtobufNative = 20;
     }
 
     required string name = 1;
@@ -59,6 +60,7 @@ message MessageIdData {
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
+    optional int32 batch_size = 6;
 }
 
 message KeyValue {

@@ -97,9 +97,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * We create a new reader
      */
     public synchronized void initialize() {
-        try {
+        try (Reader reader = FunctionMetaDataTopicTailer.createReader(
+          workerConfig, pulsarClient.newReader(), MessageId.earliest)){
             // read all existing messages
-            Reader reader = FunctionMetaDataTopicTailer.createReader(workerConfig, pulsarClient.newReader(), MessageId.earliest);
             while (reader.hasMessageAvailable()) {
                 processMetaDataTopicMessage(reader.readNext());
             }
