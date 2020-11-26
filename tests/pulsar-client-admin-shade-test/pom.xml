@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>pulsar</artifactId>
-        <groupId>org.apache.pulsar</groupId>
-        <version>2.7.0-SNAPSHOT</version>
+        <groupId>org.apache.pulsar.tests</groupId>
+        <artifactId>tests-parent</artifactId>
+        <version>2.8.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-client-admin-shade-test</artifactId>
