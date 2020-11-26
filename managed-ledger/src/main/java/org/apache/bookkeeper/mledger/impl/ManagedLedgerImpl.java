@@ -2044,7 +2044,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws Exception
      */
     void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
-        log.info("hehehe");
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
             scheduleDeferredTrimming(promise);
