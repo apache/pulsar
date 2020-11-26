@@ -129,6 +129,20 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return false;
     }
 
+    public static PositionImpl convertStringToPosition(String positionString) {
+        if (positionString == null) {
+            throw new NullPointerException();
+        } else {
+            String[] strings = positionString.split(":");
+            if (strings.length != 2) {
+                throw new IndexOutOfBoundsException();
+            }
+            long ledgerId = Long.parseLong(strings[0]);
+            long entryId = Long.parseLong(strings[1]);
+            return PositionImpl.get(ledgerId, entryId);
+        }
+    }
+
     public boolean hasAckSet() {
         return ackSet != null;
     }

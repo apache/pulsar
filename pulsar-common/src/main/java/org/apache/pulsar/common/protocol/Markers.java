@@ -272,6 +272,12 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE;
     }
 
+    public static boolean isTxnMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+                && msgMetadata.hasMarkerType() && (msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE
+                || msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE);
+    }
+
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
                                             long txnLeastBits, List<MessageIdData> messageIdDataList) {
         return newTxnMarker(

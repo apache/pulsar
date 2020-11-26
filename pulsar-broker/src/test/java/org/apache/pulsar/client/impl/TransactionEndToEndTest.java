@@ -144,6 +144,18 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         Transaction txn1 = getTxn();
         Transaction txn2 = getTxn();
+        //TODO in order to wait buffer replay, and the transaction buffer will not send repeat, it can remove
+        Transaction txn3 = getTxn();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(txn3).value(("Hello Txn - " + -i).getBytes(UTF_8)).send();
+        }
+
+        txn3.commit().get();
+
+        Message<byte[]> messageToWaitReplay = consumer.receive();
+        while (messageToWaitReplay != null) {
+            messageToWaitReplay = consumer.receive(2, TimeUnit.SECONDS);
+        }
 
         int txn1MessageCnt = 0;
         int txn2MessageCnt = 0;
@@ -356,6 +368,19 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .create();
 
         Transaction txn = getTxn();
+        //TODO in order to wait buffer replay, and the transaction buffer will not send repeat, it can remove
+        Transaction txn1 = getTxn();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(txn1).value(("Hello Txn - " + -i).getBytes(UTF_8)).send();
+        }
+
+        txn1.commit().get();
+
+        Message<byte[]> messageToWaitReplay = consumer.receive();
+        while (messageToWaitReplay != null) {
+            consumer.acknowledge(messageToWaitReplay);
+            messageToWaitReplay = consumer.receive(2, TimeUnit.SECONDS);
+        }
 
         int messageCnt = 10;
         for (int i = 0; i < messageCnt; i++) {

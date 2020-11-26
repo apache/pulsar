@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
@@ -28,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A provider that provides topic implementations of {@link TransactionBuffer}.
  */
+@Slf4j
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
@@ -40,6 +43,13 @@ public class TopicTransactionBufferProvider implements TransactionBufferProvider
 
     @Override
     public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
-        return CompletableFuture.completedFuture(new TopicTransactionBuffer((PersistentTopic) originTopic));
+        CompletableFuture<TransactionBuffer> completableFuture = new CompletableFuture<>();
+        try {
+            completableFuture.complete(new TopicTransactionBuffer((PersistentTopic) originTopic));
+        } catch (ManagedLedgerException e) {
+            log.error("Topic : [{}] open transaction buffer fail!", originTopic.getName());
+            completableFuture.completeExceptionally(e);
+        }
+        return completableFuture;
     }
 }
