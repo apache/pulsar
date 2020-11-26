@@ -49,21 +49,13 @@ public class OffloadPolicies implements Serializable {
     @InterfaceStability.Stable
     public enum OffloadedReadPriority {
         /**
-         * For offloaded messages, readers can only read from bookkeeper.
-         */
-        BOOKKEEPER_ONLY("bookkeeper-only"),
-        /**
          * For offloaded messages, readers will try to read from bookkeeper at first,
-         * if failed then read from offloaded storage.
+         * if messages not exist at bookkeeper then read from offloaded storage.
          */
         BOOKKEEPER_FIRST("bookkeeper-first"),
         /**
-         * For offloaded messages, readers can only read from offloaded storage.
-         */
-        OFFLOADED_ONLY("offloaded-only"),
-        /**
          * For offloaded messages, readers will try to read from offloaded storage first,
-         * if failed then read from bookkeeper.
+         * even they are still exist in bookkeeper.
          */
         OFFLOADED_FIRST("offloaded-first");
 
