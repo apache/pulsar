@@ -19,8 +19,6 @@
 package org.apache.pulsar.tests.integration;
 
 import lombok.Cleanup;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -74,15 +72,6 @@ public class SmokeTest {
 
         Assert.assertEquals(message.getValue(), "Hello!");
 
-    }
-
-    @Test
-    public void checkAdmin() throws PulsarClientException, PulsarAdminException {
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
-        List<String> expectedNamespacesList = new ArrayList<>();
-        expectedNamespacesList.add("public/default");
-        expectedNamespacesList.add("public/functions");
-        Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
     }
 
     @AfterClass
