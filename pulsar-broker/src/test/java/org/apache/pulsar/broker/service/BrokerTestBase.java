@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
-import org.apache.pulsar.client.api.MessageId;
 
 /**
  */
@@ -61,7 +60,6 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
         } catch (Exception e) {
             LOG.error("Stats executor error", e);
-            throw new RuntimeException(e);
         }
     }
 
@@ -76,7 +74,6 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
             LOG.error("GC executor error", e);
-            throw new RuntimeException(e);
         }
     }
 
@@ -86,7 +83,6 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
             LOG.error("Error running message expiry check", e);
-            throw new RuntimeException(e);
         }
     }
 
