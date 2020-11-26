@@ -298,7 +298,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("initialSequenceId")) {
-            builder.initialSequenceId(Long.parseLong("initialSequenceId"));
+            builder.initialSequenceId(Long.parseLong(queryParams.get("initialSequenceId")));
         }
 
         if (queryParams.containsKey("hashingScheme")) {
