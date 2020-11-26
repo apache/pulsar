@@ -71,6 +71,7 @@
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
+                  <include>com.google.guava:failureaccess</include>
                   <include>org.apache.jclouds:*</include>
                   <include>org.apache.jclouds.api:*</include>
                   <include>org.apache.jclouds.common:*</include>
