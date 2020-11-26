@@ -18,14 +18,6 @@
  */
 package org.apache.pulsar.packages.management.core.impl;
 
-import org.apache.pulsar.packages.management.core.PackagesManagement;
-import org.apache.pulsar.packages.management.core.PackagesStorage;
-import org.apache.pulsar.packages.management.core.common.PackageMetadata;
-import org.apache.pulsar.packages.management.core.common.PackageName;
-import org.apache.pulsar.packages.management.core.common.PackageType;
-import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
-import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException.NotFoundException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,7 +25,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import org.apache.pulsar.packages.management.core.PackagesManagement;
+import org.apache.pulsar.packages.management.core.PackagesStorage;
+import org.apache.pulsar.packages.management.core.common.PackageMetadata;
+import org.apache.pulsar.packages.management.core.common.PackageName;
+import org.apache.pulsar.packages.management.core.common.PackageType;
+import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
+import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException.NotFoundException;
 
 /**
  * Packages management implementation.
