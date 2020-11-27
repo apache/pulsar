@@ -85,7 +85,8 @@ class Record(with_metaclass(RecordMeta, object)):
             field_type = field.schema() if field._required else ['null', field.schema()]
             schema['fields'].append({
                 'name': name,
-                'type': field_type
+                'type': field_type,
+                'default': field.default()
             })
         return schema
 
