@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -252,7 +252,7 @@
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
-     <dependency>
+    <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient</artifactId>
     </dependency>
@@ -402,12 +402,14 @@
               <goal>run</goal>
             </goals>
             <configuration>
-              <tasks>
+              <target>
                 <echo>copy test examples package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar" tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
-                <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
-              </tasks>
+                <copy file="${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar"
+                      tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
+                <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
+              </target>
             </configuration>
           </execution>
         </executions>
