@@ -605,6 +605,9 @@ public class ClientCnx extends PulsarHandler {
         case TopicTerminatedError:
             producers.get(producerId).terminated(this);
             break;
+        case NotAllowedError:
+            producers.get(producerId).recoverNotAllowedError(sequenceId);
+            break;
 
         default:
             // By default, for transient error, let the reconnection logic
