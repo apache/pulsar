@@ -285,7 +285,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         MSG_PUBLISHED_COUNTER_UPDATER.getAndIncrement(this);
     }
 
-    private ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
+    public ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
         ProducerBuilder<byte[]> builder = client.newProducer()
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition);
