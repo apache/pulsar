@@ -1854,6 +1854,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.close();
     }
 
+    /**
+     * Set retention time = 0 and create a empty ledger,
+     * first position can't higher than last after trim ledgers.
+     * Even if we do not have subscriptions the ledger
+     * that contains the lastConfirmedEntry must not be deleted.
+     */
+    @Test
+    public void testRetention0WithEmptyLedgerWithoutCursors() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionTime(0, TimeUnit.MINUTES);
+        config.setMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("deletion_after_retention_test_ledger", config);
+        ml.addEntry("message1".getBytes());
+        ml.close();
+
+        // reopen ml
+        ml = (ManagedLedgerImpl) factory.open("deletion_after_retention_test_ledger", config);
+        ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
+
+        assertTrue(ml.getFirstPosition().ledgerId <= ml.lastConfirmedEntry.ledgerId);
+        assertTrue(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.ledgerId),
+                "the ledger at lastConfirmedEntry has been trimmed!");
+        ml.close();
+    }
+
     @Test
     public void testInfiniteRetention() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());

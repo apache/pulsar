@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -32,11 +33,9 @@ import org.junit.Test;
 import org.testng.Assert;
 
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.Ignore;
 
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
@@ -123,8 +122,8 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-        MessageId messageId = persistentTopic.getLastMessageId().get();
-        LOG.info("lastmessageid " + messageId);
+        MessageId initialMessageId = persistentTopic.getLastMessageId().get();
+        LOG.info("lastmessageid " + initialMessageId);
 
         int msgNum = 7;
         for (int i = 0; i < msgNum; i++) {
@@ -133,12 +132,18 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("messageIdBeforeRestart " + messageIdBeforeRestart);
+        assertNotEquals(messageIdBeforeRestart, initialMessageId);
 
+        // restart the broker we have to start a new ledger
+        // the lastMessageId is still on the previous ledger
         restartBroker();
         // force load topic
         pulsar.getAdminClient().topics().getStats(topicName);
-        messageId = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageId);
+        MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("lastmessageid " + messageIdAfterRestart);
+        assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
@@ -147,11 +152,9 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(1);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        // now we have two ledgers, the first can be disposed,
-        // the second is empty and should be kept
+        // now we have two ledgers, the first is expired but is contains the lastMessageId
+        // the second is empty and should be kept as it is the current tail
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
-        // the last message id is on the ledger to be deleted, that is not the 'currentLedger'
-        LOG.info("lastmessageid " + messageId+" "+managedLedger.getCurrentLedgerId());
 
         // force trimConsumedLedgers
         Thread.sleep(3000);
@@ -159,9 +162,11 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedger.trimConsumedLedgersInBackground(f);
         f.join();
 
-        // error !
-        messageId = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageId+" "+managedLedger.getCurrentLedgerId());
+        // lastMessageId should be available even in this case
+        // https://github.com/apache/pulsar/issues/8677
+        MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("lastmessageid " + messageIdAfterTrim);
+        assertEquals(messageIdAfterTrim, messageIdAfterRestart);
 
     }
 }
