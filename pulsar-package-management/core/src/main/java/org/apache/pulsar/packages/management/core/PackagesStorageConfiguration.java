@@ -39,5 +39,5 @@ public interface PackagesStorageConfiguration {
      * @param value
      *          property value
      */
-    void setProperty(String key, Object value);
+    void setProperty(String key, String value);
 }

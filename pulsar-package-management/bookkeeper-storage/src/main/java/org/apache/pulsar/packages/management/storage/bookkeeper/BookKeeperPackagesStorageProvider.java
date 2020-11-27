@@ -25,6 +25,6 @@ import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
 public class BookKeeperPackagesStorageProvider implements PackagesStorageProvider {
     @Override
     public PackagesStorage getStorage(PackagesStorageConfiguration config) {
-        return null;
+        return new BookKeeperPackagesStorage(config);
     }
 }

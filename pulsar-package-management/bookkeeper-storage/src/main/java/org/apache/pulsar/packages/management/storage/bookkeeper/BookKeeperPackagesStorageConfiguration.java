@@ -21,13 +21,52 @@ package org.apache.pulsar.packages.management.storage.bookkeeper;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
 public class BookKeeperPackagesStorageConfiguration implements PackagesStorageConfiguration {
+
+    private final PackagesStorageConfiguration configuration;
+
+    int numReplicas;
+    String zkServers;
+    String ledgersRootPath;
+    String bookkeeperClientAuthenticationPlugin;
+    String bookkeeperClientAuthenticationParametersName;
+    String bookkeeperClientAuthenticationParameters;
+
+    BookKeeperPackagesStorageConfiguration(PackagesStorageConfiguration configuration) {
+        this.configuration = configuration;
+    }
+
+    public int getNumReplicas() {
+        return (int) getProperty("numReplicas");
+    }
+
+    public String getZkServers() {
+        return (String) getProperty("zkServers");
+    }
+
+    public String getLedgersRootPath() {
+        return (String) getProperty("ledgerRootPath");
+    }
+
+    public String getBookkeeperClientAuthenticationPlugin() {
+        return (String) getProperty("bookkeeperClientAuthenticationPlugin");
+    }
+
+    public String getBookkeeperClientAuthenticationParametersName() {
+        return (String) getProperty("bookkeeperClientAuthenticationParametersName");
+    }
+
+    public String getBookkeeperClientAuthenticationParameters() {
+        return (String) getProperty("bookkeeperClientAuthenticationParameters");
+    }
+
+
     @Override
     public Object getProperty(String key) {
-        return null;
+        return configuration.getProperty(key);
     }
 
     @Override
-    public void setProperty(String key, Object value) {
-
+    public void setProperty(String key, String value) {
+        configuration.setProperty(key, value);
     }
 }

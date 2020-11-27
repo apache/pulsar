@@ -25,6 +25,10 @@ import java.util.concurrent.CompletableFuture;
 
 public interface PackagesStorage {
     /**
+     * Initialize the packages management service with the given storage.
+     */
+    void initialize();
+    /**
      * Write a input stream to a path.
      *
      * @param path

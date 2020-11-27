@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.packages.management.core;
+package org.apache.pulsar.packages.management.core.impl;
 
-import java.util.HashMap;
+import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
-public class MockedPackagesStorageConfiguration implements PackagesStorageConfiguration {
-    private HashMap<String, Object> properties = new HashMap<>();
+import java.util.Properties;
+
+public class DefaultPackagesStorageConfiguration implements PackagesStorageConfiguration {
+    private final Properties properties = new Properties();
 
     @Override
     public Object getProperty(String key) {
@@ -29,7 +31,7 @@ public class MockedPackagesStorageConfiguration implements PackagesStorageConfig
     }
 
     @Override
-    public void setProperty(String key, Object value) {
-        properties.put(key, value);
+    public void setProperty(String key, String value) {
+        properties.setProperty(key, value);
     }
 }
