@@ -24,7 +24,12 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -203,10 +208,21 @@ public class AbstractWebSocketHandlerTest {
         }
     }
 
+    PulsarClient newPulsarClient() throws PulsarClientException {
+        return PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .build();
+    }
+
     class MockedProducerHandler extends ProducerHandler {
 
         public MockedProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
+        }
+
+        public ProducerConfigurationData getConf() throws PulsarClientException {
+            return ((ProducerBuilderImpl<byte[]>) getProducerBuilder(newPulsarClient())).getConf();
         }
 
         public void clearQueryParams() {
@@ -239,14 +255,10 @@ public class AbstractWebSocketHandlerTest {
         when(httpServletRequest.getRequestURI()).thenReturn(producerV2);
         when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
 
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:6650")
-                .operationTimeout(1, TimeUnit.SECONDS)
-                .build();
         WebSocketService service = mock(WebSocketService.class);
         when(service.isAuthenticationEnabled()).thenReturn(false);
         when(service.isAuthorizationEnabled()).thenReturn(false);
-        when(service.getPulsarClient()).thenReturn(client);
+        when(service.getPulsarClient()).thenReturn(newPulsarClient());
 
         MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
 
@@ -254,7 +266,7 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(response.getStatusCode(), 500);
         assertTrue(response.getMessage().contains("Connection refused"));
 
-        ProducerConfigurationData conf = ((ProducerBuilderImpl<byte[]>) producerHandler.getProducerBuilder(client)).getConf();
+        ProducerConfigurationData conf = producerHandler.getConf();
         assertEquals(conf.getProducerName(), "my-producer");
         assertEquals(conf.getInitialSequenceId().longValue(), 1L);
         assertEquals(conf.getHashingScheme(), HashingScheme.Murmur3_32Hash);
@@ -266,13 +278,85 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(conf.getCompressionType(), CompressionType.LZ4);
 
         producerHandler.clearQueryParams();
-        conf = ((ProducerBuilderImpl<byte[]>) producerHandler.getProducerBuilder(client)).getConf();
+        conf = producerHandler.getConf();
         // The default message routing mode is SinglePartition, which is different with ProducerBuilder
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
 
         producerHandler.putQueryParam("messageRoutingMode", "CustomPartition");
-        conf = ((ProducerBuilderImpl<byte[]>) producerHandler.getProducerBuilder(client)).getConf();
+        conf = producerHandler.getConf();
         // ProducerHandler doesn't support CustomPartition
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
+    }
+
+    class MockedConsumerHandler extends ConsumerHandler {
+
+        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+            super(service, request, response);
+        }
+
+        public ConsumerConfigurationData<byte[]> getConf() throws PulsarClientException {
+            return ((ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(newPulsarClient())).getConf();
+        }
+
+        public void clearQueryParams() {
+            queryParams.clear();
+        }
+
+        public void putQueryParam(String key, String value) {
+            queryParams.put(key, value);
+        }
+    }
+
+    @Test
+    public void consumerBuilderTest() throws IOException {
+        String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
+        // the params are all different with the default value
+        Map<String, String[]> queryParams = new HashMap<String, String>(){{
+            put("ackTimeoutMillis", "1001");
+            put("subscriptionType", "Key_Shared");
+            put("subscriptionMode", "NonDurable");
+            put("receiverQueueSize", "999");
+            put("consumerName", "my-consumer");
+            put("priorityLevel", "1");
+            put("maxRedeliverCount", "5");
+        }}.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> new String[]{ entry.getValue() }));
+
+        httpServletRequest = mock(HttpServletRequest.class);
+        when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
+        when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
+
+        WebSocketService service = mock(WebSocketService.class);
+        when(service.isAuthenticationEnabled()).thenReturn(false);
+        when(service.isAuthorizationEnabled()).thenReturn(false);
+        when(service.getPulsarClient()).thenReturn(newPulsarClient());
+
+        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+
+        MockedConsumerHandler consumerHandler = new MockedConsumerHandler(service, httpServletRequest, response);
+        assertEquals(response.getStatusCode(), 500);
+        assertTrue(response.getMessage().contains("Connection refused"));
+        assertEquals(consumerHandler.getSubscriptionMode(), SubscriptionMode.NonDurable);
+        assertEquals(consumerHandler.getSubscriptionType(), SubscriptionType.Key_Shared);
+
+        ConsumerConfigurationData<byte[]> conf = consumerHandler.getConf();
+        assertEquals(conf.getAckTimeoutMillis(), 1001);
+        assertEquals(conf.getSubscriptionType(), SubscriptionType.Key_Shared);
+        assertEquals(conf.getSubscriptionMode(), SubscriptionMode.NonDurable);
+        assertEquals(conf.getReceiverQueueSize(), 999);
+        assertEquals(conf.getConsumerName(), "my-consumer");
+        assertEquals(conf.getPriorityLevel(), 1);
+        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://my-property/my-ns/my-topic-my-subscription-DLQ");
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 5);
+
+        consumerHandler.clearQueryParams();
+        consumerHandler.putQueryParam("receiverQueueSize", "1001");
+        consumerHandler.putQueryParam("deadLetterTopic", "dead-letter-topic");
+
+        conf = consumerHandler.getConf();
+        // receive queue size is the minimum value of default value (1000) and user defined value(1001)
+        assertEquals(conf.getReceiverQueueSize(), 1000);
+        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 0);
     }
 }
