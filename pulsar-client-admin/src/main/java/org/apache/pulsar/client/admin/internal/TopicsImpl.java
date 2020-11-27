@@ -2658,8 +2658,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         asyncGetRequest(path,
                 new InvocationCallback<Integer>() {
                     @Override
-                    public void completed(Integer maxProducers) {
-                        future.complete(maxProducers);
+                    public void completed(Integer maxMessageSize) {
+                        future.complete(maxMessageSize);
                     }
 
                     @Override
@@ -2685,10 +2685,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxProducers) {
+    public CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxMessageSize) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxMessageSize");
-        return asyncPostRequest(path, Entity.entity(maxProducers, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(maxMessageSize, MediaType.APPLICATION_JSON));
     }
 
     @Override

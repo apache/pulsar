@@ -2456,7 +2456,7 @@ public interface Topics {
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
     /**
-     * Get the max message size of producer for specified topic.
+     * Get the max message size for specified topic.
      *
      * @param topic Topic name
      * @return Configuration of bookkeeper persistence policies
@@ -2465,7 +2465,7 @@ public interface Topics {
     Integer getMaxMessageSize(String topic) throws PulsarAdminException;
 
     /**
-     * Get the max message size of producer for specified topic asynchronously.
+     * Get the max message size for specified topic asynchronously.
      *
      * @param topic Topic name
      * @return Configuration of bookkeeper persistence policies
@@ -2475,7 +2475,7 @@ public interface Topics {
 
 
     /**
-     * Set the max message size of producer for specified topic.
+     * Set the max message size for specified topic.
      *
      * @param topic Topic name
      * @param maxMessageSize Max message size of producer
@@ -2484,16 +2484,16 @@ public interface Topics {
     void setMaxMessageSize(String topic, int maxMessageSize) throws PulsarAdminException;
 
     /**
-     * Set the max message size of producer for specified topic asynchronously.0 disables.
+     * Set the max message size for specified topic asynchronously.0 disables.
      *
      * @param topic Topic name
-     * @param maxProducers Max message size of producer
+     * @param maxMessageSize Max message size of topic
      * @throws PulsarAdminException Unexpected error
      */
-    CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxProducers);
+    CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxMessageSize);
 
     /**
-     * Remove the max message size of producer for specified topic.
+     * Remove the max message size for specified topic.
      *
      * @param topic Topic name
      * @throws PulsarAdminException Unexpected error
@@ -2501,7 +2501,7 @@ public interface Topics {
     void removeMaxMessageSize(String topic) throws PulsarAdminException;
 
     /**
-     * Remove the max message size of producer for specified topic asynchronously.
+     * Remove the max message size for specified topic asynchronously.
      *
      * @param topic Topic name
      */
