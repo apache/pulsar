@@ -96,9 +96,9 @@
               <goal>run</goal>
             </goals>
             <configuration>
-              <tasks>
+              <target>
                 <copy file="${basedir}/pom.xml" tofile="${basedir}/src/test/resources/dummy.nar"/>
-              </tasks>
+              </target>
             </configuration>
           </execution>
         </executions>

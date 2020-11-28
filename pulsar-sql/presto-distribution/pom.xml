@@ -335,12 +335,19 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>3.0</version>
-                <configuration>
+              <groupId>com.mycila</groupId>
+              <artifactId>license-maven-plugin</artifactId>
+              <version>4.0.rc2</version>
+              <configuration>
+                <licenseSets>
+                  <licenseSet>
                     <header>../../src/license-header.txt</header>
-                </configuration>
+                  </licenseSet>
+                </licenseSets>
+                <mapping>
+                  <java>JAVADOC_STYLE</java>
+                </mapping>
+              </configuration>
             </plugin>
             <plugin>
               <artifactId>maven-compiler-plugin</artifactId>
