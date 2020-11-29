@@ -472,6 +472,8 @@ public class PulsarService implements AutoCloseable {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
+            this.offloaderManager = OffloaderUtils.searchForOffloaders(
+                    config.getOffloadersDirectory(), config.getNarExtractionDirectory());
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
@@ -913,7 +915,6 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
                 LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
