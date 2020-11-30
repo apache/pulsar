@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import org.apache.pulsar.common.naming.NamespaceBundle;
-
 import java.util.function.Predicate;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
  * Listener for <code>NamespaceBundle</code> ownership changes

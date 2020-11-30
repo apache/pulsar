@@ -19,11 +19,8 @@
 package org.apache.pulsar.broker.delayed;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
-
 import lombok.experimental.UtilityClass;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 @UtilityClass

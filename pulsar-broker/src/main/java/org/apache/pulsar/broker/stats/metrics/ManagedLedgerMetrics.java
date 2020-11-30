@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public class ManagedLedgerMetrics extends AbstractMetrics {
 

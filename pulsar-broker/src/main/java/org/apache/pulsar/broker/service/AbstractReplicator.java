@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
 import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
@@ -570,6 +569,21 @@ public abstract class AbstractTopic implements Topic {
                     "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
+    }
+
+    protected boolean isExceedMaximumMessageSize(int size) {
+        Integer maxMessageSize = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
+            maxMessageSize = topicPolicies.getMaxMessageSize();
+        }
+        if (maxMessageSize != null) {
+            if (maxMessageSize == 0) {
+                return false;
+            }
+            return size > maxMessageSize;
+        }
+        return false;
     }
 
     /**

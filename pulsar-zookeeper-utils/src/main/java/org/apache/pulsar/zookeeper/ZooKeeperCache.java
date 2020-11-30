@@ -62,9 +62,13 @@ import org.slf4j.LoggerFactory;
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
  * {@link Deserializer} argument.
  *
- * @param <T>
  */
 public abstract class ZooKeeperCache implements Watcher {
+
+    /**
+     *
+     * @param <T> the type of zookeeper content
+     */
     public static interface Deserializer<T> {
         T deserialize(String key, byte[] content) throws Exception;
     }
