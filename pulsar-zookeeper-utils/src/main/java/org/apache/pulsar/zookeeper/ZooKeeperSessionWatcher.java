@@ -180,6 +180,7 @@ public class ZooKeeperSessionWatcher implements Watcher, StatCallback, Runnable,
         }
     }
 
+    @Override
     public void close() {
         if (scheduler != null) {
             scheduler.shutdownNow();

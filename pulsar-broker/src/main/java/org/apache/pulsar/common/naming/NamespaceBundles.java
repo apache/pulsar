@@ -81,7 +81,7 @@ public class NamespaceBundles {
                 lowerBound = upperBound;
             }
         } else {
-            this.partitions = new long[] { 0l };
+            this.partitions = new long[] { 0L };
             bundles.add(fullBundle);
         }
     }

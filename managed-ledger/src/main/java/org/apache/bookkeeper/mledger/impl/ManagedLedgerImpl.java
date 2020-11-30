@@ -466,7 +466,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 if (!ManagedLedgerImpl.this.config.isLazyCursorRecovery()) {
-                    log.debug("[{}] Loading cursor {}", name);
+                    log.debug("[{}] Loading cursors", name);
 
                     for (final String cursorName : consumers) {
                         log.info("[{}] Loading cursor {}", name, cursorName);
