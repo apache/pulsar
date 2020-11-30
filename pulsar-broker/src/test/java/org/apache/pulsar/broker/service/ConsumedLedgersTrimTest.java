@@ -51,6 +51,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         //No-op
     }
 
+    @Test
     public void TestConsumedLedgersTrim() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         super.baseSetup();
@@ -162,11 +163,11 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedger.trimConsumedLedgersInBackground(f);
         f.join();
 
-        // lastMessageId should be available even in this case
-        // https://github.com/apache/pulsar/issues/8677
+        // lastMessageId should be available even in this case, but is must
+        // refer to -1
         MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterTrim);
-        assertEquals(messageIdAfterTrim, messageIdAfterRestart);
+        assertEquals(messageIdAfterTrim, MessageId.earliest);
 
     }
 }

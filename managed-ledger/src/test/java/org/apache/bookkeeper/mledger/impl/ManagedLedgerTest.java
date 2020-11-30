@@ -1858,7 +1858,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      * Set retention time = 0 and create a empty ledger,
      * first position can't higher than last after trim ledgers.
      * Even if we do not have subscriptions the ledger
-     * that contains the lastConfirmedEntry must not be deleted.
+     * that contains the lastConfirmedEntry will be deleted anyway.
      */
     @Test
     public void testRetention0WithEmptyLedgerWithoutCursors() throws Exception {
@@ -1876,8 +1876,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
 
         assertTrue(ml.getFirstPosition().ledgerId <= ml.lastConfirmedEntry.ledgerId);
-        assertTrue(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.ledgerId),
-                "the ledger at lastConfirmedEntry has been trimmed!");
+        assertFalse(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.ledgerId),
+                "the ledger at lastConfirmedEntry has not been trimmed!");
         ml.close();
     }
 
