@@ -565,7 +565,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
 
             Matcher matcher = pattern.matcher(line);
-            assertTrue(matcher.matches());
+            assertTrue(matcher.matches(), "line " + line + " does not match pattern " + pattern);
             String name = matcher.group(1);
 
             Metric m = new Metric();

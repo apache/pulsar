@@ -135,6 +135,11 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     @Override
+    public void clear() {
+        this.priorityQueue.clear();
+    }
+
+    @Override
     public long getNumberOfDelayedMessages() {
         return priorityQueue.size();
     }

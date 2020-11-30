@@ -23,7 +23,7 @@ import java.util.List;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
@@ -74,11 +74,12 @@ public interface TxnMeta {
     /**
      * Add the list of acked partitions to the transaction.
      *
+     * @param subscriptions the ackd subscriptions add to the transaction
      * @return transaction meta
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addAckedPartitions(List<TransactionSubscription> partitions)
+    TxnMeta addAckedPartitions(List<TransactionSubscription> subscriptions)
         throws InvalidTxnStatusException;
 
     /**

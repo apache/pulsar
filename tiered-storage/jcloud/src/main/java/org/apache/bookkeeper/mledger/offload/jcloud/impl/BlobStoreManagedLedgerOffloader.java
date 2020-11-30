@@ -67,7 +67,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
     private final TieredStorageConfiguration config;
-//    private final BlobStore writeBlobStore;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
@@ -104,6 +103,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getBucket(), config.getRegion());
 
         blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
+        log.info("The ledger offloader was created.");
     }
 
     @Override
@@ -115,11 +115,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public Map<String, String> getOffloadDriverMetadata() {
         return config.getOffloadDriverMetadata();
     }
-
-//    @VisibleForTesting
-//    public ConcurrentMap<BlobStoreLocation, BlobStore> getBlobStores() {
-//        return blobStores;
-//    }
 
     /**
      * Upload the DataBlocks associated with the given ReadHandle using MultiPartUpload,
@@ -303,7 +298,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     
     @Override
     public OffloadPolicies getOffloadPolicies() {
-        // TODO Auto-generated method stub
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
         return OffloadPolicies.create(properties);

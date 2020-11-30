@@ -31,7 +31,7 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-presto-distribution</artifactId>
     <name>Pulsar SQL :: Pulsar Presto Distribution</name>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>2.8.0-SNAPSHOT</version>
 
     <properties>
         <jersey.version>2.31</jersey.version>
@@ -335,12 +335,19 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>3.0</version>
-                <configuration>
+              <groupId>com.mycila</groupId>
+              <artifactId>license-maven-plugin</artifactId>
+              <version>4.0.rc2</version>
+              <configuration>
+                <licenseSets>
+                  <licenseSet>
                     <header>../../src/license-header.txt</header>
-                </configuration>
+                  </licenseSet>
+                </licenseSets>
+                <mapping>
+                  <java>JAVADOC_STYLE</java>
+                </mapping>
+              </configuration>
             </plugin>
             <plugin>
               <artifactId>maven-compiler-plugin</artifactId>

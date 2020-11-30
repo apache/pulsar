@@ -1,11 +1,9 @@
 {
   "docs": {
     "Get started": [
-      "pulsar-2.0",
       "standalone",
       "standalone-docker",
-      "kubernetes-helm",
-      "client-libraries"
+      "kubernetes-helm"
     ],
     "Concepts and Architecture": [
       "concepts-overview",
@@ -56,6 +54,11 @@
      "tiered-storage-aws",
      "tiered-storage-gcs",
      "tiered-storage-filesystem"
+  ],
+  "Transactions": [
+    "transactions",
+    "transactions-guarantee",
+    "transactions-api"
   ],
     "Kubernetes (Helm)": [
       "helm-overview",

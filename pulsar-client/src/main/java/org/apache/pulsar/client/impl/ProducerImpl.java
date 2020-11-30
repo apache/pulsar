@@ -876,6 +876,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return connectionHandler.cnx() != null && (getState() == State.Ready);
     }
 
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        return connectionHandler.lastConnectionClosedTimestamp;
+    }
+
     public boolean isWritable() {
         ClientCnx cnx = connectionHandler.cnx();
         return cnx != null && cnx.channel().isWritable();
@@ -1726,7 +1731,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    ClientCnx getClientCnx() {
+    public ClientCnx getClientCnx() {
         return this.connectionHandler.cnx();
     }
 

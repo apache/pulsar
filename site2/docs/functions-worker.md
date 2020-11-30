@@ -99,6 +99,7 @@ If you want to enable security on functions workers, you *should*:
 - [Enable TLS transport encryption](#enable-tls-transport-encryption)
 - [Enable Authentication Provider](#enable-authentication-provider)
 - [Enable Authorization Provider](#enable-authorization-provider)
+- [Enable End-to-End Encryption](#enable-end-to-end-encryption)
 
 ##### Enable TLS transport encryption
 
@@ -179,6 +180,29 @@ superUserRoles:
   - role2
   - role3
 ```
+
+##### Enable End-to-End Encryption
+
+You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+
+To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption.md).
+
+We include the relevant configuration information of `CryptoConfig` into `ProducerConfig`. The specific configurable field information about `CryptoConfig` is as follows:
+
+```text
+public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+}
+```
+
+- `producerCryptoFailureAction`: define the action if producer fail to encrypt data one of `FAIL`, `SEND`.
+- `consumerCryptoFailureAction`: define the action if consumer fail to decrypt data one of `FAIL`, `DISCARD`, `CONSUME`.
 
 #### BookKeeper Authentication
 

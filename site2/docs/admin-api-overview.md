@@ -30,7 +30,8 @@ In this document, examples from each of the three available interfaces will be s
 
 Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
-### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 If you have [authentication](security-overview.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin.md) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
 
@@ -44,11 +45,11 @@ If you have [authentication](security-overview.md#authentication-providers) enab
 |tlsAllowInsecureConnection|Accept untrusted TLS certificate from client.|false|
 |tlsTrustCertsFilePath|Path for the trusted TLS certificate file.| |
 
-### REST API
+<!--REST API-->
 
 You can find documentation for the REST API exposed by Pulsar [brokers](reference-terminology.md#broker) in this reference {@inject: rest:document:/}.
 
-### Java admin client
+<!--Java-->
 
 To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, specifying a URL for a Pulsar [broker](reference-terminology.md#broker) and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. Here's a minimal example using `localhost`:
 
@@ -86,3 +87,4 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->

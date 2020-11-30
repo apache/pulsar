@@ -38,7 +38,6 @@ import javax.security.sasl.SaslServer;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.sasl.KerberosName;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 

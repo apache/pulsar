@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.7.0-SNAPSHOT</version>
+  <version>2.8.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -102,7 +102,6 @@ flexible messaging model and an intuitive client API.</description>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.33.v20201020</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
@@ -127,7 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
-    <gson.version>2.8.2</gson.version>
+    <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
@@ -180,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <nsq-client.version>1.0</nsq-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -200,7 +200,7 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
-    <license-maven-plugin.version>3.0</license-maven-plugin.version>
+    <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
@@ -209,6 +209,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
     <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
+    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <maven-archiver.version>2.5</maven-archiver.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
@@ -459,6 +460,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.netty</groupId>
         <artifactId>netty-tcnative-boringssl-static</artifactId>
         <version>${netty-tc-native.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-haproxy</artifactId>
+        <version>${netty.version}</version>
       </dependency>
 
       <dependency>
@@ -1092,6 +1099,8 @@ flexible messaging model and an intuitive client API.</description>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
           <optimize>true</optimize>
+          <!-- workaround https://issues.apache.org/jira/browse/MCOMPILER-205 -->
+          <useIncrementalCompilation>false</useIncrementalCompilation>
         </configuration>
       </plugin>
       <plugin>
@@ -1102,7 +1111,6 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
-            -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
@@ -1131,61 +1139,66 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>license-maven-plugin</artifactId>
         <version>${license-maven-plugin.version}</version>
         <configuration>
-          <header>src/license-header.txt</header>
-
-          <excludes>
-            <exclude>LICENSE</exclude>
-            <exclude>NOTICE</exclude>
-            <exclude>**/*.txt</exclude>
-            <exclude>**/*.pem</exclude>
-            <exclude>**/*.crt</exclude>
-            <exclude>**/*.key</exclude>
-            <exclude>**/*.csr</exclude>
-            <exclude>**/*.log</exclude>
-            <exclude>**/*.patch</exclude>
-            <exclude>**/*.avsc</exclude>
-            <exclude>**/*.versionsBackup</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
-            <exclude>**/ByteBufCodedInputStream.java</exclude>
-            <exclude>**/ByteBufCodedOutputStream.java</exclude>
-            <exclude>bin/proto/*</exclude>
-            <exclude>conf/schema_example.conf</exclude>
-            <exclude>data/**</exclude>
-            <exclude>logs/**</exclude>
-            <exclude>**/circe/**</exclude>
-            <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
-            <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
-            <exclude>pulsar-client-cpp/**/Makefile</exclude>
-            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site2/**</exclude>
-            <exclude>generated-site/**</exclude>
-            <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/**</exclude>
-            <exclude>**/generated/**</exclude>
-            <exclude>**/zk-3.5-test-data/*</exclude>
-          </excludes>
+          <licenseSets>
+            <licenseSet>
+              <header>src/license-header.txt</header>
+              <excludes>
+                <exclude>LICENSE</exclude>
+                <exclude>NOTICE</exclude>
+                <exclude>**/*.txt</exclude>
+                <exclude>**/*.pem</exclude>
+                <exclude>**/*.crt</exclude>
+                <exclude>**/*.key</exclude>
+                <exclude>**/*.csr</exclude>
+                <exclude>**/*.log</exclude>
+                <exclude>**/*.patch</exclude>
+                <exclude>**/*.avsc</exclude>
+                <exclude>**/*.versionsBackup</exclude>
+                <exclude>**/*.pyc</exclude>
+                <exclude>**/*.graffle</exclude>
+                <exclude>**/*.hgrm</exclude>
+                <exclude>**/src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
+                <exclude>**/src/test/java/org/apache/pulsar/common/api/proto/*.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
+                <exclude>**/src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
+                <exclude>**/ByteBufCodedInputStream.java</exclude>
+                <exclude>**/ByteBufCodedOutputStream.java</exclude>
+                <exclude>bin/proto/*</exclude>
+                <exclude>conf/schema_example.conf</exclude>
+                <exclude>data/**</exclude>
+                <exclude>logs/**</exclude>
+                <exclude>**/circe/**</exclude>
+                <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
+                <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+                <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+                <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
+                <exclude>pulsar-client-cpp/**/Makefile</exclude>
+                <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+                <exclude>**/CMakeFiles/**</exclude>
+                <exclude>**/django/stats/migrations/*.py</exclude>
+                <exclude>site2/**</exclude>
+                <exclude>generated-site/**</exclude>
+                <exclude>.github/*.md</exclude>
+                <exclude>**/.idea/**</exclude>
+                <exclude>**/generated/**</exclude>
+                <exclude>**/zk-3.5-test-data/*</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
+            <java>JAVADOC_STYLE</java>
             <proto>JAVADOC_STYLE</proto>
             <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>
@@ -1210,6 +1223,13 @@ flexible messaging model and an intuitive client API.</description>
             <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
         </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.rat</groupId>
@@ -1227,6 +1247,7 @@ flexible messaging model and an intuitive client API.</description>
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
             <exclude>src/test/java/org/apache/pulsar/common/api/proto/TestApi.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
@@ -1270,6 +1291,8 @@ flexible messaging model and an intuitive client API.</description>
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
+            <!-- This file is generated by c++ client -->
+            <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
             <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
@@ -1372,6 +1395,10 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>${maven-antrun-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1626,6 +1653,10 @@ flexible messaging model and an intuitive client API.</description>
         <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 
@@ -1671,6 +1702,10 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 

@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
  * Joda -- org.joda-joda-convert-2.2.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
  * Gson
-    - com.google.code.gson-gson-2.8.2.jar
+    - com.google.code.gson-gson-2.8.6.jar
     - io.gsonfire-gson-fire-1.8.4.jar
  * Sundrio
     - io.sundr-builder-annotations-0.21.0.jar
@@ -363,6 +363,7 @@ The Apache Software License, Version 2.0
     - io.netty-netty-codec-http-4.1.51.Final.jar
     - io.netty-netty-codec-http2-4.1.51.Final.jar
     - io.netty-netty-codec-socks-4.1.51.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.51.Final.jar
     - io.netty-netty-common-4.1.51.Final.jar
     - io.netty-netty-handler-4.1.51.Final.jar
     - io.netty-netty-handler-proxy-4.1.51.Final.jar
