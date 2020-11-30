@@ -165,6 +165,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
         jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
 
+        jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
+        jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
+        jcommander.addCommand("remove-max-message-size", new RemoveMaxMessageSize());
+
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
         jcommander.addCommand("remove-max-consumers-per-subscription", new RemoveMaxConsumersPerSubscription());
@@ -1689,6 +1693,45 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max message size for a topic")
+    private class GetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMaxMessageSize(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max message size for a topic")
+    private class SetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-message-size", "-m"}, description = "Max message size for a topic", required = true)
+        private int maxMessageSize;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxMessageSize(persistentTopic, maxMessageSize);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max message size for a topic")
+    private class RemoveMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxMessageSize(persistentTopic);
         }
     }
 

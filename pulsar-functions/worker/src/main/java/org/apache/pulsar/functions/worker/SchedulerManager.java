@@ -213,7 +213,7 @@ public class SchedulerManager implements AutoCloseable {
                         try {
                             runnable.run();
                         } catch (Throwable th) {
-                            log.error("Encountered error when invoking scheduler", errMsg);
+                            log.error("Encountered error when invoking scheduler [{}]", errMsg);
                             errorNotifier.triggerError(th);
                         }
                     }

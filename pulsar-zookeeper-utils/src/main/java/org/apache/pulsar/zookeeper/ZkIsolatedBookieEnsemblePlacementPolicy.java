@@ -59,8 +59,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
 
     private ZooKeeperCache bookieMappingCache = null;
 
-    private final List<String> primaryIsolationGroups = new ArrayList<String>();
-    private final List<String> secondaryIsolationGroups = new ArrayList<String>();
+    private final List<String> primaryIsolationGroups = new ArrayList<>();
+    private final List<String> secondaryIsolationGroups = new ArrayList<>();
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     public ZkIsolatedBookieEnsemblePlacementPolicy() {
@@ -194,7 +194,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
                     LOG.info(
-                            "Not found enough available-bookies from primary isolation group {} , checking secondary group",
+                            "Not found enough available-bookies from primary isolation group [{}] , checking secondary group [{}]",
                             primaryIsolationGroups, secondaryIsolationGroups);
                     for (String group : secondaryIsolationGroups) {
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);

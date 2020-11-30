@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -31,9 +32,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 abstract class AbstractMetrics {
 

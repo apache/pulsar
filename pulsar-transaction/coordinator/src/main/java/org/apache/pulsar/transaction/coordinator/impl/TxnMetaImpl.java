@@ -20,13 +20,11 @@ package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;

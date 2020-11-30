@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-
 import com.google.common.base.Objects;
 
 /**

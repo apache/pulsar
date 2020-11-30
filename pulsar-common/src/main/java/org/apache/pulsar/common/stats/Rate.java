@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.concurrent.atomic.LongAdder;
 
 /**

@@ -19,12 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.Future;
+import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import java.util.List;
 
 public interface PulsarCommandSender {
 
