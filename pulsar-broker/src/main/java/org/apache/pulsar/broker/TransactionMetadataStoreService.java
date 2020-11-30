@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.broker.transaction.timeout.impl.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -39,6 +40,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
@@ -61,12 +63,14 @@ public class TransactionMetadataStoreService {
     private final TransactionMetadataStoreProvider transactionMetadataStoreProvider;
     private final PulsarService pulsarService;
     private final TransactionBufferClient tbClient;
+    private final TransactionTimeoutTrackerFactory transactionTimeoutTrackerFactory;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient) {
         this.pulsarService = pulsarService;
         this.stores = new ConcurrentHashMap<>();
         this.transactionMetadataStoreProvider = transactionMetadataStoreProvider;
+        this.transactionTimeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this);
         this.tbClient = tbClient;
     }
 
@@ -116,7 +120,8 @@ public class TransactionMetadataStoreService {
     }
 
     public void addTransactionMetadataStore(TransactionCoordinatorID tcId) {
-        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory())
+        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(),
+                transactionTimeoutTrackerFactory)
             .whenComplete((store, ex) -> {
                 if (ex != null) {
                     LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
@@ -204,13 +209,6 @@ public class TransactionMetadataStoreService {
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
                 .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction, messageIdDataList));
-        if (TxnStatus.COMMITTING.equals(newStatus)) {
-            completableFuture = completableFuture
-                    .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
-        } else if (TxnStatus.ABORTING.equals(newStatus)) {
-            completableFuture = completableFuture
-                    .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING));
-        }
         return completableFuture;
     }
 
@@ -239,10 +237,13 @@ public class TransactionMetadataStoreService {
             });
 
             List<MessageId> messageIdList = new ArrayList<>();
-            for (MessageIdData messageIdData : messageIdDataList) {
-                messageIdList.add(new MessageIdImpl(
-                        messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
-                messageIdData.recycle();
+            //TODO when pending ack buffer finish this logic can remove
+            if (messageIdDataList != null) {
+                for (MessageIdData messageIdData : messageIdDataList) {
+                    messageIdList.add(new MessageIdImpl(
+                            messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
+                    messageIdData.recycle();
+                }
             }
 
             txnMeta.producedPartitions().forEach(partition -> {
@@ -262,20 +263,36 @@ public class TransactionMetadataStoreService {
                 }
                 completableFutureList.add(actionFuture);
             });
-
-            try {
-                FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, waitThrowable) -> {
-                    if (waitThrowable != null) {
-                        resultFuture.completeExceptionally(waitThrowable);
-                        return;
-                    }
-                    resultFuture.complete(null);
-                });
-            } catch (Exception e) {
-                resultFuture.completeExceptionally(e);
-            }
+            FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, waitThrowable) -> {
+                if (waitThrowable != null) {
+                    resultFuture.completeExceptionally(waitThrowable);
+                    endTxnInTransactionBuffer(txnID, txnAction, messageIdDataList);
+                    return;
+                }
+                resultFuture.complete(null);
+                TxnStatus newStatus;
+                TxnStatus expectedStatus;
+                if (txnAction == TxnAction.COMMIT_VALUE) {
+                    newStatus = TxnStatus.COMMITTED;
+                    expectedStatus = TxnStatus.COMMITTING;
+                } else {
+                    newStatus = TxnStatus.ABORTED;
+                    expectedStatus = TxnStatus.ABORTING;
+                }
+                //TODO find a better way to handle this failure when update transaction sstatus
+                finalityEndTransaction(txnID, newStatus, expectedStatus);
+            });
         });
         return resultFuture;
+    }
+
+    private void finalityEndTransaction(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
+        updateTxnStatus(txnID, newStatus, expectedStatus).whenComplete((v, e) -> {
+            if (e != null) {
+                finalityEndTransaction(txnID, newStatus, expectedStatus);
+            }
+            //no operation
+        });
     }
 
     private TransactionCoordinatorID getTcIdFromTxnId(TxnID txnId) {

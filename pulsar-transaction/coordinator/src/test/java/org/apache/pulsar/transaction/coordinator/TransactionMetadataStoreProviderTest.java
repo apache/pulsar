@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -62,7 +63,7 @@ public class TransactionMetadataStoreProviderTest {
     @BeforeMethod
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
-        this.store = this.provider.openStore(tcId, null).get();
+        this.store = this.provider.openStore(tcId, null, null).get();
     }
 
     @Test

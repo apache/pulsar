@@ -37,6 +37,8 @@ import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
@@ -61,12 +63,15 @@ public class MLTransactionMetadataStore
     private final MLTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
     private final ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentHashMap<>();
+    private final TransactionTimeoutTracker transactionTimeoutTracker;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
-                                      MLTransactionLogImpl mlTransactionLog) {
+                                      MLTransactionLogImpl mlTransactionLog,
+                                      TransactionTimeoutTrackerFactory timeoutTrackerFactory) {
         super(State.None);
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
+        this.transactionTimeoutTracker = timeoutTrackerFactory.newTracker(this);
 
         if (!changeToInitializingState()) {
             log.error("Managed ledger transaction metadata store change state error when init it");
@@ -76,6 +81,7 @@ public class MLTransactionMetadataStore
 
             @Override
             public void replayComplete() {
+                transactionTimeoutTracker.start();
                 if (!changeToReadyState()) {
                     log.error("Managed ledger transaction metadata store change state error when replay complete");
                 }
@@ -99,6 +105,8 @@ public class MLTransactionMetadataStore
                                 List<Position> positions = new ArrayList<>();
                                 positions.add(position);
                                 txnMetaMap.put(txnID, MutablePair.of(TxnMetaImpl.create(txnID), positions));
+                                transactionTimeoutTracker.replayAddTransaction(sequenceId.get(),
+                                        transactionMetadataEntry.getTimeoutMs());
                             }
                             break;
                         case ADD_PARTITION:
@@ -196,6 +204,7 @@ public class MLTransactionMetadataStore
                     Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
                     txnMetaMap.put(txnID, pair);
                     transactionMetadataEntry.recycle();
+                    transactionTimeoutTracker.addTransaction(leastSigBits, timeOut);
                     return CompletableFuture.completedFuture(txnID);
                 });
     }
