@@ -305,6 +305,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testReaderHasMessageAvailable() throws Exception {
         final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.latest)
