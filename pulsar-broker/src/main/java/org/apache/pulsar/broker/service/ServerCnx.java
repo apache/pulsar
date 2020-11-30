@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
@@ -2098,6 +2099,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public Promise<Void> newPromise() {
         return ctx.newPromise();
+    }
+
+    @Override
+    public HAProxyMessage getHAProxyMessage() {
+        return proxyMessage;
+    }
+
+    @Override
+    public boolean hasHAProxyMessage() {
+        return proxyMessage != null;
     }
 
     boolean hasConsumer(long consumerId) {
