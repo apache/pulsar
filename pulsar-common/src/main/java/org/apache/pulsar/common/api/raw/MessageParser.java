@@ -21,7 +21,6 @@ package org.apache.pulsar.common.api.raw;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;

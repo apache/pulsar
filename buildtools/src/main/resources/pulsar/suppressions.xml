@@ -47,8 +47,4 @@
     <suppress checks="ConstantName" files="MessageId.java"/>
     <suppress checks="MethodName" files="TopicsImpl.java"/>
     <suppress checks="MemberName" files="TopicsImpl.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/common/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/client/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/transaction/.*.java"/>
-    <suppress checks="ImportOrder" files="src/main/java/org/apache/pulsar/broker/.*.java"/>
 </suppressions>

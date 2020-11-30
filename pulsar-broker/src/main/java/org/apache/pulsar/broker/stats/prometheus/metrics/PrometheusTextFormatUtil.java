@@ -22,11 +22,10 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
 import io.prometheus.client.CollectorRegistry;
-import org.apache.bookkeeper.stats.Counter;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Enumeration;
+import org.apache.bookkeeper.stats.Counter;
 
 /**
  * Logic to write metrics in Prometheus text format.

@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.NavigableMap;
 import java.util.TreeMap;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;

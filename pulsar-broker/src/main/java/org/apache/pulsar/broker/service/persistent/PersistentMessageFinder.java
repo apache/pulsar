@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -26,11 +29,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  *

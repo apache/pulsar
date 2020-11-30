@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
 /**
  * This algorithm divides the bundle into two parts with the same hash range size.
