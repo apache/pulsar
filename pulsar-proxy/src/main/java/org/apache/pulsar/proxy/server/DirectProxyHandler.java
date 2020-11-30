@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
@@ -33,12 +34,18 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import java.util.function.Supplier;
 import lombok.Getter;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
@@ -142,9 +149,55 @@ public class DirectProxyHandler {
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
             }
 
-
+            if (config.isHaProxyProtocolEnabled()) {
+                if (proxyConnection.hasHAProxyMessage()) {
+                    outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
+                } else {
+                    if (inboundChannel.remoteAddress() instanceof InetSocketAddress) {
+                        InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                        String sourceAddress = clientAddress.getAddress().getHostAddress();
+                        int sourcePort = clientAddress.getPort();
+                        if (outboundChannel.localAddress() instanceof InetSocketAddress) {
+                            InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                            String destinationAddress = proxyAddress.getAddress().getHostAddress();
+                            int destinationPort = proxyAddress.getPort();
+                            HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
+                                    HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort, destinationPort);
+                            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
+                            msg.release();
+                        }
+                    }
+                }
+            }
         });
     }
+
+    private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
+        // Max length of v1 version proxy protocol message is 108
+        ByteBuf out = Unpooled.buffer(108);
+        out.writeBytes(TEXT_PREFIX);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.proxiedProtocol().name(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.sourceAddress(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.destinationAddress(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(String.valueOf(msg.sourcePort()), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(String.valueOf(msg.destinationPort()), CharsetUtil.US_ASCII);
+        out.writeByte((byte) '\r');
+        out.writeByte((byte) '\n');
+        return out;
+    }
+
+    static final byte[] TEXT_PREFIX = {
+            (byte) 'P',
+            (byte) 'R',
+            (byte) 'O',
+            (byte) 'X',
+            (byte) 'Y',
+    };
 
     enum BackendState {
         Init, HandshakeCompleted

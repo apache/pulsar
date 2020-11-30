@@ -163,6 +163,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
 
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean haProxyProtocolEnabled;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."

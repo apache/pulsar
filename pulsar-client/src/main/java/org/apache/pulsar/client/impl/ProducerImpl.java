@@ -1727,7 +1727,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    ClientCnx getClientCnx() {
+    public ClientCnx getClientCnx() {
         return this.connectionHandler.cnx();
     }
 

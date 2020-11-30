@@ -158,7 +158,11 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStats();
-        stats.setAddress(cnx.clientAddress().toString());
+        if (cnx.hasHAProxyMessage()) {
+            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
+        } else {
+            stats.setAddress(cnx.clientAddress().toString());
+        }
         stats.consumerName = consumerName;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
@@ -629,6 +633,10 @@ public class Consumer {
 
     public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
         this.readPositionWhenJoining = readPositionWhenJoining;
+    }
+
+    public TransportCnx cnx() {
+        return cnx;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

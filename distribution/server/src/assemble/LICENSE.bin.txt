@@ -361,6 +361,7 @@ The Apache Software License, Version 2.0
     - io.netty-netty-codec-http-4.1.48.Final.jar
     - io.netty-netty-codec-http2-4.1.48.Final.jar
     - io.netty-netty-codec-socks-4.1.48.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.51.Final.jar
     - io.netty-netty-common-4.1.48.Final.jar
     - io.netty-netty-handler-4.1.48.Final.jar
     - io.netty-netty-handler-proxy-4.1.48.Final.jar

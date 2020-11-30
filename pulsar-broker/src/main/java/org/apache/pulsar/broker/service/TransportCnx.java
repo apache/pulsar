@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -76,5 +77,9 @@ public interface TransportCnx {
     boolean isPreciseDispatcherFlowControl();
 
     Promise<Void> newPromise();
+
+    boolean hasHAProxyMessage();
+
+    HAProxyMessage getHAProxyMessage();
 
 }

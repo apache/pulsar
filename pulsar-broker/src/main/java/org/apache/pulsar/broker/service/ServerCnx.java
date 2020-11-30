@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
+
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
@@ -1994,6 +1996,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public Promise<Void> newPromise() {
         return ctx.newPromise();
+    }
+
+    @Override
+    public HAProxyMessage getHAProxyMessage() {
+        return proxyMessage;
+    }
+
+    @Override
+    public boolean hasHAProxyMessage() {
+        return proxyMessage != null;
     }
 
     boolean hasConsumer(long consumerId) {

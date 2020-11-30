@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -84,8 +85,18 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
+    // From the proxy protocol. If present, it means the client is connected via a reverse proxy.
+    // The broker can get the real client address and proxy address from the proxy message.
+    protected HAProxyMessage proxyMessage;
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof HAProxyMessage) {
+            HAProxyMessage proxyMessage = (HAProxyMessage) msg;
+            this.proxyMessage = proxyMessage;
+            proxyMessage.release();
+            return;
+        }
         // Get a buffer that contains the full frame
         ByteBuf buffer = (ByteBuf) msg;
         BaseCommand cmd = null;
