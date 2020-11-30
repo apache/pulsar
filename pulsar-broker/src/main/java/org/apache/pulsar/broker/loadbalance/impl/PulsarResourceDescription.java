@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 

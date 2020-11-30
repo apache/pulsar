@@ -349,7 +349,7 @@ public class PulsarClusterMetadataSetup {
         Long maxVal = ((long) 1) << 32;
         Long segSize = maxVal / numBundles;
         List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0l));
+        partitions.add(String.format("0x%08x", 0L));
         Long curPartition = segSize;
         for (int i = 0; i < numBundles; i++) {
             if (i != numBundles - 1) {

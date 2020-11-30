@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.namespace;
 
 import lombok.Builder;
 import lombok.Data;
-
 import org.apache.commons.lang3.StringUtils;
 
 @Data

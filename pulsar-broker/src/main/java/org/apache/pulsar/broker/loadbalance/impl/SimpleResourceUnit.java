@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.base.MoreObjects;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-
-import com.google.common.base.MoreObjects;
 
 public class SimpleResourceUnit implements ResourceUnit {
 

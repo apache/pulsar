@@ -24,10 +24,8 @@ import io.airlift.compress.snappy.SnappyRawCompressor;
 import io.airlift.compress.snappy.SnappyRawDecompressor;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**

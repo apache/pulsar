@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.api.raw;
 
 import io.netty.buffer.ByteBuf;
-
 import java.util.Map;
 import java.util.Optional;
 
