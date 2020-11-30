@@ -260,7 +260,7 @@ public class KubernetesRuntime implements Runtime {
                         authConfig,
                         "$" + ENV_SHARD_ID,
                         grpcPort,
-                        -1l,
+                        -1L,
                         logConfigFile,
                         secretsProviderClassName,
                         secretsProviderConfig,

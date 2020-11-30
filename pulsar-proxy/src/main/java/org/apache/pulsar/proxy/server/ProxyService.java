@@ -131,7 +131,7 @@ public class ProxyService implements Closeable {
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
         if (proxyConfig.getProxyLogLevel().isPresent()) {
-            proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
+            proxyLogLevel = proxyConfig.getProxyLogLevel().get();
         } else {
             proxyLogLevel = 0;
         }
