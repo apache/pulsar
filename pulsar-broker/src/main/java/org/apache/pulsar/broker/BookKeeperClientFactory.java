@@ -21,7 +21,6 @@ package org.apache.pulsar.broker;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;

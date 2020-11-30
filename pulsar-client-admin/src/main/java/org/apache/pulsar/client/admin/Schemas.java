@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;

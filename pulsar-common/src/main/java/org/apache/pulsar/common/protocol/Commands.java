@@ -23,22 +23,17 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
-
 import com.google.common.annotations.VisibleForTesting;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;

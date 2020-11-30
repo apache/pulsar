@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

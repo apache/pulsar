@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -39,9 +40,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvid
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 
 public class ManagedLedgerClientFactory implements Closeable {
 

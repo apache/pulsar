@@ -20,7 +20,6 @@ package org.apache.pulsar.common.api.raw;
 
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
-
 import java.util.function.Consumer;
 
 /**
