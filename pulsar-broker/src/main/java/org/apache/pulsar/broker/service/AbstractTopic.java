@@ -571,6 +571,21 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
+    protected boolean isExceedMaximumMessageSize(int size) {
+        Integer maxMessageSize = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
+            maxMessageSize = topicPolicies.getMaxMessageSize();
+        }
+        if (maxMessageSize != null) {
+            if (maxMessageSize == 0) {
+                return false;
+            }
+            return size > maxMessageSize;
+        }
+        return false;
+    }
+
     /**
      * update topic publish dispatcher for this topic.
      */

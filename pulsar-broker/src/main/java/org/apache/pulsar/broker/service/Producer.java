@@ -356,8 +356,7 @@ public class Producer {
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
-                ServerError serverError = (exception instanceof TopicTerminatedException)
-                        ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
+                final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
                     if (!(exception instanceof TopicClosedException)) {
@@ -381,6 +380,18 @@ public class Producer {
                 this.entryId = entryId;
                 producer.cnx.execute(this);
             }
+        }
+
+        private ServerError getServerError(Exception exception) {
+            ServerError serverError;
+            if (exception instanceof TopicTerminatedException) {
+                serverError = ServerError.TopicTerminatedError;
+            } else if (exception instanceof BrokerServiceException.NotAllowedException) {
+                serverError = ServerError.NotAllowedError;
+            } else {
+                serverError = ServerError.PersistenceError;
+            }
+            return serverError;
         }
 
         /**

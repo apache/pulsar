@@ -55,6 +55,11 @@ public class TopicPolicies {
     private PublishRate publishRate = null;
     private SubscribeRate subscribeRate = null;
     private Integer deduplicationSnapshotIntervalSeconds = null;
+    private Integer maxMessageSize = null;
+
+    public boolean isMaxMessageSizeSet() {
+        return maxMessageSize != null;
+    }
 
     public boolean isDeduplicationSnapshotIntervalSecondsSet(){
         return deduplicationSnapshotIntervalSeconds != null;

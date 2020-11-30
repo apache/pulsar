@@ -160,6 +160,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
+        if (isExceedMaximumMessageSize(data.readableBytes())) {
+            callback.completed(new NotAllowedException("Exceed maximum message size")
+                    , -1, -1);
+            return;
+        }
         callback.completed(null, 0L, 0L);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
 
