@@ -19,6 +19,7 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.DistributedLogConstants;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -40,10 +41,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
     private final static String NS_CLIENT_ID = "packages-management";
-    private final BookKeeperPackagesStorageConfiguration configuration;
+    final BookKeeperPackagesStorageConfiguration configuration;
     private Namespace namespace;
 
     BookKeeperPackagesStorage(PackagesStorageConfiguration configuration) {
@@ -73,6 +75,7 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         } catch (IOException e) {
             throw new RuntimeException("Initialize distributed log for packages management service failed.", e);
         }
+        log.info("Packages management bookKeeper storage initialized successfully");
     }
 
     private URI initializeDlogNamespace() throws IOException {

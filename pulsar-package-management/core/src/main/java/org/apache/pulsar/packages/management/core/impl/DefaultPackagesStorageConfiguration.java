@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.packages.management.core.impl;
 
-import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
-
 import java.util.Properties;
+import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
 public class DefaultPackagesStorageConfiguration implements PackagesStorageConfiguration {
     private final Properties properties = new Properties();
 
     @Override
-    public Object getProperty(String key) {
-        return properties.get(key);
+    public String getProperty(String key) {
+        return (String) properties.get(key);
     }
 
     @Override

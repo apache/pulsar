@@ -19,49 +19,47 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
+import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration;
 
 public class BookKeeperPackagesStorageConfiguration implements PackagesStorageConfiguration {
 
     private final PackagesStorageConfiguration configuration;
 
-    int numReplicas;
-    String zkServers;
-    String ledgersRootPath;
-    String bookkeeperClientAuthenticationPlugin;
-    String bookkeeperClientAuthenticationParametersName;
-    String bookkeeperClientAuthenticationParameters;
+    BookKeeperPackagesStorageConfiguration() {
+        this.configuration = new DefaultPackagesStorageConfiguration();
+    }
 
     BookKeeperPackagesStorageConfiguration(PackagesStorageConfiguration configuration) {
         this.configuration = configuration;
     }
 
-    public int getNumReplicas() {
-        return (int) getProperty("numReplicas");
+    int getNumReplicas() {
+        return Integer.parseInt(getProperty("numReplicas"));
     }
 
-    public String getZkServers() {
-        return (String) getProperty("zkServers");
+    String getZkServers() {
+        return getProperty("zkServers");
     }
 
-    public String getLedgersRootPath() {
-        return (String) getProperty("ledgerRootPath");
+    String getLedgersRootPath() {
+        return getProperty("ledgerRootPath");
     }
 
-    public String getBookkeeperClientAuthenticationPlugin() {
-        return (String) getProperty("bookkeeperClientAuthenticationPlugin");
+    String getBookkeeperClientAuthenticationPlugin() {
+        return getProperty("bookkeeperClientAuthenticationPlugin");
     }
 
-    public String getBookkeeperClientAuthenticationParametersName() {
-        return (String) getProperty("bookkeeperClientAuthenticationParametersName");
+    String getBookkeeperClientAuthenticationParametersName() {
+        return getProperty("bookkeeperClientAuthenticationParametersName");
     }
 
-    public String getBookkeeperClientAuthenticationParameters() {
-        return (String) getProperty("bookkeeperClientAuthenticationParameters");
+    String getBookkeeperClientAuthenticationParameters() {
+        return getProperty("bookkeeperClientAuthenticationParameters");
     }
 
 
     @Override
-    public Object getProperty(String key) {
+    public String getProperty(String key) {
         return configuration.getProperty(key);
     }
 
