@@ -1039,6 +1039,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         resendMessages(cnx);
     }
 
+    protected synchronized void recoverNotAllowedError(long sequenceId) {
+        OpSendMsg op = pendingMessages.peek();
+        if(op != null && sequenceId == getHighestSequenceId(op)){
+            pendingMessages.remove();
+            releaseSemaphoreForSendOp(op);
+            try {
+                op.callback.sendComplete(
+                        new PulsarClientException.NotAllowedException(
+                                format("The size of the message which is produced by producer %s to the topic " +
+                                        "%s is not allowed", producerName, topic)));
+            } catch (Throwable t) {
+                log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
+                        producerName, sequenceId, t);
+            }
+            ReferenceCountUtil.safeRelease(op.cmd);
+            op.recycle();
+        }
+    }
+
     /**
      * Computes checksum again and verifies it against existing checksum. If checksum doesn't match it means that
      * message is corrupt.
