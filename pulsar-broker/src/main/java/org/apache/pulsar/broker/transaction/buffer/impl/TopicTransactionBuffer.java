@@ -178,7 +178,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     log.error("Topic : [{}] Position : [{}], transaction buffer " +
                             "sync replay position fail!", topic.getName(), position);
                 }
-                countToSyncPosition.addAndGet(defaultCountToSyncPosition);
+                countToSyncPosition.addAndGet(-defaultCountToSyncPosition);
             }
         });
         return completableFuture;

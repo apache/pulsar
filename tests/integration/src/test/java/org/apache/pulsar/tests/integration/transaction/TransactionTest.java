@@ -114,6 +114,28 @@ public class TransactionTest extends TransactionTestBase {
                 .subscribe();
         log.info("balance update consumer create finished");
 
+        //TODO in order to wait buffer replay, now the transaction message can repeat, when it not repeat, we can remove
+        // these code.
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+        for (int i = 0; i < 10; i++) {
+            transferProducer.newMessage(txn).value(new TransferOperation()).send();
+            balanceUpdateProducer.newMessage(txn).value(new BalanceUpdate()).send();
+        }
+
+        txn.commit().get();
+
+        Message<TransferOperation> transferMessageToWaitReplay = transferConsumer.receive();
+        Message<BalanceUpdate> balanceUpdateMessageToWaitReplay = balanceUpdateConsumer.receive();
+
+        while (transferMessageToWaitReplay != null) {
+            transferMessageToWaitReplay = transferConsumer.receive(2, TimeUnit.SECONDS);
+        }
+        while (balanceUpdateMessageToWaitReplay != null) {
+            balanceUpdateMessageToWaitReplay = balanceUpdateConsumer.receive(2, TimeUnit.SECONDS);
+        }
+
         while(true) {
             Message<TransferOperation> message = transferConsumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {

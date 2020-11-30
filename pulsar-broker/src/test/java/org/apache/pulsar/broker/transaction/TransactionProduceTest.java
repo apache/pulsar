@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +39,10 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -56,6 +60,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -146,6 +151,23 @@ public class TransactionProduceTest extends TransactionTestBase {
         int messageCnt = TOPIC_PARTITION * messageCntPerPartition;
         String content = "Hello Txn - ";
         Set<String> messageSet = new HashSet<>();
+
+        //TODO now produce transaction can send repeat when we replay the transaction buffer, when it fix, we can remove
+        // this logic
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            for (int j = 0; j < getPulsarServiceList().size(); j++) {
+                try {
+                    CompletableFuture<Optional<Topic>> completableFuture = getPulsarServiceList().get(i).getBrokerService()
+                            .getTopic(TopicName.get(topic).getPartition(j).toString(), false);
+                    TopicTransactionBuffer transactionBuffer = (TopicTransactionBuffer) completableFuture.get()
+                            .get().getTransactionBuffer(true).get();
+                    Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                            .until(() -> transactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
+                } catch (Exception e) {
+                    log.error("Transaction replay error", e);
+                }
+            }
+        }
         List<CompletableFuture<MessageId>> futureList = new ArrayList<>();
         for (int i = 0; i < messageCnt; i++) {
             String msg = content + i;

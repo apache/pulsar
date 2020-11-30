@@ -33,6 +33,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -40,6 +41,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -71,12 +73,9 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
         TopicTransactionBuffer topicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
+
         TxnID txnID1 = new TxnID(1, 1);
         TxnID txnID2 = new TxnID(2, 2);
         topicTransactionBuffer.appendBufferToTxn(txnID1, 1,Unpooled.buffer()).get();
@@ -138,12 +137,8 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
         TopicTransactionBuffer topicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
 
         TxnID txnID1 = new TxnID(1, 1);
         TxnID txnID2 = new TxnID(2, 2);
@@ -161,15 +156,11 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
 
         topic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
-        topicTransactionBuffer =
+        TopicTransactionBuffer replayTopicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
 
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> replayTopicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
 
         Field field = TopicTransactionBuffer.class.getDeclaredField("txnBufferCache");
         field.setAccessible(true);
@@ -181,7 +172,7 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
         field.setAccessible(true);
 
         ConcurrentSkipListSet<PositionImpl> positionsSort =
-                (ConcurrentSkipListSet<PositionImpl>) field.get(topicTransactionBuffer);
+                (ConcurrentSkipListSet<PositionImpl>) field.get(replayTopicTransactionBuffer);
 
         assertTrue(positionsSort.containsAll(txnBufferCache.get(txnID1).values()));
         assertTrue(positionsSort.containsAll(txnBufferCache.get(txnID2).values()));
@@ -197,31 +188,28 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
         ConcurrentOpenHashSet<PositionImpl> txn2Positions = txnBufferCache.get(txnID2);
 
         //test commit replay
-        topicTransactionBuffer.commitTxn(txnID1, null).get();
+        replayTopicTransactionBuffer.commitTxn(txnID1, null).get();
 
         admin.topics().unload(TOPIC);
 
         topic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
-        topicTransactionBuffer =
+        TopicTransactionBuffer commitAndReplayTopicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
 
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> commitAndReplayTopicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
 
         field = TopicTransactionBuffer.class.getDeclaredField("txnBufferCache");
         field.setAccessible(true);
         txnBufferCache =
-                (ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<PositionImpl>>) field.get(topicTransactionBuffer);
+                (ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<PositionImpl>>) field
+                        .get(commitAndReplayTopicTransactionBuffer);
 
         field = TopicTransactionBuffer.class.getDeclaredField("positionsSort");
         field.setAccessible(true);
 
-        positionsSort = (ConcurrentSkipListSet<PositionImpl>) field.get(topicTransactionBuffer);
+        positionsSort = (ConcurrentSkipListSet<PositionImpl>) field.get(commitAndReplayTopicTransactionBuffer);
 
 
         assertFalse(txnBufferCache.containsKey(txnID1));
@@ -234,31 +222,28 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
             assertTrue(positionsSort.contains(txn2Positions.values().get(i)));
         }
 
-        topicTransactionBuffer.abortTxn(txnID2, null).get();
+        commitAndReplayTopicTransactionBuffer.abortTxn(txnID2, null).get();
 
         //test offload
         admin.topics().unload(TOPIC);
 
         topic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
-        topicTransactionBuffer =
+        TopicTransactionBuffer abortAndReplayTopicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
         field = TopicTransactionBuffer.class.getDeclaredField("positionsSort");
         field.setAccessible(true);
 
-        positionsSort = (ConcurrentSkipListSet<PositionImpl>) field.get(topicTransactionBuffer);
+        positionsSort = (ConcurrentSkipListSet<PositionImpl>) field.get(abortAndReplayTopicTransactionBuffer);
 
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> abortAndReplayTopicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
 
         field = TopicTransactionBuffer.class.getDeclaredField("txnBufferCache");
         field.setAccessible(true);
         txnBufferCache =
-                (ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<PositionImpl>>) field.get(topicTransactionBuffer);
+                (ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<PositionImpl>>) field
+                        .get(abortAndReplayTopicTransactionBuffer);
 
         assertFalse(txnBufferCache.containsKey(txnID2));
 
@@ -276,12 +261,8 @@ public class TransactionBufferInMemoryTest extends BrokerTestBase {
                 .getTopic(TopicName.get(TOPIC).toString(), true).get().get();
         TopicTransactionBuffer topicTransactionBuffer =
                 (TopicTransactionBuffer) topic.getTransactionBuffer(true).get();
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(100);
-            if (topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready) {
-                break;
-            }
-        }
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> topicTransactionBuffer.getState() == TopicTransactionBufferState.State.Ready);
 
         TxnID txnID1 = new TxnID(1, 1);
         TxnID txnID2 = new TxnID(2, 2);
