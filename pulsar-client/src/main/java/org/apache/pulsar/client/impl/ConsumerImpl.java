@@ -2010,7 +2010,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     startMessageId.partitionIndex == -1) {
 
                 getLastMessageIdAsync()
-                        .thenCompose((msgId)-> seekAsync(msgId).thenApply((ignore)-> msgId))
+                        .thenCompose((msgId) -> seekAsync(msgId).thenApply((ignore)-> msgId))
                         .whenComplete((msgId, e) -> {
                             if (e != null) {
                                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
