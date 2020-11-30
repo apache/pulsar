@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import lombok.Data;
 
 /**

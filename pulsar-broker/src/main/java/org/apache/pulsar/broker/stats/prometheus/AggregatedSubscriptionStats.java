@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import org.apache.pulsar.broker.service.Consumer;
-
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.broker.service.Consumer;
 
 public class AggregatedSubscriptionStats {
 

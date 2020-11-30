@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -162,7 +159,11 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStats();
-        stats.setAddress(cnx.clientAddress().toString());
+        if (cnx.hasHAProxyMessage()) {
+            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
+        } else {
+            stats.setAddress(cnx.clientAddress().toString());
+        }
         stats.consumerName = consumerName;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
@@ -762,6 +763,10 @@ public class Consumer {
 
     public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
         this.readPositionWhenJoining = readPositionWhenJoining;
+    }
+
+    public TransportCnx cnx() {
+        return cnx;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

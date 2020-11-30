@@ -94,11 +94,11 @@
                 </goals>
                 <configuration>
                   <skip>${skipCopyPythonClients}</skip>
-                  <tasks>
+                  <target>
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>
                     <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </tasks>
+                  </target>
                 </configuration>
               </execution>
               <execution>
@@ -109,11 +109,11 @@
                 </goals>
                 <configuration>
                   <skip>${skipCopyCppClient}</skip>
-                  <tasks>
+                  <target>
                     <echo>copy cpp client deb file</echo>
                     <mkdir dir="${basedir}/target/cpp-client"/>
                     <copydir src="${basedir}/../../pulsar-client-cpp/pkg/deb/BUILD/DEB" dest="${basedir}/target/cpp-client"/>
-                  </tasks>
+                  </target>
                 </configuration>
               </execution>
             </executions>

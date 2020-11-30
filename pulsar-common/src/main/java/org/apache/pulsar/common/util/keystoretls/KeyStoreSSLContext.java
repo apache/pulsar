@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.keystoretls;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;

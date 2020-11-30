@@ -21,10 +21,13 @@ package org.apache.pulsar.broker.namespace;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -41,12 +44,6 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
 
 /**
  * This class encapsulate some utility functions for <code>ServiceUnit</code> related <code>ZooKeeper</code> operations

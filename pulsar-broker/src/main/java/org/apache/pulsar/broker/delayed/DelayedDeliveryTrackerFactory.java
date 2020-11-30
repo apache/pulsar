@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-
 import java.io.IOException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 

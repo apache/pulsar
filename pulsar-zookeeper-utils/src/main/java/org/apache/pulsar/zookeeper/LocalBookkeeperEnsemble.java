@@ -85,7 +85,7 @@ public class LocalBookkeeperEnsemble {
     public static final int CONNECTION_TIMEOUT = 30000;
 
     int numberOfBookies;
-    private boolean clearOldData = false;
+    private boolean clearOldData;
 
     private static class BasePortManager implements Supplier<Integer> {
 

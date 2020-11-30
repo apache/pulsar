@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -88,6 +89,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private boolean hasProxyToBrokerUrl;
     private int protocolVersionToAdvertise;
     private String proxyToBrokerUrl;
+    private HAProxyMessage haProxyMessage;
 
     enum State {
         Init,
@@ -169,6 +171,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof HAProxyMessage) {
+            haProxyMessage = (HAProxyMessage) msg;
+            return;
+        }
         switch (state) {
         case Init:
         case Connecting:
@@ -456,6 +462,14 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     ChannelHandlerContext ctx() {
         return ctx;
+    }
+
+    public boolean hasHAProxyMessage() {
+        return haProxyMessage != null;
+    }
+
+    public HAProxyMessage getHAProxyMessage() {
+        return haProxyMessage;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnection.class);

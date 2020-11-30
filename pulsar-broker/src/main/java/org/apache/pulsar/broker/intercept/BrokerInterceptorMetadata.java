@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.nio.file.Path;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.nio.file.Path;
 
 /**
  * The metadata of broker interceptor

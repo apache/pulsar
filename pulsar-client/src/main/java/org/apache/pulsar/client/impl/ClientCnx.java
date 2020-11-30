@@ -367,8 +367,8 @@ public class ClientCnx extends PulsarHandler {
         }
 
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("[{}] Message has been dropped for non-persistent topic producer-id {}-{}", ctx.channel(),
-                    producerId, sequenceId);
+            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
+                    sequenceId, producerId);
         }
 
         if (log.isDebugEnabled()) {
@@ -604,6 +604,9 @@ public class ClientCnx extends PulsarHandler {
 
         case TopicTerminatedError:
             producers.get(producerId).terminated(this);
+            break;
+        case NotAllowedError:
+            producers.get(producerId).recoverNotAllowedError(sequenceId);
             break;
 
         default:

@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -38,9 +39,10 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         //No-op
     }
 
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        //No-op
+        super.internalCleanup();
     }
 
     @Test
@@ -70,7 +72,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         }
         Thread.sleep(20);
         Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
-        super.internalCleanup();
     }
 
     @Test
@@ -107,7 +108,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             Assert.assertNotNull(future.get());
         }
         Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L);
-        super.internalCleanup();
     }
 
     @Test
@@ -153,6 +153,5 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             Assert.assertNotNull(future.get());
         }
         Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L);
-        super.internalCleanup();
     }
 }

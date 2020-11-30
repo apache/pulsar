@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;

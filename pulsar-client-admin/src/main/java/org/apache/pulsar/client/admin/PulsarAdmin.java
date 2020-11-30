@@ -24,11 +24,9 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;

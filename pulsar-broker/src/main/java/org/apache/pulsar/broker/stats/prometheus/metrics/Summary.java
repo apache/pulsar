@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 import io.prometheus.client.Collector;
 import io.prometheus.client.SimpleCollector;
 import io.prometheus.client.SummaryMetricFamily;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
