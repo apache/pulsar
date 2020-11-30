@@ -285,7 +285,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         MSG_PUBLISHED_COUNTER_UPDATER.getAndIncrement(this);
     }
 
-    private ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
+    protected ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
         ProducerBuilder<byte[]> builder = client.newProducer()
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -298,7 +298,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("initialSequenceId")) {
-            builder.initialSequenceId(Long.parseLong("initialSequenceId"));
+            builder.initialSequenceId(Long.parseLong(queryParams.get("initialSequenceId")));
         }
 
         if (queryParams.containsKey("hashingScheme")) {
