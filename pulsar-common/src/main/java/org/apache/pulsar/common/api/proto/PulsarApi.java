@@ -84,6 +84,7 @@ public final class PulsarApi {
     InvalidTxnStatus(21, 21),
     NotAllowedError(22, 22),
     TransactionConflict(23, 23),
+    TransactionNotFound(24, 24),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -110,6 +111,7 @@ public final class PulsarApi {
     public static final int InvalidTxnStatus_VALUE = 21;
     public static final int NotAllowedError_VALUE = 22;
     public static final int TransactionConflict_VALUE = 23;
+    public static final int TransactionNotFound_VALUE = 24;
     
     
     public final int getNumber() { return value; }
@@ -140,6 +142,7 @@ public final class PulsarApi {
         case 21: return InvalidTxnStatus;
         case 22: return NotAllowedError;
         case 23: return TransactionConflict;
+        case 24: return TransactionNotFound;
         default: return null;
       }
     }

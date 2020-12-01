@@ -16,19 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
+package org.apache.pulsar.packages.management.core;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
-/**
- * This algorithm divides the bundle into two parts with the same hash range size.
- */
-public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
-
+public class MockedPackagesStorageProvider implements PackagesStorageProvider {
     @Override
-    public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
-        return CompletableFuture.completedFuture(bundle.getLowerEndpoint()
-                + (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
+    public PackagesStorage getStorage(PackagesStorageConfiguration config) {
+        return new MockedPackagesStorage(config);
     }
 }
