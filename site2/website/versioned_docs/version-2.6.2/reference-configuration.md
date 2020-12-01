@@ -86,7 +86,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |useHostNameAsBookieID|Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.|false|
 |statsProviderClass||org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider|
 |prometheusStatsHttpPort||8000|
-|dbStorage_writeCacheMaxSizeMb|Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub|25% of direct memory|
+|dbStorage_writeCacheMaxSizeMb|Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold substantial amount of entries in the flush interval.|25% of direct memory|
 |dbStorage_readAheadCacheMaxSizeMb|Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens|25% of direct memory|
 |dbStorage_readAheadCacheBatchSize|How many entries to pre-fill in cache after a read cache miss|1000|
 |dbStorage_rocksDB_blockCacheSize|Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases|10% of direct memory|
