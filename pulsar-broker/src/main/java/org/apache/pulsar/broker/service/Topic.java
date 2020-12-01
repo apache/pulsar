@@ -98,9 +98,11 @@ public interface Topic {
      * Tries to add a producer to the topic. Several validations will be performed.
      *
      * @param producer
+     * @param producerQueuedFuture
+     *            a future that will be triggered if the producer is being queued up prior of getting established
      * @return the "topic epoch" if there is one or empty
      */
-    CompletableFuture<Optional<Long>> addProducer(Producer producer);
+    CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture);
 
     void removeProducer(Producer producer);
 
