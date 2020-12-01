@@ -1616,7 +1616,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
-
+        stats.topicEpoch = topicEpoch.orElse(null);
         return stats;
     }
 

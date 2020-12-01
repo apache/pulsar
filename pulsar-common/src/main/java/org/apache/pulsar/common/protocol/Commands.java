@@ -2183,4 +2183,17 @@ public class Commands {
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
     }
+
+    public static ProducerAccessMode convertProducerAccessMode(PulsarApi.ProducerAccessMode accessMode) {
+        switch (accessMode) {
+        case Exclusive:
+            return ProducerAccessMode.Exclusive;
+        case Shared:
+            return ProducerAccessMode.Shared;
+//        case WaitForExclusive:
+//            return ProducerAccessMode.WaitForExclusive;
+        default:
+            throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
+        }
+    }
 }

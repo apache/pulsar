@@ -375,19 +375,26 @@ public abstract class AbstractTopic implements Topic {
             switch (producer.getAccessMode()) {
             case Shared:
                 if (hasExclusiveProducer) {
-                   return FutureUtil.failedFuture(new ProducerBusyException("Topic has an existing exclusive producer"));
+                    return FutureUtil.failedFuture(new ProducerBusyException(
+                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
                 } else {
                     // Normal producer getting added, we don't need a new epoch
                     return CompletableFuture.completedFuture(topicEpoch);
                 }
 
             case Exclusive:
-                 if (hasExclusiveProducer || !producers.isEmpty()) {
-                    return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing producers"));
-                 } else if (producer.getTopicEpoch().isPresent() && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)){
-                     // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs to
-                     // be fenced, because a new producer had been present in between.
-                     return FutureUtil.failedFuture(new ProducerFencedException("Topic epoch has already moved"));
+                if (hasExclusiveProducer) {
+                    return FutureUtil.failedFuture(new ProducerBusyException(
+                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
+                } else if (!producers.isEmpty()) {
+                    return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
+                } else if (producer.getTopicEpoch().isPresent()
+                        && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
+                    // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
+                    // to be fenced, because a new producer had been present in between.
+                    return FutureUtil.failedFuture(new ProducerFencedException(
+                            String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
+                                    topicEpoch.get(), producer.getTopicEpoch().get())));
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
@@ -404,8 +411,8 @@ public abstract class AbstractTopic implements Topic {
                     return future;
                 }
 
-           // case WaitForExclusive:
-           // TODO: Implementation
+                // case WaitForExclusive:
+                // TODO: Implementation
 
             default:
                 return FutureUtil.failedFuture(

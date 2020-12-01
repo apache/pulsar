@@ -780,6 +780,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             stats.getReplication().put(replicator.getRemoteCluster(), replicatorStats);
         });
 
+        stats.topicEpoch = topicEpoch.orElse(null);
         return stats;
     }
 

@@ -124,6 +124,7 @@ public class Producer {
         stats.setProducerName(producerName);
         stats.producerId = producerId;
         stats.metadata = this.metadata;
+        stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
