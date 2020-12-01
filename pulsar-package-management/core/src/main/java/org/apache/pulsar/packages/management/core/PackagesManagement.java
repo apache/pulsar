@@ -35,9 +35,8 @@ public interface PackagesManagement {
      *
      * @param storage
      *          the storage used to saving packages
-     * @return
      */
-    CompletableFuture<Void> initialize(PackagesStorage storage);
+    void initialize(PackagesStorage storage);
 
     /**
      * Get the metadata of a package.
@@ -94,7 +93,7 @@ public interface PackagesManagement {
      * @return
      *      all the versions of the specified package
      */
-    CompletableFuture<List<PackageName>> list(PackageName packageName);
+    CompletableFuture<List<String>> list(PackageName packageName);
 
     /**
      * List all the packages with the type of a namespace.
@@ -103,7 +102,7 @@ public interface PackagesManagement {
      * @param tenant the tenant name
      * @param namespace the namespace name
      * @return
-     *      the packages under the specified namespace
+     *      the packages name under the specified namespace
      */
-    CompletableFuture<List<PackageName>> list(PackageType type, String tenant, String namespace);
+    CompletableFuture<List<String>> list(PackageType type, String tenant, String namespace);
 }
