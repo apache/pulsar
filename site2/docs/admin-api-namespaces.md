@@ -14,7 +14,7 @@ Namespaces can be managed via:
 
 ## Namespaces resources
 
-### Create
+### Create namespaces
 
 You can create new namespaces under a given [tenant](reference-terminology.md#tenant).
 
@@ -83,7 +83,7 @@ admin.namespaces().getPolicies(namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### List namespaces within a tenant
+### List namespaces
 
 You can list all namespaces within a given Pulsar [tenant](reference-terminology.md#tenant).
 
@@ -109,7 +109,7 @@ admin.namespaces().getNamespaces(tenant);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Delete
+### Delete namespaces
 
 You can delete existing namespaces from a tenant.
 
@@ -132,6 +132,8 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 admin.namespaces().deleteNamespace(namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure replication clusters
 
 #### Set replication cluster
 
@@ -185,6 +187,8 @@ cl2
 admin.namespaces().getNamespaceReplicationClusters(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure backlog quota policies
 
 #### Set backlog quota policies
 
@@ -283,6 +287,8 @@ admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Configure persistence policies
+
 #### Set persistence policies
 
 Persistence policies allow to configure persistency-level for all topic messages under a given namespace.
@@ -352,7 +358,9 @@ admin.namespaces().getPersistence(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Unload namespace bundle
+### Configure namespace bundles
+
+#### Unload namespace bundles
 
 The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload a bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
 
@@ -379,6 +387,37 @@ N/A
 admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Split namespace bundles
+
+Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
+If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+```
+$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
+```
+
+```
+N/A
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split|operation/splitNamespaceBundle}
+```
+
+<!--Java-->
+
+```java
+admin.namespaces().splitNamespaceBundle(namespace, bundle)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure message TTL
 
 #### Set message-ttl
 
@@ -436,36 +475,9 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Split bundle
+### Clear backlog
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
-If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-
-```
-$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
-```
-
-```
-N/A
-```
-
-<!--REST API-->
-
-```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split|operation/splitNamespaceBundle}
-```
-
-<!--Java-->
-
-```java
-admin.namespaces().splitNamespaceBundle(namespace, bundle)
-```
-<!--END_DOCUSAURUS_CODE_TABS-->
-
-#### Clear backlog
+#### Clear namespace backlog
 
 It clears all message backlog for all the topics that belong to a specific namespace. You can also clear backlog for a specific subscription as well.
 
@@ -520,6 +532,8 @@ N/A
 admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, subscription)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure retention
 
 #### Set retention
 
@@ -580,7 +594,9 @@ admin.namespaces().getRetention(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Set dispatch throttling
+### Configure dispatch throttling for topics
+
+#### Set dispatch throttling for topics
 
 It sets message dispatch rate for all the topics under a given namespace. 
 The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
@@ -617,7 +633,7 @@ admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for topics
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -649,6 +665,8 @@ admin.namespaces().getDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Configure dispatch throttling for subscription
+
 #### Set dispatch throttling for subscription
 
 It sets message dispatch rate for all the subscription of topics under a given namespace.
@@ -679,7 +697,7 @@ admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000,
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for subscription
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -711,6 +729,8 @@ admin.namespaces().getSubscriptionDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Configure dispatch throttling for replicator
+
 #### Set dispatch throttling for replicator
 
 It sets message dispatch rate for all the replicator between replication clusters under a given namespace.
@@ -741,7 +761,7 @@ admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for replicator
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -772,6 +792,8 @@ $ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
 admin.namespaces().getReplicatorDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure deduplication snapshot interval
 
 #### Get deduplication snapshot interval
 
@@ -856,7 +878,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 Coming soon.
 
-### Unloading from a broker
+### Unload namespaces from a broker
 
 You can unload a namespace, or a [namespace bundle](reference-terminology.md#namespace-bundle), from the Pulsar [broker](reference-terminology.md#broker) that is currently responsible for it.
 
