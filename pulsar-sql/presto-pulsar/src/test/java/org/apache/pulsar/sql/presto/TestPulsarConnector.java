@@ -85,7 +85,7 @@ public abstract class TestPulsarConnector {
 
     protected final static PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
 
-    protected static List<TopicName>  topicNames;
+    protected static List<TopicName> topicNames;
     protected static List<TopicName>  partitionedTopicNames;
     protected static Map<String, Integer> partitionedTopicsToPartitions;
     protected static Map<String, SchemaInfo> topicsToSchemas;
