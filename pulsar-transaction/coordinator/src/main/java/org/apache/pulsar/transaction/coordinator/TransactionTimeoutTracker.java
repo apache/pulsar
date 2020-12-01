@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -51,7 +50,7 @@ public interface TransactionTimeoutTracker extends AutoCloseable {
     void replayAddTransaction(long sequenceId, long timeout);
 
     /**
-     * When replay the log finished, we need to start the tracker
+     * When replay the log finished, we need to start the tracker.
      */
     void start();
 
