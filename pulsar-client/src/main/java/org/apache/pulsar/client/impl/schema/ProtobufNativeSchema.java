@@ -25,10 +25,8 @@ import com.google.protobuf.GeneratedMessageV3;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufNativeReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufNativeWriter;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
