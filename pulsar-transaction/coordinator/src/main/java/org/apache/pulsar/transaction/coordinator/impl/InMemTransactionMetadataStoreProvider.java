@@ -19,7 +19,11 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import java.util.concurrent.CompletableFuture;
+<<<<<<< HEAD
 
+=======
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+>>>>>>> 411bf710060... [Transaction] Fix transaction log replay not handle right. (#8723)
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -32,7 +36,8 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
 
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
-         ManagedLedgerFactory managedLedgerFactory) {
+                                                                 ManagedLedgerFactory managedLedgerFactory,
+                                                                 ManagedLedgerConfig managedLedgerConfig) {
         return CompletableFuture.completedFuture(
             new InMemTransactionMetadataStore(transactionCoordinatorId));
     }

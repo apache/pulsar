@@ -24,7 +24,11 @@ import com.google.common.annotations.Beta;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+<<<<<<< HEAD
 
+=======
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+>>>>>>> 411bf710060... [Transaction] Fix transaction log replay not handle right. (#8723)
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 /**
@@ -58,10 +62,15 @@ public interface TransactionMetadataStoreProvider {
      * Open the transaction metadata store for transaction coordinator
      * identified by <tt>transactionCoordinatorId</tt>.
      *
+     * @param transactionCoordinatorId {@link TransactionCoordinatorID} the coordinator id.
+     * @param managedLedgerFactory {@link ManagedLedgerFactory} the managedLedgerFactory to create managedLedger.
+     * @param managedLedgerConfig {@link ManagedLedgerConfig} the managedLedgerConfig to create managedLedger.
+     *
      * @return a future represents the result of the operation.
      *         an instance of {@link TransactionMetadataStore} is returned
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
-        TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory);
+            TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig);
 }
