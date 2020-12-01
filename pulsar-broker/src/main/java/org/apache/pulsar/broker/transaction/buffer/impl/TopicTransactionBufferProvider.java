@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A provider that provides topic implementations of {@link TransactionBuffer}.
