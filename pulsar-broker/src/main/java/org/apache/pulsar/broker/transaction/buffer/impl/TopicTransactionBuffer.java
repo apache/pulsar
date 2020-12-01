@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.apache.pulsar.common.protocol.Markers.isTxnMarker;
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -52,8 +51,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
-
-import static org.apache.pulsar.common.protocol.Markers.isTxnMarker;
 
 /**
  * Transaction buffer based on normal persistent topic.
