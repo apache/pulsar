@@ -21,7 +21,6 @@ package org.apache.pulsar.packages.management.storage.bookkeeper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.DistributedLogManager;
