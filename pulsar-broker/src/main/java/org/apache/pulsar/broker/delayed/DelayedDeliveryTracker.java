@@ -69,6 +69,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     void resetTickTime(long tickTime);
 
     /**
+     * Clear all delayed messages from the tracker.
+     */
+    void clear();
+
+    /**
      * Close the subscription tracker and release all resources.
      */
     void close();
