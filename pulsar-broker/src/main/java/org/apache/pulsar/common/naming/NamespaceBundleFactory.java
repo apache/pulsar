@@ -132,7 +132,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     }
 
     /**
-     * checks if the local broker is the owner of the namespace bundle
+     * checks if the local broker is the owner of the namespace bundle.
      *
      * @param nsBundle
      * @return
@@ -223,11 +223,13 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
-    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
+    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(
+            NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
         checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         if (splitBoundary != null) {
-            checkArgument(splitBoundary > targetBundle.getLowerEndpoint() && splitBoundary < targetBundle.getUpperEndpoint(),
-                "The given fixed key must between the key range of the %s bundle", targetBundle);
+            checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
+                            && splitBoundary < targetBundle.getUpperEndpoint(),
+                    "The given fixed key must between the key range of the %s bundle", targetBundle);
             numBundles = 2;
         }
         checkNotNull(targetBundle, "can't split null bundle");
@@ -261,7 +263,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         partitions[pos] = sourceBundle.partitions[lastIndex];
         if (splitPartition != -1) {
             // keep version of sourceBundle
-            NamespaceBundles splittedNsBundles = new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
+            NamespaceBundles splittedNsBundles =
+                    new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
             List<NamespaceBundle> splittedBundles = splittedNsBundles.getBundles().subList(splitPartition,
                     (splitPartition + numBundles));
             return new ImmutablePair<NamespaceBundles, List<NamespaceBundle>>(splittedNsBundles, splittedBundles);

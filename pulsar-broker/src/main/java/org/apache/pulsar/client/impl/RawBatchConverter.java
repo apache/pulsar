@@ -75,7 +75,9 @@ public class RawBatchConverter {
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
             if (!singleMessageMetadataBuilder.getCompactedOut()) {
-                idsAndKeysAndSize.add(ImmutableTriple.of(id, singleMessageMetadataBuilder.getPartitionKey(), singleMessageMetadataBuilder.getPayloadSize()));
+                idsAndKeysAndSize.add(ImmutableTriple.of(
+                        id, singleMessageMetadataBuilder.getPartitionKey(),
+                        singleMessageMetadataBuilder.getPayloadSize()));
             }
             singleMessageMetadataBuilder.recycle();
             singleMessagePayload.release();
@@ -108,16 +110,17 @@ public class RawBatchConverter {
             int batchSize = metadata.getNumMessagesInBatch();
             int messagesRetained = 0;
 
-            SingleMessageMetadata.Builder emptyMetadataBuilder = SingleMessageMetadata.newBuilder().setCompactedOut(true);
+            SingleMessageMetadata.Builder emptyMetadataBuilder =
+                    SingleMessageMetadata.newBuilder().setCompactedOut(true);
             for (int i = 0; i < batchSize; i++) {
                 SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                        singleMessageMetadataBuilder,
-                                                                                        0, batchSize);
+                        singleMessageMetadataBuilder,
+                        0, batchSize);
                 MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
-                                                      msg.getMessageIdData().getEntryId(),
-                                                      msg.getMessageIdData().getPartition(),
-                                                      i);
+                        msg.getMessageIdData().getEntryId(),
+                        msg.getMessageIdData().getPartition(),
+                        i);
                 if (!singleMessageMetadataBuilder.hasPartitionKey()) {
                     messagesRetained++;
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
