@@ -861,6 +861,7 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
     Producer producer;
     ProducerConfiguration tempProducerConfiguration;
     tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    tempProducerConfiguration.setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
     ProducerConfiguration producerConfiguration = tempProducerConfiguration;
     Result result = client.createProducer(topicName, producerConfiguration, producer);
     ASSERT_EQ(ResultOk, result);
