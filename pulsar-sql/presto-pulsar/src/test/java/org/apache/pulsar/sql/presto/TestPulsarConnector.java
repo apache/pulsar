@@ -93,7 +93,7 @@ public abstract class TestPulsarConnector {
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
 
-    protected static List<String> fooFieldNames =  new ArrayList<>();
+    protected static List<String> fooFieldNames = new ArrayList<>();
 
     protected static final NamespaceName NAMESPACE_NAME_1 = NamespaceName.get("tenant-1", "ns-1");
     protected static final NamespaceName NAMESPACE_NAME_2 = NamespaceName.get("tenant-1", "ns-2");
