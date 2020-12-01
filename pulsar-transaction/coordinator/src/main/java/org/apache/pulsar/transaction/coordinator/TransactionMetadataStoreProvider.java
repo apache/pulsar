@@ -19,12 +19,9 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.annotations.Beta;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
