@@ -36,12 +36,6 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-all</artifactId>
             <version>${project.version}</version>
