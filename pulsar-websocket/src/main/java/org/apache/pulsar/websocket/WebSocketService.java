@@ -76,7 +76,6 @@ public class WebSocketService implements Closeable {
     private ServiceConfiguration config;
     private ConfigurationCacheService configurationCacheService;
 
-    @Setter
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
@@ -175,6 +174,10 @@ public class WebSocketService implements Closeable {
             pulsarClient = createClientInstance(localCluster);
         }
         return pulsarClient;
+    }
+
+    public synchronized void setLocalCluster(ClusterData clusterData) {
+        this.localCluster = clusterData;
     }
 
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
