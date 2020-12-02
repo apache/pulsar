@@ -90,4 +90,3 @@ func TestParseTopicNameErrors(t *testing.T) {
 	_, err = ParseTopicName("persistent://my-tenant/my-cluster/my-ns/my-topic-partition-xyz/invalid")
 	assert.NotNil(t, err)
 }
-
