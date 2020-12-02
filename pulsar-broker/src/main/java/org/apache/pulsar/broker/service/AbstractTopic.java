@@ -384,7 +384,7 @@ public abstract class AbstractTopic implements Topic {
 
             case Exclusive:
                 if (hasExclusiveProducer) {
-                    return FutureUtil.failedFuture(new ProducerBusyException(
+                    return FutureUtil.failedFuture(new ProducerFencedException(
                             "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
