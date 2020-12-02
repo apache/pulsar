@@ -1381,8 +1381,12 @@ public abstract class NamespacesBase extends AdminResource {
                 asyncResponse.resume(new RestException(ex));
                 return null;
             });
-        }).exceptionally((e) -> {
-            asyncResponse.resume(e);
+        }).exceptionally((ex) -> {
+            if (ex.getCause() instanceof WebApplicationException) {
+                asyncResponse.resume(ex.getCause());
+            } else {
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
             return null;
         });
     }
