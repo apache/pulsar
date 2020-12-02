@@ -104,6 +104,7 @@
       "performance-pulsar-perf"
     ],
     "Client libraries": [
+      "client-libraries",
       "client-libraries-java",
       "client-libraries-go",
       "client-libraries-python",
