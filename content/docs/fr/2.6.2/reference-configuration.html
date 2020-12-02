@@ -153,7 +153,7 @@
 <tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.</td><td>false</td></tr>
 <tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
 <tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
-<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub</td><td>25% of direct memory</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold substantial amount of entries in the flush interval.</td><td>25% of direct memory</td></tr>
 <tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% of direct memory</td></tr>
 <tr><td>dbStorage_readAheadCacheBatchSize</td><td>How many entries to pre-fill in cache after a read cache miss</td><td>1000</td></tr>
 <tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% of direct memory</td></tr>
