@@ -40,6 +40,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
@@ -332,7 +333,7 @@ public class NonPersistentTopics extends PersistentTopics {
             if(!flag){
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
                         bundleRange);
-                asyncResponse.resume(null);
+                asyncResponse.resume(Response.noContent().build());
             }else{
                 NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
                 try {
