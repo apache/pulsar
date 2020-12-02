@@ -8415,7 +8415,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -15390,13 +15390,13 @@
             "type" : "string"
           }
         },
+        "address" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "address" : {
           "type" : "string"
         }
       }
@@ -15784,30 +15784,11 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "overLoaded" : {
+        "underLoaded" : {
           "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -15817,8 +15798,27 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
+        "overLoaded" : {
           "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -15990,6 +15990,9 @@
           "type" : "number",
           "format" : "double"
         },
+        "address" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
@@ -15997,9 +16000,6 @@
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "address" : {
           "type" : "string"
         }
       }
@@ -16318,10 +16318,10 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "s3Driver" : {
+        "gcsDriver" : {
           "type" : "boolean"
         },
-        "gcsDriver" : {
+        "s3Driver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
@@ -16891,6 +16891,9 @@
             "type" : "string"
           }
         },
+        "address" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
@@ -16898,9 +16901,6 @@
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "address" : {
           "type" : "string"
         }
       }
