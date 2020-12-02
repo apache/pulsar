@@ -90,7 +90,7 @@ public class StatsBuckets {
     }
 
     public long[] getBuckets() {
-        return values;
+        return values.clone();
     }
 
     public long getCount() {
