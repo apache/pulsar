@@ -60,13 +60,18 @@ RUN apt-get update \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
+# Create user and chown existing directory
+RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+RUN chown -R 1000:1000 /pulsar
+USER 1000
+
+# Directories will have correct permission because we switch to be pulsar user
+RUN mkdir /pulsar/conf /pulsar/data
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
-
-COPY --from=pulsar /pulsar /pulsar
+COPY --from=pulsar --chown=1000:1000 /pulsar /pulsar
 WORKDIR /pulsar
 
 RUN /pulsar/bin/install-pulsar-client-37.sh
-

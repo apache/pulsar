@@ -51,4 +51,9 @@ RUN mkdir /data
 
 EXPOSE 80
 
+# Setup non-root user, and chown the necessary directories
+RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+RUN chown -R 1000:1000 /pulsar /data
+USER 1000
+
 CMD ["/pulsar/start.sh"]

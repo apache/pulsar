@@ -27,5 +27,5 @@ ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
 FROM apachepulsar/pulsar:latest
-COPY --from=pulsar-all /connectors /pulsar/connectors
-COPY --from=pulsar-all /offloaders /pulsar/offloaders
+COPY --from=pulsar-all --chown=1000:1000 /connectors /pulsar/connectors
+COPY --from=pulsar-all --chown=1000:1000 /offloaders /pulsar/offloaders
