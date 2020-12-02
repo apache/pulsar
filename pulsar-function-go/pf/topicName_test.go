@@ -33,25 +33,25 @@ func TestParseTopicName(t *testing.T) {
 		partition int
 	}{
 		{in: "persistent://my-tenant/my-ns/my-topic",
-			name: "persistent://my-tenant/my-ns/my-topic",
+			name:      "persistent://my-tenant/my-ns/my-topic",
 			namespace: "my-tenant/my-ns", partition: -1},
 		{in: "my-topic", name: "persistent://public/default/my-topic",
 			namespace: "public/default", partition: -1},
 		{in: "my-tenant/my-namespace/my-topic",
-			name: "persistent://my-tenant/my-namespace/my-topic",
+			name:      "persistent://my-tenant/my-namespace/my-topic",
 			namespace: "my-tenant/my-namespace", partition: -1},
 		{in: "non-persistent://my-tenant/my-namespace/my-topic",
-			name: "non-persistent://my-tenant/my-namespace/my-topic",
+			name:      "non-persistent://my-tenant/my-namespace/my-topic",
 			namespace: "my-tenant/my-namespace", partition: -1},
 		{in: "my-topic-partition-5",
-			name: "persistent://public/default/my-topic-partition-5",
+			name:      "persistent://public/default/my-topic-partition-5",
 			namespace: "public/default", partition: 5},
 		// V1 topic name
 		{in: "persistent://my-tenant/my-cluster/my-ns/my-topic",
-			name: "persistent://my-tenant/my-cluster/my-ns/my-topic",
+			name:      "persistent://my-tenant/my-cluster/my-ns/my-topic",
 			namespace: "my-tenant/my-cluster/my-ns", partition: -1},
 		{in: "my-tenant/my-cluster/my-ns/my-topic",
-			name: "persistent://my-tenant/my-cluster/my-ns/my-topic",
+			name:      "persistent://my-tenant/my-cluster/my-ns/my-topic",
 			namespace: "my-tenant/my-cluster/my-ns", partition: -1},
 	}
 	for _, testCase := range testCases {
