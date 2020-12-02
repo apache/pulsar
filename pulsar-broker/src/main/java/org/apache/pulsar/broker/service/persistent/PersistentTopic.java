@@ -340,6 +340,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+            publishContext.completed(new NotAllowedException("Exceed maximum message size")
+                    , -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
 
         MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
@@ -2452,6 +2458,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         pendingWriteOps.incrementAndGet();
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+            publishContext.completed(new NotAllowedException("Exceed maximum message size")
+                    , -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
