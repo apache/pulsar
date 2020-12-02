@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Map;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.jose4j.json.internal.json_simple.JSONObject;
