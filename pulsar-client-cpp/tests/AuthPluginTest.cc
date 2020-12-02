@@ -184,7 +184,7 @@ TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
 
     Producer producer;
     Result res = client.createProducer(topicName, producer);
-    ASSERT_EQ(ResultLookupError, res);
+    ASSERT_NE(ResultOk, res);
 }
 
 namespace testAthenz {
