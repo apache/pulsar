@@ -64,7 +64,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
-        AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
@@ -85,6 +84,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         }
 
         if (service.isAuthorizationEnabled()) {
+            AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
             try {
                 if (!isAuthorized(authRole, authenticationData)) {
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
