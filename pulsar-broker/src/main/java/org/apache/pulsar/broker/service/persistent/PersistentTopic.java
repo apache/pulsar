@@ -478,7 +478,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     protected CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch) {
         long newEpoch = currentEpoch.orElse(-1L) + 1;
+        return setTopicEpoch(newEpoch);
+    }
 
+    protected CompletableFuture<Long> setTopicEpoch(long newEpoch) {
         CompletableFuture<Long> future = new CompletableFuture<>();
         ledger.asyncSetProperty(TOPIC_EPOCH_PROPERTY_NAME, String.valueOf(newEpoch), new UpdatePropertiesCallback() {
             @Override

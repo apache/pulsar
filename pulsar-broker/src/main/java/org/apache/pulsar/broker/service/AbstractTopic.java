@@ -399,16 +399,19 @@ public abstract class AbstractTopic implements Topic {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
 
-                    CompletableFuture<Optional<Long>> future = incrementTopicEpoch(topicEpoch).thenApply(epoch -> {
+                    CompletableFuture<Long> future;
+                    if (producer.getTopicEpoch().isPresent()) {
+                        future = setTopicEpoch(producer.getTopicEpoch().get());
+                    } else {
+                        future = incrementTopicEpoch(topicEpoch);
+                    }
+                    return future.thenApply(epoch -> {
                         topicEpoch = Optional.of(epoch);
                         return topicEpoch;
-                    });
-
-                    future.exceptionally(ex -> {
+                    }).exceptionally(ex -> {
                         hasExclusiveProducer = false;
                         return null;
                     });
-                    return future;
                 }
 
                 // case WaitForExclusive:
@@ -423,6 +426,8 @@ public abstract class AbstractTopic implements Topic {
             lock.writeLock().unlock();
         }
     }
+
+    protected abstract CompletableFuture<Long> setTopicEpoch(long newEpoch);
 
     protected abstract CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch);
 

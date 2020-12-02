@@ -179,6 +179,27 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         }
     }
 
+    @Test(dataProvider = "topics")
+    public void topicDeleted(String type, boolean partitioned) throws Exception {
+        String topic = newTopic("persistent", partitioned);
+
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Exclusive)
+                .create();
+
+        p1.send("msg-1");
+
+        if (partitioned) {
+            admin.topics().deletePartitionedTopic(topic, true);
+        } else {
+            admin.topics().delete(topic, true);
+        }
+
+        // The producer should be able to publish again on the topic
+        p1.send("msg-2");
+    }
+
     private String newTopic(String type, boolean isPartitioned) throws Exception {
         String topic = type + "://" + newTopicName();
         if (isPartitioned) {

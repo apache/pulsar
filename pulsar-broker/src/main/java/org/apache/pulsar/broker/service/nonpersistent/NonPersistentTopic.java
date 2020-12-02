@@ -195,6 +195,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return CompletableFuture.completedFuture(currentEpoch.orElse(-1L) + 1);
     }
 
+    protected CompletableFuture<Long> setTopicEpoch(long newEpoch) {
+        // Non-persistent topic does not have any durable metadata, so we're just
+        // keeping the epoch in memory
+        return CompletableFuture.completedFuture(newEpoch);
+    }
+
+
     @Override
     public void checkMessageDeduplicationInfo() {
         // No-op
