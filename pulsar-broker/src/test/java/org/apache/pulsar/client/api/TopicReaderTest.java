@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
@@ -977,6 +978,62 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         producer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void doTestHasMessageAvailableWithBatch() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
+        final int numOfMessage = 10;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(2,TimeUnit.SECONDS)
+                .topic(topicName).create();
+
+        //For non-batch messages, the type of client messageId should be the same as that of broker
+        MessageId messageId = producer.send("msg".getBytes());
+        assertTrue(messageId instanceof MessageIdImpl);
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
+                .startMessageId(messageId).startMessageIdInclusive().create();
+        MessageId lastMsgId = reader.getConsumer().getLastMessageId();
+        assertTrue(lastMsgId instanceof MessageIdImpl);
+        assertEquals(lastMsgId, messageId);
+        reader.close();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    Assert.fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+        producer.flush();
+        latch.await();
+        producer.close();
+
+        //For all messages, the type of client messageId should be the same as that of broker
+        for (MessageId id : allIds) {
+            reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                    .startMessageId(id).startMessageIdInclusive().create();
+            if (id instanceof BatchMessageIdImpl) {
+                MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+                assertTrue(lastMessageId instanceof BatchMessageIdImpl);
+                log.info("id {} instance of BatchMessageIdImpl",id);
+            } else {
+                assertTrue(id instanceof MessageIdImpl);
+                MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+                assertTrue(lastMessageId instanceof MessageIdImpl);
+                log.info("id {} instance of MessageIdImpl",id);
+            }
+            reader.close();
+        }
+
     }
 
     @Test
