@@ -218,6 +218,8 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.3</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.1.3</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.2.0</spotbugs.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1342,16 +1344,28 @@ flexible messaging model and an intuitive client API.</description>
                 </goals>
                 <configuration>
                     <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
+                      <requireJavaVersion>
+                        <version>[1.8.0,)</version>
+                      </requireJavaVersion>
+                      <requireMavenVersion>
+                        <version>[3.3.9,)</version>
+                      </requireMavenVersion>
                     </rules>
                 </configuration>
             </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs-maven-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs</artifactId>
+            <version>${spotbugs.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
 
