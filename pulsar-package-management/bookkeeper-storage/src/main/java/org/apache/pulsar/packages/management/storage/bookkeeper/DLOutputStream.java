@@ -84,27 +84,6 @@ class DLOutputStream {
             .thenCompose(this::writeAsync);
     }
 
-    /**
-     * Write a ByteBuf data to the distribute log.
-     *
-     * @param data the data we need to write
-     * @return
-     */
-    private CompletableFuture<DLOutputStream> writeAsync(ByteBuf data) {
-        synchronized (this) {
-            offset += data.readableBytes();
-            LogRecord record = new LogRecord(offset, data);
-            log.info("execute write to the dlog " + offset);
-            return writer.write(record).whenComplete((dlsn, throwable) -> {
-                if (throwable != null) {
-                    throwable.printStackTrace();
-                } else {
-                    log.info("DLSN is {} {}", dlsn.toString(), offset);
-                }
-            }).thenApply(ignore -> this);
-        }
-    }
-
     private CompletableFuture<DLOutputStream> writeAsync(List<LogRecord> records) {
         return writer.writeBulk(records).thenApply(ignore -> this);
     }
