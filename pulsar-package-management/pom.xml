@@ -35,6 +35,7 @@
     <name>Apache Pulsar :: Package Management</name>
     <modules>
         <module>core</module>
+        <module>bookkeeper-storage</module>
     </modules>
 
     <build>
@@ -51,6 +52,20 @@
                             <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
                             <encoding>UTF-8</encoding>
                         </configuration>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>spotbugs</id>
+                        <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>

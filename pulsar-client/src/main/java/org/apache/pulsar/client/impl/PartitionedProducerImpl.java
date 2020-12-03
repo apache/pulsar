@@ -178,6 +178,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             case Closing:
             case Closed:
                 return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            case ProducerFenced:
+                return FutureUtil.failedFuture(new PulsarClientException.ProducerFencedException("Producer was fenced"));
             case Terminated:
                 return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             case Failed:
