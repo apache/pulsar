@@ -81,8 +81,11 @@ public class PerformanceConsumer {
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per topic)")
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription)")
         public int numConsumers = 1;
+
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        public int numSubscriptions = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
@@ -134,10 +137,10 @@ public class PerformanceConsumer {
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
         @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                names = { "--auth-params" },
+                description = "Authentication parameters, whose format is determined by the implementation " +
+                        "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                        "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = {
@@ -330,16 +333,18 @@ public class PerformanceConsumer {
                     : TopicName.get(String.format("%s-%d", prefixTopicName, i));
             log.info("Adding {} consumers on topic {}", arguments.numConsumers, topicName);
 
-            for (int j = 0; j < arguments.numConsumers; j++) {
+            for (int j = 0; j < arguments.numSubscriptions; j++) {
                 String subscriberName;
-                if (arguments.numConsumers > 1) {
+                if (arguments.numSubscriptions > 1) {
                     subscriberName = String.format("%s-%d", arguments.subscriberName, j);
                 } else {
                     subscriberName = arguments.subscriberName;
                 }
 
-                futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
-                        .subscribeAsync());
+                for (int k = 0; k < arguments.numConsumers; k++) {
+                    futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
+                            .subscribeAsync());
+                }
             }
         }
 
@@ -396,10 +401,10 @@ public class PerformanceConsumer {
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
-            totalMessagesReceived,
-            dec.format(rate),
-            dec.format(throughput));
+                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+                totalMessagesReceived,
+                dec.format(rate),
+                dec.format(throughput));
     }
 
     private static void printAggregatedStats() {
