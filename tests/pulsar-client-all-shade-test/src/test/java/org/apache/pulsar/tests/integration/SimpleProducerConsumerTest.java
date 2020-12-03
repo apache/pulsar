@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
+import net.jcip.annotations.NotThreadSafe;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
@@ -54,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.*;
 import static org.testng.Assert.assertEquals;
 
+@NotThreadSafe
 public class SimpleProducerConsumerTest {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
@@ -75,7 +77,7 @@ public class SimpleProducerConsumerTest {
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("standalone"));
-
+        admin.close();
     }
 
     @AfterClass
