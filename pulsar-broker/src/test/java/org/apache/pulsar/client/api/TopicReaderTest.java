@@ -981,7 +981,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 20000)
-    public void doTestHasMessageAvailableWithBatch() throws Exception {
+    public void testHasMessageAvailableWithBatch() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
         final int numOfMessage = 10;
 
@@ -991,13 +991,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(2,TimeUnit.SECONDS)
                 .topic(topicName).create();
 
-        //For non-batch messages, the type of client messageId should be the same as that of broker
+        //For batch-messages with single message, the type of client messageId should be the same as that of broker
         MessageId messageId = producer.send("msg".getBytes());
         assertTrue(messageId instanceof MessageIdImpl);
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
         MessageId lastMsgId = reader.getConsumer().getLastMessageId();
-        assertTrue(lastMsgId instanceof MessageIdImpl);
+        assertTrue(lastMsgId instanceof BatchMessageIdImpl);
+        assertTrue(messageId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId, messageId);
         reader.close();
 
@@ -1017,7 +1018,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         latch.await();
         producer.close();
 
-        //For all messages, the type of client messageId should be the same as that of broker
+        //For batch-message with multi messages, the type of client messageId should be the same as that of broker
         for (MessageId id : allIds) {
             reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                     .startMessageId(id).startMessageIdInclusive().create();
@@ -1033,7 +1034,19 @@ public class TopicReaderTest extends ProducerConsumerBase {
             }
             reader.close();
         }
-
+        //For non-batch message, the type of client messageId should be the same as that of broker
+        producer = pulsarClient.newProducer()
+                .enableBatching(false).topic(topicName).create();
+        messageId = producer.send("non-batch".getBytes());
+        assertFalse(messageId instanceof BatchMessageIdImpl);
+        assertTrue(messageId instanceof MessageIdImpl);
+        reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                .startMessageId(messageId).create();
+        MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+        assertFalse(lastMessageId instanceof BatchMessageIdImpl);
+        assertTrue(lastMessageId instanceof MessageIdImpl);
+        assertEquals(lastMessageId, messageId);
+        producer.close();
     }
 
     @Test
