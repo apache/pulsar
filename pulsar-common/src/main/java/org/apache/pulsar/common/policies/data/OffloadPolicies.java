@@ -59,24 +59,24 @@ public class OffloadPolicies implements Serializable {
          */
         OFFLOADED_FIRST("offloaded-first");
 
-        private final String name;
+        private final String value;
 
-        OffloadedReadPriority(String name) {
-            this.name = name;
+        OffloadedReadPriority(String value) {
+            this.value = value;
         }
 
         public boolean equalsName(String otherName) {
-            return name.equals(otherName);
+            return value.equals(otherName);
         }
 
         @Override
         public String toString() {
-            return name;
+            return value;
         }
 
         public static OffloadedReadPriority fromString(String str) {
             for (OffloadedReadPriority value : OffloadedReadPriority.values()) {
-                if (value.name.equals(str)) {
+                if (value.value.equals(str)) {
                     return value;
                 }
             }
@@ -86,6 +86,10 @@ public class OffloadPolicies implements Serializable {
                     .map(OffloadedReadPriority::toString)
                     .collect(Collectors.joining(","))
                     + " but got: " + str);
+        }
+
+        public String getValue() {
+            return value;
         }
     }
 
