@@ -23,7 +23,6 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
@@ -35,7 +34,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -358,8 +356,7 @@ public class Producer {
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
-                ServerError serverError = (exception instanceof TopicTerminatedException)
-                        ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
+                final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
                     if (!(exception instanceof TopicClosedException)) {
@@ -383,6 +380,18 @@ public class Producer {
                 this.entryId = entryId;
                 producer.cnx.execute(this);
             }
+        }
+
+        private ServerError getServerError(Exception exception) {
+            ServerError serverError;
+            if (exception instanceof TopicTerminatedException) {
+                serverError = ServerError.TopicTerminatedError;
+            } else if (exception instanceof BrokerServiceException.NotAllowedException) {
+                serverError = ServerError.NotAllowedError;
+            } else {
+                serverError = ServerError.PersistenceError;
+            }
+            return serverError;
         }
 
         /**

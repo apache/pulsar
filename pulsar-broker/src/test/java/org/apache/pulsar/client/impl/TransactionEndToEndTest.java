@@ -54,7 +54,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -328,8 +328,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
         }
     }
@@ -533,8 +532,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
             message = consumer.receive(1, TimeUnit.SECONDS);

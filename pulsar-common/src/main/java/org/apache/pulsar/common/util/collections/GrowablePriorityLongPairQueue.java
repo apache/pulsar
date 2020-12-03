@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;

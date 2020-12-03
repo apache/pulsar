@@ -20,10 +20,8 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;

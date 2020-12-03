@@ -39,9 +39,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
-
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException;

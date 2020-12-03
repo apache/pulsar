@@ -20,7 +20,6 @@ package org.apache.pulsar.common.util.collections;
 
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

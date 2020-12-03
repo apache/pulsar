@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.io.IOException;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.intercept.InterceptException;
-
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import java.io.IOException;
 
 /**
  * A plugin interface that allows you to intercept the

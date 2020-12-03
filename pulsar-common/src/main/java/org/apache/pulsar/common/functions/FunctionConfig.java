@@ -19,10 +19,8 @@
 package org.apache.pulsar.common.functions;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import java.util.Collection;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

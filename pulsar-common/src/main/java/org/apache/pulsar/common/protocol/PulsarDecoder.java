@@ -19,11 +19,9 @@
 package org.apache.pulsar.common.protocol;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;

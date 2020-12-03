@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Random;
-
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
 
 /**
  *

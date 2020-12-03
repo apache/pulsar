@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;

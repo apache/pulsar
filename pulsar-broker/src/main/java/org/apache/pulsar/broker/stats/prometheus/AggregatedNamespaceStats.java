@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 

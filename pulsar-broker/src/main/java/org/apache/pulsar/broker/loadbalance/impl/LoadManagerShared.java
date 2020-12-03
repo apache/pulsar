@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-
+import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Maps;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -35,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,11 +53,6 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.FastThreadLocal;
 
 /**
  * This class contains code which in shared between the two load manager implementations.

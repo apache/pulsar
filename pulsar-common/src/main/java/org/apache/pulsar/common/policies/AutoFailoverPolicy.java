@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies;
 
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
 /**

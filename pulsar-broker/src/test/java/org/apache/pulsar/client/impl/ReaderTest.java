@@ -303,6 +303,18 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testReaderHasMessageAvailable() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .startMessageIdInclusive()
+                .create();
+        assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
     public void testKeyHashRangeReader() throws IOException {
          final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
         final String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";

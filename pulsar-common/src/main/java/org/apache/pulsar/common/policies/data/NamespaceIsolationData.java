@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
