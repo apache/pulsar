@@ -25,7 +25,6 @@ linters:
   enable:
     - bodyclose
     - deadcode
-    - gocritic
     - goimports
     - golint
     - gosimple
