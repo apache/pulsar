@@ -7,7 +7,7 @@ The following lists fixes and enhancements in the 2.7.0 release.
 
 #### Transactions
 
-- Implementation of Transaction Buffer Client [#6544](https://github.com/apache/pulsar/pull/6544)
+- Implement the Transaction Buffer Client [#6544](https://github.com/apache/pulsar/pull/6544)
 - Support produce messages with transaction and commit transaction [#7552](https://github.com/apache/pulsar/pull/7552)
 - Support consume transaction messages [#7781](https://github.com/apache/pulsar/pull/7781) [#7833](https://github.com/apache/pulsar/pull/7833)
 - Message acknowledgment with transaction [#7856](https://github.com/apache/pulsar/pull/7856) [#8007](https://github.com/apache/pulsar/pull/8007)
@@ -23,28 +23,28 @@ The following lists fixes and enhancements in the 2.7.0 release.
 - Expose transaction interface [#8505](https://github.com/apache/pulsar/pull/8505)
 - Guarantee transaction metadata handlers connected [#8563](https://github.com/apache/pulsar/pull/8563)
 - Add the batch size in transaction ack command [#8659](https://github.com/apache/pulsar/pull/8659)
-- Transaction Log implementation [#8658](https://github.com/apache/pulsar/pull/8658)
+- Implement the Transaction Log [#8658](https://github.com/apache/pulsar/pull/8658)
 
 #### Topic policy
 
-- Support set message TTL on topic level [#7738](https://github.com/apache/pulsar/pull/7738)
-- Support set retention on topic level [#7747](https://github.com/apache/pulsar/pull/7747)
-- Support set delayed delivery policy on topic level [#7784](https://github.com/apache/pulsar/pull/7784)
-- Support set max unacked message per subscription on topic level [#7802](https://github.com/apache/pulsar/pull/7802)
-- Support set persistence policie on topic level [#7817](https://github.com/apache/pulsar/pull/7817)
-- Support set max unacked messages per consumer on topic level [#7818](https://github.com/apache/pulsar/pull/7818)
-- Support set deduplication policy on topic level [#7821](https://github.com/apache/pulsar/pull/7821)
-- support set message dispatch rate on topic level [#7863](https://github.com/apache/pulsar/pull/7863))
-- Support set compaction threshold on topic level [#7881](https://github.com/apache/pulsar/pull/7881)
-- Support set offload policy on topic level [#7883](https://github.com/apache/pulsar/pull/7883)
-- Support set max producers for a topic [#7914](https://github.com/apache/pulsar/pull/7914)
-- Support set max consumers for a topic [#7968](https://github.com/apache/pulsar/pull/7968)
-- Support set publish rate limitation for a topic [#7948](https://github.com/apache/pulsar/pull/7948)
-- Support set inactive topic policy on topic level [#7986](https://github.com/apache/pulsar/pull/7986)
-- Support set subscribe rate for a topic [#7991](https://github.com/apache/pulsar/pull/7991)
-- Support set max consumers per subscription on topic level [#8003](https://github.com/apache/pulsar/pull/8003)
-- Support set subscription dispatch rate on topic level [#8087](https://github.com/apache/pulsar/pull/8087)
-- Support set deduplication snapshot interval on topic level [#8552](https://github.com/apache/pulsar/pull/8552)
+- Support setting message TTL on topic level [#7738](https://github.com/apache/pulsar/pull/7738)
+- Support setting retention on topic level [#7747](https://github.com/apache/pulsar/pull/7747)
+- Support setting delayed delivery policy on topic level [#7784](https://github.com/apache/pulsar/pull/7784)
+- Support setting max unacked message per subscription on topic level [#7802](https://github.com/apache/pulsar/pull/7802)
+- Support setting persistence policie on topic level [#7817](https://github.com/apache/pulsar/pull/7817)
+- Support setting max unacked messages per consumer on topic level [#7818](https://github.com/apache/pulsar/pull/7818)
+- Support setting deduplication policy on topic level [#7821](https://github.com/apache/pulsar/pull/7821)
+- Support setting message dispatch rate on topic level [#7863](https://github.com/apache/pulsar/pull/7863))
+- Support setting compaction threshold on topic level [#7881](https://github.com/apache/pulsar/pull/7881)
+- Support setting offload policy on topic level [#7883](https://github.com/apache/pulsar/pull/7883)
+- Support setting max producers for a topic [#7914](https://github.com/apache/pulsar/pull/7914)
+- Support setting max consumers for a topic [#7968](https://github.com/apache/pulsar/pull/7968)
+- Support setting publish rate limitation for a topic [#7948](https://github.com/apache/pulsar/pull/7948)
+- Support setting inactive topic policy on topic level [#7986](https://github.com/apache/pulsar/pull/7986)
+- Support setting subscribe rate for a topic [#7991](https://github.com/apache/pulsar/pull/7991)
+- Support setting max consumers per subscription on topic level [#8003](https://github.com/apache/pulsar/pull/8003)
+- Support setting subscription dispatch rate on topic level [#8087](https://github.com/apache/pulsar/pull/8087)
+- Support setting deduplication snapshot interval on topic level [#8552](https://github.com/apache/pulsar/pull/8552)
 
 #### Broker
 
@@ -113,7 +113,7 @@ The following lists fixes and enhancements in the 2.7.0 release.
 - Support key_based batch builder for functions and sources [#8523](https://github.com/apache/pulsar/pull/8523)
 - Refactor Context and State API to allow plugging different state store implementations [#8537](https://github.com/apache/pulsar/pull/8537)
 
-#### IO Connectors
+#### IO connectors
 
 - [HDFS] Add config to create sub directory from current time [#7771](https://github.com/apache/pulsar/pull/7771)
 - [NSQ] Add NSQ Source [#8372](https://github.com/apache/pulsar/pull/8372)
@@ -159,7 +159,7 @@ The following lists fixes and enhancements in the 2.7.0 release.
 - [Tiered Storage] Fix NPE when offload data to GCS [#7400](https://github.com/apache/pulsar/pull/7400)
 - [Function]Fix race condition in which exitFuture in FunctionAssignmentTailer never gets completed even though the tailer thread has exited [#7351](https://github.com/apache/pulsar/pull/7351)
 - [Function] Various fixes and optimizations for processing assignments in function worker [#7338](https://github.com/apache/pulsar/pull/7338)
-- [Function] Fixed deadlock between create function and leader initialization [#7508](https://github.com/apache/pulsar/pull/7508)
+- [Function] Fix deadlock between create function and leader initialization [#7508](https://github.com/apache/pulsar/pull/7508)
 - [Pulsar Admin] Fix exceptions being ignored in PulsarAdmin [#7510](https://github.com/apache/pulsar/pull/7510)
 - [Broker] Fix the nondurable consumer can not specify the initial position [#7702](https://github.com/apache/pulsar/pull/7702)
 - [Broker] Fixed race condition on deleting topic with active readers [#7715](https://github.com/apache/pulsar/pull/7715)
@@ -173,7 +173,7 @@ The following lists fixes and enhancements in the 2.7.0 release.
 - [Broker] Fix the residual of inactive partitioned-topic cleaning [#8442](https://github.com/apache/pulsar/pull/8442)
 - [Pulsar Proxy] Fix request.getContentLength() to return 0 if it is less than 0 [#8448](https://github.com/apache/pulsar/pull/8448)
 - [Broker] Fix race condition when calling acknowledgementWasProcessed() [#8499](https://github.com/apache/pulsar/pull/8499)
-- [Java Client] Fixed handling errors for client requests [#8518](https://github.com/apache/pulsar/pull/8518)
+- [Java Client] Fix handling errors for client requests [#8518](https://github.com/apache/pulsar/pull/8518)
 - [C++ Client] Fix potential crash caused by AckGroupTracker's timer [#8519](https://github.com/apache/pulsar/pull/8519)
 
 ### 2.6.2 &mdash; 2020-11-09 <a id=“2.6.2”></a>
