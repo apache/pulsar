@@ -16,7 +16,8 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-proxy-sni-routing"
+      "concepts-proxy-sni-routing",
+      "concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "schema-get-started",
