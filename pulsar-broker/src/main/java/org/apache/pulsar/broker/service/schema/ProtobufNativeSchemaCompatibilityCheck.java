@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static com.google.protobuf.Descriptors.Descriptor;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import static com.google.protobuf.Descriptors.Descriptor;
 
 /**
  * The {@link SchemaCompatibilityCheck} implementation for {@link SchemaType#PROTOBUF_NATIVE}.

@@ -19,9 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
-
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -57,6 +55,11 @@ public class TopicPolicies {
     private PublishRate publishRate = null;
     private SubscribeRate subscribeRate = null;
     private Integer deduplicationSnapshotIntervalSeconds = null;
+    private Integer maxMessageSize = null;
+
+    public boolean isMaxMessageSizeSet() {
+        return maxMessageSize != null;
+    }
 
     public boolean isDeduplicationSnapshotIntervalSecondsSet(){
         return deduplicationSnapshotIntervalSeconds != null;

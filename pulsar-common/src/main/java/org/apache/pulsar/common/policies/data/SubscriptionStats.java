@@ -19,13 +19,10 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 /**

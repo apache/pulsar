@@ -18,27 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.Enumeration;
-
-import org.apache.bookkeeper.stats.NullStatsProvider;
-import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
-import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
@@ -48,6 +28,23 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 
 /**

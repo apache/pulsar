@@ -19,26 +19,23 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiPredicate;
-
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.protocol.Commands;
 
 public class RawBatchConverter {
 
@@ -78,7 +75,9 @@ public class RawBatchConverter {
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
             if (!singleMessageMetadataBuilder.getCompactedOut()) {
-                idsAndKeysAndSize.add(ImmutableTriple.of(id, singleMessageMetadataBuilder.getPartitionKey(), singleMessageMetadataBuilder.getPayloadSize()));
+                idsAndKeysAndSize.add(ImmutableTriple.of(
+                        id, singleMessageMetadataBuilder.getPartitionKey(),
+                        singleMessageMetadataBuilder.getPayloadSize()));
             }
             singleMessageMetadataBuilder.recycle();
             singleMessagePayload.release();
@@ -111,16 +110,17 @@ public class RawBatchConverter {
             int batchSize = metadata.getNumMessagesInBatch();
             int messagesRetained = 0;
 
-            SingleMessageMetadata.Builder emptyMetadataBuilder = SingleMessageMetadata.newBuilder().setCompactedOut(true);
+            SingleMessageMetadata.Builder emptyMetadataBuilder =
+                    SingleMessageMetadata.newBuilder().setCompactedOut(true);
             for (int i = 0; i < batchSize; i++) {
                 SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                        singleMessageMetadataBuilder,
-                                                                                        0, batchSize);
+                        singleMessageMetadataBuilder,
+                        0, batchSize);
                 MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
-                                                      msg.getMessageIdData().getEntryId(),
-                                                      msg.getMessageIdData().getPartition(),
-                                                      i);
+                        msg.getMessageIdData().getEntryId(),
+                        msg.getMessageIdData().getPartition(),
+                        i);
                 if (!singleMessageMetadataBuilder.hasPartitionKey()) {
                     messagesRetained++;
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,

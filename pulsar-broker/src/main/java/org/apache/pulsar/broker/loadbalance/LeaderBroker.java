@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.base.Objects;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**

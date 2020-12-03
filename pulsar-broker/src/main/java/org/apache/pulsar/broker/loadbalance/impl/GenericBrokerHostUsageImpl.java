@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.sun.management.OperatingSystemMXBean;
-
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;

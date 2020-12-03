@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.protocol;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;

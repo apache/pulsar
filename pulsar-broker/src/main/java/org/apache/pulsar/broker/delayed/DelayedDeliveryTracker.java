@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-
 import java.util.Set;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**

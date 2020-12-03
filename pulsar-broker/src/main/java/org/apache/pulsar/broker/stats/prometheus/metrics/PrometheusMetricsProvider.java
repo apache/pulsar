@@ -21,13 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
-import org.apache.bookkeeper.stats.CachingStatsProvider;
-import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.concurrent.ConcurrentMap;
@@ -35,6 +28,12 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.stats.CachingStatsProvider;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.
