@@ -85,6 +85,7 @@ enum Result
     ResultNotAllowedError,                           /// Not allowed
     ResultTransactionConflict,                       /// Transaction ack conflict
     ResultTransactionNotFound,                       /// Transaction not found
+    ResultProducerFenced,                            /// Producer was fenced by broker
 };
 
 // Return string representation of result code

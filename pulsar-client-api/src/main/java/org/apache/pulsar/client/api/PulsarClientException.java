@@ -417,6 +417,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Producer fenced exception thrown by Pulsar client.
+     */
+    public static class ProducerFencedException extends PulsarClientException {
+        /**
+         * Constructs a {@code ProducerFencedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {
@@ -972,6 +988,8 @@ public class PulsarClientException extends IOException {
             return new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
+        } else if (cause instanceof ProducerFencedException) {
+            return new ProducerFencedException(msg);
         } else {
             return new PulsarClientException(t);
         }

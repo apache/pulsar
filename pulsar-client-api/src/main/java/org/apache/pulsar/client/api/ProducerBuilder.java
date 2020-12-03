@@ -126,6 +126,25 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> producerName(String producerName);
 
     /**
+     * Configure the type of access mode that the producer requires on the topic.
+     *
+     * <p>Possible values are:
+     * <ul>
+     * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
+     * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
+     * already a producer connected.
+     * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
+     * access
+     * </ul>
+     *
+     * @see ProducerAccessMode
+     * @param accessMode
+     *            The type of access to the topic that the producer requires
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> accessMode(ProducerAccessMode accessMode);
+
+    /**
      * Set the send timeout <i>(default: 30 seconds)</i>.
      *
      * <p>If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.

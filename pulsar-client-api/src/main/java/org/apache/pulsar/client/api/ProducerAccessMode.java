@@ -16,19 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
 
-import java.util.Optional;
+package org.apache.pulsar.client.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+/**
+ * The type of access to the topic that the producer requires.
+ */
+public enum ProducerAccessMode {
+    /**
+     * By default multiple producers can publish on a topic.
+     */
+    Shared,
 
-@Data
-@AllArgsConstructor
-public class ProducerResponse {
-    private String producerName;
-    private long lastSequenceId;
-    private byte[] schemaVersion;
+    /**
+     * Require exclusive access for producer. Fail immediately if there's already a producer connected.
+     */
+    Exclusive,
 
-    private Optional<Long> topicEpoch;
+// TODO
+//    /**
+//     * Producer creation is pending until it can acquire exclusive access.
+//     */
+//    WaitForExclusive,
 }
