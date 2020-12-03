@@ -20,8 +20,8 @@ package org.apache.pulsar.packages.management.core.common;
 
 import java.util.HashMap;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
-import org.junit.Test;
-import org.junit.Assert;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class PackageMetadataSerdeTest {
     @Test
