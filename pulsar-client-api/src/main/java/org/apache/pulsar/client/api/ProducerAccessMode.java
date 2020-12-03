@@ -16,20 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.packages.management.core;
 
-import java.util.HashMap;
+package org.apache.pulsar.client.api;
 
-public class MockedPackagesStorageConfiguration implements PackagesStorageConfiguration {
-    private HashMap<String, Object> properties = new HashMap<>();
+/**
+ * The type of access to the topic that the producer requires.
+ */
+public enum ProducerAccessMode {
+    /**
+     * By default multiple producers can publish on a topic.
+     */
+    Shared,
 
-    @Override
-    public Object getProperty(String key) {
-        return properties.get(key);
-    }
+    /**
+     * Require exclusive access for producer. Fail immediately if there's already a producer connected.
+     */
+    Exclusive,
 
-    @Override
-    public void setProperty(String key, Object value) {
-        properties.put(key, value);
-    }
+// TODO
+//    /**
+//     * Producer creation is pending until it can acquire exclusive access.
+//     */
+//    WaitForExclusive,
 }

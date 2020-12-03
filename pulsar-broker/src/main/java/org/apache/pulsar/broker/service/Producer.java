@@ -31,6 +31,7 @@ import io.netty.util.Recycler.Handle;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -83,13 +85,18 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isEncrypted;
 
+    private final ProducerAccessMode accessMode;
+    private Optional<Long> topicEpoch;
+
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean userProvidedProducerName) {
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -117,6 +124,7 @@ public class Producer {
         stats.setProducerName(producerName);
         stats.producerId = producerId;
         stats.metadata = this.metadata;
+        stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
@@ -124,6 +132,8 @@ public class Producer {
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
+        this.accessMode = accessMode;
+        this.topicEpoch = topicEpoch;
     }
 
     @Override
@@ -633,6 +643,14 @@ public class Producer {
 
     public SchemaVersion getSchemaVersion() {
         return schemaVersion;
+    }
+
+    public ProducerAccessMode getAccessMode() {
+        return accessMode;
+    }
+
+    public Optional<Long> getTopicEpoch() {
+        return topicEpoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

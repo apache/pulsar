@@ -36,6 +36,11 @@ public class MockedPackagesStorage implements PackagesStorage {
     }
 
     @Override
+    public void initialize() {
+
+    }
+
+    @Override
     public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {

@@ -462,7 +462,11 @@ public class ClientCnx extends PulsarHandler {
         long requestId = success.getRequestId();
         CompletableFuture<ProducerResponse> requestFuture = (CompletableFuture<ProducerResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(new ProducerResponse(success.getProducerName(), success.getLastSequenceId(), success.getSchemaVersion().toByteArray()));
+            ProducerResponse pr = new ProducerResponse(success.getProducerName(),
+                    success.getLastSequenceId(),
+                    success.getSchemaVersion().toByteArray(),
+                    success.hasTopicEpoch() ? Optional.of(success.getTopicEpoch()) : Optional.empty());
+            requestFuture.complete(pr);
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -1029,6 +1033,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.NotAllowedException(errorMsg);
         case TransactionConflict:
             return new PulsarClientException.TransactionConflictException(errorMsg);
+        case ProducerFenced:
+            return new PulsarClientException.ProducerFencedException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

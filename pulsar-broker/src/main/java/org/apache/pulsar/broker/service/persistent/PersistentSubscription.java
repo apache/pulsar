@@ -273,10 +273,10 @@ public class PersistentSubscription implements Subscription {
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
-        PersistentTopic.USAGE_COUNT_UPDATER.decrementAndGet(topic);
+        topic.decrementUsageCount();
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    PersistentTopic.USAGE_COUNT_UPDATER.get(topic));
+                    topic.currentUsageCount());
         }
     }
 
