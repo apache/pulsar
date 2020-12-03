@@ -1343,17 +1343,29 @@ flexible messaging model and an intuitive client API.</description>
                     <goal>enforce</goal>
                 </goals>
                 <configuration>
-                    <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
-                    </rules>
+                  <rules>
+                    <requireJavaVersion>
+                      <version>[1.8.0,)</version>
+                    </requireJavaVersion>
+                    <requireMavenVersion>
+                      <version>[3.3.9,)</version>
+                    </requireMavenVersion>
+                  </rules>
                 </configuration>
             </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs-maven-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs</artifactId>
+            <version>${spotbugs.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
 
