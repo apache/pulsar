@@ -16,28 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.packages.management.core;
+package org.apache.pulsar.packages.management.storage.bookkeeper;
 
-/**
- * Packages storage configuration is used to set and get the storage related configuration values.
- */
-public interface PackagesStorageConfiguration {
-    /**
-     * Get a property with the key.
-     *
-     * @param key
-     *          property key
-     * @return the value
-     */
-    String getProperty(String key);
+import org.apache.pulsar.packages.management.core.PackagesStorage;
+import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
+import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
 
-    /**
-     * Set a property with the key.
-     *
-     * @param key
-     *          property key
-     * @param value
-     *          property value
-     */
-    void setProperty(String key, String value);
+public class BookKeeperPackagesStorageProvider implements PackagesStorageProvider {
+    @Override
+    public PackagesStorage getStorage(PackagesStorageConfiguration config) {
+        return new BookKeeperPackagesStorage(config);
+    }
 }
