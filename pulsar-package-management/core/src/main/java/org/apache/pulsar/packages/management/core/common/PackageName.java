@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -152,5 +153,10 @@ public class PackageName {
         return another.type.equals(this.type)
             && another.completeName.equals(this.completeName)
             && another.version.equals(this.version);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, namespace, tenant, name, version);
     }
 }

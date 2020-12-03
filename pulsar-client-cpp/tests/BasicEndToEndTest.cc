@@ -861,6 +861,7 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
     Producer producer;
     ProducerConfiguration tempProducerConfiguration;
     tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    tempProducerConfiguration.setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
     ProducerConfiguration producerConfiguration = tempProducerConfiguration;
     Result result = client.createProducer(topicName, producerConfiguration, producer);
     ASSERT_EQ(ResultOk, result);
@@ -2465,7 +2466,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     Producer producer;
     int numOfMessages = 20;
     ProducerConfiguration tempProducerConfiguration;
-    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    tempProducerConfiguration.setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
     ProducerConfiguration producerConfiguration = tempProducerConfiguration;
     producerConfiguration.setBatchingEnabled(true);
     // set batch message number numOfMessages, and max delay 60s
@@ -2687,6 +2688,7 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     // set batch message number numOfMessages, and max delay 60s
     producerConfiguration.setBatchingMaxMessages(numOfMessages / numberOfPartitions);
     producerConfiguration.setBatchingMaxPublishDelayMs(60000);
+    producerConfiguration.setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
 
     Result result = client.createProducer(topicName, producerConfiguration, producer);
     ASSERT_EQ(ResultOk, result);
