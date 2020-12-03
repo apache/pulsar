@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -35,13 +36,15 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
     private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStoreProvider.class);
 
     @Override
-    public CompletableFuture<TransactionMetadataStore>
-    openStore(TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory) {
+    public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
+                                                                 ManagedLedgerFactory managedLedgerFactory,
+                                                                 ManagedLedgerConfig managedLedgerConfig) {
         TransactionMetadataStore transactionMetadataStore;
         try {
             transactionMetadataStore =
                     new MLTransactionMetadataStore(transactionCoordinatorId,
-                            new MLTransactionLogImpl(transactionCoordinatorId, managedLedgerFactory));
+                            new MLTransactionLogImpl(transactionCoordinatorId,
+                                    managedLedgerFactory, managedLedgerConfig));
         } catch (Exception e) {
             log.error("MLTransactionMetadataStore init fail", e);
             return FutureUtil.failedFuture(e);

@@ -94,7 +94,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         try {
             transactionCoordinatorClient.abort(txnID, Collections.emptyList());
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
-        } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
+        } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
         }
     }

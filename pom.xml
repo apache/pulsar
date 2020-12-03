@@ -1172,6 +1172,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
                 <exclude>**/ByteBufCodedInputStream.java</exclude>
                 <exclude>**/ByteBufCodedOutputStream.java</exclude>
+                <exclude>**/ahc.properties</exclude>
                 <exclude>bin/proto/*</exclude>
                 <exclude>conf/schema_example.conf</exclude>
                 <exclude>data/**</exclude>
