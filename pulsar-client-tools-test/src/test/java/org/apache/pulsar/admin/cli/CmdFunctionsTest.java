@@ -59,6 +59,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
@@ -81,7 +82,11 @@ public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
     private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader().getResource("dummyexamples.jar").getFile();
+    private static final String GO_EXEC_FILE_NAME = "test-go-function-with-url";
+    private static final String PYTHON_FILE_NAME = "test-go-function-with-url";
     private static final String URL ="file:" + JAR_NAME;
+    private static final String URL_WITH_GO ="file:" + GO_EXEC_FILE_NAME;
+    private static final String URL_WITH_PY ="file:" + PYTHON_FILE_NAME;
     private static final String FN_NAME = TEST_NAME + "-function";
     private static final String INPUT_TOPIC_NAME = TEST_NAME + "-input-topic";
     private static final String OUTPUT_TOPIC_NAME = TEST_NAME + "-output-topic";
@@ -313,6 +318,47 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
 
         assertEquals(FN_NAME, creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateGoFunctionWithFileUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-go-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--go", URL_WITH_GO,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-go-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreatePyFunctionWithFileUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-py-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--py", URL_WITH_PY,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", "process_python_function",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-py-function", creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
