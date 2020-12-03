@@ -108,7 +108,7 @@ public class HealthCheckTest {
     @Test
     public void testBookKeeperDown() throws Exception {
         for (BKContainer b : pulsarCluster.getBookies()) {
-            b.execCmd("pkill", "-STOP", "-f", "BookieServer");
+            b.execCmd("pkill", "-STOP", "-f", "Main");
         }
         assertHealthcheckFailure();
     }
