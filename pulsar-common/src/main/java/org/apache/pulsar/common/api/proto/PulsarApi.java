@@ -58,6 +58,50 @@ public final class PulsarApi {
     // @@protoc_insertion_point(enum_scope:pulsar.proto.CompressionType)
   }
   
+  public enum ProducerAccessMode
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+    Shared(0, 0),
+    Exclusive(1, 1),
+    WaitForExclusive(2, 2),
+    ;
+    
+    public static final int Shared_VALUE = 0;
+    public static final int Exclusive_VALUE = 1;
+    public static final int WaitForExclusive_VALUE = 2;
+    
+    
+    public final int getNumber() { return value; }
+    
+    public static ProducerAccessMode valueOf(int value) {
+      switch (value) {
+        case 0: return Shared;
+        case 1: return Exclusive;
+        case 2: return WaitForExclusive;
+        default: return null;
+      }
+    }
+    
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProducerAccessMode>
+        internalGetValueMap() {
+      return internalValueMap;
+    }
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProducerAccessMode>
+        internalValueMap =
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProducerAccessMode>() {
+            public ProducerAccessMode findValueByNumber(int number) {
+              return ProducerAccessMode.valueOf(number);
+            }
+          };
+    
+    private final int value;
+    
+    private ProducerAccessMode(int index, int value) {
+      this.value = value;
+    }
+    
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.ProducerAccessMode)
+  }
+  
   public enum ServerError
       implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     UnknownError(0, 0),
@@ -85,6 +129,7 @@ public final class PulsarApi {
     NotAllowedError(22, 22),
     TransactionConflict(23, 23),
     TransactionNotFound(24, 24),
+    ProducerFenced(25, 25),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -112,6 +157,7 @@ public final class PulsarApi {
     public static final int NotAllowedError_VALUE = 22;
     public static final int TransactionConflict_VALUE = 23;
     public static final int TransactionNotFound_VALUE = 24;
+    public static final int ProducerFenced_VALUE = 25;
     
     
     public final int getNumber() { return value; }
@@ -143,6 +189,7 @@ public final class PulsarApi {
         case 22: return NotAllowedError;
         case 23: return TransactionConflict;
         case 24: return TransactionNotFound;
+        case 25: return ProducerFenced;
         default: return null;
       }
     }
@@ -15744,6 +15791,14 @@ public final class PulsarApi {
     // optional bool user_provided_producer_name = 9 [default = true];
     boolean hasUserProvidedProducerName();
     boolean getUserProvidedProducerName();
+    
+    // optional .pulsar.proto.ProducerAccessMode producer_access_mode = 10 [default = Shared];
+    boolean hasProducerAccessMode();
+    org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode getProducerAccessMode();
+    
+    // optional uint64 topic_epoch = 11;
+    boolean hasTopicEpoch();
+    long getTopicEpoch();
   }
   public static final class CommandProducer extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -15925,6 +15980,26 @@ public final class PulsarApi {
       return userProvidedProducerName_;
     }
     
+    // optional .pulsar.proto.ProducerAccessMode producer_access_mode = 10 [default = Shared];
+    public static final int PRODUCER_ACCESS_MODE_FIELD_NUMBER = 10;
+    private org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode producerAccessMode_;
+    public boolean hasProducerAccessMode() {
+      return ((bitField0_ & 0x00000100) == 0x00000100);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode getProducerAccessMode() {
+      return producerAccessMode_;
+    }
+    
+    // optional uint64 topic_epoch = 11;
+    public static final int TOPIC_EPOCH_FIELD_NUMBER = 11;
+    private long topicEpoch_;
+    public boolean hasTopicEpoch() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    public long getTopicEpoch() {
+      return topicEpoch_;
+    }
+    
     private void initFields() {
       topic_ = "";
       producerId_ = 0L;
@@ -15935,6 +16010,8 @@ public final class PulsarApi {
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       epoch_ = 0L;
       userProvidedProducerName_ = true;
+      producerAccessMode_ = org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode.Shared;
+      topicEpoch_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -16004,6 +16081,12 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         output.writeBool(9, userProvidedProducerName_);
       }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        output.writeEnum(10, producerAccessMode_.getNumber());
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        output.writeUInt64(11, topicEpoch_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -16047,6 +16130,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(9, userProvidedProducerName_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeEnumSize(10, producerAccessMode_.getNumber());
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(11, topicEpoch_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -16179,6 +16270,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000080);
         userProvidedProducerName_ = true;
         bitField0_ = (bitField0_ & ~0x00000100);
+        producerAccessMode_ = org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode.Shared;
+        bitField0_ = (bitField0_ & ~0x00000200);
+        topicEpoch_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000400);
         return this;
       }
       
@@ -16249,6 +16344,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000080;
         }
         result.userProvidedProducerName_ = userProvidedProducerName_;
+        if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
+          to_bitField0_ |= 0x00000100;
+        }
+        result.producerAccessMode_ = producerAccessMode_;
+        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
+          to_bitField0_ |= 0x00000200;
+        }
+        result.topicEpoch_ = topicEpoch_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -16288,6 +16391,12 @@ public final class PulsarApi {
         }
         if (other.hasUserProvidedProducerName()) {
           setUserProvidedProducerName(other.getUserProvidedProducerName());
+        }
+        if (other.hasProducerAccessMode()) {
+          setProducerAccessMode(other.getProducerAccessMode());
+        }
+        if (other.hasTopicEpoch()) {
+          setTopicEpoch(other.getTopicEpoch());
         }
         return this;
       }
@@ -16391,6 +16500,20 @@ public final class PulsarApi {
             case 72: {
               bitField0_ |= 0x00000100;
               userProvidedProducerName_ = input.readBool();
+              break;
+            }
+            case 80: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode value = org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000200;
+                producerAccessMode_ = value;
+              }
+              break;
+            }
+            case 88: {
+              bitField0_ |= 0x00000400;
+              topicEpoch_ = input.readUInt64();
               break;
             }
           }
@@ -16704,6 +16827,51 @@ public final class PulsarApi {
       public Builder clearUserProvidedProducerName() {
         bitField0_ = (bitField0_ & ~0x00000100);
         userProvidedProducerName_ = true;
+        
+        return this;
+      }
+      
+      // optional .pulsar.proto.ProducerAccessMode producer_access_mode = 10 [default = Shared];
+      private org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode producerAccessMode_ = org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode.Shared;
+      public boolean hasProducerAccessMode() {
+        return ((bitField0_ & 0x00000200) == 0x00000200);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode getProducerAccessMode() {
+        return producerAccessMode_;
+      }
+      public Builder setProducerAccessMode(org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000200;
+        producerAccessMode_ = value;
+        
+        return this;
+      }
+      public Builder clearProducerAccessMode() {
+        bitField0_ = (bitField0_ & ~0x00000200);
+        producerAccessMode_ = org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode.Shared;
+        
+        return this;
+      }
+      
+      // optional uint64 topic_epoch = 11;
+      private long topicEpoch_ ;
+      public boolean hasTopicEpoch() {
+        return ((bitField0_ & 0x00000400) == 0x00000400);
+      }
+      public long getTopicEpoch() {
+        return topicEpoch_;
+      }
+      public Builder setTopicEpoch(long value) {
+        bitField0_ |= 0x00000400;
+        topicEpoch_ = value;
+        
+        return this;
+      }
+      public Builder clearTopicEpoch() {
+        bitField0_ = (bitField0_ & ~0x00000400);
+        topicEpoch_ = 0L;
         
         return this;
       }
@@ -24564,6 +24732,10 @@ public final class PulsarApi {
     // optional bytes schema_version = 4;
     boolean hasSchemaVersion();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion();
+    
+    // optional uint64 topic_epoch = 5;
+    boolean hasTopicEpoch();
+    long getTopicEpoch();
   }
   public static final class CommandProducerSuccess extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -24662,11 +24834,22 @@ public final class PulsarApi {
       return schemaVersion_;
     }
     
+    // optional uint64 topic_epoch = 5;
+    public static final int TOPIC_EPOCH_FIELD_NUMBER = 5;
+    private long topicEpoch_;
+    public boolean hasTopicEpoch() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public long getTopicEpoch() {
+      return topicEpoch_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       producerName_ = "";
       lastSequenceId_ = -1L;
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      topicEpoch_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -24705,6 +24888,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeBytes(4, schemaVersion_);
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeUInt64(5, topicEpoch_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -24728,6 +24914,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, schemaVersion_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(5, topicEpoch_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -24850,6 +25040,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000008);
+        topicEpoch_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -24899,6 +25091,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000008;
         }
         result.schemaVersion_ = schemaVersion_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.topicEpoch_ = topicEpoch_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -24916,6 +25112,9 @@ public final class PulsarApi {
         }
         if (other.hasSchemaVersion()) {
           setSchemaVersion(other.getSchemaVersion());
+        }
+        if (other.hasTopicEpoch()) {
+          setTopicEpoch(other.getTopicEpoch());
         }
         return this;
       }
@@ -24972,6 +25171,11 @@ public final class PulsarApi {
             case 34: {
               bitField0_ |= 0x00000008;
               schemaVersion_ = input.readBytes();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              topicEpoch_ = input.readUInt64();
               break;
             }
           }
@@ -25078,6 +25282,27 @@ public final class PulsarApi {
       public Builder clearSchemaVersion() {
         bitField0_ = (bitField0_ & ~0x00000008);
         schemaVersion_ = getDefaultInstance().getSchemaVersion();
+        
+        return this;
+      }
+      
+      // optional uint64 topic_epoch = 5;
+      private long topicEpoch_ ;
+      public boolean hasTopicEpoch() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getTopicEpoch() {
+        return topicEpoch_;
+      }
+      public Builder setTopicEpoch(long value) {
+        bitField0_ |= 0x00000010;
+        topicEpoch_ = value;
+        
+        return this;
+      }
+      public Builder clearTopicEpoch() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        topicEpoch_ = 0L;
         
         return this;
       }
