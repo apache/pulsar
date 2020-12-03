@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -396,5 +395,33 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
+    }
+
+    @Test
+    public void testReaderSubName() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderSubName";
+        final String subName = "my-sub-name";
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        ReaderImpl<String> readerImpl = (ReaderImpl<String>) reader;
+        assertEquals(readerImpl.getConsumer().getSubscription(), subName);
+        reader.close();
+
+        final String topic2 = "persistent://my-property/my-ns/testReaderSubName2";
+        admin.topics().createPartitionedTopic(topic2, 3);
+
+        reader = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic2)
+                .startMessageId(MessageId.earliest)
+                .create();
+        MultiTopicsReaderImpl<String> multiTopicsReader = (MultiTopicsReaderImpl<String>) reader;
+        multiTopicsReader.getMultiTopicsConsumer().getConsumers()
+                .forEach(consumerImpl -> assertEquals(consumerImpl.getSubscription(), subName));
+        multiTopicsReader.close();
     }
 }
