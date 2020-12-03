@@ -10266,7 +10266,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -18890,16 +18890,25 @@
                     "type": "number",
                     "format": "double"
                 },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "lastUpdate": {
@@ -18914,17 +18923,8 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
                 "loadReportType": {
                     "type": "string"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -19075,6 +19075,13 @@
         "NonPersistentPublisherStats": {
             "type": "object",
             "properties": {
+                "accessMode": {
+                    "type": "string",
+                    "enum": [
+                        "Shared",
+                        "Exclusive"
+                    ]
+                },
                 "msgRateIn": {
                     "type": "number",
                     "format": "double"
@@ -19105,10 +19112,10 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
@@ -19343,6 +19350,10 @@
                 },
                 "deduplicationStatus": {
                     "type": "string"
+                },
+                "topicEpoch": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "msgDropRate": {
                     "type": "number",
@@ -20012,6 +20023,13 @@
         "PublisherStats": {
             "type": "object",
             "properties": {
+                "accessMode": {
+                    "type": "string",
+                    "enum": [
+                        "Shared",
+                        "Exclusive"
+                    ]
+                },
                 "msgRateIn": {
                     "type": "number",
                     "format": "double"
@@ -20038,10 +20056,10 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
@@ -20170,11 +20188,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },
@@ -20430,6 +20448,10 @@
                 },
                 "deduplicationStatus": {
                     "type": "string"
+                },
+                "topicEpoch": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         }

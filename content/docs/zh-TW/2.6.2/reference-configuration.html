@@ -185,6 +185,32 @@
   </tr>
   <tr>
     <td>
+      advertisedListeners
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify multiple advertised listeners for the broker.&lt;br&gt;&lt;br&gt;The format is &lt;code&gt;&amp;lt;listener_name&amp;gt;:pulsar://&amp;lt;host&amp;gt;:&amp;lt;port&amp;gt;&lt;/code&gt;.&lt;br&gt;&lt;br&gt;If there are multiple listeners, separate them with commas.&lt;br&gt;&lt;br&gt;&lt;strong x-id=&quot;1&quot;&gt;Note&lt;/strong&gt;: do not use this configuration with &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;. If the value of this configuration is empty, the broker uses &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+  /
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      internalListenerName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the internal listener name for the broker.&lt;br&gt;&lt;br&gt;&lt;strong x-id=&quot;1&quot;&gt;Note&lt;/strong&gt;: the listener name must be contained in &lt;code&gt;advertisedListeners&lt;/code&gt;.&lt;br&gt;&lt;br&gt; If the value of this configuration is empty, the broker uses the first listener as the internal listener.
+&lt;/td&gt;
+
+&lt;td&gt;
+  /
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
       enablePersistentTopics
     </td>
 <pre><code class="hljs">&lt;td&gt;

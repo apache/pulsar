@@ -1719,22 +1719,24 @@
                 "topicName": {
                     "type": "string"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "replicated": {
+                    "type": "boolean"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "producerName": {
+                    "type": "string"
                 },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1743,18 +1745,12 @@
                         "format": "byte"
                     }
                 },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "data": {
                     "type": "array",
@@ -1769,6 +1765,10 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "value": {
                     "type": "object"

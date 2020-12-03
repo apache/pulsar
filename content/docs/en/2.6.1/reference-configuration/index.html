@@ -175,6 +175,8 @@
 <tr><th>Name</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
+<tr><td>advertisedListeners</td><td>Specify multiple advertised listeners for the broker.<br><br>The format is <code>&lt;listener_name&gt;:pulsar://&lt;host&gt;:&lt;port&gt;</code>.<br><br>If there are multiple listeners, separate them with commas.<br><br><strong>Note</strong>: do not use this configuration with <code>advertisedAddress</code> and <code>brokerServicePort</code>. If the value of this configuration is empty, the broker uses <code>advertisedAddress</code> and <code>brokerServicePort</code></td><td>/</td></tr>
+<tr><td>internalListenerName</td><td>Specify the internal listener name for the broker.<br><br><strong>Note</strong>: the listener name must be contained in <code>advertisedListeners</code>.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.</td><td>/</td></tr>
 <tr><td>enablePersistentTopics</td><td>Whether persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>enableNonPersistentTopics</td><td>Whether non-persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>functionsWorkerEnabled</td><td>Whether the Pulsar Functions worker service is enabled in the broker</td><td>false</td></tr>

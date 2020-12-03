@@ -37,6 +37,7 @@ var searchData=
   ['resultoperationnotsupported',['ResultOperationNotSupported',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba60abb5ad06a78a3d6d40b2131534dfeb',1,'pulsar']]],
   ['resultproducerblockedquotaexceededexception',['ResultProducerBlockedQuotaExceededException',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbab5cc52655496666d96f35edab07c9e7f',1,'pulsar']]],
   ['resultproducerbusy',['ResultProducerBusy',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad0a7588cc2ac84de7fc17331ed59b544',1,'pulsar']]],
+  ['resultproducerfenced',['ResultProducerFenced',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba6370706ff98bf4c513f11489679543cb',1,'pulsar']]],
   ['resultproducernotinitialized',['ResultProducerNotInitialized',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba2b5f050c9b2aef10831927cece55b02a',1,'pulsar']]],
   ['resultproducerqueueisfull',['ResultProducerQueueIsFull',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba1849c732b1ec8c7e1c0aa653de998d81',1,'pulsar']]],
   ['resultreaderror',['ResultReadError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbaa084aea99a198f2d01c6c98eeb44ff9e',1,'pulsar']]],
