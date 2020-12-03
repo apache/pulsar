@@ -35,6 +35,7 @@
     <name>Apache Pulsar :: Package Management</name>
     <modules>
         <module>core</module>
+        <module>bookkeeper-storage</module>
     </modules>
 
     <build>
