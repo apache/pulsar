@@ -1550,7 +1550,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
             int batchSize = metadata.getNumMessagesInBatch();
             entry.release();
-            return batchSize;
+            return metadata.hasNumMessagesInBatch() ? batchSize : -1;
         });
 
         batchSizeFuture.whenComplete((batchSize, e) -> {
@@ -1558,7 +1558,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ctx.writeAndFlush(Commands.newError(
                         requestId, ServerError.MetadataError, "Failed to get batch size for entry " + e.getMessage()));
             } else {
-                int largestBatchIndex = batchSize > 1 ? batchSize - 1 : -1;
+                int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
