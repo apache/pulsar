@@ -1047,6 +1047,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertTrue(lastMessageId instanceof MessageIdImpl);
         assertEquals(lastMessageId, messageId);
         producer.close();
+        reader.close();
     }
 
     @Test
