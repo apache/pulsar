@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
+import java.util.Properties;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration;
-
-import java.util.Properties;
 
 public class BookKeeperPackagesStorageConfiguration implements PackagesStorageConfiguration {
 
