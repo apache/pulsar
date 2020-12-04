@@ -263,7 +263,8 @@ public class KubernetesRuntime implements Runtime {
                         pythonExtraDependencyRepository,
                         metricsPort,
                         narExtractionDirectory,
-                        functinoInstanceClassPath));
+                        functinoInstanceClassPath,
+                        true));
 
         doChecks(instanceConfig.getFunctionDetails());
     }
