@@ -35,9 +35,12 @@ RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY conf/nginx-app.conf /etc/nginx/sites-available/default
 COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
 
+# Setup non-root user
+RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+
 # Copy web-app sources
 RUN mkdir /pulsar
-COPY . /pulsar/
+COPY --chown=pulsar:pulsar . /pulsar/
 
 # Python dependencies
 RUN pip install -r /pulsar/requirements.txt
@@ -47,13 +50,11 @@ RUN pip install -r /pulsar/requirements.txt
 # Django test web server
 RUN cd /pulsar/django && ./manage.py collectstatic --no-input
 
-RUN mkdir /data
+RUN mkdir /data && chown pulsar:pulsar /data
 
 EXPOSE 80
 
-# Setup non-root user, and chown the necessary directories
-RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
-RUN chown -R 1000:1000 /pulsar /data
-USER 1000
+# Use the pulsar user to default the container to run as a nonroot user
+USER pulsar
 
 CMD ["/pulsar/start.sh"]

@@ -38,6 +38,9 @@ COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
 FROM openjdk:8-jdk-slim
 
+# Create the pulsar user to ensure the docker image is run as a non root user
+RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+
 # Install some utilities
 RUN apt-get update \
      && apt-get install -y netcat dnsutils less procps iputils-ping \
@@ -52,26 +55,25 @@ RUN python3.7 get-pip.py
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
-ADD target/python-client/ /pulsar/pulsar-client
-ADD target/cpp-client/ /pulsar/cpp-client
+ADD --chown=pulsar:pulsar target/python-client/ /pulsar/pulsar-client
+ADD --chown=pulsar:pulsar target/cpp-client/ /pulsar/cpp-client
 RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
 RUN apt-get update \
      && apt install -y /pulsar/cpp-client/*.deb \
      && apt-get clean \
+     && chown -R pulsar:pulsar /pulsar/cpp-client/
      && rm -rf /var/lib/apt/lists/*
 
-# Create user and chown existing directory
-RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
-RUN chown -R 1000:1000 /pulsar
-USER 1000
+# Start using the pulsar user to ensure container defaults to run as non root user
+USER pulsar
 
-# Directories will have correct permission because we switch to be pulsar user
+# Directories will have correct permission because we switched to the pulsar user
 RUN mkdir /pulsar/conf /pulsar/data
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
-COPY --from=pulsar --chown=1000:1000 /pulsar /pulsar
+COPY --from=pulsar --chown=pulsar:pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
 RUN /pulsar/bin/install-pulsar-client-37.sh

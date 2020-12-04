@@ -19,6 +19,11 @@
 
 FROM apachepulsar/pulsar-all:latest
 
+# Need to temporarily run as root to configure the image
+# Note: this script does not chown any directories/files to the pulsar
+# user because the tests don't need to write to these directories/files
+USER root
+
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
 RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl git
@@ -75,3 +80,6 @@ RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go instal
 
 COPY target/java-test-functions.jar /pulsar/examples/
 RUN cp -a /go/bin/. /pulsar/examples/go-examples/
+
+# Want to run all of the tests as the pulsar user to test that the user has enough permission
+USER pulsar
