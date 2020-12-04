@@ -1481,6 +1481,16 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1492,9 +1502,14 @@
         "topicName" : {
           "type" : "string"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
+        "producerName" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1503,8 +1518,9 @@
             "format" : "byte"
           }
         },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1512,22 +1528,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "replicated" : {
-          "type" : "boolean"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "data" : {
           "type" : "array",
