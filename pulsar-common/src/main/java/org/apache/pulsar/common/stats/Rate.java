@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import java.math.BigDecimal;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -60,7 +61,7 @@ public class Rate {
 
         count = countAdder.sumThenReset();
         long sum = valueAdder.sumThenReset();
-        averageValue = count != 0 ? sum / count : 0.0d;
+        averageValue = count != 0 ? BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(count)).doubleValue() : 0.0d;
         rate = count / period;
         valueRate = sum / period;
     }

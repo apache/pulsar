@@ -30,6 +30,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -208,7 +209,7 @@ public class NarClassLoader extends URLClassLoader {
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
-        return new String(Files.readAllBytes(Paths.get(serviceDefPath)));
+        return new String(Files.readAllBytes(Paths.get(serviceDefPath)), StandardCharsets.UTF_8);
     }
 
     public List<String> getServiceImplementation(String serviceName) throws IOException {

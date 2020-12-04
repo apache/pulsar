@@ -315,7 +315,7 @@ public class SecurityUtility {
             String currentLine = null;
 
             // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
-            while (!reader.readLine().startsWith("-----BEGIN")) {
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
                 reader.readLine();
             }
 

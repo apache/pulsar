@@ -486,6 +486,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 cmd.getEndTxnOnSubscriptionResponse().recycle();
                 break;
+            default:
+                break;
             }
         } finally {
             if (cmdBuilder != null) {
