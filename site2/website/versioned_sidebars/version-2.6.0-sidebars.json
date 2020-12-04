@@ -16,7 +16,8 @@
       "version-2.6.0-concepts-multi-tenancy",
       "version-2.6.0-concepts-authentication",
       "version-2.6.0-concepts-topic-compaction",
-      "version-2.6.0-concepts-tiered-storage"
+      "version-2.6.0-concepts-tiered-storage",
+      "version-2.6.0-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.6.0-schema-get-started",
