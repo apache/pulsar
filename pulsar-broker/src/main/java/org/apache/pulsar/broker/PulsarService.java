@@ -146,7 +146,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Main class for Pulsar broker service
+ * Main class for Pulsar broker service.
  */
 
 @Getter(AccessLevel.PUBLIC)
@@ -231,7 +231,8 @@ public class PulsarService implements AutoCloseable {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
-        Map<String, AdvertisedListener> result = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+        Map<String, AdvertisedListener> result =
+                MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
         if (result != null) {
             this.advertisedListeners = Collections.unmodifiableMap(result);
         } else {
@@ -241,7 +242,8 @@ public class PulsarService implements AutoCloseable {
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         if (!this.advertisedListeners.isEmpty()) {
-            this.advertisedAddress = this.advertisedListeners.get(config.getInternalListenerName()).getBrokerServiceUrl().getHost();
+            this.advertisedAddress = this.advertisedListeners.get(
+                    config.getInternalListenerName()).getBrokerServiceUrl().getHost();
         } else {
             this.advertisedAddress = advertisedAddress(config);
         }
@@ -407,12 +409,13 @@ public class PulsarService implements AutoCloseable {
     public void start() throws PulsarServerException {
         mutex.lock();
 
-        LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
+        LOG.info("Starting Pulsar Broker service; version: '{}'",
+                (brokerVersion != null ? brokerVersion : "unknown"));
         LOG.info("Git Revision {}", PulsarVersion.getGitSha());
         LOG.info("Built by {} on {} at {}",
-                 PulsarVersion.getBuildUser(),
-                 PulsarVersion.getBuildHost(),
-                 PulsarVersion.getBuildTime());
+                PulsarVersion.getBuildUser(),
+                PulsarVersion.getBuildHost(),
+                PulsarVersion.getBuildTime());
 
         try {
             if (state != State.Init) {
@@ -441,11 +444,15 @@ public class PulsarService implements AutoCloseable {
                     config.getZookeeperServers(), config.getZooKeeperSessionTimeoutMillis());
             ZookeeperSessionExpiredHandler sessionExpiredHandler = null;
             if (ZookeeperSessionExpiredHandlers.RECONNECT_POLICY.equals(config.getZookeeperSessionExpiredPolicy())) {
-                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.reconnectWhenZookeeperSessionExpired(this, shutdownService);
-            } else if (ZookeeperSessionExpiredHandlers.SHUTDOWN_POLICY.equals(config.getZookeeperSessionExpiredPolicy())) {
-                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.shutdownWhenZookeeperSessionExpired(shutdownService);
+                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.reconnectWhenZookeeperSessionExpired(
+                        this, shutdownService);
+            } else if (ZookeeperSessionExpiredHandlers.SHUTDOWN_POLICY.equals(
+                    config.getZookeeperSessionExpiredPolicy())) {
+                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.shutdownWhenZookeeperSessionExpired(
+                        shutdownService);
             } else {
-                throw new IllegalArgumentException("Invalid zookeeper session expired policy " + config.getZookeeperSessionExpiredPolicy());
+                throw new IllegalArgumentException("Invalid zookeeper session expired policy "
+                        + config.getZookeeperSessionExpiredPolicy());
             }
             localZooKeeperConnectionProvider.start(sessionExpiredHandler);
 
@@ -488,15 +495,23 @@ public class PulsarService implements AutoCloseable {
                     return state == State.Started;
                 }
             });
-            this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipAttributeMap);
-            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, attributeMap);
-            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, attributeMap);
-            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true, attributeMap);
-            this.webService.addRestResources("/admin/v3", "org.apache.pulsar.broker.admin.v3", true, attributeMap);
-            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true, attributeMap);
+            this.webService.addRestResources("/",
+                    VipStatus.class.getPackage().getName(), false, vipAttributeMap);
+            this.webService.addRestResources("/",
+                    "org.apache.pulsar.broker.web", false, attributeMap);
+            this.webService.addRestResources("/admin",
+                    "org.apache.pulsar.broker.admin.v1", true, attributeMap);
+            this.webService.addRestResources("/admin/v2",
+                    "org.apache.pulsar.broker.admin.v2", true, attributeMap);
+            this.webService.addRestResources("/admin/v3",
+                    "org.apache.pulsar.broker.admin.v3", true, attributeMap);
+            this.webService.addRestResources("/lookup",
+                    "org.apache.pulsar.broker.lookup", true, attributeMap);
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(this, config.isExposeTopicLevelMetricsInPrometheus(), config.isExposeConsumerLevelMetricsInPrometheus())),
+                    new ServletHolder(new PrometheusMetricsServlet(
+                            this, config.isExposeTopicLevelMetricsInPrometheus(),
+                            config.isExposeConsumerLevelMetricsInPrometheus())),
                     false, attributeMap);
 
             if (config.isWebSocketServiceEnabled()) {
@@ -668,19 +683,21 @@ public class PulsarService implements AutoCloseable {
             }
         } catch (Exception ex) {
             LOG.warn(
-                    "Exception while trying to unload the SLA namespace, will try to unload the namespace again after 1 minute. Exception:",
+                    "Exception while trying to unload the SLA namespace,"
+                            + " will try to unload the namespace again after 1 minute. Exception:",
                     ex);
             executor.schedule(this::acquireSLANamespace, 1, TimeUnit.MINUTES);
         } catch (Throwable ex) {
             // To make sure SLA monitor doesn't interfere with the normal broker flow
             LOG.warn(
-                    "Exception while trying to unload the SLA namespace, will not try to unload the namespace again. Exception:",
+                    "Exception while trying to unload the SLA namespace,"
+                            + " will not try to unload the namespace again. Exception:",
                     ex);
         }
     }
 
     /**
-     * Block until the service is finally closed
+     * Block until the service is finally closed.
      */
     public void waitUntilClosed() throws InterruptedException {
         mutex.lock();
@@ -741,10 +758,9 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Load all the topics contained in a namespace
+     * Load all the topics contained in a namespace.
      *
-     * @param bundle
-     *            <code>NamespaceBundle</code> to identify the service unit
+     * @param bundle <code>NamespaceBundle</code> to identify the service unit
      * @throws Exception
      */
     public void loadNamespaceTopics(NamespaceBundle bundle) {
@@ -830,7 +846,7 @@ public class PulsarService implements AutoCloseable {
 
     /**
      * Get a reference of the current <code>LeaderElectionService</code> instance associated with the current
-     * <code>PulsarService<code> instance.
+     * <code>PulsarService</code> instance.
      *
      * @return a reference of the current <code>LeaderElectionService</code> instance.
      */
@@ -874,7 +890,8 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * First, get <code>LedgerOffloader</code> from local map cache, create new <code>LedgerOffloader</code> if not in cache or
+     * First, get <code>LedgerOffloader</code> from local map cache,
+     * create new <code>LedgerOffloader</code> if not in cache or
      * the <code>OffloadPolicies</code> changed, return the <code>LedgerOffloader</code> directly if exist in cache
      * and the <code>OffloadPolicies</code> not changed.
      *
@@ -1063,7 +1080,7 @@ public class PulsarService implements AutoCloseable {
                 ServiceConfiguration conf = this.getConfiguration();
                 String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
                 PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication( //
+                        .authentication(//
                                 conf.getBrokerClientAuthenticationPlugin(), //
                                 conf.getBrokerClientAuthenticationParameters());
 
@@ -1273,7 +1290,8 @@ public class PulsarService implements AutoCloseable {
             try {
                 Policies policies = new Policies();
                 policies.retention_policies = new RetentionPolicies(-1, -1);
-                policies.replication_clusters = Collections.singleton(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
+                policies.replication_clusters = Collections.singleton(
+                        functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 
@@ -1298,13 +1316,15 @@ public class PulsarService implements AutoCloseable {
                 // initializing dlog namespace for function worker
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
-                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+                LOG.error("Failed to initialize dlog namespace with zookeeper {}"
+                                + " at metadata service uri {} for storing function packages",
+                        internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");
             // TODO figure out how to handle errors from function worker service
-            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
+            functionWorkerService.get().start(dlogURI, authenticationService,
+                    authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
     }

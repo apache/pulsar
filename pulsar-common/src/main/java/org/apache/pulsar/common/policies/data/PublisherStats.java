@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
-
 import org.apache.pulsar.client.api.ProducerAccessMode;
 
 /**

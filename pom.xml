@@ -1342,7 +1342,6 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                     <goal>enforce</goal>
                 </goals>
-                <configuration>
                   <rules>
                     <requireJavaVersion>
                       <version>[1.8.0,)</version>
