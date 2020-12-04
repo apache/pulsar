@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.packages.management.core.common.PackageMetadata;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 
 /**
  * Administration operations of the packages management service.
