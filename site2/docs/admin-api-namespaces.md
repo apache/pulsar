@@ -436,6 +436,34 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+#### Remove message-ttl
+
+Remove a message TTL of the configured namespace.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+```
+$ pulsar-admin namespaces remove-message-ttl test-tenant/ns1
+```
+
+```
+100
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/removeNamespaceMessageTTL}
+```
+
+<!--Java-->
+
+```java
+admin.namespaces().removeNamespaceMessageTTL(namespace)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 #### Split bundle
 
 Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
