@@ -1342,16 +1342,16 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                     <goal>enforce</goal>
                 </goals>
-                <configuration>
-                    <rules>
-                      <requireJavaVersion>
-                        <version>[1.8.0,)</version>
-                      </requireJavaVersion>
-                      <requireMavenVersion>
-                        <version>[3.3.9,)</version>
-                      </requireMavenVersion>
-                    </rules>
-                </configuration>
+              <configuration>
+                <rules>
+                  <requireJavaVersion>
+                    <version>[1.8.0,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <version>[3.3.9,)</version>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
             </execution>
         </executions>
       </plugin>

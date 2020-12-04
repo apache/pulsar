@@ -20,18 +20,14 @@ package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.AWS_S3;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE;
-
 import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -57,7 +53,7 @@ import org.jclouds.s3.reference.S3Constants;
  * </p>
  */
 @Slf4j
-public class TieredStorageConfiguration implements Serializable, Cloneable {
+public class TieredStorageConfiguration {
 
     private static final long serialVersionUID = 1L;
     public static final String BLOB_STORE_PROVIDER_KEY = "managedLedgerOffloadDriver";
