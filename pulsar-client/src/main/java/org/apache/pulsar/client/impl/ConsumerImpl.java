@@ -2426,6 +2426,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             cmd = Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType, validationError, properties,
                     txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId, batchMessageId.getBatchSize());
+            bitSetRecyclable.recycle();
         } else {
             MessageIdImpl singleMessage = (MessageIdImpl) messageId;
             ledgerId = singleMessage.getLedgerId();
