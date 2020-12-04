@@ -194,7 +194,7 @@ public class BinaryProtoLookupService implements LookupService {
                         partitionFuture.complete(new PartitionedTopicMetadata(r.partitions));
                     } catch (Exception e) {
                         partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
-                            format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s",
+                            format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s, error message %s",
                                 r.redirect, topicName.toString(), r.partitions,
                                 e.getMessage())));
                     }

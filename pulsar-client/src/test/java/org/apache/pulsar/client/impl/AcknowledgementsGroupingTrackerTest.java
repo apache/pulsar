@@ -48,7 +48,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void setup() {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
-        consumer.unAckedChunckedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
         cnx = mock(ClientCnx.class);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
