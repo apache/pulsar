@@ -30,8 +30,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -399,29 +401,68 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReaderSubName() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testReaderSubName";
+        doTestReaderSubName(true);
+        doTestReaderSubName(false);
+    }
+
+    public void doTestReaderSubName(boolean setPrefix) throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderSubName" + System.currentTimeMillis();
         final String subName = "my-sub-name";
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        ReaderBuilder<String> builder = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.earliest)
-                .create();
+                .startMessageId(MessageId.earliest);
+        if (setPrefix) {
+            builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
+        }
+        Reader<String> reader = builder.create();
         ReaderImpl<String> readerImpl = (ReaderImpl<String>) reader;
         assertEquals(readerImpl.getConsumer().getSubscription(), subName);
         reader.close();
 
-        final String topic2 = "persistent://my-property/my-ns/testReaderSubName2";
+        final String topic2 = "persistent://my-property/my-ns/testReaderSubName2" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic2, 3);
-
-        reader = pulsarClient.newReader(Schema.STRING)
+        builder = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic2)
-                .startMessageId(MessageId.earliest)
-                .create();
+                .startMessageId(MessageId.earliest);
+        if (setPrefix) {
+            builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
+        }
+        reader = builder.create();
         MultiTopicsReaderImpl<String> multiTopicsReader = (MultiTopicsReaderImpl<String>) reader;
         multiTopicsReader.getMultiTopicsConsumer().getConsumers()
                 .forEach(consumerImpl -> assertEquals(consumerImpl.getSubscription(), subName));
         multiTopicsReader.close();
     }
+
+    @Test
+    public void testSameSubName() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testSameSubName" + System.currentTimeMillis();
+        final String topic2 = "persistent://my-property/my-ns/testSameSubName" + System.currentTimeMillis();
+        final String subName = "my-sub-name";
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create();
+        Reader<String> reader2 = null;
+        try {
+            reader2 = pulsarClient.newReader(Schema.STRING)
+                    .subscriptionName(subName)
+                    .topic(topic2)
+                    .startMessageId(MessageId.earliest).create();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            assertTrue(e instanceof PulsarClientException.ConsumerBusyException);
+            assertTrue(e.getMessage().contains("Exclusive consumer is already connected"));
+        }
+
+        reader.close();
+        if (reader2 != null) {
+            reader2.close();
+        }
+    }
+
 }
