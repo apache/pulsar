@@ -1344,12 +1344,12 @@ flexible messaging model and an intuitive client API.</description>
                 </goals>
                 <configuration>
                     <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
+                      <requireJavaVersion>
+                        <version>[1.8.0,)</version>
+                      </requireJavaVersion>
+                      <requireMavenVersion>
+                        <version>[3.3.9,)</version>
+                      </requireMavenVersion>
                     </rules>
                 </configuration>
             </execution>
