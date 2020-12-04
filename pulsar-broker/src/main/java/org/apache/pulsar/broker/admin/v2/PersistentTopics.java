@@ -270,9 +270,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
     @ApiOperation(value = "Get offload policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
@@ -289,8 +289,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
     @ApiOperation(value = "Set offload policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
@@ -320,8 +320,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
     @ApiOperation(value = "Delete offload policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void removeOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
                                       @PathParam("tenant") String tenant,
                                       @PathParam("namespace") String namespace,
@@ -333,9 +333,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Get max unacked messages per consumer config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getMaxUnackedMessagesOnConsumer(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
@@ -352,8 +352,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Set max unacked messages per consumer config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setMaxUnackedMessagesOnConsumer(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -384,9 +384,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
     @ApiOperation(value = "Get deduplicationSnapshotInterval config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
@@ -403,8 +403,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
     @ApiOperation(value = "Set deduplicationSnapshotInterval config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setDeduplicationSnapshotInterval(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -435,8 +435,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
     @ApiOperation(value = "Delete deduplicationSnapshotInterval config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
                                                    @PathParam("tenant") String tenant,
                                                    @PathParam("namespace") String namespace,
@@ -464,8 +464,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Delete max unacked messages per consumer config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteMaxUnackedMessagesOnConsumer(@Suspended final AsyncResponse asyncResponse,
                                                        @PathParam("tenant") String tenant,
                                                        @PathParam("namespace") String namespace,
@@ -477,9 +477,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
     @ApiOperation(value = "Get inactive topic policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
                                          @PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace,
@@ -496,8 +496,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
     @ApiOperation(value = "Set inactive topic policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
                                                 @PathParam("tenant") String tenant,
                                                 @PathParam("namespace") String namespace,
@@ -527,8 +527,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
     @ApiOperation(value = "Delete inactive topic policies on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
                                                        @PathParam("tenant") String tenant,
                                                        @PathParam("namespace") String namespace,
@@ -540,9 +540,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Get max unacked messages per subscription config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
@@ -559,8 +559,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Set max unacked messages per subscription config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setMaxUnackedMessagesOnSubscription(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -593,8 +593,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Delete max unacked messages per subscription config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
                                                        @PathParam("tenant") String tenant,
                                                        @PathParam("namespace") String namespace,
@@ -606,9 +606,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Get delayed delivery messages config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),})
+            @ApiResponse(code = 500, message = "Internal server error"), })
     public void getDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
                                            @PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace,
@@ -626,8 +626,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Set delayed delivery messages config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setDelayedDeliveryPolicies(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -650,8 +650,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Set delayed delivery messages config on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
                                               @PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace,
