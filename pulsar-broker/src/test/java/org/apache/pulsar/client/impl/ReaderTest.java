@@ -439,8 +439,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSameSubName() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testSameSubName" + System.currentTimeMillis();
-        final String topic2 = "persistent://my-property/my-ns/testSameSubName" + System.currentTimeMillis();
+        final String topic = "persistent://my-property/my-ns/testSameSubName";
         final String subName = "my-sub-name";
 
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
@@ -451,7 +450,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try {
             reader2 = pulsarClient.newReader(Schema.STRING)
                     .subscriptionName(subName)
-                    .topic(topic2)
+                    .topic(topic)
                     .startMessageId(MessageId.earliest).create();
             fail("should fail");
         } catch (PulsarClientException e) {
