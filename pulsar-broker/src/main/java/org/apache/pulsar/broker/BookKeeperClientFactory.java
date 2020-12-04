@@ -27,7 +27,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
- * Provider of a new BookKeeper client instance
+ * Provider of a new BookKeeper client instance.
  */
 public interface BookKeeperClientFactory {
     BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
