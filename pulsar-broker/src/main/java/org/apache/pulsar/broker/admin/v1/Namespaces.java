@@ -483,10 +483,11 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 400, message = "Invalid autoSubscriptionCreation override")})
-    public void setAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
-                                            @PathParam("property") String property, @PathParam("cluster") String cluster,
-                                            @PathParam("namespace") String namespace,
-                                            AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+    public void setAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
         try {
             validateNamespaceName(property, cluster, namespace);
             internalSetAutoSubscriptionCreation(asyncResponse, autoSubscriptionCreationOverride);
@@ -661,10 +662,11 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                          @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-                                          @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
-                                                  DispatchRate dispatchRate) {
+    public void setReplicatorDispatchRate(
+            @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
+                    DispatchRate dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }
@@ -704,8 +706,10 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota."
                     + " Increase retention quota and retry request")})
-    public void setBacklogQuota(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
+    public void setBacklogQuota(
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             BacklogQuota backlogQuota) {
         validateNamespaceName(property, cluster, namespace);
         internalSetBacklogQuota(backlogQuotaType, backlogQuota);
@@ -1006,9 +1010,10 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
-    public void setMaxConsumersPerSubscription(@PathParam("property") String property,
-                                               @PathParam("cluster") String cluster,
-                                               @PathParam("namespace") String namespace, int maxConsumersPerSubscription) {
+    public void setMaxConsumersPerSubscription(
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, int maxConsumersPerSubscription) {
         validateNamespaceName(property, cluster, namespace);
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
     }

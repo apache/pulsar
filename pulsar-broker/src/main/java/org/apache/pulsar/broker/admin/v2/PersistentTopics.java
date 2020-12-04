@@ -178,7 +178,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
     @ApiOperation(value = "Revoke permissions on a topic.",
             notes = "Revoke permissions to a role on a single topic. If the permission was not set at the topic"
-                    + "level, but rather at the namespace level, this operation will return an error (HTTP status code 412).")
+                    + "level, but rather at the namespace level,"
+                    + " this operation will return an error (HTTP status code 412).")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
