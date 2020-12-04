@@ -446,22 +446,23 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(subName)
                 .topic(topic)
                 .startMessageId(MessageId.earliest).create();
-        Reader<String> reader2 = null;
-        try {
-            reader2 = pulsarClient.newReader(Schema.STRING)
-                    .subscriptionName(subName)
-                    .topic(topic)
-                    .startMessageId(MessageId.earliest).create();
+        //We can not create a new reader with the same subscription name
+        try (Reader<String> ignored = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create()) {
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e instanceof PulsarClientException.ConsumerBusyException);
             assertTrue(e.getMessage().contains("Exclusive consumer is already connected"));
         }
-
+        //It is possible to create a new reader with the same subscription name after closing the first reader
         reader.close();
-        if (reader2 != null) {
-            reader2.close();
-        }
+        pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create().close();
+
     }
 
 }
