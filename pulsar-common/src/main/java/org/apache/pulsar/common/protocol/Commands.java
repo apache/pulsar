@@ -1158,7 +1158,6 @@ public class Commands {
         messageIdDataBuilder.setEntryId(entryId);
         if (ackSet != null) {
             messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
-            ackSet.recycle();
         }
 
         if (batchSize >= 0) {
