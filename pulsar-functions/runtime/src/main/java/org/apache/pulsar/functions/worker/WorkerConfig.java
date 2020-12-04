@@ -274,6 +274,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long instanceLivenessCheckFreqMs;
     @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "Whether to enable the broker client authentication used by function workers to talk to brokers"
+    )
+    private Boolean brokerClientAuthenticationEnabled = null;
+    public boolean isBrokerClientAuthenticationEnabled() {
+        if (brokerClientAuthenticationEnabled != null) {
+            return brokerClientAuthenticationEnabled;
+        } else {
+            return authenticationEnabled;
+        }
+    }
+    @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )
