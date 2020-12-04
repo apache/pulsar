@@ -694,7 +694,7 @@ public abstract class AdminResource extends PulsarWebResource {
             return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
-                throw (RestException) e;
+                throw (RestException) e.getCause();
             }
             throw new RestException(e);
         }
@@ -707,7 +707,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     .get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
-                throw (RestException) e;
+                throw (RestException) e.getCause();
             }
             throw new RestException(e);
         }
