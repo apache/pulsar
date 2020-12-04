@@ -848,6 +848,7 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
+* `remove-message-ttl`
 * `get-anti-affinity-group`
 * `set-anti-affinity-group`
 * `get-anti-affinity-namespaces`
@@ -1166,7 +1167,16 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds|3600s|
+
+### `remove-message-ttl`
+Remove the message TTL for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-message-ttl tenant/namespace
+```
+
 
 ### `get-anti-affinity-group`
 Get Anti-affinity group name for a namespace
