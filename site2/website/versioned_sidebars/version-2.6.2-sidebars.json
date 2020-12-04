@@ -17,7 +17,8 @@
       "version-2.6.2-concepts-authentication",
       "version-2.6.2-concepts-topic-compaction",
       "version-2.6.2-concepts-tiered-storage",
-      "version-2.6.2-concepts-proxy-sni-routing"
+      "version-2.6.2-concepts-proxy-sni-routing",
+      "version-2.6.2-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.6.2-schema-get-started",
