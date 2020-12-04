@@ -32,11 +32,11 @@ import java.util.Map;
  * Commands for administering packages.
  */
 @Parameters(commandDescription = "Operations about packages")
-public class CmdPackages extends CmdBase {
+class CmdPackages extends CmdBase {
 
     private final Packages packages;
 
-    public CmdPackages(PulsarAdmin admin) {
+    CmdPackages(PulsarAdmin admin) {
         super("packages", admin);
         this.packages = admin.packages();
 
