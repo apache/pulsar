@@ -48,7 +48,7 @@ public class CompactorTool {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required=true)
+        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
@@ -104,8 +104,8 @@ public class CompactorTool {
         ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
 
         ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
-                                              ZooKeeperClientFactory.SessionType.ReadWrite,
-                                              (int)brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
+                ZooKeeperClientFactory.SessionType.ReadWrite,
+                (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
         BookKeeper bk = bkClientFactory.create(brokerConfig, zk, Optional.empty(), null);
         try (PulsarClient pulsar = clientBuilder.build()) {
