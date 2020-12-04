@@ -131,7 +131,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 409, message = "Partitioned topic already exist")})
     public void createPartitionedTopic(@Suspended final AsyncResponse asyncResponse,
                                        @PathParam("property") String property, @PathParam("cluster") String cluster,
-                                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
+                                                   String encodedTopic,
                                        int numPartitions) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);

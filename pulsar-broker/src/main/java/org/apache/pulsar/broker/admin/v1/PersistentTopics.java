@@ -130,7 +130,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}/{topic}/permissions/{role}")
     @ApiOperation(hidden = true, value = "Revoke permissions on a topic.",
             notes = "Revoke permissions to a role on a single topic. If the permission was not set at the topic"
-                    + "level, but rather at the namespace level, this operation will return an error (HTTP status code 412).")
+                    + "level, but rather at the namespace level,"
+                    + " this operation will return an error (HTTP status code 412).")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -155,7 +156,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic already exist")})
     public void createPartitionedTopic(@Suspended final AsyncResponse asyncResponse,
                                        @PathParam("property") String property, @PathParam("cluster") String cluster,
-                                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
+                                                   String encodedTopic,
                                        int numPartitions) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
@@ -327,7 +329,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist")})
     public void getManagedLedgerInfo(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                     @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                                     @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
+                                                 String encodedTopic,
                                      @Suspended AsyncResponse asyncResponse,
                                      @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
@@ -524,10 +527,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "Not supported for partitioned topics")})
     public void resetCursorOnPosition(@Suspended final AsyncResponse asyncResponse,
                                       @PathParam("property") String property, @PathParam("cluster") String cluster,
-                                      @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                                      @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
+                                                  String encodedTopic,
                                       @PathParam("subName") String encodedSubName,
                                       @QueryParam("authoritative") @DefaultValue("false")
-                                              boolean authoritative, ResetCursorData resetCursorData) {
+                                                  boolean authoritative, ResetCursorData resetCursorData) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative,
