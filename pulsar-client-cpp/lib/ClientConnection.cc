@@ -1152,6 +1152,27 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::SEEK_RESPONSE: {
+                    const CommandSeekResponse& response = incomingCmd_.seekresponse();
+                    LOG_DEBUG(cnxString_ << "Received seek response from server. req_id: "
+                                         << response.request_id());
+                    Lock lock(mutex_);
+                    auto it = pendingSeekRequests_.find(response.request_id());
+                    if (it != pendingSeekRequests_.end()) {
+                        Promise<Result, MessageId> seekPromise = it->second;
+                        lock.unlock();
+                        const auto& data = response.messageiddata();
+                        MessageId messageId(data.partition(), data.ledgerid(), data.entryid(),
+                                            data.batch_index());
+                        seekPromise.setValue(messageId);
+                    } else {
+                        lock.unlock();
+                        LOG_WARN("SeekResponse command - Received unknown request id from server: "
+                                 << response.request_id());
+                    }
+                    break;
+                }
+
                 default: {
                     LOG_WARN(cnxString_ << "Received invalid message from server");
                     close();
@@ -1340,6 +1361,33 @@ Future<Result, ResponseData> ClientConnection::sendRequestWithId(SharedBuffer cm
     return requestData.promise.getFuture();
 }
 
+Future<Result, MessageId> ClientConnection::sendSeekRequestWithId(SharedBuffer cmd, int requestId) {
+    Promise<Result, MessageId> promise;
+    Lock lock(mutex_);
+
+    if (isClosed()) {
+        lock.unlock();
+        promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
+    }
+
+    SeekRequestData requestData;
+    requestData.timer = executor_->createDeadlineTimer();
+    requestData.timer->expires_from_now(operationsTimeout_);
+    auto self = shared_from_this();
+    requestData.timer->async_wait([this, self, &requestData](const boost::system::error_code& ec) {
+        if (!ec) {
+            requestData.promise.setFailed(ResultTimeout);
+        }
+    });
+
+    pendingSeekRequests_.emplace(requestId, promise);
+    lock.unlock();
+
+    sendCommand(cmd);
+    return promise.getFuture();
+}
+
 void ClientConnection::handleRequestTimeout(const boost::system::error_code& ec,
                                             PendingRequestData pendingRequestData) {
     if (!ec) {
@@ -1414,6 +1462,7 @@ void ClientConnection::close() {
     auto pendingConsumerStatsMap = std::move(pendingConsumerStatsMap_);
     auto pendingGetLastMessageIdRequests = std::move(pendingGetLastMessageIdRequests_);
     auto pendingGetNamespaceTopicsRequests = std::move(pendingGetNamespaceTopicsRequests_);
+    auto pendingSeekRequests = std::move(pendingSeekRequests_);
 
     numOfPendingLookupRequest_ = 0;
 
@@ -1455,6 +1504,9 @@ void ClientConnection::close() {
         kv.second.setFailed(ResultConnectError);
     }
     for (auto& kv : pendingGetNamespaceTopicsRequests) {
+        kv.second.setFailed(ResultConnectError);
+    }
+    for (auto& kv : pendingSeekRequests) {
         kv.second.setFailed(ResultConnectError);
     }
 }

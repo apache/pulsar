@@ -143,6 +143,8 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
      */
     Future<Result, ResponseData> sendRequestWithId(SharedBuffer cmd, int requestId);
 
+    Future<Result, MessageId> sendSeekRequestWithId(SharedBuffer cmd, int requestId);
+
     const std::string& brokerAddress() const;
 
     const std::string& cnxString() const;
@@ -167,6 +169,11 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     struct LookupRequestData {
         LookupDataResultPromisePtr promise;
+        DeadlineTimerPtr timer;
+    };
+
+    struct SeekRequestData {
+        Promise<Result, MessageId> promise;
         DeadlineTimerPtr timer;
     };
 
@@ -304,6 +311,9 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;
     PendingGetNamespaceTopicsMap pendingGetNamespaceTopicsRequests_;
+
+    typedef std::map<long, Promise<Result, MessageId>> PendingSeekRequestsMap;
+    PendingSeekRequestsMap pendingSeekRequests_;
 
     std::mutex mutex_;
     typedef std::unique_lock<std::mutex> Lock;

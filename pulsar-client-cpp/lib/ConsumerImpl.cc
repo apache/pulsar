@@ -729,7 +729,17 @@ void ConsumerImpl::messageProcessed(Message& msg) {
  */
 Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
     Message nextMessageInQueue;
-    if (incomingMessages_.peekAndClear(nextMessageInQueue)) {
+    bool peekSuccess = incomingMessages_.peekAndClear(nextMessageInQueue);
+
+    bool expectedDuringSeek = true;
+    if (duringSeek_.compare_exchange_strong(expectedDuringSeek, false)) {
+        std::lock_guard<std::mutex> lock(seekMutex_);
+        return Optional<MessageId>::of(seekMessageId_);
+    } else if (subscriptionMode_ == Commands::SubscriptionModeDurable) {
+        return startMessageId_;
+    }
+
+    if (peekSuccess) {
         // There was at least one message pending in the queue
         const MessageId& nextMessageId = nextMessageInQueue.getMessageId();
         MessageId previousMessageId;
@@ -1084,15 +1094,6 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
     }
 }
 
-void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
-    if (result == ResultOk) {
-        LOG_INFO(getName() << "Seek successfully");
-    } else {
-        LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
-    }
-    callback(result);
-}
-
 void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     Lock lock(mutex_);
     if (state_ == Closed || state_ == Closing) {
@@ -1110,15 +1111,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     if (cnx) {
         ClientImplPtr client = client_.lock();
         uint64_t requestId = client->newRequestId();
-        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
-                            << requestId);
-        Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
-
-        if (callback) {
-            future.addListener(
-                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
-        }
+        sendSeekCommand(cnx, Commands::newSeek(consumerId_, requestId, msgId), requestId, callback);
         return;
     }
 
@@ -1142,20 +1135,34 @@ void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     if (cnx) {
         ClientImplPtr client = client_.lock();
         uint64_t requestId = client->newRequestId();
-        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
-                            << requestId);
-        Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, timestamp), requestId);
-
-        if (callback) {
-            future.addListener(
-                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
-        }
+        sendSeekCommand(cnx, Commands::newSeek(consumerId_, requestId, timestamp), requestId, callback);
         return;
     }
 
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
     callback(ResultNotConnected);
+}
+
+void ConsumerImpl::sendSeekCommand(const ClientConnectionPtr& cnx, const SharedBuffer& cmd, int requestId,
+                                   const ResultCallback& callback) {
+    LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
+                        << requestId);
+    Future<Result, MessageId> future = cnx->sendSeekRequestWithId(cmd, requestId);
+    if (callback) {
+        auto self = shared_from_this();
+        future.addListener([this, self, callback](Result result, const MessageId& messageId) {
+            if (result == ResultOk) {
+                std::lock_guard<std::mutex> seekLock(seekMutex_);
+                seekMessageId_ = messageId;
+                LOG_DEBUG(getName() << " Seek to " << seekMessageId_ << " successfully");
+                duringSeek_ = true;
+            } else {
+                LOG_ERROR(getName() << " Failed to seek: " << result);
+            }
+            callback(result);
+        });
+    }
+    return;
 }
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }

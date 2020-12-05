@@ -125,7 +125,6 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
-    void handleSeek(Result result, ResultCallback callback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
     virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
     virtual bool isReadCompacted();
@@ -168,6 +167,8 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
 
     Optional<MessageId> clearReceiveQueue();
+    void sendSeekCommand(const ClientConnectionPtr& cnx, const SharedBuffer& cmd, int requestId,
+                         const ResultCallback& callback);
 
     std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -179,6 +180,11 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Commands::SubscriptionMode subscriptionMode_;
     Optional<MessageId> startMessageId_;
+
+    // `seekMutex_` protects `seekMessageId_`
+    std::mutex seekMutex_;
+    MessageId seekMessageId_;
+    std::atomic_bool duringSeek_{false};
 
     Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
