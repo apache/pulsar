@@ -138,7 +138,6 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1246,12 +1245,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             } else {
                 //If the topic level policy is null, use the namespace level
                 managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
-            }
-
-            if (managedLedgerConfig.getLedgerOffloader() != null) {
-                managedLedgerConfig.getLedgerOffloader().getOffloadPolicies().setManagedLedgerOffloadedReadPriority(
-                        OffloadedReadPriority.fromString(serviceConfig.getManagedLedgerDataReadPriority())
-                );
             }
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
