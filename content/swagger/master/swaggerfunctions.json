@@ -1481,31 +1481,21 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "replicated" : {
-          "type" : "boolean"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "topicName" : {
-          "type" : "string"
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1517,16 +1507,27 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
-        "data" : {
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "keyBytes" : {
           "type" : "array",
@@ -1535,13 +1536,12 @@
             "format" : "byte"
           }
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
+        "data" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "value" : {
           "type" : "object"
