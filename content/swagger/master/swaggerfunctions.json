@@ -1481,12 +1481,33 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
         "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1495,17 +1516,18 @@
             "format" : "byte"
           }
         },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "producerName" : {
           "type" : "string"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "replicated" : {
-          "type" : "boolean"
         },
         "data" : {
           "type" : "array",
@@ -1520,28 +1542,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
         },
         "value" : {
           "type" : "object"
