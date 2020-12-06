@@ -18467,10 +18467,10 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -18890,9 +18890,16 @@
                     "type": "number",
                     "format": "double"
                 },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
                 },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -18904,19 +18911,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -18925,6 +18919,12 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -19115,10 +19115,10 @@
                 "producerName": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -20059,10 +20059,10 @@
                 "producerName": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "connectedSince": {
                     "type": "string"
                 },
                 "address": {
@@ -20188,11 +20188,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
