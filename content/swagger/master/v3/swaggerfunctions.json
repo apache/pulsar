@@ -1716,10 +1716,33 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "replicatedFrom": {
+                    "type": "string"
+                },
                 "topicName": {
                     "type": "string"
                 },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
                 "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1729,41 +1752,18 @@
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
                 },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "data": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "keyBytes": {
+                "data": {
                     "type": "array",
                     "items": {
                         "type": "string",
