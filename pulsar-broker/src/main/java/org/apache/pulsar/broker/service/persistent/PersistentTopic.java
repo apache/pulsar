@@ -2206,12 +2206,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<MessageId> getLastMessageId() {
         CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
         PositionImpl position = (PositionImpl) ledger.getLastConfirmedEntry();
-        int partitionIndex = TopicName.getPartitionIndex(getName());
+        String name = getName();
+        int partitionIndex = TopicName.getPartitionIndex(name);
+        if (log.isDebugEnabled()) {
+            log.debug("getLastMessageId {}, partitionIndex{}, position {}", name, partitionIndex, position);
+        }
         if (position.getEntryId() == -1) {
             completableFuture
                     .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+            return completableFuture;
         }
-        ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+        ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+        if (!ledgerImpl.ledgerExists(position.getLedgerId())) {
+            completableFuture
+                    .complete(MessageId.earliest);
+            return completableFuture;
+        }
+        ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
