@@ -87,7 +87,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
+                future.completeExceptionally(getApiException(throwable.getCause()));
             }
         });
         return future;    }
@@ -107,7 +107,8 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata) {
         WebTarget path = packages.path(PackageName.get(packageName).toRestPath() + "/metadata");
-        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));    }
+        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
+    }
 
     @Override
     public void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException {
@@ -238,7 +239,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
+                future.completeExceptionally(getApiException(throwable.getCause()));
             }
         });
         return future;
@@ -263,14 +264,12 @@ public class PackagesImpl extends ComponentResource implements Packages {
         asyncGetRequest(path, new InvocationCallback<List<String>>() {
             @Override
             public void completed(List<String> strings) {
-                System.out.println("get");
-                System.out.println(strings);
                 future.complete(strings);
             }
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
+                future.completeExceptionally(getApiException(throwable.getCause()));
             }
         });
         return future;

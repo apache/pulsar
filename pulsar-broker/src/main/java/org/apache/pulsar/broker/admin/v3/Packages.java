@@ -85,13 +85,14 @@ public class Packages extends PackagesBase {
             @ApiResponse(code = 500, message = "Internal server error.")
         }
     )
+    @Consumes(MediaType.APPLICATION_JSON)
     public void updateMeta(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
         final @PathParam("namespace") String namespace,
         final @PathParam("packageName") String packageName,
         final @PathParam("version") String version,
-        final @FormDataParam("metadata") PackageMetadata metadata,
+        final PackageMetadata metadata,
         @Suspended AsyncResponse asyncResponse
     ) {
         if (metadata != null) {
@@ -204,7 +205,7 @@ public class Packages extends PackagesBase {
         final @PathParam("packageName") String packageName,
         @Suspended AsyncResponse asyncResponse
     ) {
-        internalListPackages(type, tenant, namespace, packageName, asyncResponse);
+        internalListVersions(type, tenant, namespace, packageName, asyncResponse);
     }
 
     @GET
@@ -227,6 +228,6 @@ public class Packages extends PackagesBase {
         final @PathParam("namespace") String namespace,
         @Suspended AsyncResponse asyncResponse
     ) {
-        internalListVersions(type, tenant, namespace, asyncResponse);
+        internalListPackages(type, tenant, namespace, asyncResponse);
     }
 }

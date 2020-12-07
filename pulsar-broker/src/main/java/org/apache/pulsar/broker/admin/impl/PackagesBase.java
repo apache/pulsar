@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import java.io.InputStream;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -27,12 +33,6 @@ import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-import java.io.InputStream;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Slf4j
 public class PackagesBase extends AdminResource {
@@ -58,7 +58,7 @@ public class PackagesBase extends AdminResource {
         } else if (throwable instanceof PackagesManagementException.NotFoundException) {
             asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, throwable.getMessage()));
         } else {
-            asyncResponse.resume(throwable);
+            asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
         }
         return null;
     }
@@ -68,7 +68,7 @@ public class PackagesBase extends AdminResource {
         getPackageNameAsync(type, tenant, namespace, packageName, version)
             .thenCompose(name -> getPackagesManagement().getMeta(name))
             .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e, asyncResponse));
+            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
     protected void internalUpdateMetadata(String type, String tenant, String namespace, String packageName,
@@ -76,10 +76,11 @@ public class PackagesBase extends AdminResource {
         getPackageNameAsync(type, tenant, namespace, packageName, version)
             .thenCompose(name -> getPackagesManagement().updateMeta(name, metadata))
             .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e, asyncResponse));
+            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected StreamingOutput internalDownload(String type, String tenant, String namespace, String packageName, String version) {
+    protected StreamingOutput internalDownload(String type, String tenant, String namespace,
+                                               String packageName, String version) {
         try {
             PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
             return output -> {
@@ -88,7 +89,11 @@ public class PackagesBase extends AdminResource {
                 } catch (InterruptedException e) {
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 } catch (ExecutionException e) {
-                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
+                    if (e.getCause() instanceof PackagesManagementException.NotFoundException) {
+                        throw new RestException(Response.Status.NOT_FOUND, e.getCause().getMessage());
+                    } else {
+                        throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
+                    }
                 }
             };
         } catch (IllegalArgumentException illegalArgumentException) {
@@ -97,34 +102,36 @@ public class PackagesBase extends AdminResource {
     }
 
     protected void internalUpload(String type, String tenant, String namespace, String packageName, String version,
-                                  PackageMetadata metadata, InputStream uploadedInputStream, AsyncResponse asyncResponse) {
+                                  PackageMetadata metadata, InputStream uploadedInputStream,
+                                  AsyncResponse asyncResponse) {
         getPackageNameAsync(type, tenant, namespace, packageName, version)
             .thenCompose(name -> getPackagesManagement().upload(name, metadata, uploadedInputStream))
             .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e, asyncResponse));
+            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalDelete(String type, String tenant, String namespace, String packageName, String version, AsyncResponse asyncResponse) {
+    protected void internalDelete(String type, String tenant, String namespace, String packageName, String version,
+                                  AsyncResponse asyncResponse) {
         getPackageNameAsync(type, tenant, namespace, packageName, version)
             .thenCompose(name -> getPackagesManagement().delete(name))
             .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e, asyncResponse));
+            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalListPackages(String type, String tenant, String namespace, String packageName,
+    protected void internalListVersions(String type, String tenant, String namespace, String packageName,
                                                      AsyncResponse asyncResponse) {
         getPackageNameAsync(type, tenant, namespace, packageName, "")
             .thenCompose(name -> getPackagesManagement().list(name))
             .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e, asyncResponse));
+            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalListVersions(String type, String tenant, String namespace, AsyncResponse asyncResponse) {
+    protected void internalListPackages(String type, String tenant, String namespace, AsyncResponse asyncResponse) {
         try {
             PackageType packageType = PackageType.getEnum(type);
             getPackagesManagement().list(packageType, tenant, namespace)
                 .thenAccept(asyncResponse::resume)
-                .exceptionally(e -> handleError(e, asyncResponse));
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
         } catch (IllegalArgumentException iae) {
             asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, iae.getMessage()));
         }
