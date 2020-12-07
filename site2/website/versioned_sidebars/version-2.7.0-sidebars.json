@@ -104,6 +104,7 @@
       "version-2.7.0-performance-pulsar-perf"
     ],
     "Client libraries": [
+      "version-2.7.0-client-libraries",
       "version-2.7.0-client-libraries-java",
       "version-2.7.0-client-libraries-go",
       "version-2.7.0-client-libraries-python",
