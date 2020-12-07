@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
+import java.util.Properties;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration;
 
@@ -66,5 +67,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
     @Override
     public void setProperty(String key, String value) {
         configuration.setProperty(key, value);
+    }
+
+    @Override
+    public void setProperty(Properties properties) {
+        this.configuration.setProperty(properties);
     }
 }
