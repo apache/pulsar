@@ -23,7 +23,6 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
@@ -55,7 +54,6 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.*;
 import static org.testng.Assert.assertEquals;
 
-@NotThreadSafe
 public class SimpleProducerConsumerTest {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
@@ -265,7 +263,7 @@ public class SimpleProducerConsumerTest {
          *
          */
 
-        String topicName = "persistent://my-property/my-ns/myrsa-topic1";
+        String topicName = "persistent://my-property/my-ns/myrsa-topic2";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
@@ -495,11 +493,11 @@ public class SimpleProducerConsumerTest {
             }
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic3")
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
 

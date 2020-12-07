@@ -52,7 +52,7 @@
             <groupId>org.apache.pulsar</groupId>
             <artifactId>bouncy-castle-bc</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <classifier>pkg</classifier>
         </dependency>
 
         <dependency>
