@@ -411,9 +411,12 @@ public abstract class NamespacesBase extends AdminResource {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
                 for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(tp -> futures.add(tp.deleteForcefully()));
-                    });
+                    try {
+                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
+                        asyncResponse.resume(new RestException(e));
+                    }
                 }
             }
             // forcefully delete namespace bundles
@@ -1374,7 +1377,7 @@ public abstract class NamespacesBase extends AdminResource {
             algorithm = NamespaceBundleSplitAlgorithm.of(pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
         }
         if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.rangeEquallyDivide;
+            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
         }
         return algorithm;
     }

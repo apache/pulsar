@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.Future;
+
 import java.util.List;
+import java.util.Optional;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -38,7 +41,7 @@ public interface PulsarCommandSender {
     void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
     void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                     SchemaVersion schemaVersion);
+                                     SchemaVersion schemaVersion, Optional<Long> topicEpoch);
 
     void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
                                  long entryId);

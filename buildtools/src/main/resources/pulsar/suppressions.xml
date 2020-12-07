@@ -39,6 +39,7 @@
     <!-- suppress all checks in the copied code -->
     <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
 
+    <!-- TODO: gradually delete below lines to make the whole project conform the checkstyle rule  -->
     <suppress checks=".*" files="MLDataFormats.java"/>
     <suppress checks=".*" files="BitSetRecyclable.java"/>
     <suppress checks=".*" files="Schema.java"/>
@@ -47,4 +48,18 @@
     <suppress checks="ConstantName" files="MessageId.java"/>
     <suppress checks="MethodName" files="TopicsImpl.java"/>
     <suppress checks="MemberName" files="TopicsImpl.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/admin/impl/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/cache/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/delayed/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/intercept/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/loadbalance/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/lookup/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/namespace/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/protocol/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/service/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/stats/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/systopic/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/tools/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/transaction/.*.java"/>
+    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/web/.*.java"/>
 </suppressions>

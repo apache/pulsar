@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.packages.management.core;
 
+import java.util.Properties;
+
 /**
  * Packages storage configuration is used to set and get the storage related configuration values.
  */
@@ -29,7 +31,7 @@ public interface PackagesStorageConfiguration {
      *          property key
      * @return the value
      */
-    Object getProperty(String key);
+    String getProperty(String key);
 
     /**
      * Set a property with the key.
@@ -39,5 +41,13 @@ public interface PackagesStorageConfiguration {
      * @param value
      *          property value
      */
-    void setProperty(String key, Object value);
+    void setProperty(String key, String value);
+
+    /**
+     * Set a group of the property.
+     *
+     * @param properties
+     *          a group of the property
+     */
+    void setProperty(Properties properties);
 }

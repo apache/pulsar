@@ -51,8 +51,9 @@ public class Bookies extends AdminResource {
 
     @GET
     @Path("/racks-info")
-    @ApiOperation(value = "Gets the rack placement information for all the bookies in the cluster", response = BookiesRackConfiguration.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiOperation(value = "Gets the rack placement information for all the bookies in the cluster",
+            response = BookiesRackConfiguration.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public BookiesRackConfiguration getBookiesRackInfo() throws Exception {
         validateSuperUserAccess();
 
@@ -69,8 +70,9 @@ public class Bookies extends AdminResource {
 
     @GET
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Gets the rack placement information for a specific bookie in the cluster", response = BookieInfo.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiOperation(value = "Gets the rack placement information for a specific bookie in the cluster",
+            response = BookieInfo.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public BookieInfo getBookieRackInfo(@PathParam("bookie") String bookieAddress) throws Exception {
         validateSuperUserAccess();
 
@@ -113,8 +115,9 @@ public class Bookies extends AdminResource {
 
     @POST
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note."
+            + " bookie address format:`address:port`)")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public void updateBookieRackInfo(@PathParam("bookie") String bookieAddress, @QueryParam("group") String group,
             BookieInfo bookieInfo) throws Exception {
         validateSuperUserAccess();

@@ -119,7 +119,8 @@ public abstract class AdminResource extends PulsarWebResource {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    protected void zkCreateOptimisticAsync(ZooKeeper zk, String path, byte[] content, AsyncCallback.StringCallback callback) {
+    protected void zkCreateOptimisticAsync(ZooKeeper zk, String path,
+                                           byte[] content, AsyncCallback.StringCallback callback) {
         ZkUtils.asyncCreateFullPathOptimistic(zk, path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT, callback, null);
     }
@@ -148,7 +149,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Get the domain of the topic (whether it's persistent or non-persistent)
+     * Get the domain of the topic (whether it's persistent or non-persistent).
      */
     protected String domain() {
         if (uri.getPath().startsWith("persistent/")) {
@@ -226,10 +227,9 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Get the list of namespaces (on every cluster) for a given property
+     * Get the list of namespaces (on every cluster) for a given property.
      *
-     * @param property
-     *            the property name
+     * @param property the property name
      * @return the list of namespaces
      */
     protected List<String> getListOfNamespaces(String property) throws Exception {
@@ -239,7 +239,8 @@ public abstract class AdminResource extends PulsarWebResource {
         for (String clusterOrNamespace : globalZk().getChildren(path(POLICIES, property), false)) {
             // Then get the list of namespaces
             try {
-                final List<String> children = globalZk().getChildren(path(POLICIES, property, clusterOrNamespace), false);
+                final List<String> children = globalZk().getChildren(
+                        path(POLICIES, property, clusterOrNamespace), false);
                 if (children == null || children.isEmpty()) {
                     String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
                     // if the length is 0 then this is probably a leftover cluster from namespace created
@@ -274,18 +275,19 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
         CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
-        zkCreateOptimisticAsync(localZk(), ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
-            (rc, s, o, s1) -> {
-                if (KeeperException.Code.OK.intValue() == rc) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Topic partition {} created.", clientAppId(),
-                            topicName.getPartition(partition));
-                    }
-                    result.complete(null);
-                } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
-                    log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
-                        topicName.getPartition(partition));
-                    result.complete(null);
+        zkCreateOptimisticAsync(localZk(),
+                ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
+                (rc, s, o, s1) -> {
+                    if (KeeperException.Code.OK.intValue() == rc) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Topic partition {} created.", clientAppId(),
+                                    topicName.getPartition(partition));
+                        }
+                        result.complete(null);
+                    } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
+                        log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
+                                topicName.getPartition(partition));
+                        result.complete(null);
                 } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
                     log.warn("[{}] Fail to create topic partition {} with concurrent modification, retry now.",
                             clientAppId(), topicName.getPartition(partition));
@@ -354,7 +356,8 @@ public abstract class AdminResource extends PulsarWebResource {
         validateTopicName(tenant, namespace, encodedTopic);
         // second, "-partition-" is not allowed
         if (encodedTopic.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Partitioned Topic Name should not contain '-partition-'");
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Partitioned Topic Name should not contain '-partition-'");
         }
     }
 
@@ -365,8 +368,9 @@ public abstract class AdminResource extends PulsarWebResource {
             if (partitionedTopicMetadata.partitions < 1) {
                 throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
             }
-        } catch ( InterruptedException  | ExecutionException e) {
-            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}", domain(), tenant, namespace, topicName, e);
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}",
+                    domain(), tenant, namespace, topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
     }
@@ -385,7 +389,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Redirect the call to the specified broker
+     * Redirect the call to the specified broker.
      *
      * @param broker
      *            Broker name
@@ -527,14 +531,14 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() == 0 ||
-                retention.getRetentionSizeInMB() == -1) {
+        if (retention == null || retention.getRetentionSizeInMB() == 0
+                || retention.getRetentionSizeInMB() == -1) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimit() >= ( retention.getRetentionSizeInMB() * 1024 * 1024)) {
+        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         return true;
@@ -697,7 +701,7 @@ public abstract class AdminResource extends PulsarWebResource {
             return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
-                throw (RestException) e;
+                throw (RestException) e.getCause();
             }
             throw new RestException(e);
         }
@@ -710,7 +714,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     .get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
-                throw (RestException) e;
+                throw (RestException) e.getCause();
             }
             throw new RestException(e);
         }
@@ -765,7 +769,8 @@ public abstract class AdminResource extends PulsarWebResource {
         List<String> partitionedTopics = Lists.newArrayList();
 
         try {
-            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), topicDomain.value());
+            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE,
+                    namespaceName.toString(), topicDomain.value());
             List<String> topics = globalZk().getChildren(partitionedTopicPath, false);
             partitionedTopics = topics.stream()
                     .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
@@ -792,11 +797,13 @@ public abstract class AdminResource extends PulsarWebResource {
             return;
         }
         if (numPartitions <= 0) {
-            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be more than 0"));
             return;
         }
         if (maxPartitions > 0 && numPartitions > maxPartitions) {
-            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions));
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be less than or equal to " + maxPartitions));
             return;
         }
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
@@ -812,31 +819,42 @@ public abstract class AdminResource extends PulsarWebResource {
                         if (KeeperException.Code.OK.intValue() == rc) {
                             globalZk().sync(path, (rc2, s2, ctx) -> {
                                 if (KeeperException.Code.OK.intValue() == rc2) {
-                                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                                    log.info("[{}] Successfully created partitioned topic {}",
+                                            clientAppId(), topicName);
                                     tryCreatePartitionsAsync(numPartitions).thenAccept(v -> {
-                                        log.info("[{}] Successfully created partitions for topic {}", clientAppId(), topicName);
+                                        log.info("[{}] Successfully created partitions for topic {}",
+                                                clientAppId(), topicName);
                                         asyncResponse.resume(Response.noContent().build());
                                     }).exceptionally(e -> {
-                                        log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+                                        log.error("[{}] Failed to create partitions for topic {}",
+                                                clientAppId(), topicName);
                                         // The partitioned topic is created but there are some partitions create failed
                                         asyncResponse.resume(new RestException(e));
                                         return null;
                                     });
                                 } else {
-                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
-                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
+                                    log.error("[{}] Failed to create partitioned topic {}",
+                                            clientAppId(), topicName,
+                                            KeeperException.create(KeeperException.Code.get(rc2)));
+                                    asyncResponse.resume(
+                                            new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
                                 }
                             }, null);
                         } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
-                            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Partitioned topic already exists"));
+                            log.warn("[{}] Failed to create already existing partitioned topic {}",
+                                    clientAppId(), topicName);
+                            asyncResponse.resume(new RestException(Status.CONFLICT,
+                                    "Partitioned topic already exists"));
                         } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
-                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
+                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification",
+                                    clientAppId(),
                                     topicName);
                             asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
                         } else {
-                            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
-                            asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
+                            log.error("[{}] Failed to create partitioned topic {}",
+                                    clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
+                            asyncResponse.resume(
+                                    new RestException(KeeperException.create(KeeperException.Code.get(rc))));
                         }
                     });
                 } catch (Exception e) {
@@ -865,7 +883,8 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(topics -> {
                     boolean exists = false;
                     for (String topic : topics) {
-                        if (topicName.getPartitionedTopicName().equals(TopicName.get(topic).getPartitionedTopicName())) {
+                        if (topicName.getPartitionedTopicName().equals(
+                                TopicName.get(topic).getPartitionedTopicName())) {
                             exists = true;
                             break;
                         }

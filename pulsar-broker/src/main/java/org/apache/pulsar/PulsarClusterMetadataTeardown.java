@@ -41,7 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Teardown the metadata for a existed Pulsar cluster
+ * Teardown the metadata for a existed Pulsar cluster.
  */
 public class PulsarClusterMetadataTeardown {
 
@@ -87,7 +87,8 @@ public class PulsarClusterMetadataTeardown {
         }
 
         if (arguments.bkMetadataServiceUri != null) {
-            BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
+            BookKeeper bookKeeper =
+                    new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
             ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
             ManagedLedgerFactory managedLedgerFactory = new ManagedLedgerFactoryImpl(bookKeeper, localZk);
 

@@ -165,6 +165,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> subscriptionName(String subscriptionName) {
+        conf.setSubscriptionName(subscriptionName);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> readCompacted(boolean readCompacted) {
         conf.setReadCompacted(readCompacted);
         return this;

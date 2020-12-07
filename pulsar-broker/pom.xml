@@ -338,6 +338,13 @@
 
     <!-- transaction related dependencies (end) -->
 
+    <!-- package manager related dependencies (begin) -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- package manager related dependencies (begin) -->
   </dependencies>
 
   <build>
@@ -350,7 +357,7 @@
             <id>check-style</id>
             <phase>verify</phase>
             <configuration>
-              <configLocation>../buildtools/src/main/resources/pulsar/checkstyle-pulsar-broker.xml</configLocation>
+              <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
               <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
               <encoding>UTF-8</encoding>
               <excludes>**/proto/*</excludes>

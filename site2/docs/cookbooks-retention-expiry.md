@@ -315,6 +315,27 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
+### Remove the TTL configuration for a namespace
+
+#### pulsar-admin
+
+Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
+
+##### Example
+
+```shell
+$ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
+```
+
+#### REST API
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL}
+
+#### Java
+
+```java
+admin.namespaces().removeNamespaceMessageTTL(namespace)
+```
 ## Delete messages from namespaces
 
 If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

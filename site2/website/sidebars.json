@@ -14,7 +14,8 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-proxy-sni-routing"
+      "concepts-proxy-sni-routing",
+      "concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -104,6 +105,7 @@
       "performance-pulsar-perf"
     ],
     "Client libraries": [
+      "client-libraries",
       "client-libraries-java",
       "client-libraries-go",
       "client-libraries-python",

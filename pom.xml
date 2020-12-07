@@ -180,6 +180,8 @@ flexible messaging model and an intuitive client API.</description>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
     <nsq-client.version>1.0</nsq-client.version>
+    <cron-utils.version>9.1.3</cron-utils.version>
+    <spring-context.version>5.3.1</spring-context.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -218,6 +220,8 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.3</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.1.3</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.2.0</spotbugs.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1170,6 +1174,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
                 <exclude>**/ByteBufCodedInputStream.java</exclude>
                 <exclude>**/ByteBufCodedOutputStream.java</exclude>
+                <exclude>**/ahc.properties</exclude>
                 <exclude>bin/proto/*</exclude>
                 <exclude>conf/schema_example.conf</exclude>
                 <exclude>data/**</exclude>
@@ -1339,16 +1344,16 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                     <goal>enforce</goal>
                 </goals>
-                <configuration>
-                    <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
-                    </rules>
-                </configuration>
+              <configuration>
+                <rules>
+                  <requireJavaVersion>
+                    <version>[1.8.0,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <version>[3.3.9,)</version>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
             </execution>
         </executions>
       </plugin>
@@ -1454,6 +1459,18 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
           <version>${git-commit-id-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>${spotbugs-maven-plugin.version}</version>
+            <dependencies>
+              <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs</artifactId>
+                <version>${spotbugs.version}</version>
+              </dependency>
+            </dependencies>
         </plugin>
       </plugins>
     </pluginManagement>

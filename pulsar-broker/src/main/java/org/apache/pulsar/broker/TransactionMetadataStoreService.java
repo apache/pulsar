@@ -44,6 +44,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvide
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +82,8 @@ public class TransactionMetadataStoreService {
                                 }
                             }
                         } else {
-                            LOG.error("Failed to get owned topic list when triggering on-loading bundle {}.", bundle, ex);
+                            LOG.error("Failed to get owned topic list when triggering on-loading bundle {}.",
+                                    bundle, ex);
                         }
                     });
             }
@@ -95,11 +97,13 @@ public class TransactionMetadataStoreService {
                                 if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
                                         .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
                                         && name.isPartitioned()) {
-                                    removeTransactionMetadataStore(TransactionCoordinatorID.get(name.getPartitionIndex()));
+                                    removeTransactionMetadataStore(
+                                            TransactionCoordinatorID.get(name.getPartitionIndex()));
                                 }
                             }
                         } else {
-                            LOG.error("Failed to get owned topic list error when triggering un-loading bundle {}.", bundle, ex);
+                            LOG.error("Failed to get owned topic list error when triggering un-loading bundle {}.",
+                                    bundle, ex);
                         }
                      });
             }
@@ -111,15 +115,23 @@ public class TransactionMetadataStoreService {
     }
 
     public void addTransactionMetadataStore(TransactionCoordinatorID tcId) {
-        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory())
-            .whenComplete((store, ex) -> {
-                if (ex != null) {
-                    LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
-                } else {
-                    stores.put(tcId, store);
-                    LOG.info("Added new transaction meta store {}", tcId);
-                }
-            });
+        pulsarService.getBrokerService()
+                .getManagedLedgerConfig(TopicName.get(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + tcId))
+                .whenComplete((v, e) -> {
+                    if (e != null) {
+                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
+                    } else {
+                        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v)
+                                .whenComplete((store, ex) -> {
+                                    if (ex != null) {
+                                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
+                                    } else {
+                                        stores.put(tcId, store);
+                                        LOG.info("Added new transaction meta store {}", tcId);
+                                    }
+                                });
+                    }
+        });
     }
 
     public void removeTransactionMetadataStore(TransactionCoordinatorID tcId) {
@@ -245,13 +257,15 @@ public class TransactionMetadataStoreService {
                 if (TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
                             messageIdList.stream().filter(
-                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
-                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex()
+                                            == TopicName.get(partition).getPartitionIndex()).collect(
+                                    Collectors.toList()));
                 } else if (TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
                             messageIdList.stream().filter(
-                                    msg -> ((MessageIdImpl) msg).getPartitionIndex() ==
-                                            TopicName.get(partition).getPartitionIndex()).collect(Collectors.toList()));
+                                    msg -> ((MessageIdImpl) msg).getPartitionIndex()
+                                            == TopicName.get(partition).getPartitionIndex()).collect(
+                                    Collectors.toList()));
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
