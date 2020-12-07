@@ -1179,7 +1179,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else {
                 for (int batchIndex = 0; batchIndex < msgs.size(); batchIndex++) {
                     msgs.get(batchIndex)
-                            .setMessageId(new BatchMessageIdImpl(ledgerId, entryId, partitionIndex, batchIndex));
+                            .setMessageId(new BatchMessageIdImpl(ledgerId, entryId, partitionIndex, batchIndex, msgs.size()));
                 }
             }
         }

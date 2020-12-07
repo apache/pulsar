@@ -3426,6 +3426,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         latch.await();
 
+        log.info("### resetPosition {}", resetPos);
+
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic(topicName);
 

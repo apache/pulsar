@@ -40,6 +40,10 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         this(ledgerId, entryId, partitionIndex, batchIndex, 0, BatchMessageAckerDisabled.INSTANCE);
     }
 
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize) {
+        this(ledgerId, entryId, partitionIndex, batchIndex, batchSize, BatchMessageAcker.newAcker(batchSize));
+    }
+
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize, BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
