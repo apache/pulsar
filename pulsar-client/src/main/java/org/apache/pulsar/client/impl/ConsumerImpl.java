@@ -2141,7 +2141,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             result.getEntryId(), result.getPartition()));
                 } else {
                     future.complete(new BatchMessageIdImpl(result.getLedgerId(),
-                            result.getEntryId(), result.getPartition(), result.getBatchIndex()));
+                            result.getEntryId(), result.getPartition(), result.getBatchIndex(), result.getBatchSize()));
                 }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);

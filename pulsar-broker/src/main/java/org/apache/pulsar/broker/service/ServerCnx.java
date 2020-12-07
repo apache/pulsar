@@ -1569,6 +1569,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .setLedgerId(position.getLedgerId())
                         .setEntryId(position.getEntryId())
                         .setPartition(partitionIndex)
+                        .setBatchSize(batchSize)
                         .setBatchIndex(largestBatchIndex).build();
 
                 ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
