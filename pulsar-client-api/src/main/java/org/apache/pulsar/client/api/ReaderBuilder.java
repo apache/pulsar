@@ -214,6 +214,15 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> subscriptionRolePrefix(String subscriptionRolePrefix);
 
     /**
+     * Set the subscription name.
+     * <p>If subscriptionRolePrefix is set at the same time, this configuration will prevail
+     *
+     * @param subscriptionName
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> subscriptionName(String subscriptionName);
+
+    /**
      * If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog
      * of the topic. This means that, if the topic has been compacted, the reader will only see the latest value for
      * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
