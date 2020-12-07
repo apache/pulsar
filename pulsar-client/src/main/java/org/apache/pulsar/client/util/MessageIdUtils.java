@@ -20,6 +20,9 @@ package org.apache.pulsar.client.util;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 public class MessageIdUtils {
     public static final long getOffset(MessageId messageId) {
@@ -40,5 +43,12 @@ public class MessageIdUtils {
         long entryId = offset & 0x0F_FF_FF_FFL;
 
         return new MessageIdImpl(ledgerId, entryId, -1);
+    }
+
+    public static int getBathIndexFromMessageIdData(PulsarApi.MessageIdData messageIdData) {
+        BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(
+                SafeCollectionUtils.longListToArray(messageIdData.getAckSetList()));
+        return (messageIdData.getAckSetList() == null || messageIdData.getAckSetList().size() == 0)
+                ? -1 : (bitSetRecyclable.length() - bitSetRecyclable.cardinality());
     }
 }

@@ -82,6 +82,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -1909,8 +1910,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             acknowledgmentsGroupingTracker.flushAndClean();
 
             MessageIdData messageIdData = seekResponse.getMessageIdData();
-            seekMessageId = new BatchMessageIdImpl(messageIdData.getLedgerId(), messageIdData.getEntryId(),
-                    messageIdData.getPartition(), -1);
+            seekMessageId = new BatchMessageIdImpl(new MessageIdImpl(seekResponse.getMessageIdData().getLedgerId(),
+                    seekResponse.getMessageIdData().getEntryId(), seekResponse.getMessageIdData().getPartition()));
+            startMessageId = seekMessageId;
             log.info("[{}][{}] Successfully reset subscription to publish time {} and position {}",
                     topic, subscription, timestamp, seekMessageId);
 
@@ -1974,7 +1976,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info("[{}][{}] Successfully reset subscription to message id {}", topic, subscription, messageId);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) messageId);
+            MessageIdData messageIdData = seekResponse.getMessageIdData();
+            int batchIndex = MessageIdUtils.getBathIndexFromMessageIdData(messageIdData);
+            seekMessageId = new BatchMessageIdImpl(messageIdData.getLedgerId(), messageIdData.getEntryId(),
+                    messageIdData.getPartition(), batchIndex);
+            log.info("[{}][{}] Successfully reset subscription to position {}",
+                    topic, subscription, seekMessageId);
+
             duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 

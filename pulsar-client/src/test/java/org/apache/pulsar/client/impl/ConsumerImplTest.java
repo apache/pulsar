@@ -38,6 +38,10 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.MessageIdUtils;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -168,5 +172,24 @@ public class ConsumerImplTest {
         future.cancel(true);
         // then
         Assert.assertFalse(consumer.hasPendingBatchReceive());
+    }
+
+    @Test
+    public void testGetBathIndexFromMessageIdData() {
+        int batchSize = 99;
+        int batchIndex = 55;
+
+        BitSetRecyclable ackSet = BitSetRecyclable.create();
+        ackSet.set(0, batchSize);
+        ackSet.clear(0, batchIndex);
+
+        PulsarApi.MessageIdData messageIdData = PulsarApi.MessageIdData.newBuilder()
+                .setEntryId(1)
+                .setLedgerId(1)
+                .setBatchIndex(batchIndex)
+                .addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()))
+                .build();
+        int batchIndexRes = MessageIdUtils.getBathIndexFromMessageIdData(messageIdData);
+        Assert.assertEquals(batchIndex, batchIndexRes);
     }
 }
