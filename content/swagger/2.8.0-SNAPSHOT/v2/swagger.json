@@ -10266,7 +10266,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -10816,7 +10816,7 @@
                     {
                         "name": "timestamp",
                         "in": "path",
-                        "description": "time in minutes to reset back to (or minutes, hours,days,weeks eg:100m, 3h, 2d, 5w)",
+                        "description": "time in minutes to reset back to (or minutes, hours, days, weeks eg:100m, 3h, 2d, 5w)",
                         "required": true,
                         "type": "integer",
                         "format": "int64"
@@ -16468,7 +16468,7 @@
                     {
                         "name": "timestamp",
                         "in": "path",
-                        "description": "time in minutes to reset back to (or minutes, hours,days,weeks eg:100m, 3h, 2d, 5w)",
+                        "description": "time in minutes to reset back to (or minutes, hours, days, weeks eg:100m, 3h, 2d, 5w)",
                         "required": true,
                         "type": "integer",
                         "format": "int64"
@@ -18890,13 +18890,10 @@
                     "type": "number",
                     "format": "double"
                 },
-                "bandwidthIn": {
+                "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "lastUpdate": {
@@ -18920,10 +18917,13 @@
                 "loadReportType": {
                     "type": "string"
                 },
-                "cpu": {
+                "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "directMemory": {
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 }
             }
