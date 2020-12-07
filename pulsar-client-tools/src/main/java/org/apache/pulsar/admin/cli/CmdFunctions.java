@@ -694,6 +694,10 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getPy());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getGo());
             } else {
                 admin.functions().createFunction(functionConfig, userCodeFile);
             }
