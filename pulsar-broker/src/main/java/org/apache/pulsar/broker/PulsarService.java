@@ -122,6 +122,11 @@ import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.packages.management.core.PackagesManagement;
+import org.apache.pulsar.packages.management.core.PackagesStorage;
+import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
+import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration;
+import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
@@ -207,6 +212,10 @@ public class PulsarService implements AutoCloseable {
     private TransactionBufferClient transactionBufferClient;
 
     private BrokerInterceptor brokerInterceptor;
+
+    // packages management service
+    private PackagesManagement packagesManagement;
+
 
     public enum State {
         Init, Started, Closed
@@ -606,6 +615,11 @@ public class PulsarService implements AutoCloseable {
 
             // start function worker service if necessary
             this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
+
+            // start packages management service if necessary
+            if (config.isEnablePackagesManagement()) {
+                this.startPackagesManagementService();
+            }
 
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
@@ -1327,6 +1341,18 @@ public class PulsarService implements AutoCloseable {
                     authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
+    }
+
+    private void startPackagesManagementService() throws IOException {
+        // TODO: using provider to initialize the packages management service.
+        this.packagesManagement = new PackagesManagementImpl();
+        PackagesStorageProvider storageProvider = PackagesStorageProvider
+            .newProvider(config.getPackagesManagementStorageProvider());
+        DefaultPackagesStorageConfiguration storageConfiguration = new DefaultPackagesStorageConfiguration();
+        storageConfiguration.setProperty(config.getProperties());
+        PackagesStorage storage = storageProvider.getStorage(new DefaultPackagesStorageConfiguration());
+        storage.initialize();
+        packagesManagement.initialize(storage);
     }
 
     public Optional<Integer> getListenPortHTTP() {

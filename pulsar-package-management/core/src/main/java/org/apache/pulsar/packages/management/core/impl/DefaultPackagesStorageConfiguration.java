@@ -22,7 +22,8 @@ import java.util.Properties;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
 public class DefaultPackagesStorageConfiguration implements PackagesStorageConfiguration {
-    private final Properties properties = new Properties();
+
+    private Properties properties = new Properties();
 
     @Override
     public String getProperty(String key) {
@@ -32,5 +33,10 @@ public class DefaultPackagesStorageConfiguration implements PackagesStorageConfi
     @Override
     public void setProperty(String key, String value) {
         properties.setProperty(key, value);
+    }
+
+    @Override
+    public void setProperty(Properties properties) {
+        this.properties = properties;
     }
 }
