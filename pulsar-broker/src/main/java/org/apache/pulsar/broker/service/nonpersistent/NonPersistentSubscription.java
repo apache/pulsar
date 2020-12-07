@@ -34,12 +34,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.dispatcher.Dispatcher;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.dispatcher.DispatcherConfiguration;
+import org.apache.pulsar.broker.service.dispatcher.DispatcherFactory;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
@@ -100,18 +102,19 @@ public class NonPersistentSubscription implements Subscription {
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             Dispatcher previousDispatcher = null;
-
+            DispatcherConfiguration dispatcherConfiguration = new DispatcherConfiguration(consumer.subType(),
+                    null, 0, topic, this, null);
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
+                    dispatcher = (NonPersistentDispatcher) DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
+                    dispatcher = (NonPersistentDispatcher) DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Failover:
@@ -123,35 +126,16 @@ public class NonPersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
-                            topic, this);
+                    dispatcherConfiguration.setPartitionIndex(partitionIndex);
+                    dispatcher = (NonPersistentDispatcher) DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
                     KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
-
-                    switch (ksm.getKeySharedMode()) {
-                        case STICKY:
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                    new HashRangeExclusiveStickyKeyConsumerSelector());
-                            break;
-
-                        case AUTO_SPLIT:
-                        default:
-                            StickyKeyConsumerSelector selector;
-                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
-                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-                            } else {
-                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-                            }
-
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, selector);
-                            break;
-                    }
+                    dispatcherConfiguration.setKsm(ksm);
+                    dispatcher = (NonPersistentDispatcher) DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());;
                 }
                 break;
             default:

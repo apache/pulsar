@@ -189,7 +189,7 @@ public class Consumer {
         return consumerName;
     }
 
-    void notifyActiveConsumerChange(Consumer activeConsumer) {
+    public void notifyActiveConsumerChange(Consumer activeConsumer) {
         if (log.isDebugEnabled()) {
             log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
                 consumerId, topicName, subscription.getName(), activeConsumer);

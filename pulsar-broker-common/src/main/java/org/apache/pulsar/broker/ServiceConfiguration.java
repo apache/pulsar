@@ -626,6 +626,62 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
 
+    // <-- Pluggable dispatcher -->
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Path to a nar file containing all customized dispatchers if we want to use customized dispatcher."
+    )
+    private String dispatcherNarPath = null;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Customized dispatcher to use for persistent Exclusive subscription mode."
+    )
+    private String persistentDispatcherExclusive = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for persistent Shared subscription mode."
+    )
+    private String persistentDispatcherShared = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for persistent Failover subscription mode."
+    )
+    private String persistentDispatcherFailover = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for persistent Key_Shared subscription mode."
+    )
+    private String persistentDispatcherKeyShared = null;
+
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for non-persistent Exclusive subscription mode."
+    )
+    private String nonpersistentDispatcherExclusive = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for non-persistent Shared subscription mode."
+    )
+    private String nonpersistentDispatcherShared = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for non-persistent Failover subscription mode."
+    )
+    private String nonpersistentDispatcherFailover = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Customized dispatcher to use for non-persistent Key_Shared subscription mode."
+    )
+    private String nonpersistentDispatcherKeyShared = null;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,

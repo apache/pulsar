@@ -51,9 +51,11 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.dispatcher.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.dispatcher.DispatcherConfiguration;
+import org.apache.pulsar.broker.service.dispatcher.DispatcherFactory;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -169,18 +171,20 @@ public class PersistentSubscription implements Subscription {
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             Dispatcher previousDispatcher = null;
+            DispatcherConfiguration dispatcherConfiguration = new DispatcherConfiguration(consumer.subType(),
+                    cursor, 0, topic, this, null);
 
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
+                    dispatcher = DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                    dispatcher = DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Failover:
@@ -192,9 +196,9 @@ public class PersistentSubscription implements Subscription {
                 }
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                    dispatcherConfiguration.setPartitionIndex(partitionIndex);
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
-                            topic, this);
+                    dispatcher = DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             case Key_Shared:
@@ -202,8 +206,8 @@ public class PersistentSubscription implements Subscription {
                     previousDispatcher = dispatcher;
                     KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
                             : KeySharedMeta.getDefaultInstance();
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                    dispatcherConfiguration.setKsm(ksm);
+                    dispatcher = DispatcherFactory.getDispatcher(dispatcherConfiguration, topic.getBrokerService().getPulsar().getConfiguration());
                 }
                 break;
             default:

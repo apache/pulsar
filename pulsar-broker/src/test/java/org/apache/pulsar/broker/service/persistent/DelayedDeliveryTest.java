@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.dispatcher.Dispatcher;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;

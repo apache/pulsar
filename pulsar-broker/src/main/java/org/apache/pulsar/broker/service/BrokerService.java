@@ -104,6 +104,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.dispatcher.Dispatcher;
+import org.apache.pulsar.broker.service.dispatcher.DispatcherUtils;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -446,6 +448,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
+
+        DispatcherUtils.init(serviceConfig.getDispatcherNarPath());
     }
 
     protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
@@ -680,6 +684,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ClientCnxnAspect.registerExecutor(null);
         topicOrderedExecutor.shutdown();
         delayedDeliveryTrackerFactory.close();
+        DispatcherUtils.close();
         if (topicPublishRateLimiterMonitor != null) {
             topicPublishRateLimiterMonitor.shutdown();
         }
