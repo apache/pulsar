@@ -980,8 +980,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
-        subscriptions.remove(subscriptionName);
-        return CompletableFuture.completedFuture(null);
+        // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
+        // That creates deadlock. so, execute remove it in different thread.
+        return CompletableFuture.runAsync(() -> subscriptions.remove(subscriptionName), brokerService.executor());
     }
 
     @Override
