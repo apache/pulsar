@@ -25,12 +25,10 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -45,7 +43,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -339,7 +336,8 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
+                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
+                        bundleRange, true, true);
                 try {
                     final List<String> topicList = Lists.newArrayList();
                     pulsar().getBrokerService().forEachTopic(topic -> {
@@ -350,7 +348,8 @@ public class NonPersistentTopics extends PersistentTopics {
                     });
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
-                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                            namespaceName, bundleRange, e);
                     asyncResponse.resume(new RestException(e));
                 }
             }

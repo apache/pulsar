@@ -24,12 +24,10 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -43,7 +41,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -77,10 +74,13 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission")})
     public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
-                                                           @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                                           @PathParam("cluster") String cluster,
+                                                           @PathParam("namespace") String namespace,
                                                            @PathParam("topic") @Encoded String encodedTopic,
-                                                           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                                           @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
+                                                           @QueryParam("authoritative") @DefaultValue("false")
+                                                                       boolean authoritative,
+                                                           @QueryParam("checkAllowAutoCreation") @DefaultValue("false")
+                                                                       boolean checkAllowAutoCreation) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
     }
@@ -93,7 +93,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist")})
     public NonPersistentTopicStats getStats(@PathParam("property") String property,
-                                            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                            @PathParam("cluster") String cluster,
+                                            @PathParam("namespace") String namespace,
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
@@ -110,10 +111,13 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist")})
     public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
-                                                         @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                                         @PathParam("cluster") String cluster, @PathParam("namespace")
+                                                                     String namespace,
                                                          @PathParam("topic") @Encoded String encodedTopic,
-                                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                                         @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+                                                         @QueryParam("authoritative") @DefaultValue("false")
+                                                                     boolean authoritative,
+                                                         @QueryParam("metadata") @DefaultValue("false")
+                                                                     boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -263,11 +267,12 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
                     .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
-                log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
-                        namespace, bundleRange);
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
+                        cluster, namespace, bundleRange);
                 return null;
             }
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, true, true);
+            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
+                    true, true);
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());
