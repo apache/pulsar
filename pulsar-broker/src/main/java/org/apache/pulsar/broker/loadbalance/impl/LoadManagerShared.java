@@ -253,10 +253,11 @@ public class LoadManagerShared {
      * @param brokerToNamespaceToBundleRange
      *            Map from brokers to namespaces to bundle ranges.
      */
-    public static void removeMostServicingBrokersForNamespace(final String assignedBundleName,
-                                                              final Set<String> candidates,
-                                                              final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                                                                      brokerToNamespaceToBundleRange) {
+    public static void removeMostServicingBrokersForNamespace(
+            final String assignedBundleName,
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange) {
         if (candidates.isEmpty()) {
             return;
         }
@@ -311,11 +312,12 @@ public class LoadManagerShared {
      * @param candidates
      * @param brokerToNamespaceToBundleRange
      */
-    public static void filterAntiAffinityGroupOwnedBrokers(final PulsarService pulsar, final String assignedBundleName,
-                                                           final Set<String> candidates,
-                                                           final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                                                                   brokerToNamespaceToBundleRange,
-                                                           Map<String, String> brokerToDomainMap) {
+    public static void filterAntiAffinityGroupOwnedBrokers(
+            final PulsarService pulsar, final String assignedBundleName,
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange,
+            Map<String, String> brokerToDomainMap) {
         if (candidates.isEmpty()) {
             return;
         }
@@ -476,11 +478,12 @@ public class LoadManagerShared {
      * @return
      * @throws Exception
      */
-    public static boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker,
-                                                            final PulsarService pulsar,
-                                                            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                                                                    brokerToNamespaceToBundleRange,
-                                                            Set<String> candidateBrokers) throws Exception {
+    public static boolean shouldAntiAffinityNamespaceUnload(
+            String namespace, String bundle, String currentBroker,
+            final PulsarService pulsar,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange,
+            Set<String> candidateBrokers) throws Exception {
 
         Map<String, Integer> brokerNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar, namespace,
                 brokerToNamespaceToBundleRange).get(10, TimeUnit.SECONDS);
