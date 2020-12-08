@@ -1708,12 +1708,14 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
+                "topicName": {
+                    "type": "string"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1722,23 +1724,11 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "data": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1748,6 +1738,16 @@
                 "replicated": {
                     "type": "boolean"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "producerName": {
+                    "type": "string"
+                },
                 "keyBytes": {
                     "type": "array",
                     "items": {
@@ -1755,8 +1755,12 @@
                         "format": "byte"
                     }
                 },
-                "replicatedFrom": {
-                    "type": "string"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1765,10 +1769,6 @@
                 "eventTime": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "value": {
                     "type": "object"
