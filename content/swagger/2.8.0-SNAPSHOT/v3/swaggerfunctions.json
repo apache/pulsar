@@ -1708,15 +1708,33 @@
         "Message": {
             "type": "object",
             "properties": {
-                "replicated": {
-                    "type": "boolean"
-                },
                 "topicName": {
+                    "type": "string"
+                },
+                "publishTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicatedFrom": {
                     "type": "string"
                 },
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1725,15 +1743,8 @@
                         "format": "byte"
                     }
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
@@ -1744,9 +1755,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",
@@ -1761,14 +1769,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "publishTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
                 },
                 "value": {
                     "type": "object"
