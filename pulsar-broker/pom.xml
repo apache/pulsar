@@ -341,6 +341,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-core</artifactId>
+      <classifier>tests</classifier>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
