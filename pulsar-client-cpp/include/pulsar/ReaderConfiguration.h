@@ -105,6 +105,13 @@ class PULSAR_PUBLIC ReaderConfiguration {
     void setReadCompacted(bool compacted);
     bool isReadCompacted() const;
 
+    /**
+     * Set the internal subscription name.
+     * @param internal subscriptionName
+     */
+    void setInternalSubscriptionName(std::string internalSubscriptionName);
+    const std::string& getInternalSubscriptionName() const;
+
    private:
     std::shared_ptr<ReaderConfigurationImpl> impl_;
 };
