@@ -29,7 +29,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>bookkeeper-storage</artifactId>
+    <artifactId>pulsar-package-bookkeeper-storage</artifactId>
     <name>Apache Pulsar :: Package Management :: BookKeeper Storage</name>
 
     <dependencies>
