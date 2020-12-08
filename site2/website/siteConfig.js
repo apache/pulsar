@@ -33,6 +33,8 @@ const createVariableInjectionPlugin = variables => {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
         if (keyparts[0] == 'endpoint') {
+            console.log(key)
+            console.log(keyparts)
             return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
         }
       }
@@ -70,10 +72,10 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
-const restApiUrl = url + '/en' + "/admin-rest-api";
-const functionsApiUrl = url + '/en' + "/functions-rest-api";
-const sourceApiUrl = url + '/en' + "/source-rest-api";
-const sinkApiUrl = url + '/en' + "/sink-rest-api";
+const restApiUrl = url + "/admin-rest-api";
+const functionsApiUrl = url + "/functions-rest-api";
+const sourceApiUrl = url + "/source-rest-api";
+const sinkApiUrl = url + "/sink-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
