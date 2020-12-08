@@ -99,11 +99,12 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker", response = NamespaceOwnershipStatus.class, responseContainer = "Map")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+            response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
             @PathParam("broker-webserviceurl") String broker) throws Exception {
         validateSuperUserAccess();
@@ -122,21 +123,24 @@ public class BrokersBase extends AdminResource {
 
     @POST
     @Path("/configuration/{configName}/{configValue}")
-    @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value =
+            "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = {
-        @ApiResponse(code = 204, message = "Service configuration updated successfully"),
-        @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
-        @ApiResponse(code = 404, message = "Configuration not found"),
-        @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
-        @ApiResponse(code = 500, message = "Internal server error")})
-    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception {
+            @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 404, message = "Configuration not found"),
+            @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void updateDynamicConfiguration(@PathParam("configName") String configName,
+                                           @PathParam("configValue") String configValue) throws Exception {
         validateSuperUserAccess();
         updateDynamicConfigurationOnZk(configName, configValue);
     }
 
     @DELETE
     @Path("/configuration/{configName}")
-    @ApiOperation(value = "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value =
+            "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
