@@ -63,7 +63,6 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>install</phase>
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
