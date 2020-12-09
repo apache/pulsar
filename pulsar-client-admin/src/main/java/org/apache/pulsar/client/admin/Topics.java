@@ -2455,6 +2455,57 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
+    /**
+     * Get the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxMessageSize(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max message size for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxMessageSizeAsync(String topic);
+
+
+    /**
+     * Set the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxMessageSize Max message size of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxMessageSize(String topic, int maxMessageSize) throws PulsarAdminException;
+
+    /**
+     * Set the max message size for specified topic asynchronously.0 disables.
+     *
+     * @param topic Topic name
+     * @param maxMessageSize Max message size of topic
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxMessageSize);
+
+    /**
+     * Remove the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxMessageSize(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max message size for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxMessageSizeAsync(String topic);
 
     /**
      * Get the max number of consumer for specified topic.
@@ -2507,6 +2558,51 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxConsumersAsync(String topic);
+
+    /**
+     * Get the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
+     * Set the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @param interval
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationSnapshotInterval(String topic, int interval) throws PulsarAdminException;
+
+    /**
+     * Set the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @param interval
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String topic, int interval);
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationSnapshotInterval(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the deduplication snapshot interval for specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
 
     /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).

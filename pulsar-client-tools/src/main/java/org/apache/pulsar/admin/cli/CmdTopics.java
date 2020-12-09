@@ -126,6 +126,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("disable-deduplication", new DisableDeduplication());
         jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
 
+        jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
+        jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
+        jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
+
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
@@ -160,6 +164,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
         jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+
+        jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
+        jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
+        jcommander.addCommand("remove-max-message-size", new RemoveMaxMessageSize());
 
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
@@ -1106,6 +1114,51 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get deduplication snapshot interval for a topic")
+    private class GetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getDeduplicationSnapshotInterval(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set deduplication snapshot interval for a topic")
+    private class SetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-i", "--interval" }, description =
+                "Deduplication snapshot interval for topic in second, allowed range from 0 to Integer.MAX_VALUE", required = true)
+        private int interval;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (interval < 0) {
+                throw new ParameterException(String.format("Invalid interval '%d'. ", interval));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setDeduplicationSnapshotInterval(persistentTopic, interval);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove deduplication snapshot interval for a topic")
+    private class RemoveDeduplicationSnapshotInterval extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeDeduplicationSnapshotInterval(persistentTopic);
+        }
+    }
+
     @Parameters(commandDescription = "Get the retention policy for a topic")
     private class GetRetention extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -1640,6 +1693,45 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max message size for a topic")
+    private class GetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMaxMessageSize(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max message size for a topic")
+    private class SetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-message-size", "-m"}, description = "Max message size for a topic", required = true)
+        private int maxMessageSize;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxMessageSize(persistentTopic, maxMessageSize);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max message size for a topic")
+    private class RemoveMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxMessageSize(persistentTopic);
         }
     }
 

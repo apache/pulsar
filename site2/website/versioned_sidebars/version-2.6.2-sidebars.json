@@ -17,7 +17,8 @@
       "version-2.6.2-concepts-authentication",
       "version-2.6.2-concepts-topic-compaction",
       "version-2.6.2-concepts-tiered-storage",
-      "version-2.6.2-concepts-proxy-sni-routing"
+      "version-2.6.2-concepts-proxy-sni-routing",
+      "version-2.6.2-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.6.2-schema-get-started",
@@ -113,7 +114,6 @@
       "version-2.6.2-admin-api-non-persistent-topics",
       "version-2.6.2-admin-api-partitioned-topics",
       "version-2.6.2-admin-api-non-partitioned-topics",
-      "version-2.6.2-admin-api-schemas",
       "version-2.6.2-admin-api-functions"
     ],
     "Adaptors": [

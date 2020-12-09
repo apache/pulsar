@@ -133,7 +133,8 @@ public class WorkerService {
                     ? workerConfig.getFunctionWebServiceUrl()
                     : workerConfig.getWorkerWebAddress();
 
-            if (workerConfig.isAuthenticationEnabled()) {
+             // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+            if (workerConfig.isBrokerClientAuthenticationEnabled()) {
                 // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
                 // otherwise we will use brokerClientTrustCertsFilePath
                 final String pulsarClientTlsTrustCertsFilePath;
@@ -142,7 +143,6 @@ public class WorkerService {
                 } else {
                     pulsarClientTlsTrustCertsFilePath = workerConfig.getTlsTrustCertsFilePath();
                 }
-
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                     workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),

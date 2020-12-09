@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.RateLimitFunction;
 import org.apache.pulsar.common.util.RateLimiter;
-
-import java.util.concurrent.TimeUnit;
 
 public class PrecisPublishLimiter implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;

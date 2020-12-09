@@ -32,6 +32,19 @@ class CustomRoutingPolicy : public MessageRoutingPolicy {
 
     int getPartition(const Message& msg, const TopicMetadata& topicMetadata) { return 0; }
 };
+
+class SimpleRoundRobinRoutingPolicy : public MessageRoutingPolicy {
+   public:
+    SimpleRoundRobinRoutingPolicy() : counter_(0) {}
+
+    int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
+        return counter_++ % topicMetadata.getNumPartitions();
+    }
+
+   private:
+    uint32_t counter_;
+};
+
 }  // namespace pulsar
 
 #endif  // CUSTOM_ROUTER_POLICY_HEADER_

@@ -56,7 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -222,7 +222,7 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
             case GO:
-                throw new UnsupportedOperationException();
+                break;
         }
 
         this.authConfig = authConfig;
@@ -235,6 +235,15 @@ public class KubernetesRuntime implements Runtime {
 
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            // before we run the command, make sure the go executable with correct permissions
+            this.processArgs.add("chmod");
+            this.processArgs.add("777");
+            this.processArgs.add(this.originalCodeFileName);
+            this.processArgs.add("&&");
+        }
+
         // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
         // so that when we kill the pod, the signal will get propagated to the function code
         this.processArgs.add("exec");
@@ -251,7 +260,7 @@ public class KubernetesRuntime implements Runtime {
                         authConfig,
                         "$" + ENV_SHARD_ID,
                         grpcPort,
-                        -1l,
+                        -1L,
                         logConfigFile,
                         secretsProviderClassName,
                         secretsProviderConfig,
@@ -260,7 +269,8 @@ public class KubernetesRuntime implements Runtime {
                         pythonExtraDependencyRepository,
                         metricsPort,
                         narExtractionDirectory,
-                        functinoInstanceClassPath));
+                        functinoInstanceClassPath,
+                        true));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }

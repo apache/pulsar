@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -76,6 +76,9 @@ public class ConsumerStats {
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;

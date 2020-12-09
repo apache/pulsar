@@ -24,10 +24,8 @@ import io.airlift.compress.lz4.Lz4RawCompressor;
 import io.airlift.compress.lz4.Lz4RawDecompressor;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**

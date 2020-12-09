@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Pulsar system topic

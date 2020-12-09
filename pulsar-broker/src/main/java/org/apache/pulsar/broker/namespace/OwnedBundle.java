@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -37,7 +36,7 @@ public class OwnedBundle {
 
     /**
      * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
-     * based on {@link #active} flag
+     * based on {@link #active} flag.
      */
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private static final int FALSE = 0;
@@ -47,7 +46,7 @@ public class OwnedBundle {
     private volatile int isActive = TRUE;
 
     /**
-     * constructor
+     * constructor.
      *
      * @param suName
      */
@@ -57,7 +56,7 @@ public class OwnedBundle {
     };
 
     /**
-     * Constructor to allow set initial active flag
+     * Constructor to allow set initial active flag.
      *
      * @param suName
      * @param active
@@ -68,7 +67,7 @@ public class OwnedBundle {
     }
 
     /**
-     * Access to the namespace name
+     * Access to the namespace name.
      *
      * @return NamespaceName
      */
@@ -147,7 +146,7 @@ public class OwnedBundle {
     }
 
     /**
-     * Access method to the namespace state to check whether the namespace is active or not
+     * Access method to the namespace state to check whether the namespace is active or not.
      *
      * @return boolean value indicate that the namespace is active or not.
      */

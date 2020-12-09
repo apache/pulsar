@@ -23,7 +23,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -131,6 +131,13 @@ public class PulsarSink<T> implements Sink<T> {
                     builder.cryptoFailureAction(crypto.failureAction);
                     for (String encryptionKeyName : crypto.getEncryptionKeys()) {
                         builder.addEncryptionKey(encryptionKeyName);
+                    }
+                }
+                if (producerConfig.getBatchBuilder() != null) {
+                    if (producerConfig.getBatchBuilder().equals("KEY_BASED")) {
+                        builder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                    } else {
+                        builder.batcherBuilder(BatcherBuilder.DEFAULT);
                     }
                 }
             }

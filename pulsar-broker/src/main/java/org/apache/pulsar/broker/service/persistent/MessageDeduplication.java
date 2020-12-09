@@ -18,8 +18,17 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -41,17 +50,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  * Class that contains all the logic to control and perform the deduplication on the broker side
@@ -491,12 +489,19 @@ public class MessageDeduplication {
 
     public void takeSnapshot() {
         Integer interval = null;
+        // try to get topic-level policies
+        TopicPolicies topicPolicies = topic.getTopicPolicies(TopicName.get(topic.getName()));
+        if (topicPolicies != null) {
+            interval = topicPolicies.getDeduplicationSnapshotIntervalSeconds();
+        }
         try {
-            //try to get namespace-level policies
-            final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
-            if (policies.isPresent()) {
-                interval = policies.get().deduplicationSnapshotIntervalSeconds;
+            //if topic-level policies not exists, try to get namespace-level policies
+            if (interval == null) {
+                final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                        .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
+                if (policies.isPresent()) {
+                    interval = policies.get().deduplicationSnapshotIntervalSeconds;
+                }
             }
         } catch (Exception e) {
             log.error("Failed to get namespace policies", e);

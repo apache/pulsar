@@ -19,12 +19,10 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 
 /**
  * A store for storing all the transaction metadata.
@@ -55,11 +53,12 @@ public interface TransactionMetadataStore {
     /**
      * Create a new transaction in the transaction metadata store.
      *
+     * @param timeoutInMills the timeout duration of the transaction in mills
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransaction();
+    CompletableFuture<TxnID> newTransaction(long timeoutInMills);
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnid</tt>.
@@ -87,6 +86,7 @@ public interface TransactionMetadataStore {
      * <p>If the current transaction status is not <tt>expectedStatus</tt>, the
      * update will be failed.
      *
+     * @param txnid {@link TxnID} for update txn status
      * @param newStatus the new txn status that the transaction should be updated to
      * @param expectedStatus the expected status that the transaction should be
      * @return a future represents the result of the operation
@@ -95,7 +95,15 @@ public interface TransactionMetadataStore {
         TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
+     * Get the transaction coordinator id.
+     * @return transaction coordinator id
+     */
+    TransactionCoordinatorID getTransactionCoordinatorID();
+
+    /**
      * Close the transaction metadata store.
+     *
+     * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
 

@@ -51,7 +51,6 @@ import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
@@ -274,6 +273,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The frequency of instance liveness check, in milliseconds"
     )
     private long instanceLivenessCheckFreqMs;
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "Whether to enable the broker client authentication used by function workers to talk to brokers"
+    )
+    private Boolean brokerClientAuthenticationEnabled = null;
+    public boolean isBrokerClientAuthenticationEnabled() {
+        if (brokerClientAuthenticationEnabled != null) {
+            return brokerClientAuthenticationEnabled;
+        } else {
+            return authenticationEnabled;
+        }
+    }
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"

@@ -1132,7 +1132,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
-                NamespaceBundleSplitAlgorithm.topicCountEquallyDivideName);
+                    NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1161,7 +1161,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceSplitBundleWithDefaultTopicCountEquallyDivideAlgorithm() throws Exception {
-        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.topicCountEquallyDivideName);
+        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE);
         // Force to create a topic
         final String namespace = "prop-xyz/ns1";
         List<String> topicNames = Lists.newArrayList(
@@ -1195,7 +1195,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertNotEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
         }
         producers.forEach(Producer::closeAsync);
-        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.rangeEquallyDivideName);
+        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
     }
 
     @Test

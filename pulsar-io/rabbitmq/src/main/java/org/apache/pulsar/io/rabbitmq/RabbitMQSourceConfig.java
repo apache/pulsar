@@ -56,6 +56,12 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
         help = "Set true if the settings should be applied to the entire channel rather than each consumer")
     private boolean prefetchGlobal = false;
 
+    @FieldDoc(
+            required=false,
+            defaultValue = "false",
+            help = "Set true if the queue should be declared passively - ie to preserve durability/timeout settings")
+    private boolean passive = false;
+
     public static RabbitMQSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), RabbitMQSourceConfig.class);

@@ -29,8 +29,13 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
+import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketProducerServlet;
+import org.apache.pulsar.websocket.WebSocketReaderServlet;
+import org.apache.pulsar.websocket.WebSocketService;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,7 +189,7 @@ public class ProxyServiceStarter {
     public static void addWebServerHandlers(WebServer server,
                                      ProxyConfiguration config,
                                      ProxyService service,
-                                     BrokerDiscoveryProvider discoveryProvider) {
+                                     BrokerDiscoveryProvider discoveryProvider) throws Exception {
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class), Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
@@ -214,6 +219,30 @@ public class ProxyServiceStarter {
                         Collections.emptyList(), config.isAuthenticationEnabled());
                 log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
             }
+        }
+
+        if (config.isWebSocketServiceEnabled()) {
+            // add WebSocket servlet
+            // Use local broker address to avoid different IP address when using a VIP for service discovery
+            WebSocketService webSocketService = new WebSocketService(null, PulsarConfigurationLoader.convertFrom(config));
+            webSocketService.start();
+            final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
+            server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
+                    new ServletHolder(producerWebSocketServlet));
+            server.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
+                    new ServletHolder(producerWebSocketServlet));
+
+            final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
+            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
+                    new ServletHolder(consumerWebSocketServlet));
+            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
+                    new ServletHolder(consumerWebSocketServlet));
+
+            final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
+            server.addServlet(WebSocketReaderServlet.SERVLET_PATH,
+                    new ServletHolder(readerWebSocketServlet));
+            server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
+                    new ServletHolder(readerWebSocketServlet));
         }
     }
 

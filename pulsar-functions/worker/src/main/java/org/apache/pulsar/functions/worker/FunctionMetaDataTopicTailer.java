@@ -67,7 +67,7 @@ public class FunctionMetaDataTopicTailer
             try {
                 Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
                 if (msg == null) {
-                    if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                    if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
                         break;
                     }
                 } else {

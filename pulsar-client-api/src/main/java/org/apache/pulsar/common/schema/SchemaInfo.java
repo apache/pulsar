@@ -19,11 +19,9 @@
 package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -73,6 +71,7 @@ public class SchemaInfo {
             case AVRO:
             case JSON:
             case PROTOBUF:
+            case PROTOBUF_NATIVE:
                 return new String(schema, UTF_8);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =

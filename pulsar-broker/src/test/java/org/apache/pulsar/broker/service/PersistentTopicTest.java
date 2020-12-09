@@ -59,6 +59,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -106,6 +107,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -198,6 +200,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+                .when(serverCnx).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
@@ -368,23 +372,25 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String role = "appid1";
         // 1. simple add producer
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
+                role, false, null, SchemaVersion.Latest, 0, false,
+                ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer);
         assertEquals(topic.getProducers().size(), 1);
 
         // 2. duplicate add
         try {
-            topic.addProducer(producer);
+            topic.addProducer(producer).join();
             fail("Should have failed with naming exception because producer 'null' is already connected to the topic");
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.NamingException);
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), BrokerServiceException.NamingException.class);
         }
         assertEquals(topic.getProducers().size(), 1);
 
         // 3. add producer for a different topic
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
         Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest,0, false);
+                role, false, null, SchemaVersion.Latest,0, false,
+                ProducerAccessMode.Shared, Optional.empty());
         try {
             topic.addProducer(failProducer);
             fail("should have failed");
@@ -405,27 +411,29 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true);
+                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty());
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true);
+                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty());
         try {
-            topic.addProducer(producer1);
-            topic.addProducer(producer2);
+            topic.addProducer(producer1).join();
+            topic.addProducer(producer2).join();
             fail("should have failed");
-        } catch (BrokerServiceException.NamingException e) {
+        } catch (Exception e) {
             // OK
+            assertEquals(e.getCause().getClass(), BrokerServiceException.NamingException.class);
         }
 
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         Producer producer3 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 1, false);
+                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty());
 
         try {
-            topic.addProducer(producer3);
+            topic.addProducer(producer3).join();
             fail("should have failed");
-        } catch (BrokerServiceException.NamingException e) {
+        } catch (Exception e) {
             // OK
+            assertEquals(e.getCause().getClass(), BrokerServiceException.NamingException.class);
         }
 
         Assert.assertEquals(topic.getProducers().size(), 1);
@@ -434,7 +442,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(topic.getProducers().size(), 0);
 
         Producer producer4 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 2, false);
+                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer3);
         topic.addProducer(producer4);
@@ -447,13 +455,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(topic.getProducers().size(), 0);
 
         Producer producer5 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 1, false);
+                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer5);
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         Producer producer6 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 2, false);
+                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer6);
         Assert.assertEquals(topic.getProducers().size(), 1);
@@ -461,7 +469,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
 
         Producer producer7 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 3, true);
+                role, false, null, SchemaVersion.Latest, 3, true, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer7);
         Assert.assertEquals(topic.getProducers().size(), 1);
@@ -473,24 +481,24 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
-                false, null, SchemaVersion.Latest,0, false);
+                false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer);
         assertEquals(topic.getProducers().size(), 1);
 
         // 2. add producer2
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
-                false, null, SchemaVersion.Latest,0, false);
+                false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer2);
         assertEquals(topic.getProducers().size(), 2);
 
         // 3. add producer3 but reached maxProducersPerTopic
         try {
             Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
-                    false, null, SchemaVersion.Latest,0, false);
-            topic.addProducer(producer3);
+                    false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
+            topic.addProducer(producer3).join();
             fail("should have failed");
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.ProducerBusyException);
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), BrokerServiceException.ProducerBusyException.class);
         }
     }
 
@@ -944,8 +952,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 3. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
-        topic.addProducer(producer);
+                role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
+        topic.addProducer(producer).join();
 
         assertTrue(topic.delete().isCompletedExceptionally());
         assertFalse((boolean) isFencedField.get(topic));
@@ -1107,11 +1115,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             String role = "appid1";
             Thread.sleep(10); /* delay to ensure that the delete gets executed first */
             Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                    role, false, null, SchemaVersion.Latest, 0, false);
-            topic.addProducer(producer);
+                    role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
+            topic.addProducer(producer).join();
             fail("Should have failed");
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.TopicFencedException);
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), BrokerServiceException.TopicFencedException.class);
         }
 
         CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
@@ -1747,6 +1755,43 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(nonDeletableSubscription1, times(0)).delete();
         verify(deletableSubscription1, times(1)).delete();
         verify(nonDeletableSubscription2, times(0)).delete();
+    }
+
+    @Test
+    public void testTopicFencingTimeout() throws Exception {
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        Method fence = PersistentTopic.class.getDeclaredMethod("fence");
+        fence.setAccessible(true);
+        Method unfence = PersistentTopic.class.getDeclaredMethod("unfence");
+        unfence.setAccessible(true);
+
+        Field fencedTopicMonitoringTaskField = PersistentTopic.class.getDeclaredField("fencedTopicMonitoringTask");
+        fencedTopicMonitoringTaskField.setAccessible(true);
+        Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        Field isClosingOrDeletingField = PersistentTopic.class.getDeclaredField("isClosingOrDeleting");
+        isClosingOrDeletingField.setAccessible(true);
+
+        doReturn(10).when(svcConfig).getTopicFencingTimeoutSeconds();
+        fence.invoke(topic);
+        unfence.invoke(topic);
+        ScheduledFuture<?> fencedTopicMonitoringTask = (ScheduledFuture<?>) fencedTopicMonitoringTaskField.get(topic);
+        assertTrue(fencedTopicMonitoringTask.isDone());
+        assertTrue(fencedTopicMonitoringTask.isCancelled());
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
+
+        doReturn(1).when(svcConfig).getTopicFencingTimeoutSeconds();
+        fence.invoke(topic);
+        Thread.sleep(2000);
+        fencedTopicMonitoringTask = (ScheduledFuture<?>) fencedTopicMonitoringTaskField.get(topic);
+        assertTrue(fencedTopicMonitoringTask.isDone());
+        assertFalse(fencedTopicMonitoringTask.isCancelled());
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) throws IOException {

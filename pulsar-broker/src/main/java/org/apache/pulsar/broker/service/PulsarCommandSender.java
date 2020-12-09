@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.concurrent.Future;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-import java.util.List;
-
 public interface PulsarCommandSender {
-
 
     void sendPartitionMetadataResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
 
@@ -38,7 +41,7 @@ public interface PulsarCommandSender {
     void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
     void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                     SchemaVersion schemaVersion);
+                                     SchemaVersion schemaVersion, Optional<Long> topicEpoch);
 
     void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
                                  long entryId);
@@ -61,4 +64,16 @@ public interface PulsarCommandSender {
                             PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId, boolean proxyThroughServiceUrl);
 
     void sendLookupResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
+
+    void sendActiveConsumerChange(long consumerId, boolean isActive);
+
+    void sendSuccess(long requestId);
+
+    void sendError(long requestId, PulsarApi.ServerError error, String message);
+
+    void sendReachedEndOfTopic(long consumerId);
+
+    Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
+            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+            RedeliveryTracker redeliveryTracker);
 }

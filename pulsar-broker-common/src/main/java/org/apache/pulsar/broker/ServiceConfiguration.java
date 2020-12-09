@@ -91,6 +91,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
+    @Category
+    private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -162,6 +164,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean haProxyProtocolEnabled;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -242,7 +248,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "The maximum number of tenants that each pulsar cluster can create." 
+        doc = "The maximum number of tenants that each pulsar cluster can create."
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
@@ -453,9 +459,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
-    
+
     @FieldContext(
-        category = CATEGORY_POLICIES, 
+        category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "The maximum number of namespaces that each tenant can create."
             + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
@@ -827,6 +833,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String zookeeperSessionExpiredPolicy = "shutdown";
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "If a topic remains fenced for this number of seconds, it will be closed forcefully.\n"
+                + " If it is set to 0 or a negative number, the fenced topic will not be closed."
+    )
+    private int topicFencingTimeoutSeconds = 0;
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1208,6 +1220,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of guaranteed copies (acks to wait before write is complete)"
     )
     private int managedLedgerDefaultAckQuorum = 2;
+
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
+    private int managedLedgerCursorPositionFlushSeconds = 60;
 
     //
     //
@@ -1723,7 +1740,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
 
     /**** --- WebSocket --- ****/
@@ -1837,14 +1855,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "Enable transaction coordinator in broker"
     )
-    private boolean transactionCoordinatorEnabled = true;
+    private boolean transactionCoordinatorEnabled = false;
 
     @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
     private String transactionMetadataStoreProviderClassName =
-            "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
+            "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -1948,6 +1966,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+
+    /* packages management service configurations (begin) */
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "Enable the packages management service or not"
+    )
+    private boolean enablePackagesManagement = false;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The packages management service storage service provider"
+    )
+    private String packagesManagementStorageProvider = "org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider";
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "When the packages storage provider is bookkeeper, you can use this configuration to\n"
+            + "control the number of replicas for storing the package"
+    )
+    private int packagesReplicas = 1;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The bookkeeper ledger root path"
+    )
+    private String packagesManagementLedgerRootPath = "/ledgers";
+
+    /* packages management service configurations (end) */
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

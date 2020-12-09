@@ -56,6 +56,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ProducerFencedException extends BrokerServiceException {
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ServiceUnitNotReadyException extends BrokerServiceException {
         public ServiceUnitNotReadyException(String msg) {
             super(msg);
@@ -217,8 +223,12 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof ProducerFencedException) {
+            return ServerError.ProducerFenced;
         } else if (t instanceof TransactionConflictException) {
             return ServerError.TransactionConflict;
+        } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
+            return ServerError.TransactionNotFound;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

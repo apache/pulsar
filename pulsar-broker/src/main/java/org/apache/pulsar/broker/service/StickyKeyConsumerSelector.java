@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 
 public interface StickyKeyConsumerSelector {
@@ -43,4 +45,10 @@ public interface StickyKeyConsumerSelector {
      * @return consumer
      */
     Consumer select(byte[] stickyKey);
+
+    /**
+     * Get key hash ranges handled by each consumer
+     * @return A map where key is a consumer name and value is list of hash range it receiving message for.
+     */
+    Map<String, List<String>> getConsumerKeyHashRanges();
 }

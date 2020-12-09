@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -367,6 +365,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {
         return recentlyJoinedConsumers;
+    }
+
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        return selector.getConsumerKeyHashRanges();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);

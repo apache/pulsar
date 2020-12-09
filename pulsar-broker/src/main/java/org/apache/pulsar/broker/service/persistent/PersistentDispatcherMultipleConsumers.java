@@ -20,10 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
-
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-
+import com.google.common.collect.Range;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -32,9 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import com.google.common.collect.Range;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -795,6 +791,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public synchronized long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
+    }
+
+    @Override
+    public void clearDelayedMessages() {
+        this.delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
     }
 
     @Override
