@@ -117,7 +117,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 ((PersistentTopic) this.persistentSubscription.getTopic())
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
         this.pendingAckStoreFuture =
-                pendingAckStoreProvider.newPendingAckStore(persistentSubscription, subName);
+                pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
             if (pendingAckStore instanceof MLPendingAckStore) {
@@ -196,6 +196,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendIndividualAck(txnID, positions).whenComplete((v, e) -> {
                     if (e != null) {
+                        //we also modify the in memory state when append fail, because we don't know the persistent
+                        // state, when wereplay it, it will produce the wrong operation. so we append fail, we should
+                        // wait tc time out or client abort this transaction.
                         handleIndividualAck(txnID, positions);
                         semaphore.release();
                         completableFuture.completeExceptionally(e);
@@ -247,8 +250,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName, subName, txnID.toString(), position);
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (cumulativeAckOfTransaction != null && this.cumulativeAckOfTransaction.getKey().equals(txnID)
-                && compareToWithAckSet(position, this.cumulativeAckOfTransaction.getValue()) <= 0) {
+        if (cumulativeAckOfTransaction != null && (!this.cumulativeAckOfTransaction.getKey().equals(txnID)
+                || compareToWithAckSet(position, this.cumulativeAckOfTransaction.getValue()) <= 0)) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
                     " try to cumulative batch ack position: " + position + " within range of current " +
                     "currentPosition: " + this.cumulativeAckOfTransaction.getValue();
@@ -259,6 +262,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendCumulativeAck(txnID, position).whenComplete((v, e) -> {
                     if (e != null) {
+                        //we also modify the in memory state when append fail, because we don't know the persistent
+                        // state, when wereplay it, it will produce the wrong operation. so we append fail, we should
+                        // wait tc time out or client abort this transaction.
                         handleCumulativeAck(txnID, position);
                         semaphore.release();
                         completableFuture.completeExceptionally(e);

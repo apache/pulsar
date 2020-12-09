@@ -97,9 +97,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     }
 
     @Test
-    public void pendingAckSharedReplayTest() throws Exception {
+    public void individualPendingAckReplayTest() throws Exception {
         int messageCount = 1000;
-        String subName = "shared-test";
+        String subName = "individual-test";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -111,7 +111,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(PENDING_ACK_REPLAY_TOPIC)
-                .subscriptionName("shared-test")
+                .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
@@ -187,6 +187,99 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         abortTxn.abort().get();
         commitTxn.commit().get();
+
+        PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get().get();
+        Field field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field.setAccessible(true);
+        PendingAckHandleImpl pendingAckHandle =
+                (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
+        field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        field.setAccessible(true);
+        CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
+                (CompletableFuture<PendingAckStore>) field.get(pendingAckHandle);
+        pendingAckStoreCompletableFuture.get();
+
+        field = MLPendingAckStore.class.getDeclaredField("cursor");
+        field.setAccessible(true);
+
+        ManagedCursor managedCursor = (ManagedCursor) field.get(pendingAckStoreCompletableFuture.get());
+
+        // in order to check out the pending ack cursor is clear whether or not.
+        Awaitility.await()
+                .atMost(15000, TimeUnit.MILLISECONDS)
+                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
+                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
+    }
+
+    @Test
+    public void cumulativePendingAckReplayTest() throws Exception {
+        int messageCount = 1000;
+        String subName = "cumulative-test";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .enableBatching(true)
+                .batchingMaxMessages(200)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        Transaction abortTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+
+        List<MessageId> pendingAckMessageIds = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
+
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive();
+            pendingAckMessageIds.add(message.getMessageId());
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
+        }
+
+        admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+
+        for (int i = 0; i < pendingAckMessageIds.size(); i++) {
+            try {
+                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn).get();
+                fail();
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            }
+        }
+        Transaction commitTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+        abortTxn.abort().get();
+
+        for (int i = 0; i < pendingAckMessageIds.size(); i++) {
+            consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), commitTxn).get();
+        }
+        commitTxn.commit().get();
+
+        admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
+        Awaitility.await().atMost(4000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+
+        for (int i = 0; i < pendingAckMessageIds.size(); i++) {
+            try {
+                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn).get();
+                fail();
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            }
+        }
 
         PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get().get();

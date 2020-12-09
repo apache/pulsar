@@ -37,11 +37,14 @@ public interface PendingAckStore {
      * Replay pending ack to recover the pending ack subscription pending ack state.
      *
      * @param pendingAckHandle the handle of pending ack
+     * @param executorService the replay executor service
      */
-    void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService getExecutor);
+    void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService executorService);
 
     /**
      * Close the transaction pending ack store.
+     *
+     * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
 
@@ -49,7 +52,7 @@ public interface PendingAckStore {
      * Append the individual pending ack operation to the ack persistent store.
      *
      * @param txnID {@link TxnID} transaction id.
-     * @param positions {@link PositionImpl} the pending ack postion.
+     * @param positions {@link List} the list of position and batch size.
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
