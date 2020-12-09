@@ -15,7 +15,7 @@
       "version-2.7.0-concepts-authentication",
       "version-2.7.0-concepts-topic-compaction",
       "version-2.7.0-concepts-proxy-sni-routing",
-      "version-2.6.0-concepts-multiple-advertised-listeners"
+      "version-2.7.0-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.7.0-schema-get-started",
@@ -105,6 +105,7 @@
       "version-2.7.0-performance-pulsar-perf"
     ],
     "Client libraries": [
+      "version-2.7.0-client-libraries",
       "version-2.7.0-client-libraries-java",
       "version-2.7.0-client-libraries-go",
       "version-2.7.0-client-libraries-python",
@@ -121,7 +122,6 @@
       "version-2.7.0-admin-api-namespaces",
       "version-2.7.0-admin-api-permissions",
       "version-2.7.0-admin-api-topics",
-      "version-2.7.0-admin-api-schemas",
       "version-2.7.0-admin-api-functions"
     ],
     "Adaptors": [

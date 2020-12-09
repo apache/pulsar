@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.PackagesImpl;
 import org.apache.pulsar.client.admin.internal.ProxyStatsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -94,6 +95,7 @@ public class PulsarAdmin implements Closeable {
     private final Sinks sinks;
     private final Worker worker;
     private final Schemas schemas;
+    private final Packages packages;
     protected final WebTarget root;
     protected final Authentication auth;
     private final int connectTimeout;
@@ -218,6 +220,7 @@ public class PulsarAdmin implements Closeable {
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
+        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -432,6 +435,13 @@ public class PulsarAdmin implements Closeable {
      */
     public Schemas schemas() {
         return schemas;
+    }
+
+    /**
+     * @return the packages management object
+     */
+    public Packages packages() {
+        return packages;
     }
 
     /**

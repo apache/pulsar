@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * LoadManager namespace bundle quota update task
+ * LoadManager namespace bundle quota update task.
  */
 public class LoadResourceQuotaUpdaterTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadResourceQuotaUpdaterTask.class);

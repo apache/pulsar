@@ -338,13 +338,19 @@
 
     <!-- transaction related dependencies (end) -->
 
-    <!-- package manager related dependencies (begin) -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-core</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- package manager related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

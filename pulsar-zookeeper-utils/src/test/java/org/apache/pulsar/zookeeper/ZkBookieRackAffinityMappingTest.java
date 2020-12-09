@@ -19,6 +19,8 @@
 package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -78,12 +80,14 @@ public class ZkBookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf1 = new ClientConfiguration();
         bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
+        assertNull(bkClientConf1.getProperty(ZkBookieRackAffinityMapping.ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE));
         mapping1.setConf(bkClientConf1);
         List<String> racks1 = mapping1
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks1.get(0), "/rack0");
         assertEquals(racks1.get(1), "/rack1");
         assertEquals(racks1.get(2), null);
+        assertNotNull(bkClientConf1.getProperty(ZkBookieRackAffinityMapping.ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE));
 
         // Case 2: ZkServers and ZkTimeout are given (ZKCache will be constructed in
         // ZkBookieRackAffinityMapping#setConf)

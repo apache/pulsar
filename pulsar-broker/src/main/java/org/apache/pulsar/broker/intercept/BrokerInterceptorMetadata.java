@@ -23,7 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * The metadata of broker interceptor
+ * The metadata of broker interceptor.
  */
 @Data
 @NoArgsConstructor
