@@ -66,7 +66,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1
+     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1.
      *
      * @return
      */
@@ -149,7 +149,7 @@ public class DispatchRateLimiter {
     public void updateDispatchRate() {
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (!dispatchRate.isPresent()) {
-            dispatchRate =Optional.ofNullable(getPoliciesDispatchRate(brokerService));
+            dispatchRate = Optional.ofNullable(getPoliciesDispatchRate(brokerService));
 
             if (!dispatchRate.isPresent()) {
                 dispatchRate = Optional.of(createDispatchRate());

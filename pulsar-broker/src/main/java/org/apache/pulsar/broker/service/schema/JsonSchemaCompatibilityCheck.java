@@ -41,7 +41,8 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     }
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         if (isAvroSchema(from)) {
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format

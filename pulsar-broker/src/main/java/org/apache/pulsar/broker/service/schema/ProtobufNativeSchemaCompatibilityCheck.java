@@ -36,7 +36,8 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
     }
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         Descriptor fromDescriptor = ProtobufNativeSchemaUtils.deserialize(from.getData());
         Descriptor toDescriptor = ProtobufNativeSchemaUtils.deserialize(to.getData());
         switch (strategy) {
@@ -56,7 +57,8 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
     }
 
     @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         for (SchemaData schemaData : from) {
             checkCompatible(schemaData, to, strategy);
         }

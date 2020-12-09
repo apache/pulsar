@@ -33,7 +33,7 @@ public interface NonPersistentDispatcher extends Dispatcher {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
-    void removeConsumer(Consumer consumer) throws BrokerServiceException ;
+    void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
     boolean isConsumerConnected();
 
@@ -41,7 +41,7 @@ public interface NonPersistentDispatcher extends Dispatcher {
 
     boolean canUnsubscribe(Consumer consumer);
 
-    CompletableFuture<Void> close() ;
+    CompletableFuture<Void> close();
 
     CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
 

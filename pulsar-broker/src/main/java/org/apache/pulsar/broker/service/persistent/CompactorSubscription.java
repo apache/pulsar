@@ -54,7 +54,7 @@ public class CompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
         checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));

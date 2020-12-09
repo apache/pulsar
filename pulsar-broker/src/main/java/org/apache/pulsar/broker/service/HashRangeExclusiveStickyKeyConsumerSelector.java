@@ -122,11 +122,13 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(intRange.getEnd());
 
             if (floorEntry != null && floorEntry.getKey() >= intRange.getStart()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + floorEntry.getValue());
+                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                        + floorEntry.getValue());
             }
 
             if (ceilingEntry != null && ceilingEntry.getKey() <= intRange.getEnd()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                        + ceilingEntry.getValue());
             }
 
             if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
@@ -135,7 +137,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                     int start = Math.max(intRange.getStart(), range.getStart());
                     int end = Math.min(intRange.getEnd(), range.getEnd());
                     if (end >= start) {
-                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                                + ceilingEntry.getValue());
                     }
                 }
             }

@@ -22,12 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-
 import java.util.List;
 import java.util.Optional;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -176,7 +173,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendGetOrCreateSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage) {
-        PulsarApi.BaseCommand command = Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
+        PulsarApi.BaseCommand command =
+                Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         command.getGetOrCreateSchemaResponse().recycle();
@@ -196,7 +194,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                                   PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId, boolean proxyThroughServiceUrl) {
+                                   PulsarApi.CommandLookupTopicResponse.LookupType response,
+                                   long requestId, boolean proxyThroughServiceUrl) {
         PulsarApi.BaseCommand command = Commands.newLookupResponseCommand(brokerServiceUrl, brokerServiceUrlTls,
                 authoritative, response, requestId, proxyThroughServiceUrl);
         safeIntercept(command, cnx);
@@ -279,7 +278,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                         .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
-                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
+                // increment ref-count of data and release at the end of process:
+                // so, we can get chance to call entry.release
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {

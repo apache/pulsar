@@ -48,6 +48,4 @@
     <suppress checks="ConstantName" files="MessageId.java"/>
     <suppress checks="MethodName" files="TopicsImpl.java"/>
     <suppress checks="MemberName" files="TopicsImpl.java"/>
-    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/protocol/.*.java"/>
-    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/service/.*.java"/>
 </suppressions>

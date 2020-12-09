@@ -36,7 +36,8 @@ public interface TransportCnx {
     boolean isBatchMessageCompatibleVersion();
 
     /**
-     * The security role for this connection
+     * The security role for this connection.
+     *
      * @return the role
      */
     String getAuthRole();

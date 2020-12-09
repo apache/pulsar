@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  */
 class NeverSchemaValidator implements SchemaValidator {
     private final static Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
-    static NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
+    final static NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override
     public void validate(Schema toValidate, Iterable<Schema> existing)
