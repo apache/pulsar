@@ -1210,8 +1210,8 @@ public class PersistentTopic extends AbstractTopic
             int messageTtlInSeconds = getMessageTTL();
 
             if (messageTtlInSeconds != 0) {
-                subscriptions.forEach((subName, sub) -> sub.expireMessages(messageTtlInSeconds));
-                replicators.forEach((region, replicator)
+                subscriptions.values().forEach((sub) -> sub.expireMessages(messageTtlInSeconds));
+                replicators.values().forEach((replicator)
                         -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
             }
         } catch (Exception e) {
