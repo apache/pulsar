@@ -45,24 +45,33 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService);
         return new TransactionBufferClientImpl(handler);
     }
+
     @Override
-    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT, messageIdList);
+    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+                                                     List<MessageId> messageIdList) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT,
+                messageIdList);
     }
 
     @Override
-    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT, messageIdList);
+    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+                                                    List<MessageId> messageIdList) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT,
+                messageIdList);
     }
 
     @Override
-    public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits) {
-        return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT);
+    public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
+                                                            long txnIdLeastBits) {
+        return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
+                PulsarApi.TxnAction.COMMIT);
     }
 
     @Override
-    public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits) {
-        return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT);
+    public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription,
+                                                           long txnIdMostBits, long txnIdLeastBits) {
+        return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
+                PulsarApi.TxnAction.ABORT);
     }
 
     @Override

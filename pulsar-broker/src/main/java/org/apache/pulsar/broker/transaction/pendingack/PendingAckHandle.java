@@ -53,7 +53,8 @@ public interface PendingAckHandle {
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
+    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
+                                                         List<MutablePair<PositionImpl, Integer>> positions);
 
     /**
      * Acknowledge message(s) for an ongoing transaction.
@@ -82,11 +83,12 @@ public interface PendingAckHandle {
     /**
      * Commit a transaction.
      *
-     * @param txnID         {@link TxnID} to identify the transaction.
-     * @param properties    Additional user-defined properties that can be associated with a particular cursor position.
+     * @param txnID      {@link TxnID} to identify the transaction.
+     * @param properties Additional user-defined properties that can be
+     *                   associated with a particular cursor position.
      * @return the future of this operation.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String,Long> properties);
+    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties);
 
     /**
      * Abort a transaction.
