@@ -18,26 +18,10 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
-import java.io.ByteArrayOutputStream;
-import java.lang.reflect.Field;
-import java.math.RoundingMode;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -46,14 +30,31 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class PrometheusMetricsTest extends BrokerTestBase {
 
@@ -226,6 +227,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
+        //wait for checkMessageExpiry
+        PersistentSubscription sub = (PersistentSubscription)
+                pulsar.getBrokerService().getTopicIfExists(topic1).get().get().getSubscription(subName);
+        PersistentSubscription sub2 = (PersistentSubscription)
+                pulsar.getBrokerService().getTopicIfExists(topic2).get().get().getSubscription(subName);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub.getExpiredMessageRate() != 0.0);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub2.getExpiredMessageRate() != 0.0);
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, statsOut);
@@ -243,8 +251,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Field field = PersistentSubscription.class.getDeclaredField("lastExpireTimestamp");
         field.setAccessible(true);
         for (int i = 0; i < topicList.size(); i++) {
-            PersistentSubscription subscription = (PersistentSubscription)
-                    pulsar.getBrokerService().getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                    .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
             assertEquals((long) field.get(subscription), (long) cm.get(i).value);
         }
 
@@ -261,8 +269,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         nf.setMaximumFractionDigits(3);
         nf.setRoundingMode(RoundingMode.DOWN);
         for (int i = 0; i < topicList.size(); i++) {
-            PersistentSubscription subscription = (PersistentSubscription)
-                    pulsar.getBrokerService().getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                    .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
             PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
             assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
         }
