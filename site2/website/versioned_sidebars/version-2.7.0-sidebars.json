@@ -15,7 +15,7 @@
       "version-2.7.0-concepts-authentication",
       "version-2.7.0-concepts-topic-compaction",
       "version-2.7.0-concepts-proxy-sni-routing",
-      "version-2.6.0-concepts-multiple-advertised-listeners"
+      "version-2.7.0-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.7.0-schema-get-started",
