@@ -503,7 +503,7 @@ public class PulsarFunctionLocalRunTest {
                 .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
-        // please note that in this testthe sink topic schema is different from the schema of the source topic
+        // please note that in this test the sink topic schema is different from the schema of the source topic
 
         //produce message to sourceTopic
         Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
