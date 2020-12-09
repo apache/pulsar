@@ -432,13 +432,13 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             @Override
             public boolean apply(Entry entry) {
 
-                Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
+                Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> pair = null;
                 try {
-                    pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                    pair = MessageImpl.deserializeWithBrokerEntryMetaData(entry.getDataBuffer());
                     MessageImpl msg = pair.getLeft();
-                    PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
-                    if (rawMessageMetadata != null) {
-                        return rawMessageMetadata.getBrokerTimestamp() < timestamp;
+                    PulsarApi.BrokerEntryMetadata brokerMetadata = pair.getRight();
+                    if (brokerMetadata != null) {
+                        return brokerMetadata.getBrokerTimestamp() < timestamp;
                     } else {
                         return msg.getPublishTime() <= timestamp;
                     }

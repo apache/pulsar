@@ -29,8 +29,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,6 +53,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -228,17 +232,15 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         List<Entry> entryList = cursor.readEntries(3);
         for (Entry entry : entryList) {
             // entry has no raw metadata if BrokerTimestampForMessage is disable
-            assertNull(Commands.parseRawMetadataIfExist(entry.getDataBuffer()));
+            assertNull(Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer()));
         }
 
         result.reset();
         cursor.close();
         ledger.close();
 
-
-
         ManagedLedgerConfig configNew = new ManagedLedgerConfig();
-        configNew.setBrokerTimestampForMessageEnable(true);
+        configNew.setBrokerEntryMetadataInterceptors(getBrokerEntryMetadataInterceptors());
         ManagedLedger ledgerNew = factory.open(ledgerAndCursorNameForBrokerTimestampMessage, configNew);
         ManagedCursorImpl cursorNew = (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
         // build message which has publish time first
@@ -276,9 +278,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         List<Entry> entryListNew = cursorNew.readEntries(4);
         for (Entry entry : entryListNew) {
             // entry should have raw metadata since BrokerTimestampForMessage is enable
-            PulsarApi.RawMessageMetadata rawMessageMetadata = Commands.parseRawMetadataIfExist(entry.getDataBuffer());
-            assertNotNull(rawMessageMetadata);
-            assertTrue(rawMessageMetadata.getBrokerTimestamp() > timeAfterPublishTime);
+            PulsarApi.BrokerEntryMetadata brokerMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            assertNotNull(brokerMetadata);
+            assertTrue(brokerMetadata.getBrokerTimestamp() > timeAfterPublishTime);
         }
 
         result.reset();
@@ -287,6 +289,12 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
+    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+        Set<String> interceptorNames = new HashSet<>();
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
+                Thread.currentThread().getContextClassLoader());
+    }
     /**
      * It tests that message expiry doesn't get stuck if it can't read deleted ledger's entry.
      *

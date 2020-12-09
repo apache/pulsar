@@ -213,36 +213,36 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public static Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> deserializeWithRawMetaData(
-            ByteBuf headersAndPayloadWithRawMetadata) throws IOException {
+    public static Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> deserializeWithBrokerEntryMetaData(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
-        PulsarApi.RawMessageMetadata rawMessageMetadata =
-                Commands.parseRawMetadataIfExist(headersAndPayloadWithRawMetadata);
+        PulsarApi.BrokerEntryMetadata brokerMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
 
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithRawMetadata);
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
         msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         msgMetadata.recycle();
-        msg.payload = headersAndPayloadWithRawMetadata;
+        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
         msg.properties = Collections.emptyMap();
-        return Pair.of(msg, rawMessageMetadata);
+        return Pair.of(msg, brokerMetadata);
     }
 
-    public static MessageImpl<byte[]> deserializeSkipRawMetaData(
-            ByteBuf headersAndPayloadWithRawMetadata) throws IOException {
+    public static MessageImpl<byte[]> deserializeSkipBrokerEntryMetaData(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
-        Commands.skipRawMessageMetadataIfExist(headersAndPayloadWithRawMetadata);
+        Commands.skipBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
 
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithRawMetadata);
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
         msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         msgMetadata.recycle();
-        msg.payload = headersAndPayloadWithRawMetadata;
+        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;

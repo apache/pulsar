@@ -83,6 +83,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1248,7 +1249,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
-            managedLedgerConfig.setBrokerTimestampForMessageEnable(serviceConfig.isBrokerTimestampForMessageEnable());
+            managedLedgerConfig.setBrokerEntryMetadataInterceptors(BrokerEntryMetadataUtils
+                    .loadBrokerEntryMetadataInterceptors(serviceConfig.getBrokerEntryMetadataInterceptors(),
+                            BrokerService.class.getClassLoader()));
 
             OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(

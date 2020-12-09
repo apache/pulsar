@@ -63,7 +63,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     volatile long lastInitTime;
     @SuppressWarnings("unused")
     ByteBuf data;
-    ByteBuf dataWithRawMetadata;
+    ByteBuf dataWithBrokerEntryMetadata;
     private int dataLength;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
@@ -109,9 +109,10 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
 
             ByteBuf duplicateBuffer = data.retainedDuplicate();
-            if (ml.getConfig().isRawMetadataEnable()) {
-                duplicateBuffer = Commands.addRawMessageMetadata(duplicateBuffer);
-                dataWithRawMetadata = duplicateBuffer.retainedDuplicate();
+            if (ml.getConfig().isBrokerEntryMetaEnabled()) {
+                duplicateBuffer = Commands.addBrokerEntryMetadata(duplicateBuffer,
+                        ml.getConfig().getBrokerEntryMetadataInterceptors());
+                dataWithBrokerEntryMetadata = duplicateBuffer.retainedDuplicate();
             }
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
@@ -129,8 +130,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
         }
-        if (dataWithRawMetadata != null) {
-            ReferenceCountUtil.release(dataWithRawMetadata);
+        if (dataWithBrokerEntryMetadata != null) {
+            ReferenceCountUtil.release(dataWithBrokerEntryMetadata);
         }
     }
 
@@ -180,8 +181,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = null;
-            if (ml.getConfig().isRawMetadataEnable()) {
-                entry =  EntryImpl.create(ledger.getId(), entryId, dataWithRawMetadata);
+            if (ml.getConfig().isBrokerEntryMetaEnabled()) {
+                entry =  EntryImpl.create(ledger.getId(), entryId, dataWithBrokerEntryMetadata);
             } else {
                 entry = EntryImpl.create(ledger.getId(), entryId, data);
             }
@@ -193,8 +194,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
         // We are done using the byte buffer
         ReferenceCountUtil.release(data);
-        if (dataWithRawMetadata != null) {
-            ReferenceCountUtil.release(dataWithRawMetadata);
+        if (dataWithBrokerEntryMetadata != null) {
+            ReferenceCountUtil.release(dataWithBrokerEntryMetadata);
         }
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
@@ -306,7 +307,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml = null;
         ledger = null;
         data = null;
-        dataWithRawMetadata = null;
+        dataWithBrokerEntryMetadata = null;
         dataLength = -1;
         callback = null;
         ctx = null;

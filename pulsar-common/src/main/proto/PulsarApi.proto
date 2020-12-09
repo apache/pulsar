@@ -180,8 +180,8 @@ message SingleMessageMetadata {
     optional bool null_partition_key = 10 [ default = false];
 }
 
-// raw metadata for message
-message RawMessageMetadata {
+// metadata added for entry from broker
+message BrokerEntryMetadata {
     optional uint64 broker_timestamp = 1;
 }
 
@@ -284,7 +284,7 @@ message CommandConnect {
 
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
-  optional bool supports_raw_message_metadata = 2 [default = false];
+  optional bool supports_broker_entry_metadata = 2 [default = false];
 }
 
 message CommandConnected {

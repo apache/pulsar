@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -115,6 +116,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -138,7 +140,7 @@ public class Commands {
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
-    public static final short magicRawMetadata = 0x0e02;
+    public static final short magicBrokerEntryMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
@@ -160,7 +162,7 @@ public class Commands {
     public static FeatureFlags getFeatureFlags() {
         FeatureFlags.Builder flags = FeatureFlags.newBuilder();
         flags.setSupportsAuthRefresh(true);
-        flags.setSupportsRawMessageMetadata(true);
+        flags.setSupportsBrokerEntryMetadata(true);
         return flags.build();
     }
 
@@ -520,7 +522,7 @@ public class Commands {
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
             // first, skip raw metadata if exist
-            skipRawMessageMetadataIfExist(buffer);
+            skipBrokerEntryMetadataIfExist(buffer);
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
             // to parse metadata
             skipChecksumIfPresent(buffer);
@@ -543,7 +545,7 @@ public class Commands {
     public static void skipMessageMetadata(ByteBuf buffer) {
         // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
         // metadata
-        skipRawMessageMetadataIfExist(buffer);
+        skipBrokerEntryMetadataIfExist(buffer);
         skipChecksumIfPresent(buffer);
         int metadataSize = (int) buffer.readUnsignedInt();
         buffer.skipBytes(metadataSize);
@@ -1927,19 +1929,24 @@ public class Commands {
         return command;
     }
 
-    public static ByteBuf addRawMessageMetadata(ByteBuf headerAndPayload) {
-        //   | RAW_METADATA_MAGIC_NUMBER | RAW_METADATA_SIZE |          RAW_METADATA        |
-        //   |         2 bytes           |       4 bytes     |    RAW_METADATA_SIZE bytes   |
-        PulsarApi.RawMessageMetadata rawMessageMetadata = PulsarApi.RawMessageMetadata.newBuilder()
-                .setBrokerTimestamp(System.currentTimeMillis()).build();
-        int rawMetadataSize = rawMessageMetadata.getSerializedSize();
-        ByteBuf rawMetadata =
-                PulsarByteBufAllocator.DEFAULT.buffer(rawMetadataSize + 6, rawMetadataSize + 6);
-        rawMetadata.writeShort(Commands.magicRawMetadata);
-        rawMetadata.writeInt(rawMetadataSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(rawMetadata);
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> interceptors) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : interceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
         try {
-            rawMessageMetadata.writeTo(outStream);
+            brokerEntryMetadata.writeTo(outStream);
         } catch (IOException e) {
             // This is in-memory serialization, should not fail
             throw new RuntimeException(e);
@@ -1947,42 +1954,43 @@ public class Commands {
         outStream.recycle();
 
         CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
-        compositeByteBuf.addComponents(true, rawMetadata, headerAndPayload);
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
         return compositeByteBuf;
     }
 
-    public static ByteBuf skipRawMessageMetadataIfExist(ByteBuf headerAndPayloadWithRawMetadata) {
-        int readerIndex = headerAndPayloadWithRawMetadata.readerIndex();
-        if (headerAndPayloadWithRawMetadata.readShort() == magicRawMetadata) {
-            int rawMetadataSize = headerAndPayloadWithRawMetadata.readInt();
-            headerAndPayloadWithRawMetadata.readerIndex(headerAndPayloadWithRawMetadata.readerIndex()
-                    + rawMetadataSize);
+    public static ByteBuf skipBrokerEntryMetadataIfExist(ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
+            int brokerEntryMetadataSize = headerAndPayloadWithBrokerEntryMetadata.readInt();
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(headerAndPayloadWithBrokerEntryMetadata.readerIndex()
+                    + brokerEntryMetadataSize);
         } else {
-            headerAndPayloadWithRawMetadata.readerIndex(readerIndex);
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
         }
-        return headerAndPayloadWithRawMetadata;
+        return headerAndPayloadWithBrokerEntryMetadata;
     }
 
-    public static PulsarApi.RawMessageMetadata parseRawMetadataIfExist(ByteBuf headerAndPayloadWithRawMetadata) {
-        int readerIndex = headerAndPayloadWithRawMetadata.readerIndex();
-        if (headerAndPayloadWithRawMetadata.readShort() == magicRawMetadata) {
-            int rawMetadataSize = headerAndPayloadWithRawMetadata.readInt();
-            int writerIndex = headerAndPayloadWithRawMetadata.writerIndex();
-            headerAndPayloadWithRawMetadata.writerIndex(headerAndPayloadWithRawMetadata.readerIndex()
-                    + rawMetadataSize);
-            ByteBufCodedInputStream rawMetadataInputStream =
-                    ByteBufCodedInputStream.get(headerAndPayloadWithRawMetadata);
-            PulsarApi.RawMessageMetadata.Builder builder =  PulsarApi.RawMessageMetadata.newBuilder();
+    public static PulsarApi.BrokerEntryMetadata parseBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
+            int brokerEntryMetadataSize = headerAndPayloadWithBrokerEntryMetadata.readInt();
+            int writerIndex = headerAndPayloadWithBrokerEntryMetadata.writerIndex();
+            headerAndPayloadWithBrokerEntryMetadata.writerIndex(headerAndPayloadWithBrokerEntryMetadata.readerIndex()
+                    + brokerEntryMetadataSize);
+            ByteBufCodedInputStream brokerEntryMetadataInputStream =
+                    ByteBufCodedInputStream.get(headerAndPayloadWithBrokerEntryMetadata);
+            PulsarApi.BrokerEntryMetadata.Builder builder =  PulsarApi.BrokerEntryMetadata.newBuilder();
             try {
-                builder.mergeFrom(rawMetadataInputStream, null).build();
+                builder.mergeFrom(brokerEntryMetadataInputStream, null).build();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            headerAndPayloadWithRawMetadata.writerIndex(writerIndex);
-            rawMetadataInputStream.recycle();
+            headerAndPayloadWithBrokerEntryMetadata.writerIndex(writerIndex);
+            brokerEntryMetadataInputStream.recycle();
             return builder.build();
         } else {
-            headerAndPayloadWithRawMetadata.readerIndex(readerIndex);
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
             return null;
         }
     }
@@ -2263,7 +2271,7 @@ public class Commands {
         }
     }
 
-    public static boolean peerSupportsRawMessageMetadata(int peerVersion) {
+    public static boolean peerSupportsBrokerMetadata(int peerVersion) {
         return peerVersion >= ProtocolVersion.v16.getNumber();
     }
 }

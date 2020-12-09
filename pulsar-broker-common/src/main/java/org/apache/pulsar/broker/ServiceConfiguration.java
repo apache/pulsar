@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -865,6 +866,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for broker metadata.")
+    private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -1427,11 +1433,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "For consumption latency sensitive scenario, can set to a smaller value or set to 0.\n"
                     + "Of course, this may degrade consumption throughput. Default is 10ms.")
     private int managedLedgerNewEntriesCheckDelayInMillis = 10;
-
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Enable broker side timestamp for message. Default is false.")
-    private boolean brokerTimestampForMessageEnable = false;
-
 
     /*** --- Load balancer --- ****/
     @FieldContext(

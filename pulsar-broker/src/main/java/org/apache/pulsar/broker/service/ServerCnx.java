@@ -2186,8 +2186,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
 
-    boolean supportRawMessageMetadata() {
-        return features != null && features.getSupportsRawMessageMetadata();
+    boolean supportBrokerMetadata() {
+        return features != null && features.getSupportsBrokerEntryMetadata();
     }
 
     @Override

@@ -2146,18 +2146,18 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
-        Pair<MessageImpl<byte[]>, PulsarApi.RawMessageMetadata> pair = null;
+        Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> pair = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                pair = MessageImpl.deserializeWithRawMetaData(entry.getDataBuffer());
+                pair = MessageImpl.deserializeWithBrokerEntryMetaData(entry.getDataBuffer());
                 MessageImpl msg = pair.getLeft();
-                PulsarApi.RawMessageMetadata rawMessageMetadata = pair.getRight();
+                PulsarApi.BrokerEntryMetadata brokerMetadata = pair.getRight();
                 if (messageTTLInSeconds != 0) {
-                    if (rawMessageMetadata != null) {
-                        isOldestMessageExpired = System.currentTimeMillis() > (rawMessageMetadata.getBrokerTimestamp()
+                    if (brokerMetadata != null) {
+                        isOldestMessageExpired = System.currentTimeMillis() > (brokerMetadata.getBrokerTimestamp()
                                 + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
                     } else {
                         isOldestMessageExpired = System.currentTimeMillis() > (msg.getPublishTime()

@@ -23,7 +23,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -33,6 +35,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
@@ -75,7 +78,7 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
-    private boolean brokerTimestampForMessageEnable = false;
+    private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors = new HashSet<>();
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -638,15 +641,15 @@ public class ManagedLedgerConfig {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 
-    public boolean isBrokerTimestampForMessageEnable() {
-        return brokerTimestampForMessageEnable;
+    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+        return brokerEntryMetadataInterceptors;
     }
 
-    public void setBrokerTimestampForMessageEnable(boolean brokerTimestampForMessageEnable) {
-        this.brokerTimestampForMessageEnable = brokerTimestampForMessageEnable;
+    public void setBrokerEntryMetadataInterceptors(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
+        this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
     }
 
-    public boolean isRawMetadataEnable() {
-        return this.brokerTimestampForMessageEnable;
+    public boolean isBrokerEntryMetaEnabled() {
+        return brokerEntryMetadataInterceptors.size() > 0;
     }
 }

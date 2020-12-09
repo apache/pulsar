@@ -282,7 +282,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // so, we can get chance to call entry.release
                 metadataAndPayload.retain();
                 // skip raw message metadata since broker timestamp only used in broker side
-                Commands.skipRawMessageMetadataIfExist(metadataAndPayload);
+                Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     Commands.skipChecksumIfPresent(metadataAndPayload);
