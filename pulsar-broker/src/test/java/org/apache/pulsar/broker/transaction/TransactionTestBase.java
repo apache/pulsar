@@ -116,6 +116,8 @@ public class TransactionTestBase {
             conf.setWebServicePort(Optional.of(0));
             conf.setWebServicePortTls(Optional.of(0));
             conf.setTransactionCoordinatorEnabled(true);
+            conf.setMaxPendingAckTimerTaskIntervalTime(2);
+            conf.setMinPendingAckTimerTaskIntervalTime(2);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));

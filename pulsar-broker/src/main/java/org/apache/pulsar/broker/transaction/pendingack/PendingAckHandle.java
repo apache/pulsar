@@ -117,4 +117,11 @@ public interface PendingAckHandle {
      * @param position {@link Position} which position need to clear
      */
     void clearIndividualPosition(Position position);
+
+    /**
+     * Close the pending ack handle.
+     *
+     * @return the future of this operation.
+     */
+    CompletableFuture<Void> close();
 }
