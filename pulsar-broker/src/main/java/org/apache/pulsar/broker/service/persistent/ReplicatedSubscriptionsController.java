@@ -57,7 +57,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     private final ScheduledFuture<?> timer;
 
-    private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
+            new ConcurrentHashMap<>();
 
     private final static Gauge pendingSnapshotsMetric = Gauge
             .build("pulsar_replicated_subscriptions_pending_snapshots",
@@ -229,7 +230,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     /**
-     * From Topic.PublishContext
+     * From Topic.PublishContext.
      */
     @Override
     public void completed(Exception e, long ledgerId, long entryId) {

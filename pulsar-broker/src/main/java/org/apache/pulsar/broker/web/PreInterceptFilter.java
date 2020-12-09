@@ -47,11 +47,12 @@ public class PreInterceptFilter implements Filter {
     }
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
+                         FilterChain filterChain) throws IOException, ServletException {
         if (log.isDebugEnabled()) {
             log.debug("PreInterceptFilter: path {}, type {}",
-                servletRequest.getServletContext().getContextPath(),
-                servletRequest.getContentType());
+                    servletRequest.getServletContext().getContextPath(),
+                    servletRequest.getContentType());
         }
         if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())) {
             // skip multipart request at this moment

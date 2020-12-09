@@ -75,7 +75,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action, List<MessageId> messageIdList) {
+    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+                                                  PulsarApi.TxnAction action, List<MessageId> messageIdList) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -89,7 +90,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                     .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
                     .build());
         }
-        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic, action, messageIdDataList);
+        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
+                topic, action, messageIdDataList);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -112,13 +114,15 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
+    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
+                                                         long txnIdLeastBits, PulsarApi.TxnAction action) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
-        ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits, topic, subscription, action);
+        ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
+                topic, subscription, action);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -158,14 +162,16 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
-            log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(), response.getError());
+            log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
+                    response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
 
     @Override
-    public void handleEndTxnOnSubscriptionResponse(long requestId, PulsarApi.CommandEndTxnOnSubscriptionResponse response) {
+    public void handleEndTxnOnSubscriptionResponse(long requestId,
+                                                   PulsarApi.CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -177,11 +183,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
         if (!response.hasError()) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got end txn on subscription response for for request {}", op.topic, response.getRequestId());
+                log.debug("[{}] Got end txn on subscription response for for request {}",
+                        op.topic, response.getRequestId());
             }
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
-            log.error("[{}] Got end txn on subscription response for request {} error {}", op.topic, response.getRequestId(), response.getError());
+            log.error("[{}] Got end txn on subscription response for request {} error {}",
+                    op.topic, response.getRequestId(), response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
@@ -194,7 +202,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                     return CompletableFuture.completedFuture(null);
                 }
                 URI uri = new URI(serviceUrl);
-                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort())).thenCompose(clientCnx -> {
+                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(),
+                        uri.getPort())).thenCompose(clientCnx -> {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     return CompletableFuture.completedFuture(clientCnx);
                 });

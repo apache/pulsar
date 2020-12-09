@@ -107,7 +107,8 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {

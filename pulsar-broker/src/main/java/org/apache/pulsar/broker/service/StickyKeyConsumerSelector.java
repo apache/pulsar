@@ -27,19 +27,20 @@ public interface StickyKeyConsumerSelector {
     int DEFAULT_RANGE_SIZE =  2 << 15;
 
     /**
-     * Add a new consumer
+     * Add a new consumer.
+     *
      * @param consumer new consumer
      */
     void addConsumer(Consumer consumer) throws ConsumerAssignException;
 
     /**
-     * Remove the consumer
+     * Remove the consumer.
      * @param consumer consumer to be removed
      */
     void removeConsumer(Consumer consumer);
 
     /**
-     * Select a consumer by sticky key
+     * Select a consumer by sticky key.
      *
      * @param stickyKey sticky key
      * @return consumer
@@ -47,7 +48,7 @@ public interface StickyKeyConsumerSelector {
     Consumer select(byte[] stickyKey);
 
     /**
-     * Get key hash ranges handled by each consumer
+     * Get key hash ranges handled by each consumer.
      * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
     Map<String, List<String>> getConsumerKeyHashRanges();

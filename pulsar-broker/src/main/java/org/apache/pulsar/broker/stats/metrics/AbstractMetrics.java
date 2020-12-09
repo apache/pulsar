@@ -39,7 +39,8 @@ abstract class AbstractMetrics {
 
     protected static final Pattern V2_LEDGER_NAME_PATTERN = Pattern.compile("^(([^/]+)/([^/]+)/([^/]+))/(.*)$");
 
-    protected static final double[] ENTRY_LATENCY_BUCKETS_MS = new double[ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC.length];
+    protected static final double[] ENTRY_LATENCY_BUCKETS_MS =
+            new double[ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC.length];
 
     static {
         // Convert buckets boundaries from usec to millis
@@ -48,7 +49,8 @@ abstract class AbstractMetrics {
         }
     }
 
-    protected static final double[] ENTRY_SIZE_BUCKETS_BYTES = new double[ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES.length];
+    protected static final double[] ENTRY_SIZE_BUCKETS_BYTES =
+            new double[ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES.length];
 
     static {
         // Convert buckets boundaries from usec to millis
@@ -82,7 +84,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Returns the managed ledger cache statistics from ML factory
+     * Returns the managed ledger cache statistics from ML factory.
      *
      * @return
      */
@@ -91,7 +93,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Returns managed ledgers map from ML factory
+     * Returns managed ledgers map from ML factory.
      *
      * @return
      */
@@ -136,10 +138,9 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Creates a dimension key for metrics
+     * Creates a dimension key for metrics.
      *
-     * @param namespace
-     *          Namespace of metric
+     * @param namespace Namespace of metric
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace) {
@@ -151,7 +152,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Creates a dimension key for replication metrics
+     * Creates a dimension key for replication metrics.
      *
      * @param namespace
      * @param fromClusterName
@@ -217,7 +218,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Helper to manage populating topics map
+     * Helper to manage populating topics map.
      *
      * @param ledgersByDimensionMap
      * @param metrics
