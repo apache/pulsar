@@ -217,15 +217,22 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            if (schema != null) {
+            Schema<T> schemaToWrite = record.getSchema();
+            if (record instanceof PulsarRecord) {
+                // we are receiving data directly from another Pulsar topic
+                // we must use the destination topic schema
+                schemaToWrite = schema;
+            }
+
+            if (schemaToWrite != null) {
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()), schema)
-                        .newMessage(schema);
+                        .orElse(pulsarSinkConfig.getTopic()), schemaToWrite)
+                        .newMessage(schemaToWrite);
             } else {
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()), schema)
+                        .orElse(pulsarSinkConfig.getTopic()), schemaToWrite)
                         .newMessage();
             }
         }
@@ -264,15 +271,20 @@ public class PulsarSink<T> implements Sink<T> {
             if (!record.getPartitionId().isPresent()) {
                 throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
             }
-
+            Schema<T> schemaToWrite = record.getSchema();
+            if (record instanceof PulsarRecord) {
+                // we are receiving data directly from another Pulsar topic
+                // we must use the destination topic schema
+                schemaToWrite = schema;
+            }
             Producer<T> producer = getProducer(
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
-                    schema
+                    schemaToWrite
             );
-            if (schema != null) {
-                return producer.newMessage(schema);
+            if (schemaToWrite != null) {
+                return producer.newMessage(schemaToWrite);
             } else {
                 return producer.newMessage();
             }
