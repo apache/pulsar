@@ -84,8 +84,6 @@ public class PackagesCliTest {
 
     // TODO: the upload command has some problem when uploading packages, enable this tests when issue
     // https://github.com/apache/pulsar/issues/8874 is fixed.
-    @Ignore
-    @Test
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
         ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
