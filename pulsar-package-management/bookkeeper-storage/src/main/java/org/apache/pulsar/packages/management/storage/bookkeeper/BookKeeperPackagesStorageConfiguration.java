@@ -35,15 +35,15 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
     }
 
     int getNumReplicas() {
-        return Integer.parseInt(getProperty("numReplicas"));
+        return Integer.parseInt(getProperty("packagesReplicas"));
     }
 
     String getZkServers() {
-        return getProperty("zkServers");
+        return getProperty("zookeeperServers");
     }
 
     String getLedgersRootPath() {
-        return getProperty("ledgerRootPath");
+        return getProperty("packagesManagementLedgerRootPath");
     }
 
     String getBookkeeperClientAuthenticationPlugin() {
