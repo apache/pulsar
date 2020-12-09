@@ -217,15 +217,15 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            if (record.getSchema() != null) {
+            if (schema != null) {
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
-                        .newMessage(record.getSchema());
+                        .orElse(pulsarSinkConfig.getTopic()), schema)
+                        .newMessage(schema);
             } else {
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
+                        .orElse(pulsarSinkConfig.getTopic()), schema)
                         .newMessage();
             }
         }
@@ -269,10 +269,10 @@ public class PulsarSink<T> implements Sink<T> {
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
-                    record.getSchema()
+                    schema
             );
-            if (record.getSchema() != null) {
-                return producer.newMessage(record.getSchema());
+            if (schema != null) {
+                return producer.newMessage(schema);
             } else {
                 return producer.newMessage();
             }
