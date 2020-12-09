@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,17 +31,15 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 
@@ -64,7 +61,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     /**
      * Latest cumulative ack sent to broker
      */
-    private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+    private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.EARLIEST;
     private volatile BitSetRecyclable lastCumulativeAckSet = null;
     private volatile boolean cumulativeAckFlushRequired = false;
 
@@ -488,7 +485,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public void flushAndClean() {
         flush();
-        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+        lastCumulativeAck = (MessageIdImpl) MessageId.EARLIEST;
         pendingIndividualAcks.clear();
     }
 

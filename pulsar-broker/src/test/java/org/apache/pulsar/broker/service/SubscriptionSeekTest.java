@@ -24,9 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +33,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -101,7 +98,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         // Wait for consumer to reconnect
         Thread.sleep(500);
-        consumer.seek(MessageId.earliest);
+        consumer.seek(MessageId.EARLIEST);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         Thread.sleep(500);
@@ -167,7 +164,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
-        consumer.seek(MessageId.earliest);
+        consumer.seek(MessageId.EARLIEST);
         Message<String> receiveBeforEarliest = consumer.receive();
         assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
         consumer.seek(MessageId.latest);
@@ -216,7 +213,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .subscriptionName(subscriptionName)
                 .subscribe();
 
-        admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+        admin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
 
         // Wait consumer reconnect
         Thread.sleep(1000);
@@ -268,7 +265,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.EARLIEST);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -444,7 +441,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             connectedSinceSet.add(consumer.getStats().getConnectedSince());
         }
         assertEquals(connectedSinceSet.size(), 2);
-        consumer1.seek(MessageId.earliest);
+        consumer1.seek(MessageId.EARLIEST);
         // Wait for consumer to reconnect
         Thread.sleep(1000);
 
@@ -481,7 +478,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             connectedSinceSet.add(consumer.getStats().getConnectedSince());
         }
         assertEquals(connectedSinceSet.size(), 2);
-        consumer1.seek(MessageId.earliest);
+        consumer1.seek(MessageId.EARLIEST);
         // Wait for consumer to reconnect
         Thread.sleep(1000);
 

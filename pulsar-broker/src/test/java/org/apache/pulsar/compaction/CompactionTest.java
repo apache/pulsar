@@ -25,10 +25,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -45,7 +43,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -203,7 +200,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // consumer with readCompacted enabled only get compacted entries
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.EARLIEST).create()) {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
                 Assert.assertEquals(expected.remove(m.getKey()), new String(m.getData()));
@@ -216,7 +213,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // can get full backlog if read compacted disabled
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(false)
-                .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.EARLIEST).create()) {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
                 Pair<String, String> expectedMessage = all.remove(0);
@@ -322,7 +319,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            consumer.seek(MessageId.earliest);
+            consumer.seek(MessageId.EARLIEST);
             Message<byte[]> m = consumer.receive();
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
@@ -330,7 +327,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
-            consumer.seek(MessageId.earliest);
+            consumer.seek(MessageId.EARLIEST);
 
             Message<byte[]> m = consumer.receive();
             Assert.assertEquals(m.getKey(), "key0");

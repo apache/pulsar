@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.debezium;
 
 import static org.apache.commons.lang.StringUtils.isBlank;
-
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -194,7 +193,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         setupClientIfNeeded();
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
             .topic(topicName)
-            .startMessageId(MessageId.earliest)
+            .startMessageId(MessageId.EARLIEST)
             .create()
         ) {
             log.info("Scanning the database history topic '{}'", topicName);
@@ -241,7 +240,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         setupClientIfNeeded();
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
             .topic(topicName)
-            .startMessageId(MessageId.earliest)
+            .startMessageId(MessageId.EARLIEST)
             .create()
         ) {
             return historyReader.hasMessageAvailable();

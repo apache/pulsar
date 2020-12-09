@@ -57,7 +57,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
     protected CompletableFuture<Reader> newReaderAsyncInternal() {
         return client.newReader(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.EARLIEST)
                 .readCompacted(true).createAsync()
                 .thenCompose(reader -> {
                     if (log.isDebugEnabled()) {

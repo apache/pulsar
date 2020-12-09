@@ -20,12 +20,9 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
-
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -76,7 +73,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createSubscription(topic, "sub-2", MessageId.latest);
         assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-2").msgBacklog, 0);
 
-        admin.topics().createSubscription(topic, "sub-3", MessageId.earliest);
+        admin.topics().createSubscription(topic, "sub-3", MessageId.EARLIEST);
         assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-3").msgBacklog, 3);
 
         admin.topics().createSubscription(topic, "sub-5", m3);
@@ -103,12 +100,12 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     Lists.newArrayList("sub-1"));
         }
     }
-    
+
     @Test
     public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);
-        
+
         // create subscription for one partition
         final String partitionedTopic0 = topic+"-partition-0";
         admin.topics().createSubscription(partitionedTopic0, "sub-1", MessageId.latest);

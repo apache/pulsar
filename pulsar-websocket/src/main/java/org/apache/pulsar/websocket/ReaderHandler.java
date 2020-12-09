@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.util.Base64;
@@ -263,7 +262,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         MessageId messageId = MessageId.latest;
         if (isNotBlank(queryParams.get("messageId"))) {
             if (queryParams.get("messageId").equals("earliest")) {
-                messageId = MessageId.earliest;
+                messageId = MessageId.EARLIEST;
             } else if (!queryParams.get("messageId").equals("latest")) {
                 messageId = MessageIdImpl.fromByteArray(Base64.getDecoder().decode(queryParams.get("messageId")));
             }

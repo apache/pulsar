@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,7 +30,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -42,10 +39,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -150,7 +147,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         // seek to start, read all keys again,
         // assert that we read all keys we had read previously
-        reader.seekAsync(MessageId.earliest).get();
+        reader.seekAsync(MessageId.EARLIEST).get();
         while (true) {
             try (RawMessage m = reader.readNextAsync().get()) {
                 Assert.assertTrue(readKeys.remove(extractKey(m)));

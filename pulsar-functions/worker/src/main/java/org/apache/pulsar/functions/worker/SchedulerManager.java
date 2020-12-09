@@ -24,6 +24,25 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
@@ -48,26 +67,6 @@ import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
-
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 @Slf4j
 /**
@@ -102,7 +101,7 @@ public class SchedulerManager implements AutoCloseable {
     private Producer<byte[]> producer;
 
     private ScheduledExecutorService scheduledExecutorService;
-    
+
     private final PulsarAdmin admin;
 
     @Getter
@@ -111,14 +110,14 @@ public class SchedulerManager implements AutoCloseable {
     private volatile boolean isRunning = false;
 
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
-    private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
+    private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60;
     public static final String HEARTBEAT_TENANT = "pulsar-function";
     public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
     @Getter
     private MessageId lastMessageProduced = null;
 
-    private MessageId metadataTopicLastMessage = MessageId.earliest;
+    private MessageId metadataTopicLastMessage = MessageId.EARLIEST;
     private Future<?> currentRebalanceFuture;
     private AtomicBoolean rebalanceInProgess = new AtomicBoolean(false);
 
@@ -252,7 +251,7 @@ public class SchedulerManager implements AutoCloseable {
             throw new RebalanceInProgressException();
         }
     }
-    
+
     @VisibleForTesting
     void invokeScheduler() {
         long startTime = System.nanoTime();
@@ -281,7 +280,7 @@ public class SchedulerManager implements AutoCloseable {
                 if (deleted) {
                     Assignment assignment = entry.getValue();
                     MessageId messageId = publishNewAssignment(assignment.toBuilder().build(), true);
-                    
+
                     // Directly update in memory assignment cache since I am leader
                     log.info("Deleting assignment: {}", assignment);
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
@@ -334,7 +333,7 @@ public class SchedulerManager implements AutoCloseable {
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
                 .collect(Collectors.toList());
 
-        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances 
+        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances
                 = getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
 
         workerStatsManager.scheduleStrategyExecTimeStartStart();
@@ -555,7 +554,7 @@ public class SchedulerManager implements AutoCloseable {
             schedulerLock.unlock();
         }
     }
-    
+
     static String checkHeartBeatFunction(Instance funInstance) {
         if (funInstance.getFunctionMetaData() != null
                 && funInstance.getFunctionMetaData().getFunctionDetails() != null) {

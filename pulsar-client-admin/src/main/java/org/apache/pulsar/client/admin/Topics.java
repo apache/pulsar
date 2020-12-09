@@ -1254,7 +1254,7 @@ public interface Topics {
      *            Subscription name
      * @param messageId
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
-     *            {@link MessageId#earliest} or a specific message id.
+     *            {@link MessageId#EARLIEST} or a specific message id.
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1277,7 +1277,7 @@ public interface Topics {
      *            Subscription name
      * @param messageId
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
-     *            {@link MessageId#earliest} or a specific message id.
+     *            {@link MessageId#EARLIEST} or a specific message id.
      */
     CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
 

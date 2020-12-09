@@ -22,6 +22,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.net.URI;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -37,10 +40,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-
-import java.net.URI;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -182,7 +181,7 @@ public class WorkerService {
             //create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
             if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.earliest);
+                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.EARLIEST);
             }
             this.membershipManager = new MembershipManager(this, client, brokerAdmin);
 
@@ -241,7 +240,7 @@ public class WorkerService {
             // Start function assignment tailer
             log.info("/** Starting Function Assignment Tailer **/");
             functionAssignmentTailer.startFromMessage(lastAssignmentMessageId);
-            
+
             // start function metadata manager
             log.info("/** Starting Metdata Manager **/");
             functionMetaDataManager.start();

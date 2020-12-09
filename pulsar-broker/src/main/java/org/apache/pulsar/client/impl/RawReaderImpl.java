@@ -115,7 +115,7 @@ public class RawReaderImpl implements RawReader {
                 TopicName.getPartitionIndex(conf.getSingleTopic()),
                 false,
                 consumerFuture,
-                MessageId.earliest,
+                MessageId.EARLIEST,
                 0 /* startMessageRollbackDurationInSec */,
                 Schema.BYTES, null,
                 true

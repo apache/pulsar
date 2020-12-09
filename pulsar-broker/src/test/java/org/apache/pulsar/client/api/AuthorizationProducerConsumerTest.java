@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -32,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -214,7 +212,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
         tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
-        tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+        tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
 
         // grant namespace-level authorization to the subscriptionRole
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
@@ -245,7 +243,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         sub1Admin.topics().expireMessages(topicName, subscriptionName, 10);
         sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
-        sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
 
         superAdmin.namespaces().revokePermissionOnSubscription(namespace, subscriptionName, subscriptionRole);
 

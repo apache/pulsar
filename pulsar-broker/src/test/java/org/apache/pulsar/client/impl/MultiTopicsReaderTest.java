@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,9 +33,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -52,11 +55,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
@@ -202,13 +200,13 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Reader<byte[]> reader1 = pulsarClient.newReader()
                 .topic(topic)
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.EARLIEST)
                 .create();
 
         @Cleanup
         Reader<byte[]> reader2 = pulsarClient.newReader()
                 .topic(topic)
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.EARLIEST)
                 .create();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 2);
@@ -250,7 +248,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.earliest)
+                    .startMessageId(MessageId.EARLIEST)
                     .keyHashRange(Range.of(0, 10000), Range.of(8000, 12000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -260,7 +258,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.earliest)
+                    .startMessageId(MessageId.EARLIEST)
                     .keyHashRange(Range.of(30000, 20000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -270,7 +268,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.earliest)
+                    .startMessageId(MessageId.EARLIEST)
                     .keyHashRange(Range.of(80000, 90000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -280,7 +278,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.EARLIEST)
                 .keyHashRange(Range.of(0, StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2))
                 .create();
 
@@ -327,7 +325,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(topic, numKeys, enableBatch);
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic)
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.EARLIEST)
                 .readerName(subscription)
                 .create();
 
