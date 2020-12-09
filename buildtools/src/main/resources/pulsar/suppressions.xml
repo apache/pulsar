@@ -54,5 +54,4 @@
     <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/systopic/.*.java"/>
     <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/tools/.*.java"/>
     <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/transaction/.*.java"/>
-    <suppress checks=".*" files="src/main/java/org/apache/pulsar/broker/web/.*.java"/>
 </suppressions>

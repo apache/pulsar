@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Servlet filter that hooks up to handle outgoing response
+ * Servlet filter that hooks up to handle outgoing response.
  */
 public class ResponseHandlerFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
