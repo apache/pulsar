@@ -122,7 +122,6 @@
       "admin-api-namespaces",
       "admin-api-permissions",
       "admin-api-topics",
-      "admin-api-schemas",
       "admin-api-functions"
     ],
     "Adaptors": [

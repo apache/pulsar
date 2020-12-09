@@ -122,7 +122,6 @@
       "version-2.7.0-admin-api-namespaces",
       "version-2.7.0-admin-api-permissions",
       "version-2.7.0-admin-api-topics",
-      "version-2.7.0-admin-api-schemas",
       "version-2.7.0-admin-api-functions"
     ],
     "Adaptors": [
