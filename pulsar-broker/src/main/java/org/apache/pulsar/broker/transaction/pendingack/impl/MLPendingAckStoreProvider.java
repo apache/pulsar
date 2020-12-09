@@ -48,7 +48,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
     private static final long tickTimeMillis = 1L;
 
     @Override
-    public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription, String subName) {
+    public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
         CompletableFuture<PendingAckStore> pendingAckStoreFuture = new CompletableFuture<>();
 
         if (subscription == null) {
@@ -59,7 +59,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
         String pendingAckTopicName = MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subName);
+                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
 
         originPersistentTopic.getBrokerService().getManagedLedgerFactory()
                 .asyncOpen(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding(),

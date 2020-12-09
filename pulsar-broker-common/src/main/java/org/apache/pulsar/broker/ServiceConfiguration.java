@@ -1933,21 +1933,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
 
     @FieldContext(
-            category = CATEGORY_SERVER,
+            category = CATEGORY_TRANSACTION,
             doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
                     + "Default is 5"
     )
     private int numTransactionReplayThreadPoolSize = 5;
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Interval time of pending ack timer task, unit is seconds."
+            category = CATEGORY_TRANSACTION,
+            doc = "Max interval time of pending ack timer task, unit is seconds."
     )
     private int minPendingAckTimerTaskIntervalTime = 3600;
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Interval time of pending ack timer task, unit is seconds."
+            category = CATEGORY_TRANSACTION,
+            doc = "Min interval time of pending ack timer task, unit is seconds."
     )
     private int maxPendingAckTimerTaskIntervalTime = 36000;
 

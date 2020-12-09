@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The In memory implementation of {@link PendingAckStore}.
+ * In memory implementation of {@link PendingAckStore}.
  */
 public class InMemoryPendingAckStore implements PendingAckStore {
 

@@ -55,12 +55,11 @@ public interface TransactionPendingAckStoreProvider {
      * Open the pending ack store.
      *
      * @param subscription {@link PersistentSubscription}
-     * @param subName {@link String}
      * @return a future represents the result of the operation.
      *         an instance of {@link PendingAckStore} is returned
      *         if the operation succeeds.
      */
-    CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription, String subName);
+    CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription);
 
     /**
      * Close the provider and release all the resources.
