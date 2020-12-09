@@ -25,6 +25,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +39,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -183,6 +190,95 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         c1.close();
         c2.close();
+    }
+
+    @Test
+    public void testPerTopicExpiredStat() throws Exception {
+        String ns = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns);
+        String topic1 = "persistent://" + ns + "/testPerTopicExpiredStat1";
+        String topic2 = "persistent://" + ns + "/testPerTopicExpiredStat2";
+        List<String> topicList = Arrays.asList(topic2,topic1);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic1).create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic(topic2).create();
+        admin.namespaces().setNamespaceMessageTTL(ns,1);
+        final String subName = "test";
+        for (String topic : topicList) {
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName(subName)
+                    .subscribe().close();
+        }
+
+        final int messages = 10;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+        }
+
+        p1.close();
+        p2.close();
+        // make sure message is expired
+        Thread.sleep(2000);
+        pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        // There should be 2 metrics with different tags for each topic
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_subscription_last_expire_timestamp");
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(0).tags.get("topic"), topic2);
+        assertEquals(cm.get(0).tags.get("namespace"), ns);
+        assertEquals(cm.get(1).tags.get("topic"), topic1);
+        assertEquals(cm.get(1).tags.get("namespace"), ns);
+
+        //check value
+        Field field = PersistentSubscription.class.getDeclaredField("lastExpireTimestamp");
+        field.setAccessible(true);
+        for (int i = 0; i < topicList.size(); i++) {
+            PersistentSubscription subscription = (PersistentSubscription)
+                    pulsar.getBrokerService().getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+            assertEquals((long) field.get(subscription), (long) cm.get(i).value);
+        }
+
+        cm = (List<Metric>) metrics.get("pulsar_subscription_msg_rate_expired");
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(0).tags.get("topic"), topic2);
+        assertEquals(cm.get(0).tags.get("namespace"), ns);
+        assertEquals(cm.get(1).tags.get("topic"), topic1);
+        assertEquals(cm.get(1).tags.get("namespace"), ns);
+        //check value
+        field = PersistentSubscription.class.getDeclaredField("expiryMonitor");
+        field.setAccessible(true);
+        NumberFormat nf = NumberFormat.getNumberInstance();
+        nf.setMaximumFractionDigits(3);
+        nf.setRoundingMode(RoundingMode.DOWN);
+        for (int i = 0; i < topicList.size(); i++) {
+            PersistentSubscription subscription = (PersistentSubscription)
+                    pulsar.getBrokerService().getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+            PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
+            assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
+        }
+
+        cm = (List<Metric>) metrics.get("pulsar_subscription_total_msg_expired");
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(0).tags.get("topic"), topic2);
+        assertEquals(cm.get(0).tags.get("namespace"), ns);
+        assertEquals(cm.get(1).tags.get("topic"), topic1);
+        assertEquals(cm.get(1).tags.get("namespace"), ns);
+        //check value
+        for (int i = 0; i < topicList.size(); i++) {
+            PersistentSubscription subscription = (PersistentSubscription)
+                    pulsar.getBrokerService().getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+            PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
+            assertEquals(monitor.getTotalMessageExpired(), (long)cm.get(i).value);
+        }
+
     }
 
     @Test

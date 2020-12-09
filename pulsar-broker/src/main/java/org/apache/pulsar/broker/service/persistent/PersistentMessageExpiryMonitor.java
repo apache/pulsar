@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -39,6 +41,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private final String subName;
     private final String topicName;
     private final Rate msgExpired;
+    private final LongAdder totalMsgExpired;
     private final boolean autoSkipNonRecoverableData;
     private final PersistentSubscription subscription;
 
@@ -55,6 +58,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         this.subName = subscriptionName;
         this.subscription = subscription;
         this.msgExpired = new Rate();
+        this.totalMsgExpired = new LongAdder();
         // check to avoid test failures
         this.autoSkipNonRecoverableData = this.cursor.getManagedLedger() != null
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
@@ -96,6 +100,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         return msgExpired.getRate();
     }
 
+    public long getTotalMessageExpired() {
+        return totalMsgExpired.sum();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentMessageExpiryMonitor.class);
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -103,6 +111,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         public void markDeleteComplete(Object ctx) {
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
+            totalMsgExpired.add(numMessagesExpired);
             updateRates();
             // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
             if (subscription != null && subscription.getType() == PulsarApi.CommandSubscribe.SubType.Key_Shared) {
