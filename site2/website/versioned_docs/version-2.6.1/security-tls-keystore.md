@@ -242,7 +242,7 @@ e.g.
     tlsTrustStorePath=/var/private/tls/client.truststore.jks
     tlsTrustStorePassword=clientpw
     authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
-    authParams=keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw
+    authParams={"keyStoreType":"JKS","keyStorePath":"/path/to/keystorefile","keyStorePassword":"keystorepw"}
     ```
 
 1. for java client
