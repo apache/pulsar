@@ -181,7 +181,9 @@ public class WorkerService {
             //create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
             if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.EARLIEST);
+                brokerAdmin.topics()
+                        .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
+                                MessageId.earliest);
             }
             this.membershipManager = new MembershipManager(this, client, brokerAdmin);
 

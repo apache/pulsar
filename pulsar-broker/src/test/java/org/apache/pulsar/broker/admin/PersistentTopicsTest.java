@@ -174,7 +174,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 4) Create a subscription
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
-                (MessageIdImpl) MessageId.EARLIEST, false);
+                (MessageIdImpl) MessageId.earliest, false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -213,7 +213,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<WebApplicationException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace,
                 "testCreateSubscriptionForNonPersistentTopic", "sub",
-                true, (MessageIdImpl) MessageId.EARLIEST, false);
+                true, (MessageIdImpl) MessageId.earliest, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
     }
@@ -230,9 +230,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         // 5) Create a subscription
-        response  = mock(AsyncResponse.class);
+        response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
-                (MessageIdImpl) MessageId.EARLIEST, false);
+                (MessageIdImpl) MessageId.earliest, false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -552,7 +552,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .batchingMaxMessages(100)
                 .batchingMaxPublishDelay(2, TimeUnit.SECONDS)
                 .create();
-        admin.topics().createSubscription(topicName, "test", MessageId.EARLIEST);
+        admin.topics().createSubscription(topicName, "test", MessageId.earliest);
         CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
         for (int i = 0; i < 10; i++) {
             completableFuture = batchProducer.sendAsync("test".getBytes());

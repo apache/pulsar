@@ -166,7 +166,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // refer to -1
         MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterTrim);
-        assertEquals(messageIdAfterTrim, MessageId.EARLIEST);
+        assertEquals(messageIdAfterTrim, MessageId.earliest);
 
     }
 }

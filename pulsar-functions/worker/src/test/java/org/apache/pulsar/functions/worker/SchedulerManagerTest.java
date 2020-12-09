@@ -101,7 +101,7 @@ public class SchedulerManagerTest {
 
         producer = mock(Producer.class);
         completableFuture = spy(new CompletableFuture<>());
-        completableFuture.complete(MessageId.EARLIEST);
+        completableFuture.complete(MessageId.earliest);
         //byte[] bytes = any();
         message = mock(TypedMessageBuilder.class);
         when(producer.newMessage()).thenReturn(message);

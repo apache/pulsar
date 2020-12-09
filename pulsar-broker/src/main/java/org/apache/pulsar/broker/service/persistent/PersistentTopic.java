@@ -172,7 +172,7 @@ public class PersistentTopic extends AbstractTopic
     private final CompactedTopic compactedTopic;
 
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
-            (MessageIdImpl) MessageId.EARLIEST);
+            (MessageIdImpl) MessageId.earliest);
 
     private volatile Optional<ReplicatedSubscriptionsController> replicatedSubscriptionsController = Optional.empty();
 
@@ -2244,7 +2244,7 @@ public class PersistentTopic extends AbstractTopic
         ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
         if (!ledgerImpl.ledgerExists(position.getLedgerId())) {
             completableFuture
-                    .complete(MessageId.EARLIEST);
+                    .complete(MessageId.earliest);
             return completableFuture;
         }
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
@@ -2327,7 +2327,7 @@ public class PersistentTopic extends AbstractTopic
             return OffloadProcessStatus.forStatus(LongRunningProcessStatus.Status.RUNNING);
         } else {
             try {
-                if (currentOffload.join() == MessageId.EARLIEST) {
+                if (currentOffload.join() == MessageId.earliest) {
                     return OffloadProcessStatus.forStatus(LongRunningProcessStatus.Status.NOT_RUN);
                 } else {
                     return OffloadProcessStatus.forSuccess(currentOffload.join());

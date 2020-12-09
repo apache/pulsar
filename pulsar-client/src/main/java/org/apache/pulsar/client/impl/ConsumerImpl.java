@@ -120,8 +120,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
-    protected volatile MessageId lastDequeuedMessageId = MessageId.EARLIEST;
-    private volatile MessageId lastMessageIdInBroker = MessageId.EARLIEST;
+    protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
+    private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
     private final long subscribeTimeout;
     private final int partitionIndex;
@@ -958,7 +958,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             return previousMessage;
-        } else if (!lastDequeuedMessageId.equals(MessageId.EARLIEST)) {
+        } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
             return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessageId);
@@ -1905,9 +1905,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info("[{}][{}] Successfully reset subscription to publish time {}", topic, subscription, timestamp);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) MessageId.EARLIEST);
+            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) MessageId.earliest);
             duringSeek.set(true);
-            lastDequeuedMessageId = MessageId.EARLIEST;
+            lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
             INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
@@ -1968,7 +1968,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             seekMessageId = new BatchMessageIdImpl((MessageIdImpl) messageId);
             duringSeek.set(true);
-            lastDequeuedMessageId = MessageId.EARLIEST;
+            lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
             INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
@@ -1996,7 +1996,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
         // we haven't read yet. use startMessageId for comparison
-        if (lastDequeuedMessageId == MessageId.EARLIEST) {
+        if (lastDequeuedMessageId == MessageId.earliest) {
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
             if (startMessageId.getLedgerId() == Long.MAX_VALUE &&

@@ -225,16 +225,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @return the message id of the message processed during init phase
      */
     public MessageId initialize() {
-        try (Reader<byte[]> reader = WorkerUtils.createReader (
-          workerService.getClient().newReader(),
-          workerConfig.getWorkerId() + "-function-assignment-initialize",
-          workerConfig.getFunctionAssignmentTopic(),
-          MessageId.EARLIEST)) {
+        try (Reader<byte[]> reader = WorkerUtils.createReader(
+                workerService.getClient().newReader(),
+                workerConfig.getWorkerId() + "-function-assignment-initialize",
+                workerConfig.getFunctionAssignmentTopic(),
+                MessageId.earliest)) {
 
             // start init phase
             this.isInitializePhase = true;
             // keep track of the last message read
-            MessageId lastMessageRead = MessageId.EARLIEST;
+            MessageId lastMessageRead = MessageId.earliest;
             // read all existing messages
             while (reader.hasMessageAvailable()) {
                 Message<byte[]> message = reader.readNext();

@@ -117,7 +117,7 @@ public class SchedulerManager implements AutoCloseable {
     @Getter
     private MessageId lastMessageProduced = null;
 
-    private MessageId metadataTopicLastMessage = MessageId.EARLIEST;
+    private MessageId metadataTopicLastMessage = MessageId.earliest;
     private Future<?> currentRebalanceFuture;
     private AtomicBoolean rebalanceInProgess = new AtomicBoolean(false);
 

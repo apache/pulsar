@@ -212,7 +212,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
         tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
-        tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
+        tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         // grant namespace-level authorization to the subscriptionRole
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
@@ -243,7 +243,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         sub1Admin.topics().expireMessages(topicName, subscriptionName, 10);
         sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
-        sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         superAdmin.namespaces().revokePermissionOnSubscription(namespace, subscriptionName, subscriptionRole);
 

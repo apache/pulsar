@@ -116,7 +116,7 @@ public class TestProxy extends PulsarTestSuite {
 
         for (int i = 0; i < 10; i++) {
             // Ensure we the command works even if re-directs happen with a request body
-            admin.topics().createSubscription(topic, "test-" + i, MessageId.EARLIEST);
+            admin.topics().createSubscription(topic, "test-" + i, MessageId.earliest);
         }
     }
 }

@@ -1070,7 +1070,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .build();
 
         @Cleanup
-        Reader<byte[]> reader = client.newReader().startMessageId(MessageId.EARLIEST)
+        Reader<byte[]> reader = client.newReader().startMessageId(MessageId.earliest)
                 .topic(outputTopicName)
                 .create();
 

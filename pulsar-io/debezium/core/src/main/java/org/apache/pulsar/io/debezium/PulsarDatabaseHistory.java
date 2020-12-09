@@ -192,8 +192,8 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     protected void recoverRecords(Consumer<HistoryRecord> records) {
         setupClientIfNeeded();
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
-            .topic(topicName)
-            .startMessageId(MessageId.EARLIEST)
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
             .create()
         ) {
             log.info("Scanning the database history topic '{}'", topicName);
@@ -239,8 +239,8 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     public boolean exists() {
         setupClientIfNeeded();
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
-            .topic(topicName)
-            .startMessageId(MessageId.EARLIEST)
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
             .create()
         ) {
             return historyReader.hasMessageAvailable();

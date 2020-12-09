@@ -61,7 +61,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     /**
      * Latest cumulative ack sent to broker
      */
-    private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.EARLIEST;
+    private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
     private volatile BitSetRecyclable lastCumulativeAckSet = null;
     private volatile boolean cumulativeAckFlushRequired = false;
 
@@ -485,7 +485,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public void flushAndClean() {
         flush();
-        lastCumulativeAck = (MessageIdImpl) MessageId.EARLIEST;
+        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
         pendingIndividualAcks.clear();
     }
 

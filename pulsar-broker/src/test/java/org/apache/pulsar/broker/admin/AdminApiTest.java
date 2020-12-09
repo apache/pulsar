@@ -1411,7 +1411,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             Lists.newArrayList(persistentTopicName));
 
         // create the subscription by PulsarAdmin
-        admin.topics().createSubscription(persistentTopicName, subName, MessageId.EARLIEST);
+        admin.topics().createSubscription(persistentTopicName, subName, MessageId.earliest);
 
         assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 

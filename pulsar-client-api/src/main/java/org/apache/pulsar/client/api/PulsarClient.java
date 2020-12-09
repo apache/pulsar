@@ -153,7 +153,7 @@ public interface PulsarClient extends Closeable {
      * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)}
      * that can either be:
      * <ul>
-     * <li>{@link MessageId#EARLIEST}: Start reading from the earliest message available in the topic</li>
+     * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
      * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
      * published <b>*after*</b> the creation of the builder</li>
      * <li>{@link MessageId}: Position the reader on a particular message. The first message read will be the one
@@ -190,7 +190,7 @@ public interface PulsarClient extends Closeable {
      * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)} that can either
      * be:
      * <ul>
-     * <li>{@link MessageId#EARLIEST}: Start reading from the earliest message available in the topic</li>
+     * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
      * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
      * published <b>*after*</b> the creation of the builder</li>
      * <li>{@link MessageId}: Position the reader on a particular message. The first message read will be the one

@@ -156,7 +156,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(topic, numKeys, enableBatch);
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST)
+                .startMessageId(MessageId.earliest)
                 .readerName(subscription)
                 .create();
 
@@ -182,7 +182,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(partition0, numKeys, false);
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(partition0)
-                .startMessageId(MessageId.EARLIEST)
+                .startMessageId(MessageId.earliest)
                 .create();
 
         while (reader.hasMessageAvailable()) {
@@ -276,14 +276,14 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Reader<byte[]> reader1 = pulsarClient.newReader()
-            .topic(topic)
-            .startMessageId(MessageId.EARLIEST)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
             .create();
 
         @Cleanup
         Reader<byte[]> reader2 = pulsarClient.newReader()
-            .topic(topic)
-            .startMessageId(MessageId.EARLIEST)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
             .create();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 2);
@@ -321,7 +321,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.EARLIEST)
+                    .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(0, 10000), Range.of(8000, 12000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -332,7 +332,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.EARLIEST)
+                    .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(30000, 20000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -343,7 +343,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try {
             pulsarClient.newReader()
                     .topic(topic)
-                    .startMessageId(MessageId.EARLIEST)
+                    .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(80000, 90000))
                     .create();
             fail("should failed with unexpected key hash range");
@@ -354,7 +354,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST)
+                .startMessageId(MessageId.earliest)
                 .keyHashRange(Range.of(0, StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2))
                 .create();
 
@@ -410,7 +410,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         ReaderBuilder<String> builder = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST);
+                .startMessageId(MessageId.earliest);
         if (setPrefix) {
             builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
         }
@@ -424,7 +424,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         builder = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic2)
-                .startMessageId(MessageId.EARLIEST);
+                .startMessageId(MessageId.earliest);
         if (setPrefix) {
             builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
         }
@@ -443,12 +443,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST).create();
+                .startMessageId(MessageId.earliest).create();
         //We can not create a new reader with the same subscription name
         try (Reader<String> ignored = pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e instanceof PulsarClientException.ConsumerBusyException);
@@ -459,7 +459,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.EARLIEST).create().close();
+                .startMessageId(MessageId.earliest).create().close();
 
     }
 

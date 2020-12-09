@@ -1357,10 +1357,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
 
         // create subscription
-        admin.topics().createSubscription(topic, "test-sub1", MessageId.EARLIEST);
-        admin.topics().createSubscription(topic, "test-sub2", MessageId.EARLIEST);
+        admin.topics().createSubscription(topic, "test-sub1", MessageId.earliest);
+        admin.topics().createSubscription(topic, "test-sub2", MessageId.earliest);
         try {
-            admin.topics().createSubscription(topic, "test-sub3", MessageId.EARLIEST);
+            admin.topics().createSubscription(topic, "test-sub3", MessageId.earliest);
             Assert.fail();
         } catch (PulsarAdminException e) {
             log.info("create subscription failed. Exception: ", e);
@@ -1379,7 +1379,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
 
         for (int i = 0; i < 10; ++i) {
-            admin.topics().createSubscription(topic, "test-sub" + i, MessageId.EARLIEST);
+            admin.topics().createSubscription(topic, "test-sub" + i, MessageId.earliest);
         }
 
         super.internalCleanup();

@@ -230,7 +230,8 @@ public class ClientDeduplicationFailureTest {
         producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
         producer.close();
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.EARLIEST).topic(sourceTopic).create();
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest)
+                .topic(sourceTopic).create();
         Message<String> prevMessage = null;
         Message<String> message = null;
         int count = 0;

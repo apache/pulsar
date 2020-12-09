@@ -89,7 +89,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         }
 
         if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
-            conf.setStartMessageId(MessageId.EARLIEST);
+            conf.setStartMessageId(MessageId.earliest);
         }
 
         return client.createReaderAsync(conf, schema);

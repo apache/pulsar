@@ -84,7 +84,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     }
 
     public synchronized void start() throws PulsarClientException {
-        MessageId startMessageId = lastMessageId == null ? MessageId.EARLIEST : lastMessageId;
+        MessageId startMessageId = lastMessageId == null ? MessageId.earliest : lastMessageId;
         startFromMessage(startMessageId);
     }
 

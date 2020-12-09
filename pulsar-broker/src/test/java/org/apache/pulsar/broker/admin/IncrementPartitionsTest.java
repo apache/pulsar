@@ -138,8 +138,8 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-            .topic(partitionedTopicName.getPartition(0).toString())
-            .startMessageId(MessageId.EARLIEST)
+                .topic(partitionedTopicName.getPartition(0).toString())
+                .startMessageId(MessageId.earliest)
             .create();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName.toString(), 2);

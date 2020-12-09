@@ -147,7 +147,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         // seek to start, read all keys again,
         // assert that we read all keys we had read previously
-        reader.seekAsync(MessageId.EARLIEST).get();
+        reader.seekAsync(MessageId.earliest).get();
         while (true) {
             try (RawMessage m = reader.readNextAsync().get()) {
                 Assert.assertTrue(readKeys.remove(extractKey(m)));

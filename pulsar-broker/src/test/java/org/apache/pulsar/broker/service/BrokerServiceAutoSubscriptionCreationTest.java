@@ -78,7 +78,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
 
         // Create the subscription by PulsarAdmin
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.EARLIEST);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
 
         // Subscribe operation should be successful

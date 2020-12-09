@@ -234,7 +234,7 @@ public class PerformanceReader {
 
         MessageId startMessageId;
         if ("earliest".equals(arguments.startMessageId)) {
-            startMessageId = MessageId.EARLIEST;
+            startMessageId = MessageId.earliest;
         } else if ("latest".equals(arguments.startMessageId)) {
             startMessageId = MessageId.latest;
         } else {

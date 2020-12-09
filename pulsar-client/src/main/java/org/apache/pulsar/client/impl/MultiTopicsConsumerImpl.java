@@ -1324,7 +1324,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         messageId = future.get();
                     } catch(Exception e) {
                         log.warn("[{}] Exception when topic {} getLastMessageId.", key, e);
-                        messageId = MessageId.EARLIEST;
+                        messageId = MessageId.earliest;
                     }
                     builder.put(key, messageId);
                 });
@@ -1338,7 +1338,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public static boolean isIllegalMultiTopicsMessageId(MessageId messageId) {
         //only support earliest/latest
-        return !MessageId.EARLIEST.equals(messageId) && !MessageId.latest.equals(messageId);
+        return !MessageId.earliest.equals(messageId) && !MessageId.latest.equals(messageId);
     }
 
     public void tryAcknowledgeMessage(Message<T> msg) {

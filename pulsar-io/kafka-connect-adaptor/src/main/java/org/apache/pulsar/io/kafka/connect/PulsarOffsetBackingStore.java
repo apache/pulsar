@@ -145,8 +145,8 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 .create();
             log.info("Successfully created producer to produce updates to topic {}", topic);
             reader = client.newReader(Schema.BYTES)
-                .topic(topic)
-                .startMessageId(MessageId.EARLIEST)
+                    .topic(topic)
+                    .startMessageId(MessageId.earliest)
                 .create();
             log.info("Successfully created reader to replay updates from topic {}", topic);
             CompletableFuture<Void> endFuture = new CompletableFuture<>();

@@ -200,7 +200,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // consumer with readCompacted enabled only get compacted entries
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.EARLIEST).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
                 Assert.assertEquals(expected.remove(m.getKey()), new String(m.getData()));
@@ -213,7 +213,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // can get full backlog if read compacted disabled
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(false)
-                .startMessageId(MessageId.EARLIEST).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
                 Pair<String, String> expectedMessage = all.remove(0);
@@ -319,7 +319,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            consumer.seek(MessageId.EARLIEST);
+            consumer.seek(MessageId.earliest);
             Message<byte[]> m = consumer.receive();
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
@@ -327,7 +327,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
-            consumer.seek(MessageId.EARLIEST);
+            consumer.seek(MessageId.earliest);
 
             Message<byte[]> m = consumer.receive();
             Assert.assertEquals(m.getKey(), "key0");

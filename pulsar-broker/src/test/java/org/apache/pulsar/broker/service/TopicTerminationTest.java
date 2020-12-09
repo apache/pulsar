@@ -276,7 +276,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.EARLIEST).create();
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg1 = reader.readNext();
         assertEquals(msg1.getMessageId(), msgId1);

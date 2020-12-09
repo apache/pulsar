@@ -75,7 +75,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     // implies we are the leader, while a null value means we are not the leader
     private Producer exclusiveLeaderProducer;
     @Getter
-    private volatile MessageId lastMessageSeen = MessageId.EARLIEST;
+    private volatile MessageId lastMessageSeen = MessageId.earliest;
 
     private static final String versionTag = "version";
 
@@ -103,7 +103,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public synchronized void initialize() {
         try (Reader reader = FunctionMetaDataTopicTailer.createReader(
-          workerConfig, pulsarClient.newReader(), MessageId.EARLIEST)){
+                workerConfig, pulsarClient.newReader(), MessageId.earliest)) {
             // read all existing messages
             while (reader.hasMessageAvailable()) {
                 processMetaDataTopicMessage(reader.readNext());

@@ -73,7 +73,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createSubscription(topic, "sub-2", MessageId.latest);
         assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-2").msgBacklog, 0);
 
-        admin.topics().createSubscription(topic, "sub-3", MessageId.EARLIEST);
+        admin.topics().createSubscription(topic, "sub-3", MessageId.earliest);
         assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-3").msgBacklog, 3);
 
         admin.topics().createSubscription(topic, "sub-5", m3);

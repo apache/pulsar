@@ -109,16 +109,16 @@ public class RawReaderImpl implements RawReader {
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client,
-                conf.getSingleTopic(),
-                conf,
-                client.externalExecutorProvider().getExecutor(),
-                TopicName.getPartitionIndex(conf.getSingleTopic()),
-                false,
-                consumerFuture,
-                MessageId.EARLIEST,
-                0 /* startMessageRollbackDurationInSec */,
-                Schema.BYTES, null,
-                true
+                    conf.getSingleTopic(),
+                    conf,
+                    client.externalExecutorProvider().getExecutor(),
+                    TopicName.getPartitionIndex(conf.getSingleTopic()),
+                    false,
+                    consumerFuture,
+                    MessageId.earliest,
+                    0 /* startMessageRollbackDurationInSec */,
+                    Schema.BYTES, null,
+                    true
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();

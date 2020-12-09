@@ -287,7 +287,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         String subscriptionName = "non-partitioned-topic-sub";
 
         try {
-            admin.topics().createSubscription(topicName, subscriptionName, MessageId.EARLIEST);
+            admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
             fail("should fail to create subscription once not allowAutoTopicCreation");
         } catch (Exception e) {
             // expected
@@ -295,7 +295,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         try {
             admin.topics().createSubscription(topicName + "-partition-0",
-                    subscriptionName, MessageId.EARLIEST);
+                    subscriptionName, MessageId.earliest);
             fail("should fail to create subscription once not allowAutoTopicCreation");
         } catch (Exception e) {
             // expected
@@ -306,7 +306,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         try {
             admin.topics().createNonPartitionedTopic(topicName);
-            admin.topics().createSubscription(topicName, subscriptionName, MessageId.EARLIEST);
+            admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         } catch (Exception e) {
             // expected
             fail("should success to create subscription once topic created");
@@ -315,7 +315,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         try {
             String partitionTopic = "persistent://prop/ns-abc/partitioned-topic" + System.currentTimeMillis();
             admin.topics().createPartitionedTopic(partitionTopic, 1);
-            admin.topics().createSubscription(partitionTopic + "-partition-0", subscriptionName, MessageId.EARLIEST);
+            admin.topics().createSubscription(partitionTopic + "-partition-0", subscriptionName, MessageId.earliest);
         } catch (Exception e) {
             // expected
             fail("should success to create subscription once topic created");

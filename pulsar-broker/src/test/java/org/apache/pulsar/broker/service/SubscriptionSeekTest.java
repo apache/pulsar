@@ -98,7 +98,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         // Wait for consumer to reconnect
         Thread.sleep(500);
-        consumer.seek(MessageId.EARLIEST);
+        consumer.seek(MessageId.earliest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         Thread.sleep(500);
@@ -164,7 +164,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
-        consumer.seek(MessageId.EARLIEST);
+        consumer.seek(MessageId.earliest);
         Message<String> receiveBeforEarliest = consumer.receive();
         assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
         consumer.seek(MessageId.latest);
@@ -213,7 +213,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .subscriptionName(subscriptionName)
                 .subscribe();
 
-        admin.topics().resetCursor(topicName, subscriptionName, MessageId.EARLIEST);
+        admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         // Wait consumer reconnect
         Thread.sleep(1000);
@@ -265,7 +265,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.EARLIEST);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -441,7 +441,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             connectedSinceSet.add(consumer.getStats().getConnectedSince());
         }
         assertEquals(connectedSinceSet.size(), 2);
-        consumer1.seek(MessageId.EARLIEST);
+        consumer1.seek(MessageId.earliest);
         // Wait for consumer to reconnect
         Thread.sleep(1000);
 
@@ -478,7 +478,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             connectedSinceSet.add(consumer.getStats().getConnectedSince());
         }
         assertEquals(connectedSinceSet.size(), 2);
-        consumer1.seek(MessageId.EARLIEST);
+        consumer1.seek(MessageId.earliest);
         // Wait for consumer to reconnect
         Thread.sleep(1000);
 

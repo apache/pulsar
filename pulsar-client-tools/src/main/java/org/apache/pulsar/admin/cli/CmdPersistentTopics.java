@@ -470,7 +470,7 @@ public class CmdPersistentTopics extends CmdBase {
             if (messageIdStr.equals("latest")) {
                 messageId = MessageId.latest;
             } else if (messageIdStr.equals("earliest")) {
-                messageId = MessageId.EARLIEST;
+                messageId = MessageId.earliest;
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }

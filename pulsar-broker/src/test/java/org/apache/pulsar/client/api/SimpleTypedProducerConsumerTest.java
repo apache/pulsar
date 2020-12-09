@@ -497,9 +497,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Reader<GenericRecord> reader = pulsarClient
-           .newReader(Schema.AUTO_CONSUME())
-           .topic("persistent://my-property/use/my-ns/my-topic1")
-           .startMessageId(MessageId.EARLIEST)
+               .newReader(Schema.AUTO_CONSUME())
+               .topic("persistent://my-property/use/my-ns/my-topic1")
+               .startMessageId(MessageId.earliest)
            .create();
 
        Message<GenericRecord> msg = null;
