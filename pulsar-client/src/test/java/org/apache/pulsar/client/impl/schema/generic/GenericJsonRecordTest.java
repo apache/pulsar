@@ -25,11 +25,24 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import org.apache.pulsar.client.api.schema.Field;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 
 public class GenericJsonRecordTest {
+
+    @Test
+    public void decodeNullValue() throws Exception{
+        byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
+        GenericJsonRecord record
+                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0)))
+                        .read(json, 0, json.length);
+        assertTrue(record.getJsonNode().get("somefield").isNull());
+        assertNull(record.getField("somefield"));
+    }
+
 
     @Test
     public void decodeLongField() throws Exception{
