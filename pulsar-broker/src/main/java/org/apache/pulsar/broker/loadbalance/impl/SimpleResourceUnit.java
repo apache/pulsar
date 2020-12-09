@@ -57,8 +57,9 @@ public class SimpleResourceUnit implements ResourceUnit {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof SimpleResourceUnit))
+        if (!(o instanceof SimpleResourceUnit)) {
             return false;
+        }
         SimpleResourceUnit other = (SimpleResourceUnit) o;
         return this.resourceId.equals(other.resourceId);
     }

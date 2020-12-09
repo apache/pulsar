@@ -46,9 +46,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class encapsulate some utility functions for <code>ServiceUnit</code> related <code>ZooKeeper</code> operations
- *
- *
+ * This class encapsulate some utility functions for
+ * <code>ServiceUnit</code> related <code>ZooKeeper</code> operations.
  */
 public final class ServiceUnitZkUtils {
 
@@ -59,7 +58,7 @@ public final class ServiceUnitZkUtils {
     private static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     /**
-     * <code>ZooKeeper</code> root path for namespace ownership info
+     * <code>ZooKeeper</code> root path for namespace ownership info.
      */
     public static final String OWNER_INFO_ROOT = LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 
@@ -216,16 +215,17 @@ public final class ServiceUnitZkUtils {
             // if path contains multiple levels after the root, create the intermediate nodes first
             String[] parts = path.split("/");
             if (parts.length > 3) {
-                String int_path = path.substring(0, path.lastIndexOf("/"));
-                if (zkc.exists(int_path, false) == null) {
+                String intPath = path.substring(0, path.lastIndexOf("/"));
+                if (zkc.exists(intPath, false) == null) {
                     // create the intermediate nodes
                     try {
-                        ZkUtils.createFullPathOptimistic(zkc, int_path, new byte[0], Ids.OPEN_ACL_UNSAFE,
+                        ZkUtils.createFullPathOptimistic(zkc, intPath, new byte[0], Ids.OPEN_ACL_UNSAFE,
                                 CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException nee) {
                         LOG.debug(
-                                "Other broker preempted the full intermediate path [{}] already. Continue for acquiring the leaf ephemeral node.",
-                                int_path);
+                                "Other broker preempted the full intermediate path [{}] already."
+                                        + " Continue for acquiring the leaf ephemeral node.",
+                                intPath);
                     }
                 }
                 checkNotNull(LocalZooKeeperConnectionService.createIfAbsent(zkc, path, data, mode));

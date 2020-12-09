@@ -85,12 +85,12 @@ public interface BrokerInterceptor extends AutoCloseable {
         }
 
         @Override
-        public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        public void onWebserviceRequest(ServletRequest request) {
             // no-op
         }
 
         @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
             // no-op
         }
 

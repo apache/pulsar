@@ -54,7 +54,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC());
     }
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis, Clock clock) {
+    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+                                   long tickTimeMillis, Clock clock) {
         this.dispatcher = dispatcher;
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
@@ -83,7 +84,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     /**
-     * Return true if there's at least a message that is scheduled to be delivered already
+     * Return true if there's at least a message that is scheduled to be delivered already.
      */
     @Override
     public boolean hasMessageAvailable() {
@@ -91,7 +92,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     /**
-     * Get a set of position of messages that have already reached
+     * Get a set of position of messages that have already reached.
      */
     @Override
     public Set<PositionImpl> getScheduledMessages(int maxMessages) {
