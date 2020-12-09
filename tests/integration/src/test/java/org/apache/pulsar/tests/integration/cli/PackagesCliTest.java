@@ -24,8 +24,8 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -74,10 +74,12 @@ public class PackagesCliTest {
         assertEquals(result.getExitCode(), 0);
         assertTrue(result.getStdout().isEmpty());
 
-        result = runPackagesCommand("download", "function://public/default/test@v1");
-        assertNotEquals(result.getExitCode(), 0);
-        assertFalse(result.getStderr().isEmpty());
-        assertTrue(result.getStderr().contains("does not exist"));
+        try {
+            result = runPackagesCommand("download", "function://public/default/test@v1", "--path", "test-admin");
+            fail("this command should be failed");
+        } catch (Exception e) {
+            // expected exception
+        }
     }
 
     // TODO: the upload command has some problem when uploading packages, enable this tests when issue
