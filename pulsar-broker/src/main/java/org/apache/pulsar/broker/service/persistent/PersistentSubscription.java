@@ -173,6 +173,12 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        if (pendingAckHandle instanceof PendingAckHandleImpl) {
+            if (!((PendingAckHandleImpl) pendingAckHandle).checkIfReady()) {
+                throw new SubscriptionBusyException("Pending ack handle not init " +
+                        "complete! topicName : " + topicName + " subName : " + subName);
+            }
+        }
         cursor.updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
@@ -742,11 +748,11 @@ public class PersistentSubscription implements Subscription {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
-            IS_FENCED_UPDATER.set(this, TRUE);
-            log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+            return this.pendingAckHandle.close().thenAccept(v -> {
+                IS_FENCED_UPDATER.set(this, TRUE);
+                log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+            });
         }
-
-        return CompletableFuture.completedFuture(null);
     }
 
     /**

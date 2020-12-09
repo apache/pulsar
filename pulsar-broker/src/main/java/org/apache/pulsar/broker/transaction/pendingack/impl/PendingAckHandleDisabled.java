@@ -68,6 +68,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public void clearIndividualPosition(Position position) {
-        //no operation
+        //no-op
     }
+
+    @Override
+    public CompletableFuture<Void> close() {
+        return CompletableFuture.completedFuture(null);
+    }
+
 }

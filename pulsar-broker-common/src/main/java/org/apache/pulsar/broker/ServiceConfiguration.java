@@ -1925,6 +1925,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String transactionBufferProviderClassName =
             "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack store provider"
+    )
+    private String transactionPendingAckStoreProviderClassName =
+            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
+    )
+    private int numTransactionReplayThreadPoolSize = 5;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Interval time of pending ack timer task, unit is seconds."
+    )
+    private int minPendingAckTimerTaskIntervalTime = 3600;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Interval time of pending ack timer task, unit is seconds."
+    )
+    private int maxPendingAckTimerTaskIntervalTime = 36000;
+
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
