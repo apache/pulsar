@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -114,6 +116,15 @@ public interface EntryCache extends Comparable<EntryCache> {
      *            the context object
      */
     void asyncReadEntry(ReadHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Read a sequence of entries from the cache or from bookkeeper.
+     *
+     * @param firstEntry id of first entry of sequence
+     * @param lastEntry  id of last entry of sequence, inclusive
+     * @return an handle to the result of the operation
+     */
+    CompletableFuture<LedgerEntries> asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry);
 
     /**
      * Get the total size in bytes of all the entries stored in this cache.

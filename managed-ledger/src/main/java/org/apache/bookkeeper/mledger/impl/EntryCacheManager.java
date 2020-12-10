@@ -20,17 +20,18 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -244,12 +245,18 @@ public class EntryCacheManager {
                                 ml.getMBean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
                             } else {
-                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), ctx);
+                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
+                                        ctx);
                             }
                         } finally {
                             ledgerEntries.close();
                         }
                     }, ml.getExecutor().chooseThread(ml.getName()));
+        }
+
+        @Override
+        public CompletableFuture<LedgerEntries> asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry) {
+            return lh.readAsync(firstEntry, lastEntry);
         }
 
         @Override

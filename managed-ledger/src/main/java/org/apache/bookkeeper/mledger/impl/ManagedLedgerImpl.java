@@ -1518,6 +1518,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
     }
 
+    CompletableFuture<ReadHandle> getCachedLedgerHandle(long ledgerId) {
+        return getLedgerHandle(ledgerId).thenApply(ledger -> new EntryCachedLedger(entryCache, ledger));
+    }
+
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
@@ -2527,7 +2531,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
-                .thenCompose((ignore) -> getLedgerHandle(ledgerId))
+                    .thenCompose((ignore) -> getCachedLedgerHandle(ledgerId))
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
