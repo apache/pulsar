@@ -29,29 +29,30 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
- * Topic policies service
+ * Topic policies service.
  */
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
-    Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
+    Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> LISTENERS = new ConcurrentHashMap<>();
 
     /**
-     * Update policies for a topic async
+     * Update policies for a topic async.
+     *
      * @param topicName topic name
-     * @param policies policies for the topic name
+     * @param policies  policies for the topic name
      */
     CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies);
 
     /**
-     * Get policies for a topic async
+     * Get policies for a topic async.
      * @param topicName topic name
      * @return future of the topic policies
      */
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
-     * Get policies for a topic without cache async
+     * Get policies for a topic without cache async.
      * @param topicName topic name
      * @return future of the topic policies
      */
@@ -77,7 +78,7 @@ public interface TopicPoliciesService {
     void start();
 
     /**
-     * whether the cache has been initialized
+     * whether the cache has been initialized.
      * @param topicName
      * @return
      */

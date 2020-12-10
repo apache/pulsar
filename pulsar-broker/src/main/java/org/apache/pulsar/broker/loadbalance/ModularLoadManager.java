@@ -100,21 +100,21 @@ public interface ModularLoadManager {
     void writeBundleDataOnZooKeeper();
 
     /**
-     * Return :{@link Deserializer} to deserialize load-manager load report
+     * Return :{@link Deserializer} to deserialize load-manager load report.
      *
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 
     /**
-     * Get available broker list in cluster
+     * Get available broker list in cluster.
      *
      * @return
      */
     Set<String> getAvailableBrokers();
 
     /**
-     * Fetch local-broker data from load-manager broker cache
+     * Fetch local-broker data from load-manager broker cache.
      *
      * @param broker load-balancer zk-path
      * @return

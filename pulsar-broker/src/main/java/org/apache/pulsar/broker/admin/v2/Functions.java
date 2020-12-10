@@ -196,7 +196,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
-        return functions.listFunctions( tenant, namespace, clientAppId());
+        return functions.listFunctions(tenant, namespace, clientAppId());
     }
 
     @POST
@@ -218,7 +218,8 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
                                     final @FormDataParam("data") String triggerValue,
                                     final @FormDataParam("dataStream") InputStream triggerStream,
                                     final @FormDataParam("topic") String topic) {
-        return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId());
+        return functions.triggerFunction(tenant, namespace, functionName,
+                triggerValue, triggerStream, topic, clientAppId());
     }
 
     @GET
@@ -250,20 +251,23 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("functionName") String functionName,
                                     final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
+        return functions.restartFunctionInstance(tenant, namespace, functionName,
+                instanceId, uri.getRequestUri(), clientAppId());
     }
 
     @POST
     @ApiOperation(value = "Restart all function instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("functionName") String functionName) {
         return functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId());
     }
 
@@ -275,20 +279,23 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("functionName") String functionName,
                                  final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId());
+        return functions.stopFunctionInstance(tenant, namespace, functionName,
+                instanceId, uri.getRequestUri(), clientAppId());
     }
 
     @POST
     @ApiOperation(value = "Stop all function instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("functionName") String functionName) {
         return functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId());
     }
 

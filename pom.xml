@@ -117,7 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <jackson.version>2.11.1</jackson.version>
     <jackson.databind.version>2.11.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
-    <swagger.version>1.5.21</swagger.version>
+    <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
@@ -180,6 +180,8 @@ flexible messaging model and an intuitive client API.</description>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
     <nsq-client.version>1.0</nsq-client.version>
+    <cron-utils.version>9.1.3</cron-utils.version>
+    <spring-context.version>5.3.1</spring-context.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1342,16 +1344,16 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                     <goal>enforce</goal>
                 </goals>
-                <configuration>
-                    <rules>
-                      <requireJavaVersion>
-                        <version>[1.8.0,)</version>
-                      </requireJavaVersion>
-                      <requireMavenVersion>
-                        <version>[3.3.9,)</version>
-                      </requireMavenVersion>
-                    </rules>
-                </configuration>
+              <configuration>
+                <rules>
+                  <requireJavaVersion>
+                    <version>[1.8.0,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <version>[3.3.9,)</version>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
             </execution>
         </executions>
       </plugin>

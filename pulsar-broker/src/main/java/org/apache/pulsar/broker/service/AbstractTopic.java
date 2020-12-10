@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
-
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,7 +33,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -122,9 +120,12 @@ public abstract class AbstractTopic implements Topic {
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
-        this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled());
-        this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
-        this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
+        this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration()
+                .isBrokerDeleteInactiveTopicsEnabled());
+        this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration()
+                .getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
+        this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration()
+                .getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -157,7 +158,8 @@ public abstract class AbstractTopic implements Topic {
             }
             maxProducers = policies.max_producers_per_topic;
         }
-        maxProducers = maxProducers > 0 ? maxProducers : brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        maxProducers = maxProducers > 0 ? maxProducers : brokerService.pulsar()
+                .getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
@@ -311,7 +313,8 @@ public abstract class AbstractTopic implements Topic {
         return schemaRegistryService.getSchema(id)
                 .thenCompose(schema -> {
                     if (schema != null) {
-                        // It's different from `SchemasResource.deleteSchema` because when we delete a topic, the schema
+                        // It's different from `SchemasResource.deleteSchema`
+                        // because when we delete a topic, the schema
                         // history is meaningless. But when we delete a schema of a topic, a new schema could be
                         // registered in the future.
                         log.info("Delete schema storage of id: {}", id);
@@ -489,7 +492,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     /**
-     * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
+     * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling.
      */
     protected void enableProducerReadForPublishRateLimiting() {
         if (producers != null) {
@@ -547,7 +550,7 @@ public abstract class AbstractTopic implements Topic {
             canOverwrite = true;
         }
         if (canOverwrite) {
-            if(!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
+            if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
                 throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
                         + "' replace concurrency error");
@@ -607,8 +610,8 @@ public abstract class AbstractTopic implements Topic {
     @Override
     public boolean isPublishRateExceeded() {
         // either topic or broker publish rate exceeded.
-        return this.topicPublishRateLimiter.isPublishRateExceeded() ||
-            getBrokerPublishRateLimiter().isPublishRateExceeded();
+        return this.topicPublishRateLimiter.isPublishRateExceeded()
+                || getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
     @Override
@@ -639,7 +642,8 @@ public abstract class AbstractTopic implements Topic {
         //if topic-level policy exists, try to use topic-level publish rate policy
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
-            log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}", this.topic);
+            log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
+                    this.topic);
             updatePublishDispatcher(topicPolicies.getPublishRate());
             return;
         }
@@ -662,7 +666,9 @@ public abstract class AbstractTopic implements Topic {
         updatePublishDispatcher(publishRate);
     }
 
-    public long getMsgInCounter() { return this.msgInCounter.longValue(); }
+    public long getMsgInCounter() {
+        return this.msgInCounter.longValue();
+    }
 
     public long getBytesInCounter() {
         return this.bytesInCounter.longValue();
@@ -719,8 +725,8 @@ public abstract class AbstractTopic implements Topic {
             log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
         } catch (NullPointerException e) {
-            log.warn("Topic level policies are not enabled. " +
-                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
+            log.warn("Topic level policies are not enabled. "
+                    + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
     }
@@ -755,7 +761,8 @@ public abstract class AbstractTopic implements Topic {
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                 // create new rateLimiter if rate-limiter is disabled
                 if (preciseTopicPublishRateLimitingEnable) {
-                    this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate, ()-> this.enableCnxAutoRead());
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
+                            () -> this.enableCnxAutoRead());
                 } else {
                     this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
                 }

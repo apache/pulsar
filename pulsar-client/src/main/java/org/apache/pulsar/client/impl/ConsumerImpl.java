@@ -22,17 +22,15 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.Timeout;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
-
+import io.netty.util.Timeout;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,7 +57,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -71,19 +68,18 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
+import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
-import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -99,6 +95,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -126,7 +123,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
-    private long subscribeTimeout;
+    private final long subscribeTimeout;
     private final int partitionIndex;
     private final boolean hasParentConsumer;
 
@@ -177,15 +174,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected volatile boolean paused;
 
     protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentOpenHashMap<>();
-    private int pendingChunckedMessageCount = 0;
+    private int pendingChunkedMessageCount = 0;
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
     private boolean expireChunkMessageTaskScheduled = false;
-    private int maxPendingChuckedMessage;
+    private final int maxPendingChunkedMessage;
     // if queue size is reasonable (most of the time equal to number of producers try to publish messages concurrently on
-    // the topic) then it guards against broken chuncked message which was not fully published
-    private boolean autoAckOldestChunkedMessageOnQueueFull;
-    // it will be used to manage N outstanding chunked mesage buffers
-    private final BlockingQueue<String> pendingChunckedMessageUuidQueue;
+    // the topic) then it guards against broken chunked message which was not fully published
+    private final boolean autoAckOldestChunkedMessageOnQueueFull;
+    // it will be used to manage N outstanding chunked message buffers
+    private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
 
@@ -254,8 +251,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
         this.resetIncludeHead = conf.isResetIncludeHead();
         this.createTopicIfDoesNotExist = createTopicIfDoesNotExist;
-        this.maxPendingChuckedMessage = conf.getMaxPendingChuckedMessage();
-        this.pendingChunckedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
+        this.maxPendingChunkedMessage = conf.getMaxPendingChuckedMessage();
+        this.pendingChunkedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
 
@@ -568,9 +565,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            if (ackType == AckType.Cumulative && txn != null) {
-                return sendAcknowledge(messageId, ackType, properties, txn);
-            }
             if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
@@ -1246,11 +1240,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             int totalChunks = msgMetadata.getNumChunksFromMsg();
             chunkedMessagesMap.computeIfAbsent(msgMetadata.getUuid(),
                     (key) -> ChunkedMessageCtx.get(totalChunks, chunkedMsgBuffer));
-            pendingChunckedMessageCount++;
-            if (maxPendingChuckedMessage > 0 && pendingChunckedMessageCount > maxPendingChuckedMessage) {
+            pendingChunkedMessageCount++;
+            if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
                 removeOldestPendingChunkedMessage();
             }
-            pendingChunckedMessageUuidQueue.add(msgMetadata.getUuid());
+            pendingChunkedMessageUuidQueue.add(msgMetadata.getUuid());
         }
 
         ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(msgMetadata.getUuid());
@@ -1300,8 +1294,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         // remove buffer from the map, add chucked messageId to unack-message tracker, and reduce pending-chunked-message count
         chunkedMessagesMap.remove(msgMetadata.getUuid());
-        unAckedChunckedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
-        pendingChunckedMessageCount--;
+        unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
+        pendingChunkedMessageCount--;
         compressedPayload.release();
         compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
         chunkedMsgCtx.recycle();
@@ -2352,9 +2346,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void removeOldestPendingChunkedMessage() {
         ChunkedMessageCtx chunkedMsgCtx = null;
         String firstPendingMsgUuid = null;
-        while (chunkedMsgCtx == null && !pendingChunckedMessageUuidQueue.isEmpty()) {
+        while (chunkedMsgCtx == null && !pendingChunkedMessageUuidQueue.isEmpty()) {
             // remove oldest pending chunked-message group and free memory
-            firstPendingMsgUuid = pendingChunckedMessageUuidQueue.poll();
+            firstPendingMsgUuid = pendingChunkedMessageUuidQueue.poll();
             chunkedMsgCtx = StringUtils.isNotBlank(firstPendingMsgUuid) ? chunkedMessagesMap.get(firstPendingMsgUuid)
                     : null;
         }
@@ -2367,11 +2361,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         ChunkedMessageCtx chunkedMsgCtx = null;
         String messageUUID;
-        while ((messageUUID = pendingChunckedMessageUuidQueue.peek()) != null) {
+        while ((messageUUID = pendingChunkedMessageUuidQueue.peek()) != null) {
             chunkedMsgCtx = StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
             if (chunkedMsgCtx != null && System
                     .currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
-                pendingChunckedMessageUuidQueue.remove(messageUUID);
+                pendingChunkedMessageUuidQueue.remove(messageUUID);
                 removeChunkMessage(messageUUID, chunkedMsgCtx, true);
             } else {
                 return;
@@ -2402,7 +2396,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             chunkedMsgCtx.chunkedMsgBuffer.release();
         }
         chunkedMsgCtx.recycle();
-        pendingChunckedMessageCount--;
+        pendingChunkedMessageCount--;
     }
 
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(MessageId messageId, AckType ackType,
@@ -2429,6 +2423,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             cmd = Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType, validationError, properties,
                     txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId, batchMessageId.getBatchSize());
+            bitSetRecyclable.recycle();
         } else {
             MessageIdImpl singleMessage = (MessageIdImpl) messageId;
             ledgerId = singleMessage.getLedgerId();

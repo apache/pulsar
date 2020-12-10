@@ -46,7 +46,7 @@ public class OffloadProcessStatus extends LongRunningProcessStatus {
 
     public static OffloadProcessStatus forError(String lastError) {
         return new OffloadProcessStatus(Status.ERROR, lastError,
-                                        (MessageIdImpl) MessageId.earliest);
+                (MessageIdImpl) MessageId.earliest);
     }
 
     public static OffloadProcessStatus forSuccess(MessageIdImpl messageId) {

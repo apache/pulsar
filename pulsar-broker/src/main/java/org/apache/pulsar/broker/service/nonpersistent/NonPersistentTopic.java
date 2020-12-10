@@ -94,8 +94,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     private final ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators;
 
     // Ever increasing counter of entries added
-    private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
+    private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
@@ -217,9 +217,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long resetStartMessageBackInSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
+                                                 SubType subType, int priorityLevel, String consumerName,
+                                                 boolean isDurable, MessageId startMessageId,
+                                                 Map<String, String> metadata, boolean readCompacted,
+                                                 InitialPosition initialPosition,
+                                                 long resetStartMessageBackInSec, boolean replicateSubscriptionState,
+                                                 PulsarApi.KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -398,10 +401,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     /**
-     * Close this topic - close all producers and subscriptions associated with this topic
+     * Close this topic - close all producers and subscriptions associated with this topic.
      *
-     * @param closeWithoutWaitingClientDisconnect
-     *            don't wait for client disconnect and forcefully close managed-ledger
+     * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
@@ -427,8 +429,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
-        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
-                : FutureUtil.waitForAll(futures);
+        CompletableFuture<Void> clientCloseFuture =
+                closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
+                        : FutureUtil.waitForAll(futures);
 
         clientCloseFuture.thenRun(() -> {
             log.info("[{}] Topic closed", topic);
@@ -741,7 +744,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 
-        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
+        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
 
         producers.values().forEach(producer -> {
             NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
@@ -869,7 +872,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                             : policies.subscription_expiration_time_minutes);
             if (expirationTimeMillis > 0) {
                 subscriptions.forEach((subName, sub) -> {
-                    if (sub.getDispatcher() != null && sub.getDispatcher().isConsumerConnected() || sub.isReplicated()) {
+                    if (sub.getDispatcher() != null
+                            && sub.getDispatcher().isConsumerConnected() || sub.isReplicated()) {
                         return;
                     }
                     if (System.currentTimeMillis() - sub.getLastActive() > expirationTimeMillis) {
@@ -917,7 +921,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         } else {
             ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
             resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
+                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                    cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
         return checkReplicationAndRetryOnFailure();
     }
@@ -949,8 +954,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
-        subscriptions.remove(subscriptionName);
-        return CompletableFuture.completedFuture(null);
+        // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
+        // That creates deadlock. so, execute remove it in different thread.
+        return CompletableFuture.runAsync(() -> subscriptions.remove(subscriptionName), brokerService.executor());
     }
 
     @Override

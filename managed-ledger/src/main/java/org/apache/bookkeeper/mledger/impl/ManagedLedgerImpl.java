@@ -2084,7 +2084,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
-
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
@@ -2135,8 +2134,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             advanceNonDurableCursors(ledgersToDelete);
 
+            PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
             // Update metadata
             for (LedgerInfo ls : ledgersToDelete) {
+                if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
+                    // this info is relevant because the lastMessageId won't be available anymore
+                    log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be deleted", name,
+                            ls.getLedgerId(), currentLastConfirmedEntry);
+                }
                 ledgerCache.remove(ls.getLedgerId());
 
                 ledgers.remove(ls.getLedgerId());

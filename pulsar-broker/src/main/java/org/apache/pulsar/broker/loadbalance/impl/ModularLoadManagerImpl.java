@@ -127,7 +127,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evenly across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+            brokerToNamespaceToBundleRange;
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
@@ -332,18 +333,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // For each broker that we have a recent load report, see if they are still alive
     private void reapDeadBrokerPreallocations(Set<String> aliveBrokers) {
-        for ( String broker : loadData.getBrokerData().keySet() ) {
-            if ( !aliveBrokers.contains(broker)) {
-                if ( log.isDebugEnabled() ) {
+        for (String broker : loadData.getBrokerData().keySet()) {
+            if (!aliveBrokers.contains(broker)) {
+                if (log.isDebugEnabled()) {
                     log.debug("Broker {} appears to have stopped; now reclaiming any preallocations", broker);
                 }
                 final Iterator<Map.Entry<String, String>> iterator = preallocatedBundleToBroker.entrySet().iterator();
-                while ( iterator.hasNext() ) {
+                while (iterator.hasNext()) {
                     Map.Entry<String, String> entry = iterator.next();
                     final String preallocatedBundle = entry.getKey();
                     final String preallocatedBroker = entry.getValue();
-                    if ( broker.equals(preallocatedBroker) ) {
-                        if ( log.isDebugEnabled() ) {
+                    if (broker.equals(preallocatedBroker)) {
+                        if (log.isDebugEnabled()) {
                             log.debug("Removing old preallocation on dead broker {} for bundle {}",
                                     preallocatedBroker, preallocatedBundle);
                         }
@@ -449,9 +450,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                                                 localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
-            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%; " +
-                    "time since last report written is {} seconds", maxChange,
-                    conf.getLoadBalancerReportUpdateThresholdPercentage(), timeSinceLastReportWrittenToZooKeeper/1000.0);
+            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%; "
+                            + "time since last report written is {} seconds", maxChange,
+                    conf.getLoadBalancerReportUpdateThresholdPercentage(),
+                    timeSinceLastReportWrittenToZooKeeper / 1000.0);
             return true;
         }
         return false;
@@ -536,8 +538,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             synchronized (preallocatedBundleData) {
                 for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
                     if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
-                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                                .iterator();
+                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
+                                preallocatedBundleData.entrySet()
+                                        .iterator();
                         while (preallocatedIterator.hasNext()) {
                             final String bundle = preallocatedIterator.next().getKey();
 
@@ -555,8 +558,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Using the newest data, update the aggregated time-average data for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>());
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
+                    brokerToNamespaceToBundleRange
+                            .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>());
             synchronized (namespaceToBundleRange) {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
@@ -748,7 +752,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         scheduler.submit(this::updateAll);
     }
 
-    private static final Summary selectBrokerForAssignment = Summary.build("pulsar_broker_load_manager_bundle_assigment", "-")
+    private static final Summary selectBrokerForAssignment = Summary.build(
+            "pulsar_broker_load_manager_bundle_assigment", "-")
             .quantile(0.50)
             .quantile(0.99)
             .quantile(0.999)
@@ -841,8 +846,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-                final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                        .computeIfAbsent(broker.get(), k -> new ConcurrentOpenHashMap<>());
+                final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
+                        brokerToNamespaceToBundleRange
+                                .computeIfAbsent(broker.get(), k -> new ConcurrentOpenHashMap<>());
                 synchronized (namespaceToBundleRange) {
                     namespaceToBundleRange.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>())
                             .add(bundleRange);
@@ -1096,7 +1102,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         try {
             return brokerDataCache.get(key).orElse(null);
         } catch (Exception e) {
-            log.warn("Failed to get local-broker data for {}",broker, e);
+            log.warn("Failed to get local-broker data for {}", broker, e);
             return null;
         }
     }

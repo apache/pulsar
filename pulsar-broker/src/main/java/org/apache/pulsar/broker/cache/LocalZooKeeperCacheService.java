@@ -145,12 +145,11 @@ public class LocalZooKeeperCacheService {
     }
 
     /**
-     * Create LocalPolicies with bundle-data in LocalZookeeper by fetching it from GlobalZookeeper
+     * Create LocalPolicies with bundle-data in LocalZookeeper by fetching it from GlobalZookeeper.
      *
-     * @param path
-     *            znode path
-     * @param readFromGlobal
-     *            if true copy policies from global zk to local zk else create a new znode with empty {@link Policies}
+     * @param path           znode path
+     * @param readFromGlobal if true copy policies from global zk to local zk else create a new znode with empty {@link
+     *                       Policies}
      * @throws Exception
      */
     @SuppressWarnings("deprecation")

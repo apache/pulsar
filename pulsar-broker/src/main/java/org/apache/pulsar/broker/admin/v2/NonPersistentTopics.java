@@ -146,21 +146,25 @@ public class NonPersistentTopics extends PersistentTopics {
             boolean includeMetadata = metadata && hasSuperUserAccess();
             return topic.getInternalStats(includeMetadata).get();
         } catch (Exception e) {
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+            throw new RestException(Status.INTERNAL_SERVER_ERROR,
+                    (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
         }
     }
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/partitions")
-    @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
+    @ApiOperation(value = "Create a partitioned topic.",
+            notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than"
+                    + " or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exists"),
-            @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
+            @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or "
+                    + "Namespace does not have any clusters configured"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
     })
@@ -172,11 +176,12 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
-            int numPartitions) {
+            @ApiParam(value = "The number of partitions for the topic",
+                    required = true, type = "int", defaultValue = "0")
+                    int numPartitions) {
 
         try {
-            validateGlobalNamespaceOwnership(tenant,namespace);
+            validateGlobalNamespaceOwnership(tenant, namespace);
             validateTopicName(tenant, namespace, encodedTopic);
             validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
@@ -220,7 +225,8 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{tenant}/{namespace}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Get the list of non-persistent topics under a namespace.",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -293,7 +299,8 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{tenant}/{namespace}/{bundle}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -326,7 +333,8 @@ public class NonPersistentTopics extends PersistentTopics {
             return null;
         }
 
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
+        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(
+                namespaceName, policies.bundles, bundleRange, true, true);
         try {
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().forEachTopic(topic -> {

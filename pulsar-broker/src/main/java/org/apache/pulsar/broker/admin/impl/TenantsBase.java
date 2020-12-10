@@ -127,7 +127,8 @@ public class TenantsBase extends AdminResource {
 
     @POST
     @Path("/{tenant}")
-    @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value = "Update the admins for a tenant.",
+            notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
@@ -168,7 +169,8 @@ public class TenantsBase extends AdminResource {
                 if (!clustersWithActiveNamespaces.isEmpty()) {
                     // Throw an exception because colos being removed are having active namespaces
                     String msg = String.format(
-                            "Failed to update the tenant because active namespaces are present in colos %s. Please delete those namespaces first",
+                            "Failed to update the tenant because active namespaces are present in colos %s."
+                                    + " Please delete those namespaces first",
                             clustersWithActiveNamespaces);
                     throw new RestException(Status.CONFLICT, msg);
                 }
@@ -233,8 +235,9 @@ public class TenantsBase extends AdminResource {
 
     private void validateClusters(TenantInfo info) {
         // empty cluster shouldn't be allowed
-        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
-            || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
+        if (info == null || info.getAllowedClusters().stream()
+                .filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
+                || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
             throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
         }
