@@ -86,8 +86,9 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ## Build Pulsar
 
 Requirements:
- * Java JDK 1.8 or Java JDK 11
- * Maven 3.3.9+
+ * Java 8 JDK (for building Pulsar)
+   * When building on newer than Java 8, the resulting artifacts are not compatible with Java 8 runtime because of issues such as https://github.com/apache/pulsar/issues/8445.
+ * Maven 3.6.1+
 
 Compile and install:
 
@@ -135,7 +136,7 @@ required plugins.
 
 ### Intellij
 
-To configure annotation processing in IntelliJ:
+#### Configure annotation processing in IntelliJ
 
 1. Open Annotation Processors Settings dialog box by going to
    `Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors`.
@@ -152,6 +153,26 @@ To configure annotation processing in IntelliJ:
 4. Click "OK".
 
 5. Install the lombok plugin in intellij.
+
+#### Further configuration in IntelliJ 
+
+* When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.
+  * In IntelliJ's Maven UI's tree view under "Profiles"
+    * Activate "core-modules" maven profile
+    * De-activate "main" maven profile
+    * Run "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by name in the IntelliJ "Search Everywhere" window that gets activated by pressing the shift key twice.
+
+* Run "Generate Sources and Update Folders For All Projects" from the Maven UI toolbar. You can also find the action by name in the IntelliJ "Search Everywhere" window that gets activated by pressing the shift key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
+
+
+#### IntelliJ usage tips
+
+* In the case of compilation errors with missing Protobuf classes, make sure to run "Generate Sources and Update Folders For All Projects" action.
+
+* All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
+  * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
+  * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right clicking the project name and choosing "Ignore Projects".
+  * Because of the compilation issues, it's not currently possible to run all unit tests directly from the IDE. As a workaround, individual test classes can be run from the command line using "mvn test -Dtest=TestClassName" command.
 
 ### Eclipse
 
