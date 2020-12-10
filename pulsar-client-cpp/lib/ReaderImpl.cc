@@ -35,6 +35,12 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
     consumerConf.setReadCompacted(readerConf_.isReadCompacted());
     consumerConf.setSchema(readerConf_.getSchema());
+    consumerConf.setUnAckedMessagesTimeoutMs(readerConf_.getUnAckedMessagesTimeoutMs());
+    consumerConf.setTickDurationInMs(readerConf_.getTickDurationInMs());
+    consumerConf.setAckGroupingTimeMs(readerConf_.getAckGroupingTimeMs());
+    consumerConf.setAckGroupingMaxSize(readerConf_.getAckGroupingMaxSize());
+    consumerConf.setCryptoKeyReader(readerConf_.getCryptoKeyReader());
+    consumerConf.setProperties(readerConf_.getProperties());
 
     if (readerConf_.getReaderName().length() > 0) {
         consumerConf.setConsumerName(readerConf_.getReaderName());
