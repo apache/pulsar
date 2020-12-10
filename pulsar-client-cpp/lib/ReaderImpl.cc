@@ -23,6 +23,12 @@
 
 namespace pulsar {
 
+namespace test {
+std::mutex readerConfigTestMutex;
+std::atomic_bool readerConfigTestEnabled{false};
+ConsumerConfiguration consumerConfigOfReader;
+}  // namespace test
+
 static ResultCallback emptyCallback;
 
 ReaderImpl::ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
@@ -40,6 +46,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumerConf.setAckGroupingTimeMs(readerConf_.getAckGroupingTimeMs());
     consumerConf.setAckGroupingMaxSize(readerConf_.getAckGroupingMaxSize());
     consumerConf.setCryptoKeyReader(readerConf_.getCryptoKeyReader());
+    consumerConf.setCryptoFailureAction(readerConf_.getCryptoFailureAction());
     consumerConf.setProperties(readerConf_.getProperties());
 
     if (readerConf_.getReaderName().length() > 0) {
@@ -61,6 +68,11 @@ void ReaderImpl::start(const MessageId& startMessageId) {
         if (!readerConf_.getSubscriptionRolePrefix().empty()) {
             subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
         }
+    }
+
+    // get the consumer's configuration before created
+    if (test::readerConfigTestEnabled) {
+        test::consumerConfigOfReader = consumerConf.clone();
     }
 
     consumer_ = std::make_shared<ConsumerImpl>(
