@@ -1,31 +1,47 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.broker.stats.sender;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -34,19 +50,6 @@ import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 public class PulsarMetricsSender implements MetricsSender {
     private static final Logger log = LoggerFactory.getLogger(PulsarMetricsSender.class);
@@ -62,10 +65,12 @@ public class PulsarMetricsSender implements MetricsSender {
     public PulsarMetricsSender(PulsarService pulsar, MetricsSenderConfiguration conf) throws PulsarServerException {
         this.pulsar = pulsar;
         this.conf = conf;
-        this.metricsSenderExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-metrics-sender"));
+        this.metricsSenderExecutor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("pulsar-metrics-sender"));
 
         this.topicToSend = TopicName.get(
-                "persistent", NamespaceName.get(this.conf.tenant, this.conf.namespace), "broker-" + this.pulsar.getAdvertisedAddress());
+                "persistent", NamespaceName.get(this.conf.tenant, this.conf.namespace),
+                "broker-" + this.pulsar.getAdvertisedAddress());
 
         this.prepareTopics();
         this.prepareProducer();
@@ -103,11 +108,13 @@ public class PulsarMetricsSender implements MetricsSender {
         final int initialDelay = 1;
         final int interval = this.conf.intervalInSeconds;
         log.info("Scheduling a thread to send metrics after [{}] seconds in background", interval);
-        this.metricsSenderExecutor.scheduleAtFixedRate(safeRun(this::generateAndSend), initialDelay, interval, TimeUnit.SECONDS);
+        this.metricsSenderExecutor.scheduleAtFixedRate(safeRun(this::generateAndSend), initialDelay,
+                interval, TimeUnit.SECONDS);
     }
 
     private void generateAndSend() {
-        NamespaceStatsAggregator.generate(this.pulsar, this.conf.includeTopicMetrics, this.conf.includeConsumerMetrics, this);
+        NamespaceStatsAggregator.generate(this.pulsar, this.conf.includeTopicMetrics,
+                this.conf.includeConsumerMetrics, this);
     }
 
     @Override
@@ -158,7 +165,7 @@ public class PulsarMetricsSender implements MetricsSender {
 
     static void createNamespaceIfAbsent(ZooKeeper configStoreZk, NamespaceName namespaceName, String cluster)
             throws KeeperException, InterruptedException, IOException {
-        String namespacePath = POLICIES_ROOT + "/" +namespaceName.toString();
+        String namespacePath = POLICIES_ROOT + "/" + namespaceName.toString();
         Policies policies;
         Stat stat = configStoreZk.exists(namespacePath, false);
         if (stat == null) {
@@ -186,7 +193,8 @@ public class PulsarMetricsSender implements MetricsSender {
         }
     }
 
-    static void createPartitionedTopic(ZooKeeper configStoreZk, TopicName topicName, int numPartitions) throws KeeperException, InterruptedException, IOException {
+    static void createPartitionedTopic(ZooKeeper configStoreZk, TopicName topicName, int numPartitions)
+            throws KeeperException, InterruptedException, IOException {
         String partitionedTopicPath = ZkAdminPaths.partitionedTopicPath(topicName);
         Stat stat = configStoreZk.exists(partitionedTopicPath, false);
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions);
@@ -200,7 +208,8 @@ public class PulsarMetricsSender implements MetricsSender {
             );
         } else {
             byte[] content = configStoreZk.getData(partitionedTopicPath, false, null);
-            PartitionedTopicMetadata existsMeta = ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
+            PartitionedTopicMetadata existsMeta = ObjectMapperFactory.getThreadLocal().readValue(content,
+                    PartitionedTopicMetadata.class);
 
             // Only update z-node if the partitions should be modified
             if (existsMeta.partitions < numPartitions) {
@@ -213,7 +222,7 @@ public class PulsarMetricsSender implements MetricsSender {
         }
     }
 
-    /**
+    /*
      * a wrapper for ZkUtils.createFullPathOptimistic but ignore exception of node exists
      */
     private static void createZkNode(ZooKeeper zkc, String path, byte[] data, final List<ACL> acl,
@@ -229,7 +238,7 @@ public class PulsarMetricsSender implements MetricsSender {
         Long maxVal = ((long) 1) << 32;
         Long segSize = maxVal / numBundles;
         List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0l));
+        partitions.add(String.format("0x%08x", 0L));
         Long curPartition = segSize;
         for (int i = 0; i < numBundles; i++) {
             if (i != numBundles - 1) {

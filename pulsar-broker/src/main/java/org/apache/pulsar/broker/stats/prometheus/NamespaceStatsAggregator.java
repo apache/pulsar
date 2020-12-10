@@ -23,14 +23,12 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.sender.MetricsSender;
 import org.apache.pulsar.broker.stats.sender.PulsarMetrics;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class NamespaceStatsAggregator {
@@ -88,7 +86,8 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, MetricsSender metricsSender) {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics,
+                                boolean includeConsumerMetrics, MetricsSender metricsSender) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats.resetTypes();
@@ -103,7 +102,8 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats, includeConsumerMetrics, pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
+                    getTopicStats(topic, topicStats, includeConsumerMetrics,
+                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
@@ -440,9 +440,11 @@ public class NamespaceStatsAggregator {
                         replStats.msgRateIn);
                 metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_rate_out", remoteCluster,
                         replStats.msgRateOut);
-                metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_throughput_in", remoteCluster,
+                metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_throughput_in",
+                        remoteCluster,
                         replStats.msgThroughputIn);
-                metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_throughput_out", remoteCluster,
+                metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_throughput_out",
+                        remoteCluster,
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(metricsSender, cluster, namespace, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
@@ -451,7 +453,7 @@ public class NamespaceStatsAggregator {
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
-            long value) {
+                               long value) {
         TopicStats.metricType(stream, name);
         stream.write(name)
                 .write("{cluster=\"").write(cluster).write("\"} ")
@@ -461,8 +463,8 @@ public class NamespaceStatsAggregator {
 
     private static void metric(MetricsSender metricsSender, String cluster, String name, long value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
-                "\"} " + value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster
+                + "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -476,8 +478,8 @@ public class NamespaceStatsAggregator {
     private static void metric(MetricsSender metricsSender, String cluster, String namespace, String name,
                                long value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
-                "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster
+                + "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -491,8 +493,8 @@ public class NamespaceStatsAggregator {
     private static void metric(MetricsSender metricsSender, String cluster, String namespace, String name,
                                double value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
-                "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster
+                + "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -507,9 +509,9 @@ public class NamespaceStatsAggregator {
     private static void metricWithRemoteCluster(MetricsSender metricsSender, String cluster, String namespace,
                                                 String name, String remoteCluster, double value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
-                "\",namespace=\"" + namespace + "\",remote_cluster=\"" + remoteCluster + "\"} " +
-                value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster
+                + "\",namespace=\"" + namespace + "\",remote_cluster=\"" + remoteCluster + "\"} "
+                + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 }
