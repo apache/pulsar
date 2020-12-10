@@ -16,27 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.tests.integration.auth.admin;
 
-/**
- * Authorization action for Pulsar policies.
- */
-public enum AuthAction {
-    /** Permission to produce/publish messages. */
-    produce,
+public class PackagesOpsWithAuth {
 
-    /** Permission to consume messages. */
-    consume,
-
-    /** Permissions for functions ops. **/
-    functions,
-
-    /** Permissions for sources ops. **/
-    sources,
-
-    /** Permissions for sinks ops. **/
-    sinks,
-
-    /** Permissions for packages ops. **/
-    packages
 }
