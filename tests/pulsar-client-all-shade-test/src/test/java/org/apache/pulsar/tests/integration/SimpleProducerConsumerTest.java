@@ -82,7 +82,7 @@ public class SimpleProducerConsumerTest {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testRSAEncryption() throws Exception {
 
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
@@ -178,7 +178,7 @@ public class SimpleProducerConsumerTest {
         Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testRedeliveryOfFailedMessages() throws Exception {
 
         @Cleanup
@@ -318,7 +318,7 @@ public class SimpleProducerConsumerTest {
         newPulsarClient2.close();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testEncryptionFailure() throws Exception {
 
         class EncKeyReader implements CryptoKeyReader {

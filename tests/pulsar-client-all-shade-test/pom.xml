@@ -48,6 +48,20 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>bouncy-castle-bc</artifactId>
+            <version>${project.version}</version>
+            <classifier>pkg</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
