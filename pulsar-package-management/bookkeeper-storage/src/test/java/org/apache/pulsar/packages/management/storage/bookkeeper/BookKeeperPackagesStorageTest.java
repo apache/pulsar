@@ -71,9 +71,9 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     public void testConfiguration() {
         assertTrue(storage instanceof BookKeeperPackagesStorage);
         BookKeeperPackagesStorage bkStorage = (BookKeeperPackagesStorage) storage;
-        assertEquals(bkStorage.configuration.getZkServers(), zkUtil.getZooKeeperConnectString());
-        assertEquals(bkStorage.configuration.getNumReplicas(), 1);
-        assertEquals(bkStorage.configuration.getLedgersRootPath(), "/ledgers");
+        assertEquals(bkStorage.configuration.getZookeeperServers(), zkUtil.getZooKeeperConnectString());
+        assertEquals(bkStorage.configuration.getPackagesReplicas(), 1);
+        assertEquals(bkStorage.configuration.getPackagesManagementLedgerRootPath(), "/ledgers");
     }
 
     @Test(timeOut = 60000)
