@@ -106,7 +106,7 @@
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin topics compact \
   persistent://my-tenant/my-namespace/my-topic
 </code></pre>
-<p>The <code>pulsar-admin</code> tool runs compaction via the Pulsar <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+<p>The <code>pulsar-admin</code> tool runs compaction via the Pulsar <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
  API. To run compaction in its own dedicated process, i.e. <em>not</em> through the REST API, you can use the <a href="/docs/ko/2.1.1-incubating/reference-cli-tools#pulsar-compact-topic"><code>pulsar compact-topic</code></a> command. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar compact-topic \
   --topic persistent://my-tenant-namespace/my-topic

@@ -106,7 +106,7 @@
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin topics compact \
   persistent://my-tenant/my-namespace/my-topic
 </code></pre>
-<p><code>pulsar-admin</code> 工具通过 Pulsar <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+<p><code>pulsar-admin</code> 工具通过 Pulsar <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
  API 来执行压缩。 如果要在专有的进程中执行压缩，比如 <em>不</em> 通过 REST API，你可以使用 <a href="/docs/zh-CN/2.4.0/reference-cli-tools#pulsar-compact-topic"><code>pulsar compact-topic</code></a> 命令。 下面是一个示例：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar compact-topic \
   --topic persistent://my-tenant-namespace/my-topic

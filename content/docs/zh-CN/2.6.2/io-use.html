@@ -180,7 +180,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9261-tab-9262" class="nav-link active" data-group="group_9261" data-tab="tab-group-9261-content-9262">Admin CLI</div><div id="tab-group-9261-tab-9263" class="nav-link" data-group="group_9261" data-tab="tab-group-9261-content-9263">REST API</div><div id="tab-group-9261-tab-9264" class="nav-link" data-group="group_9261" data-tab="tab-group-9261-content-9264">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9261-content-9262" class="tab-pane active" data-group="group_9261" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#create">here</a>.</p>
-</span></div></div><div id="tab-group-9261-content-9263" class="tab-pane" data-group="group_9261" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-9261-content-9263" class="tab-pane" data-group="group_9261" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-9261-content-9264" class="tab-pane" data-group="group_9261" tabindex="-1"><div><span><ul>
 <li><p>Create a source connector with a <strong>local file</strong>.</p>
@@ -227,7 +227,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9265-tab-9266" class="nav-link active" data-group="group_9265" data-tab="tab-group-9265-content-9266">Admin CLI</div><div id="tab-group-9265-tab-9267" class="nav-link" data-group="group_9265" data-tab="tab-group-9265-content-9267">REST API</div><div id="tab-group-9265-tab-9268" class="nav-link" data-group="group_9265" data-tab="tab-group-9265-content-9268">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9265-content-9266" class="tab-pane active" data-group="group_9265" tabindex="-1"><div><span><p>使用 <code>创建</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#create-1">here</a>.</p>
-</span></div></div><div id="tab-group-9265-content-9267" class="tab-pane" data-group="group_9265" tabindex="-1"><div><span><p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/registerSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-9265-content-9267" class="tab-pane" data-group="group_9265" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSink?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-9265-content-9268" class="tab-pane" data-group="group_9265" tabindex="-1"><div><span><ul>
 <li><p>Create a sink connector with a <strong>local file</strong>.</p>
@@ -276,10 +276,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#start">here</a>.</p>
 </span></div></div><div id="tab-group-9269-content-9271" class="tab-pane" data-group="group_9269" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> source connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/startSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> source connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#操作/startSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
@@ -290,10 +290,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#start-1">here</a>.</p>
 </span></div></div><div id="tab-group-9272-content-9274" class="tab-pane" data-group="group_9272" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> sink connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/startSink"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> sink connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/startSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
@@ -325,7 +325,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9279-tab-9280" class="nav-link active" data-group="group_9279" data-tab="tab-group-9279-content-9280">Admin CLI</div><div id="tab-group-9279-tab-9281" class="nav-link" data-group="group_9279" data-tab="tab-group-9279-content-9281">REST API</div><div id="tab-group-9279-tab-9282" class="nav-link" data-group="group_9279" data-tab="tab-group-9279-content-9282">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9279-content-9280" class="tab-pane active" data-group="group_9279" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">get</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#get">here</a>.</p>
-</span></div></div><div id="tab-group-9279-content-9281" class="tab-pane" data-group="group_9279" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceInfo"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-9279-content-9281" class="tab-pane" data-group="group_9279" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceInfo?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-9279-content-9282" class="tab-pane" data-group="group_9279" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>示例</strong></p>
@@ -342,7 +342,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9283-tab-9284" class="nav-link active" data-group="group_9283" data-tab="tab-group-9283-content-9284">Admin CLI</div><div id="tab-group-9283-tab-9285" class="nav-link" data-group="group_9283" data-tab="tab-group-9283-content-9285">REST API</div><div id="tab-group-9283-tab-9286" class="nav-link" data-group="group_9283" data-tab="tab-group-9283-content-9286">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9283-content-9284" class="tab-pane active" data-group="group_9283" tabindex="-1"><div><span><p>使用 <code>获得</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">get</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#get-1">here</a>.</p>
-</span></div></div><div id="tab-group-9283-content-9285" class="tab-pane" data-group="group_9283" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInfo"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-9283-content-9285" class="tab-pane" data-group="group_9283" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInfo?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-9283-content-9286" class="tab-pane" data-group="group_9283" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>示例</strong></p>
@@ -361,7 +361,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9287-tab-9288" class="nav-link active" data-group="group_9287" data-tab="tab-group-9287-content-9288">Admin CLI</div><div id="tab-group-9287-tab-9289" class="nav-link" data-group="group_9287" data-tab="tab-group-9287-content-9289">REST API</div><div id="tab-group-9287-tab-9290" class="nav-link" data-group="group_9287" data-tab="tab-group-9287-content-9290">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9287-content-9288" class="tab-pane active" data-group="group_9287" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources list <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#list">here</a>.</p>
-</span></div></div><div id="tab-group-9287-content-9289" class="tab-pane" data-group="group_9287" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到这个端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSources"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-9287-content-9289" class="tab-pane" data-group="group_9287" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSources?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
 </p>
 </span></div></div><div id="tab-group-9287-content-9290" class="tab-pane" data-group="group_9287" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,<br />                         String namespace)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>响应示例</strong></p>
@@ -375,7 +375,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9291-tab-9292" class="nav-link active" data-group="group_9291" data-tab="tab-group-9291-content-9292">Admin CLI</div><div id="tab-group-9291-tab-9293" class="nav-link" data-group="group_9291" data-tab="tab-group-9291-content-9293">REST API</div><div id="tab-group-9291-tab-9294" class="nav-link" data-group="group_9291" data-tab="tab-group-9291-content-9294">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9291-content-9292" class="tab-pane active" data-group="group_9291" tabindex="-1"><div><span><p>使用 <code>列表</code> 子命令。</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks list <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#list-1">here</a>.</p>
-</span></div></div><div id="tab-group-9291-content-9293" class="tab-pane" data-group="group_9291" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/listSinks"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-9291-content-9293" class="tab-pane" data-group="group_9291" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSinks?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
 </p>
 </span></div></div><div id="tab-group-9291-content-9294" class="tab-pane" data-group="group_9291" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,<br />                       String namespace)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>响应示例</strong></p>
@@ -393,10 +393,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#status">here</a>.</p>
 </span></div></div><div id="tab-group-9295-content-9297" class="tab-pane" data-group="group_9295" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> source connectors.</p>
-<p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceStatus"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
 </p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
-<p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceStatus"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9295-content-9298" class="tab-pane" data-group="group_9295" tabindex="-1"><div><span><ul>
@@ -423,10 +423,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#status-1">here</a>.</p>
 </span></div></div><div id="tab-group-9299-content-9301" class="tab-pane" data-group="group_9299" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> sink connectors.</p>
-<p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkStatus"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkStatus?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
 </p></li>
 <li><p>Gets the current status of a <strong>specified</strong> sink connector.</p>
-<p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInstanceStatus"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.7.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9299-content-9302" class="tab-pane" data-group="group_9299" tabindex="-1"><div><span><ul>
@@ -454,7 +454,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9303-tab-9304" class="nav-link active" data-group="group_9303" data-tab="tab-group-9303-content-9304">Admin CLI</div><div id="tab-group-9303-tab-9305" class="nav-link" data-group="group_9303" data-tab="tab-group-9303-content-9305">REST API</div><div id="tab-group-9303-tab-9306" class="nav-link" data-group="group_9303" data-tab="tab-group-9303-content-9306">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9303-content-9304" class="tab-pane active" data-group="group_9303" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#update">here</a>.</p>
-</span></div></div><div id="tab-group-9303-content-9305" class="tab-pane" data-group="group_9303" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSource"><b>PUT</b> <i>/admin/v3/sources:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-9303-content-9305" class="tab-pane" data-group="group_9303" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.7.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-9303-content-9306" class="tab-pane" data-group="group_9303" tabindex="-1"><div><span><ul>
 <li><p>Update a running source connector with a <strong>local file</strong>.</p>
@@ -518,7 +518,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-9307-tab-9308" class="nav-link active" data-group="group_9307" data-tab="tab-group-9307-content-9308">Admin CLI</div><div id="tab-group-9307-tab-9309" class="nav-link" data-group="group_9307" data-tab="tab-group-9307-content-9309">REST API</div><div id="tab-group-9307-tab-9310" class="nav-link" data-group="group_9307" data-tab="tab-group-9307-content-9310">Java Admin API</div></div><div class="tab-content"><div id="tab-group-9307-content-9308" class="tab-pane active" data-group="group_9307" tabindex="-1"><div><span><p>使用 <code>更新</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#update-1">here</a>.</p>
-</span></div></div><div id="tab-group-9307-content-9309" class="tab-pane" data-group="group_9307" tabindex="-1"><div><span><p>发送 <code>PUT</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updateSink"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-9307-content-9309" class="tab-pane" data-group="group_9307" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.7.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-9307-content-9310" class="tab-pane" data-group="group_9307" tabindex="-1"><div><span><ul>
 <li><p>Update a running sink connector with a <strong>local file</strong>.</p>
@@ -587,10 +587,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#stop">here</a>.</p>
 </span></div></div><div id="tab-group-9311-content-9313" class="tab-pane" data-group="group_9311" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> source connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p></li>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9311-content-9314" class="tab-pane" data-group="group_9311" tabindex="-1"><div><span><ul>
@@ -631,10 +631,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#stop-1">here</a>.</p>
 </span></div></div><div id="tab-group-9315-content-9317" class="tab-pane" data-group="group_9315" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> sink connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSink"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
 </p></li>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/stopSink"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9315-content-9318" class="tab-pane" data-group="group_9315" tabindex="-1"><div><span><ul>
@@ -678,10 +678,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#restart">here</a>.</p>
 </span></div></div><div id="tab-group-9319-content-9321" class="tab-pane" data-group="group_9319" tabindex="-1"><div><span><ul>
 <li><p>Restart <strong>all</strong> source connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/rehtSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
 </p></li>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/restartSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9319-content-9322" class="tab-pane" data-group="group_9319" tabindex="-1"><div><span><ul>
@@ -722,10 +722,10 @@ configs:
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#restart-1">here</a>.</p>
 </span></div></div><div id="tab-group-9323-content-9325" class="tab-pane" data-group="group_9323" tabindex="-1"><div><span><ul>
 <li><p>Restart <strong>all</strong> sink connectors.</p>
-<p>发送 <code>POST</code> 请求到此端点：<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/rehtSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
 </p></li>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
-<p>发送 <code>POST</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/restartSource"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-9323-content-9326" class="tab-pane" data-group="group_9323" tabindex="-1"><div><span><ul>
@@ -768,7 +768,7 @@ configs:
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#delete">here</a>.</p>
 </span></div></div><div id="tab-group-9327-content-9329" class="tab-pane" data-group="group_9327" tabindex="-1"><div><span><p>删除 al Pulsar 源连接器。</p>
-<p>发送 <code>DELETE</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/derregisterSource"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.7.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-9327-content-9330" class="tab-pane" data-group="group_9327" tabindex="-1"><div><span><p>删除源连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,<br />                  String namespace,<br />                  String source)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -802,7 +802,7 @@ configs:
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/zh-CN/2.6.2/io-cli#delete-1">here</a>.</p>
 </span></div></div><div id="tab-group-9331-content-9333" class="tab-pane" data-group="group_9331" tabindex="-1"><div><span><p>删除 sink 连接器。</p>
-<p>发送 <code>DELETE</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/delregisterSink"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkname</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.7.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-9331-content-9334" class="tab-pane" data-group="group_9331" tabindex="-1"><div><span><p>删除 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>

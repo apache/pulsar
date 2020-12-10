@@ -87,7 +87,7 @@
 <h2><a class="anchor" aria-hidden="true" id="brokers"></a><a href="#brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Brokers</h2>
 <p>Pulsar 的 broker 是一個無狀態組件, 主要負責運行另外的兩個組件:</p>
 <ul>
-<li>一個 HTTP 服務器, 它暴露了<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+<li>一個 HTTP 服務器, 它暴露了<a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
 系統管理接口介面以及在 producer 和 consumer 之間進行 <a href="/docs/zh-TW/2.6.2/concepts-clients#client-setup-phase">Topic查找</a> 的 API。</li>
 <li>一個調度分發器, 它是異步的 TCP 服務器，通過自定義 <a href="/docs/zh-TW/2.6.2/develop-binary-protocol">二進制協議</a>應用於所有相關的數據傳輸。</li>
 </ul>
