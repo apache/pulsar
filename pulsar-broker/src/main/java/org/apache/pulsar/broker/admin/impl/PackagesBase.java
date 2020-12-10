@@ -37,7 +37,6 @@ import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 
-
 @Slf4j
 public class PackagesBase extends AdminResource {
 
