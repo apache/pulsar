@@ -320,7 +320,8 @@ public class EntryCacheImpl implements EntryCache {
                                 entryList.add(
                                         LedgerEntryImpl.create(
                                                 e.getLedgerId(), e.getEntryId(),
-                                                e.getLength(), e.getEntryBuffer()
+                                                e.getLength(), e.getEntryBuffer().retain()
+                                                //TODO: not sure if should retain
                                         )
                                 );
                                 totalSize += e.getLength();
