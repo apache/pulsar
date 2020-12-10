@@ -33,8 +33,13 @@ const createVariableInjectionPlugin = variables => {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
         if (keyparts[0] == 'endpoint') {
-            console.log(key)
-            console.log(keyparts)
+            const restApiVersion = keyparts[2].split('/')[2]
+            const suffix = keyparts[keyparts.length - 1]
+            if (suffix.indexOf('?version') >= 0) {
+              keyparts[keyparts.length - 1] += '&apiVersion=' + restApiVersion
+            } else {
+              keyparts[keyparts.length - 1] += 'version=master&apiVersion=' + restApiVersion
+            }
             return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
         }
       }

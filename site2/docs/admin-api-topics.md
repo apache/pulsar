@@ -570,7 +570,7 @@ $ pulsar-admin topics reset-cursor \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation?version=((pulsar:version_number))/resetCursor}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=((pulsar:version_number))}
 
 <!--Java-->
 ```java
