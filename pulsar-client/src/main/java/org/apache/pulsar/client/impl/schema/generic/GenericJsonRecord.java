@@ -90,6 +90,8 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             } catch (IOException e) {
                 return fn.asText();
             }
+        } else if (fn.isNull()) {
+            return null;
         } else {
             return fn.asText();
         }
