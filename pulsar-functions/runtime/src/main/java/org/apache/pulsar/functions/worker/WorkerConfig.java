@@ -408,6 +408,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String brokerClientTrustCertsFilePath;
 
+    public String getBrokerClientTrustCertsFilePath() {
+        // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
+        // otherwise we will use brokerClientTrustCertsFilePath
+        if (StringUtils.isNotBlank(brokerClientTrustCertsFilePath)) {
+            return brokerClientTrustCertsFilePath;
+        } else {
+            return tlsTrustCertsFilePath;
+        }
+    }
 
     /******** Function Runtime configurations **********/
 

@@ -19,6 +19,7 @@
 package org.apache.pulsar.io;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -60,6 +62,7 @@ import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreator;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -117,23 +120,27 @@ public class PulsarFunctionTlsTest {
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
-        functionsWorkerService = spy(createPulsarFunctionWorker(config));
-        AuthenticationService authenticationService = new AuthenticationService(config);
-        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
-        when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
-        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
-        when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
-        when(functionsWorkerService.getBrokerAdmin()).thenReturn(admin);
         Set<String> admins = Sets.newHashSet("superUser");
         TenantInfo tenantInfo = new TenantInfo(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
         Namespaces namespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(namespaces);
         when(namespaces.getNamespaces(any())).thenReturn(namespaceList);
+
+        functionsWorkerService = spy(createPulsarFunctionWorker(config, admin));
+        doNothing().when(functionsWorkerService).initAsStandalone(any(WorkerConfig.class));
+        when(functionsWorkerService.getBrokerAdmin()).thenReturn(admin);
+        functionsWorkerService.init(workerConfig, null, false);
+
+        AuthenticationService authenticationService = new AuthenticationService(config);
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
+        when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
+        when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         // mock: once authentication passes, function should return response: function already exist
         FunctionMetaDataManager dataManager = mock(FunctionMetaDataManager.class);
@@ -168,7 +175,8 @@ public class PulsarFunctionTlsTest {
         functionsWorkerService.stop();
     }
 
-    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws Exception {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
+                                                           PulsarAdmin mockPulsarAdmin) throws Exception {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -207,9 +215,17 @@ public class PulsarFunctionTlsTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        PulsarWorkerService workerService = new PulsarWorkerService();
+        PulsarWorkerService workerService = new PulsarWorkerService(new PulsarClientCreator() {
+            @Override
+            public PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                return mockPulsarAdmin;
+            }
 
-        workerService.initAsStandalone(workerConfig);
+            @Override
+            public PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                return null;
+            }
+        });
 
         return workerService;
     }

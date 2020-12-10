@@ -87,6 +87,14 @@ public class PulsarWorkerService implements WorkerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarWorkerService.class);
 
+    public interface PulsarClientCreator {
+
+        PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig);
+
+        PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig);
+
+    }
+
     private WorkerConfig workerConfig;
 
     private PulsarClient client;
@@ -100,14 +108,14 @@ public class PulsarWorkerService implements WorkerService {
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private volatile boolean isInitialized = false;
-    private final ScheduledExecutorService statsUpdater;
+    private ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ConnectorsManager connectorsManager;
     private FunctionsManager functionsManager;
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
-    private final MetricsGenerator metricsGenerator;
+    private MetricsGenerator metricsGenerator;
     @VisibleForTesting
     private URI dlogUri;
     private LeaderService leaderService;
@@ -119,10 +127,47 @@ public class PulsarWorkerService implements WorkerService {
     private Sources<PulsarWorkerService> sources;
     private Workers<PulsarWorkerService> workers;
 
+    private final PulsarClientCreator clientCreator;
+
     public PulsarWorkerService() {
-        this.statsUpdater = Executors
-          .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
-        this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        this.clientCreator = new PulsarClientCreator() {
+            @Override
+            public PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+                if (workerConfig.isBrokerClientAuthenticationEnabled()) {
+                    return WorkerUtils.getPulsarAdminClient(
+                        pulsarServiceUrl,
+                        workerConfig.getBrokerClientAuthenticationPlugin(),
+                        workerConfig.getBrokerClientAuthenticationParameters(),
+                        workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.isTlsAllowInsecureConnection(),
+                        workerConfig.isTlsEnableHostnameVerification());
+                } else {
+                    return WorkerUtils.getPulsarAdminClient(pulsarServiceUrl);
+                }
+            }
+
+            @Override
+            public PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+                if (workerConfig.isBrokerClientAuthenticationEnabled()) {
+                    return WorkerUtils.getPulsarClient(
+                        pulsarServiceUrl,
+                        workerConfig.getBrokerClientAuthenticationPlugin(),
+                        workerConfig.getBrokerClientAuthenticationParameters(),
+                        workerConfig.isUseTls(),
+                        workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.isTlsAllowInsecureConnection(),
+                        workerConfig.isTlsEnableHostnameVerification());
+                } else {
+                    return WorkerUtils.getPulsarClient(pulsarServiceUrl);
+                }
+            }
+        };
+    }
+
+    public PulsarWorkerService(PulsarClientCreator clientCreator) {
+        this.clientCreator = clientCreator;
     }
 
     @Override
@@ -136,6 +181,9 @@ public class PulsarWorkerService implements WorkerService {
     public void init(WorkerConfig workerConfig,
                      URI dlogUri,
                      boolean runAsStandalone) {
+        this.statsUpdater = Executors
+            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
         this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
@@ -148,16 +196,14 @@ public class PulsarWorkerService implements WorkerService {
 
     @Override
     public void initAsStandalone(WorkerConfig workerConfig) throws Exception {
-        URI dlogUri = initializeStandaloneWorkerService(workerConfig);
+        URI dlogUri = initializeStandaloneWorkerService(clientCreator, workerConfig);
         init(workerConfig, dlogUri, true);
     }
 
-    private static URI initializeStandaloneWorkerService(WorkerConfig workerConfig) throws Exception {
+    private static URI initializeStandaloneWorkerService(PulsarClientCreator clientCreator,
+                                                         WorkerConfig workerConfig) throws Exception {
         // initializing pulsar functions namespace
-        PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
-                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                workerConfig.isTlsEnableHostnameVerification());
+        PulsarAdmin admin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());
@@ -372,45 +418,15 @@ public class PulsarWorkerService implements WorkerService {
                     ? workerConfig.getFunctionWebServiceUrl()
                     : workerConfig.getWorkerWebAddress();
 
-             // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
-            if (workerConfig.isBrokerClientAuthenticationEnabled()) {
-                // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
-                // otherwise we will use brokerClientTrustCertsFilePath
-                final String pulsarClientTlsTrustCertsFilePath;
-                if (StringUtils.isNotBlank(workerConfig.getBrokerClientTrustCertsFilePath())) {
-                    pulsarClientTlsTrustCertsFilePath = workerConfig.getBrokerClientTrustCertsFilePath();
-                } else {
-                    pulsarClientTlsTrustCertsFilePath = workerConfig.getTlsTrustCertsFilePath();
-                }
+            this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
+            this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);
+            this.client = clientCreator.newPulsarClient(workerConfig.getPulsarServiceUrl(), workerConfig);
 
-                this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
-                    pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsEnableHostnameVerification());
-
-                this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
-                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsEnableHostnameVerification());
-
-                this.client = WorkerUtils.getPulsarClient(workerConfig.getPulsarServiceUrl(),
-                        workerConfig.getBrokerClientAuthenticationPlugin(),
-                        workerConfig.getBrokerClientAuthenticationParameters(),
-                        workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
-                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsEnableHostnameVerification());
-            } else {
-                this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
-
-                this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl);
-
-                this.client = WorkerUtils.getPulsarClient(workerConfig.getPulsarServiceUrl());
-            }
-
-            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
-            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
-            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
+            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(workerConfig, client, brokerAdmin, workerStatsManager, errorNotifier);
+            this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager, errorNotifier);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -421,12 +437,12 @@ public class PulsarWorkerService implements WorkerService {
 
             //create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
-            if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                brokerAdmin.topics()
+            if (!getBrokerAdmin().topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
+                getBrokerAdmin().topics()
                         .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
                                 MessageId.earliest);
             }
-            this.membershipManager = new MembershipManager(this, client, brokerAdmin);
+            this.membershipManager = new MembershipManager(this, client, getBrokerAdmin());
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
@@ -593,8 +609,8 @@ public class PulsarWorkerService implements WorkerService {
             }
         }
 
-        if (null != brokerAdmin) {
-            brokerAdmin.close();
+        if (null != getBrokerAdmin()) {
+            getBrokerAdmin().close();
         }
 
         if (null != functionAdmin) {

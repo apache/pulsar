@@ -141,7 +141,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
     @Override
     public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(final String clientRole) {
-        if (!isWorkerServiceAvailable()) {
+        if (!isWorkerServiceAvailable() || worker().getMetricsGenerator() == null) {
             throwUnavailableException();
         }
 

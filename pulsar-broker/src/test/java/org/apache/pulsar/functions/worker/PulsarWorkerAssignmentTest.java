@@ -161,7 +161,9 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setWorkerId(workerId);
         workerConfig.setTopicCompactionFrequencySec(1);
 
-        return new PulsarWorkerService();
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     @Test(timeOut = 60000, enabled = false)
