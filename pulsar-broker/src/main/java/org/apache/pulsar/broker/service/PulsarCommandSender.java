@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.Future;
-
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -61,7 +59,8 @@ public interface PulsarCommandSender {
     void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                            PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId, boolean proxyThroughServiceUrl);
+                            PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId,
+                            boolean proxyThroughServiceUrl);
 
     void sendLookupResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
 

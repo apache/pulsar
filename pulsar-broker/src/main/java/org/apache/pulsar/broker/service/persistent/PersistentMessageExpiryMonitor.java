@@ -49,10 +49,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private static final int TRUE = 1;
     @SuppressWarnings("unused")
     private volatile int expirationCheckInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentMessageExpiryMonitor> expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
+    private static final AtomicIntegerFieldUpdater<PersistentMessageExpiryMonitor>
+            expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
             .newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
 
-    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor, PersistentSubscription subscription) {
+    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor,
+                                          PersistentSubscription subscription) {
         this.topicName = topicName;
         this.cursor = cursor;
         this.subName = subscriptionName;
