@@ -33,7 +33,17 @@ const createVariableInjectionPlugin = variables => {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
         if (keyparts[0] == 'endpoint') {
-            const restApiVersion = keyparts[2].split('/')[2]
+            const restPath = keyparts[2].split('/')
+            const restApiVersion = restPath[2]
+            const restApiType = restPath[3]
+            let restBaseUrl = restApiUrl
+            if (restApiType == 'functions') {
+              restBaseUrl = functionsApiUrl
+            } else if (restApiType == 'source') {
+              restBaseUrl = sourceApiUrl
+            } else if (restApiType == 'sink') {
+              restBaseUrl = sinkApiUrl
+            } 
             const suffix = keyparts[keyparts.length - 1]
             restUrl = ''
             if (suffix.indexOf('?version') >= 0) {
@@ -41,7 +51,7 @@ const createVariableInjectionPlugin = variables => {
             } else {
               restUrl = keyparts[keyparts.length - 1] + 'version=master&apiVersion=' + restApiVersion
             }
-            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts, restUrl);
+            return renderEndpoint(initializedPlugin, restBaseUrl + "#", keyparts, restUrl);
         }
       }
       return initializedPlugin.render(variables[key])
