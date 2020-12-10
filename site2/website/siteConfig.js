@@ -33,7 +33,15 @@ const createVariableInjectionPlugin = variables => {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
         if (keyparts[0] == 'endpoint') {
-            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
+            const restApiVersion = keyparts[2].split('/')[2]
+            const suffix = keyparts[keyparts.length - 1]
+            restUrl = ''
+            if (suffix.indexOf('?version') >= 0) {
+              restUrl = keyparts[keyparts.length - 1] + '&apiVersion=' + restApiVersion
+            } else {
+              restUrl = keyparts[keyparts.length - 1] + 'version=master&apiVersion=' + restApiVersion
+            }
+            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts, restUrl);
         }
       }
       return initializedPlugin.render(variables[key])
@@ -60,8 +68,8 @@ const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
     return rendered_content;
 };
 
-const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
-    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + keyparts[3] + ')';
+const renderEndpoint = (initializedPlugin, baseUrl, keyparts, restUrl) => {
+    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + restUrl + ')';
     rendered_content = initializedPlugin.render(content);
     rendered_content = rendered_content.replace('<p>', '');
     rendered_content = rendered_content.replace('</p>', '');
@@ -70,10 +78,10 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
-const restApiUrl = url + '/en' + "/admin-rest-api";
-const functionsApiUrl = url + '/en' + "/functions-rest-api";
-const sourceApiUrl = url + '/en' + "/source-rest-api";
-const sinkApiUrl = url + '/en' + "/sink-rest-api";
+const restApiUrl = url + "/admin-rest-api";
+const functionsApiUrl = url + "/functions-rest-api";
+const sourceApiUrl = url + "/source-rest-api";
+const sinkApiUrl = url + "/sink-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
