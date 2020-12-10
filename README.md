@@ -158,8 +158,8 @@ required plugins.
 
 * When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.
   * In IntelliJ's Maven UI's tree view under "Profiles"
-    * Activate "core-modules" maven profile
-    * De-activate "main" maven profile
+    * Activate "core-modules" Maven profile
+    * De-activate "main" Maven profile
     * Run the "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice.
 
 * Run the "Generate Sources and Update Folders For All Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
@@ -172,7 +172,7 @@ required plugins.
 * All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
   * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
   * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the drop-down list.
-  * Currently, it is impossible to run all unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
+  * Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
 
 ### Eclipse
 
