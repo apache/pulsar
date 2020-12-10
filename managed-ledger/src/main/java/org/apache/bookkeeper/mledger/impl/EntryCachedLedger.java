@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.concurrent.CompletableFuture;
