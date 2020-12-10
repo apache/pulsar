@@ -29,7 +29,6 @@ import static org.testng.Assert.fail;
 
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -64,7 +63,7 @@ public class PackagesCliTest {
         return envs;
     }
 
-    @Test
+    @Test(timeOut = 60000 * 10)
     public void testPackagesOperationsWithoutUploadingPackages() throws Exception {
         ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
         assertEquals(result.getExitCode(), 0);

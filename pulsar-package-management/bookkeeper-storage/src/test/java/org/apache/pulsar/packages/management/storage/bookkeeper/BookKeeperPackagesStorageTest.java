@@ -53,9 +53,9 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
-        configuration.setProperty("zkServers", zkUtil.getZooKeeperConnectString());
-        configuration.setProperty("numReplicas", "1");
-        configuration.setProperty("ledgerRootPath", "/ledgers");
+        configuration.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString());
+        configuration.setProperty("packagesReplicas", "1");
+        configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
         storage = provider.getStorage(configuration);
         storage.initialize();
     }
