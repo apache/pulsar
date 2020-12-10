@@ -45,7 +45,6 @@ import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
@@ -73,16 +72,18 @@ public class PrometheusMetricsGenerator {
 
         // metric to export pulsar version info
         Gauge.build("pulsar_version_info", "-")
-            .labelNames("version", "commit").create()
-            .setChild(new Child() {
-                @Override
-                public double get() {
-                    return 1.0;
-                }}, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
-            .register(CollectorRegistry.defaultRegistry);
+                .labelNames("version", "commit").create()
+                .setChild(new Child() {
+                    @Override
+                    public double get() {
+                        return 1.0;
+                    }
+                }, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                .register(CollectorRegistry.defaultRegistry);
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, OutputStream out) throws IOException {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+                                OutputStream out) throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);

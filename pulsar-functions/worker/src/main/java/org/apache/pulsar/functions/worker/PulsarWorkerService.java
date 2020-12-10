@@ -372,7 +372,8 @@ public class PulsarWorkerService implements WorkerService {
                     ? workerConfig.getFunctionWebServiceUrl()
                     : workerConfig.getWorkerWebAddress();
 
-            if (workerConfig.isAuthenticationEnabled()) {
+             // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+            if (workerConfig.isBrokerClientAuthenticationEnabled()) {
                 // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
                 // otherwise we will use brokerClientTrustCertsFilePath
                 final String pulsarClientTlsTrustCertsFilePath;
@@ -421,7 +422,9 @@ public class PulsarWorkerService implements WorkerService {
             //create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
             if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.earliest);
+                brokerAdmin.topics()
+                        .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
+                                MessageId.earliest);
             }
             this.membershipManager = new MembershipManager(this, client, brokerAdmin);
 
@@ -480,7 +483,7 @@ public class PulsarWorkerService implements WorkerService {
             // Start function assignment tailer
             log.info("/** Starting Function Assignment Tailer **/");
             functionAssignmentTailer.startFromMessage(lastAssignmentMessageId);
-            
+
             // start function metadata manager
             log.info("/** Starting Metdata Manager **/");
             functionMetaDataManager.start();

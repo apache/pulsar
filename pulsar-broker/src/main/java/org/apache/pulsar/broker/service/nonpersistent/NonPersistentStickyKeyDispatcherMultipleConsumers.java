@@ -65,12 +65,13 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         return SubType.Key_Shared;
     }
 
-    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries = new FastThreadLocal<Map<Consumer, List<Entry>>>() {
-        @Override
-        protected Map<Consumer, List<Entry>> initialValue() throws Exception {
-            return new HashMap<>();
-        }
-    };
+    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries =
+            new FastThreadLocal<Map<Consumer, List<Entry>>>() {
+                @Override
+                protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
 
     @Override
     public void sendMessages(List<Entry> entries) {

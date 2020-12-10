@@ -338,13 +338,19 @@
 
     <!-- transaction related dependencies (end) -->
 
-    <!-- package manager related dependencies (begin) -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-core</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- package manager related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -439,7 +445,7 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.7</version>
             <configuration>
               <apiSources>
                 <apiSource>

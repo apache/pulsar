@@ -18,8 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -44,20 +56,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class ReaderTest extends MockedPulsarServiceBaseTest {
@@ -278,14 +276,14 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Reader<byte[]> reader1 = pulsarClient.newReader()
-            .topic(topic)
-            .startMessageId(MessageId.earliest)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
             .create();
 
         @Cleanup
         Reader<byte[]> reader2 = pulsarClient.newReader()
-            .topic(topic)
-            .startMessageId(MessageId.earliest)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
             .create();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 2);

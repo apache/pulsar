@@ -65,7 +65,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             backOff.reset();
         } else {
             log.info(
-                    "[{}][{} -> {}] Replicator was stopped while creating the producer. Closing it. Replicator state: {}",
+                    "[{}][{} -> {}] Replicator was stopped while creating the producer."
+                            + " Closing it. Replicator state: {}",
                     topicName, localCluster, remoteCluster, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
             closeProducerAsync();

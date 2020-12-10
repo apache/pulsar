@@ -79,9 +79,9 @@ public interface SchemaRegistry extends AutoCloseable {
                 return false;
             }
             SchemaAndMetadata that = (SchemaAndMetadata) o;
-            return version == that.version &&
-                Objects.equals(id, that.id) &&
-                Objects.equals(schema, that.schema);
+            return version == that.version
+                    && Objects.equals(id, that.id)
+                    && Objects.equals(schema, that.schema);
         }
 
         @Override

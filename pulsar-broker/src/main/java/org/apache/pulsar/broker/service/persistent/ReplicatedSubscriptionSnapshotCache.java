@@ -26,7 +26,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 
 /**
- * Store the last N snapshots that were scanned by a particular subscription
+ * Store the last N snapshots that were scanned by a particular subscription.
  */
 @Slf4j
 public class ReplicatedSubscriptionSnapshotCache {

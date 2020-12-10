@@ -149,8 +149,7 @@ public class PackagesManagementImpl implements PackagesManagement {
 
     @Override
     public CompletableFuture<List<String>> list(PackageName packageName) {
-        return checkPackageNotExistsAndThrowException(packageName)
-            .thenCompose(ignore -> storage.listAsync(packageWithoutVersionPath(packageName)));
+        return storage.listAsync(packageWithoutVersionPath(packageName));
     }
 
     @Override

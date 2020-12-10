@@ -131,14 +131,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
+                totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
                 batchSizes.setBatchSize(i, batchSize);
                 if (indexesAcks != null && cursor != null) {
-                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
                         indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                     } else {
-                        indexesAcks.setIndexesAcks(i,null);
+                        indexesAcks.setIndexesAcks(i, null);
                     }
                 }
             } finally {

@@ -39,12 +39,14 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         LinkedList<Schema> fromList = new LinkedList<>();
         checkArgument(from != null, "check compatibility list is null");
         try {
@@ -67,7 +69,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         }
     }
 
-    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) throws IncompatibleSchemaException {
+    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
         final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
         switch (compatibilityStrategy) {
             case BACKWARD_TRANSITIVE:

@@ -316,3 +316,24 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
+### Remove the TTL configuration for a namespace
+
+#### pulsar-admin
+
+Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
+
+##### Example
+
+```shell
+$ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
+```
+
+#### REST API
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL}
+
+#### Java
+
+```java
+admin.namespaces().removeNamespaceMessageTTL(namespace)
+```

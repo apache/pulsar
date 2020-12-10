@@ -52,7 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Class that contains all the logic to control and perform the deduplication on the broker side
+ * Class that contains all the logic to control and perform the deduplication on the broker side.
  */
 public class MessageDeduplication {
 
@@ -154,10 +154,9 @@ public class MessageDeduplication {
 
     /**
      * Read all the entries published from the cursor position until the most recent and update the highest sequence id
-     * from each producer
+     * from each producer.
      *
-     * @param future
-     *            future to trigger when the replay is complete
+     * @param future future to trigger when the replay is complete
      */
     private void replayCursor(CompletableFuture<Void> future) {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
@@ -211,18 +210,19 @@ public class MessageDeduplication {
                 }
                 if (status == Status.Initialized && !shouldBeEnabled) {
                     status = Status.Removing;
-                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new DeleteCursorCallback() {
-                        @Override
-                        public void deleteCursorComplete(Object ctx) {
-                            status = Status.Disabled;
-                            log.info("[{}] Deleted deduplication cursor", topic.getName());
-                        }
+                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
+                            new DeleteCursorCallback() {
+                                @Override
+                                public void deleteCursorComplete(Object ctx) {
+                                    status = Status.Disabled;
+                                    log.info("[{}] Deleted deduplication cursor", topic.getName());
+                                }
 
-                        @Override
-                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                            if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
-                                status = Status.Disabled;
-                            } else {
+                                @Override
+                                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                    if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                        status = Status.Disabled;
+                                    } else {
                                 log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
                             }
                         }
@@ -347,8 +347,10 @@ public class MessageDeduplication {
                 }
 
                 // Also need to check sequence ids that has been persisted.
-                // If current message's seq id is smaller or equals to the lastSequenceIdPersisted than its definitely a dup
-                // If current message's seq id is between lastSequenceIdPersisted and lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
+                // If current message's seq id is smaller or equals to the
+                // lastSequenceIdPersisted than its definitely a dup
+                // If current message's seq id is between lastSequenceIdPersisted and
+                // lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
                 // we should return an error to the producer for the latter case so that it can retry at a future time
                 Long lastSequenceIdPersisted = highestSequencedPersisted.get(producerName);
                 if (lastSequenceIdPersisted != null && sequenceId <= lastSequenceIdPersisted) {
@@ -363,7 +365,7 @@ public class MessageDeduplication {
     }
 
     /**
-     * Call this method whenever a message is persisted to get the chance to trigger a snapshot
+     * Call this method whenever a message is persisted to get the chance to trigger a snapshot.
      */
     public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
         if (!isEnabled()) {
@@ -444,7 +446,7 @@ public class MessageDeduplication {
     }
 
     /**
-     * Topic will call this method whenever a producer connects
+     * Topic will call this method whenever a producer connects.
      */
     public synchronized void producerAdded(String producerName) {
         // Producer is no-longer inactive
@@ -452,7 +454,7 @@ public class MessageDeduplication {
     }
 
     /**
-     * Topic will call this method whenever a producer disconnects
+     * Topic will call this method whenever a producer disconnects.
      */
     public synchronized void producerRemoved(String producerName) {
         // Producer is no-longer active
@@ -460,7 +462,7 @@ public class MessageDeduplication {
     }
 
     /**
-     * Remove from hash maps all the producers that were inactive for more than the configured amount of time
+     * Remove from hash maps all the producers that were inactive for more than the configured amount of time.
      */
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES

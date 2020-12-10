@@ -90,9 +90,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
-    private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    private final String MESSAGE_ID = "X-Pulsar-Message-ID";
-    private final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    static private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    static private final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    static private final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
