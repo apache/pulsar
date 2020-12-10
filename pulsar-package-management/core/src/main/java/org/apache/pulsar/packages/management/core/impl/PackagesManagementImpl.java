@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
@@ -36,6 +37,7 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 /**
  * Packages management implementation.
  */
+@Slf4j
 public class PackagesManagementImpl implements PackagesManagement {
 
     private PackagesStorage storage;
@@ -109,6 +111,7 @@ public class PackagesManagementImpl implements PackagesManagement {
             storage.writeAsync(metadataPath, inputStream)
                 .whenComplete((aVoid, t) -> {
                     if (t != null) {
+                        log.error("Write package {} metadata failed", packageName.toString(), t);
                         future.completeExceptionally(new PackagesManagementException(
                             String.format("Update package '%s' metadata failed", packageName.toString()), t));
                     } else {
@@ -134,10 +137,8 @@ public class PackagesManagementImpl implements PackagesManagement {
         return CompletableFuture.allOf(
             checkMetadataExistsAndThrowException(packageName),
             checkPackageExistsAndThrowException(packageName)
-        ).thenCompose(ignore -> CompletableFuture.allOf(
-            writeMeta(packageName, metadata),
-            storage.writeAsync(packagePath(packageName), inputStream))
-        );
+        ).thenCompose(ignore -> writeMeta(packageName, metadata))
+            .thenCompose(ignore -> storage.writeAsync(packagePath(packageName), inputStream));
     }
 
     @Override

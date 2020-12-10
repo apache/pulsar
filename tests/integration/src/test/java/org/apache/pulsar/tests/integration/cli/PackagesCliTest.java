@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -60,10 +61,11 @@ public class PackagesCliTest {
     private Map<String, String> getPackagesManagementServiceEnvs() {
         Map<String, String> envs = new HashMap<>();
         envs.put("enablePackagesManagement", "true");
+        envs.put("packagesManagementLedgerRootPath", "/ledgers");
         return envs;
     }
 
-    @Test(timeOut = 60000 * 10)
+    @Test(timeOut = 60000 * 5)
     public void testPackagesOperationsWithoutUploadingPackages() throws Exception {
         ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
         assertEquals(result.getExitCode(), 0);
@@ -81,12 +83,22 @@ public class PackagesCliTest {
         }
     }
 
-    // TODO: the upload command has some problem when uploading packages, enable this tests when issue
-    // https://github.com/apache/pulsar/issues/8874 is fixed.
+    @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
         ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
             "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
+        assertEquals(result.getExitCode(), 0);
+
+        BrokerContainer container = pulsarCluster.getBroker(0);
+        String downloadFile = "tmp-file-" + RandomStringUtils.randomAlphabetic(8);
+        String[] downloadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "download",
+            "--path", downloadFile, testPackageName};
+        result = container.execCmd(downloadCmd);
+        assertEquals(result.getExitCode(), 0);
+
+        String[] diffCmd = new String[]{"diff", PulsarCluster.ADMIN_SCRIPT, downloadFile};
+        result = container.execCmd(diffCmd);
         assertEquals(result.getExitCode(), 0);
 
         result = runPackagesCommand("get-metadata", testPackageName);
@@ -97,15 +109,16 @@ public class PackagesCliTest {
         result = runPackagesCommand("list", "--type", "function", "public/default");
         assertEquals(result.getExitCode(), 0);
         assertFalse(result.getStdout().isEmpty());
-        assertTrue(result.getStdout().contains(testPackageName));
+        assertTrue(result.getStdout().contains("test"));
 
-        result = runPackagesCommand("list-versions", "--type", "function://public/default/test");
+        result = runPackagesCommand("list-versions", "function://public/default/test");
         assertEquals(result.getExitCode(), 0);
         assertFalse(result.getStdout().isEmpty());
         assertTrue(result.getStdout().contains("v1"));
 
         String contact = "test@apache.org";
-        result = runPackagesCommand("update-metadata", "--contact", contact, "-PpropertyA=A", testPackageName);
+        result = runPackagesCommand("update-metadata", "--description", "a test package",
+            "--contact", contact, "-PpropertyA=A", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         result = runPackagesCommand("get-metadata", testPackageName);
@@ -118,7 +131,7 @@ public class PackagesCliTest {
         result = runPackagesCommand("delete", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
-        result = runPackagesCommand("list", "--type", "functions", "public/default");
+        result = runPackagesCommand("list-versions", "function://public/default/test");
         assertEquals(result.getExitCode(), 0);
         assertTrue(result.getStdout().isEmpty());
     }
