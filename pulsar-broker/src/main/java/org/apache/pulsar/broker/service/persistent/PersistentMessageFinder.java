@@ -31,8 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
- * given a timestamp find the first message (position) (published) at or before the timestamp
+ * given a timestamp find the first message (position) (published) at or before the timestamp.
  */
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
     private final ManagedCursor cursor;
@@ -44,8 +43,9 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     private static final int TRUE = 1;
     @SuppressWarnings("unused")
     private volatile int messageFindInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater = AtomicIntegerFieldUpdater
-            .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
+    private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater =
+            AtomicIntegerFieldUpdater
+                    .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
     public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
         this.topicName = topicName;

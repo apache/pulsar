@@ -56,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents a currently connected producer
+ * Represents a currently connected producer.
  */
 public class Producer {
     private final Topic topic;
@@ -185,7 +185,8 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.execute(() -> {
-                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError,
+                        "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
@@ -216,13 +217,16 @@ public class Producer {
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, sequenceId, msgIn,
+                        headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize, boolean isChunked) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
+                                       long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, lowestSequenceId,
+                        highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
@@ -280,7 +284,8 @@ public class Producer {
     }
 
     /**
-     * Return the sequence id of
+     * Return the sequence id of.
+     *
      * @return the sequence id
      */
     public long getLastSequenceId() {
@@ -361,7 +366,7 @@ public class Producer {
         }
 
         /**
-         * Executed from managed ledger thread when the message is persisted
+         * Executed from managed ledger thread when the message is persisted.
          */
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
@@ -405,7 +410,7 @@ public class Producer {
         }
 
         /**
-         * Executed from I/O thread when sending receipt back to client
+         * Executed from I/O thread when sending receipt back to client.
          */
         @Override
         public void run() {

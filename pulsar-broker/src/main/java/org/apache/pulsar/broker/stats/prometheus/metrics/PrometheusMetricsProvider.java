@@ -50,7 +50,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
     private final CachingStatsProvider cachingStatsProvider;
 
     /**
-     * These acts a registry of the metrics defined in this provider
+     * These acts a registry of the metrics defined in this provider.
      */
     final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
     final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
@@ -115,7 +115,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public void writeAllMetrics(Writer writer) throws IOException {
         gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, cluster, gauge));
         counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, cluster, counter));
-        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster, opStatLogger));
+        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster,
+                opStatLogger));
     }
 
     @Override

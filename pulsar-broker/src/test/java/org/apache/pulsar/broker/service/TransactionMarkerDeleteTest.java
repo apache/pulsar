@@ -26,20 +26,24 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.InMemoryPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 public class TransactionMarkerDeleteTest extends BrokerTestBase{
 
@@ -62,18 +66,20 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = mock(ServiceConfiguration.class);
+        MLPendingAckStoreProvider mlPendingAckStoreProvider = mock(MLPendingAckStoreProvider.class);
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(configuration).when(pulsarService).getConfig();
         doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
+        doReturn(mlPendingAckStoreProvider).when(pulsarService).getTransactionPendingAckStoreProvider();
+        CompletableFuture<PendingAckStore> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(new InMemoryPendingAckStore());
+        doReturn(completableFuture).when(mlPendingAckStoreProvider).newPendingAckStore(any());
         doReturn(managedLedger).when(topic).getManagedLedger();
         ManagedCursor cursor = managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
-        MessageIdData messageIdData = MessageIdData.newBuilder()
-                .setLedgerId(1)
-                .setEntryId(1)
-                .build();
+
         Position position1 = managedLedger.addEntry("test".getBytes());
         managedLedger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());

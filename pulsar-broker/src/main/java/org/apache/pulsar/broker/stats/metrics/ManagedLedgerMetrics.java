@@ -52,7 +52,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Aggregation by namespace (not thread-safe)
+     * Aggregation by namespace (not thread-safe).
      *
      * @param ledgersByDimension
      * @return
@@ -73,7 +73,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
             for (ManagedLedgerImpl ledger : ledgers) {
                 ManagedLedgerMXBean lStats = ledger.getStats();
 
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate", lStats.getAddEntryBytesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate",
+                        lStats.getAddEntryBytesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryErrors",
                         (double) lStats.getAddEntryErrors());
 
@@ -89,7 +90,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                         lStats.getReadEntriesBytesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesErrors",
                         (double) lStats.getReadEntriesErrors());
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate", lStats.getReadEntriesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate",
+                        lStats.getReadEntriesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesSucceeded",
                         (double) lStats.getReadEntriesSucceeded());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_StoredMessagesSize",
@@ -97,15 +99,20 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
                 // handle bucket entries initialization here
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets(), ManagedLedgerFactoryImpl.StatsPeriodSeconds);
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerAddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets(), ManagedLedgerFactoryImpl.StatsPeriodSeconds);
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets(), ManagedLedgerFactoryImpl.StatsPeriodSeconds);
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
 
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets", ENTRY_SIZE_BUCKETS_BYTES,
-                        lStats.getEntrySizeBuckets(), ManagedLedgerFactoryImpl.StatsPeriodSeconds);
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate", lStats.getMarkDeleteRate());
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets",
+                        ENTRY_SIZE_BUCKETS_BYTES, lStats.getEntrySizeBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate",
+                        lStats.getMarkDeleteRate());
             }
 
             // SUM up collections of each metrics
@@ -122,7 +129,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Build a map of dimensions key to list of topic stats (not thread-safe)
+     * Build a map of dimensions key to list of topic stats (not thread-safe).
      * <p>
      *
      * @return

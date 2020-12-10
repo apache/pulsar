@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -62,6 +63,9 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.InMemoryPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -73,6 +77,7 @@ import org.apache.pulsar.transaction.common.exception.TransactionConflictExcepti
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
@@ -113,6 +118,11 @@ public class PersistentSubscriptionTest {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
+        MLPendingAckStoreProvider mlPendingAckStoreProvider = mock(MLPendingAckStoreProvider.class);
+        CompletableFuture<PendingAckStore> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(new InMemoryPendingAckStore());
+        doReturn(mlPendingAckStoreProvider).when(pulsarMock).getTransactionPendingAckStoreProvider();
+        doReturn(completableFuture).when(mlPendingAckStoreProvider).newPendingAckStore(any());
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
 
@@ -197,7 +207,6 @@ public class PersistentSubscriptionTest {
                     .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
         // Single ack for txn
         persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
 
@@ -236,7 +245,14 @@ public class PersistentSubscriptionTest {
 
         doReturn(PulsarApi.CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
 
-        persistentSubscription.addConsumer(consumerMock);
+        Awaitility.await().atMost(200, TimeUnit.MILLISECONDS).until(() -> {
+            try {
+                persistentSubscription.addConsumer(consumerMock);
+                return true;
+            } catch (BrokerServiceException brokerServiceException) {
+                return false;
+            }
+        });
 
         // Single ack for txn1
         persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);

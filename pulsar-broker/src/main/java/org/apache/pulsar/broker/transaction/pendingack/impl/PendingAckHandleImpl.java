@@ -120,12 +120,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-            if (pendingAckStore instanceof MLPendingAckStore) {
-                changeToInitializingState();
-                pendingAckStore.replayAsync(this,
-                        ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
-                                .getPulsar().getTransactionReplayExecutor());
-            }
+            changeToInitializingState();
+            pendingAckStore.replayAsync(this,
+                    ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
+                            .getPulsar().getTransactionReplayExecutor());
         }).exceptionally(e -> {
             log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
             return null;
@@ -149,8 +147,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
             if (((ManagedCursorImpl) persistentSubscription.getCursor())
                     .isMessageDeleted(position)) {
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " try to ack message:" + position + " already acked before.";
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                        + " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
                 semaphore.release();
                 return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -168,8 +166,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 bitSetRecyclable.recycle();
                 if (isAckSetOverlap(ackSetOverlap,
                         ((ManagedCursorImpl) persistentSubscription.getCursor()).getBatchPositionAckSet(position))) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " already acked before.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -177,16 +175,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
                 if (this.individualAckPositions != null && individualAckPositions.containsKey(position)
                         && isAckSetOverlap(individualAckPositions.get(position).getLeft().getAckSet(), ackSetOverlap)) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack batch message:" + position + " in pending ack status.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
             } else {
                 if (this.individualAckPositions != null && this.individualAckPositions.containsKey(position)) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " in pending ack status.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -228,8 +226,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.semaphore.acquireUninterruptibly();
 
         if (positions.size() != 1) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " invalid cumulative ack received with multiple message ids.";
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                    + " invalid cumulative ack received with multiple message ids.";
             log.error(errorMsg);
             semaphore.release();
             return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
@@ -238,9 +236,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         PositionImpl position = positions.get(0);
 
         if (position.compareTo((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition()) <= 0) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " try to cumulative ack position: " + position + " within range of cursor's " +
-                    "markDeletePosition: " + persistentSubscription.getCursor().getMarkDeletedPosition();
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                    + " try to cumulative ack position: " + position + " within range of cursor's "
+                    + "markDeletePosition: " + persistentSubscription.getCursor().getMarkDeletedPosition();
             log.error(errorMsg);
             semaphore.release();
             return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));

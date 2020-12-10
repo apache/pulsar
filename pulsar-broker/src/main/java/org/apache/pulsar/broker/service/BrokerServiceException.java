@@ -26,9 +26,7 @@ import org.apache.pulsar.transaction.common.exception.TransactionConflictExcepti
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
 /**
- * Base type of exception thrown by Pulsar Broker Service
- *
- *
+ * Base type of exception thrown by Pulsar Broker Service.
  */
 @SuppressWarnings("serial")
 public class BrokerServiceException extends Exception {
