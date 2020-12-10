@@ -99,8 +99,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     }
 
     public boolean isExpired(int messageTTLInSeconds, long brokerTimestampForMessage) {
-        return messageTTLInSeconds != 0
-                && System.currentTimeMillis() > (brokerTimestampForMessage + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+        return messageTTLInSeconds != 0 && System.currentTimeMillis()
+                > (brokerTimestampForMessage + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
     public void updateRates() {
