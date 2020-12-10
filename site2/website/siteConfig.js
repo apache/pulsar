@@ -35,12 +35,13 @@ const createVariableInjectionPlugin = variables => {
         if (keyparts[0] == 'endpoint') {
             const restApiVersion = keyparts[2].split('/')[2]
             const suffix = keyparts[keyparts.length - 1]
+            restUrl = ''
             if (suffix.indexOf('?version') >= 0) {
-              keyparts[keyparts.length - 1] += '&apiVersion=' + restApiVersion
+              restUrl = keyparts[keyparts.length - 1] + '&apiVersion=' + restApiVersion
             } else {
-              keyparts[keyparts.length - 1] += 'version=master&apiVersion=' + restApiVersion
+              restUrl = keyparts[keyparts.length - 1] + 'version=master&apiVersion=' + restApiVersion
             }
-            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
+            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts, restUrl);
         }
       }
       return initializedPlugin.render(variables[key])
@@ -67,8 +68,8 @@ const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
     return rendered_content;
 };
 
-const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
-    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + keyparts[3] + ')';
+const renderEndpoint = (initializedPlugin, baseUrl, keyparts, restUrl) => {
+    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + restUrl + ')';
     rendered_content = initializedPlugin.render(content);
     rendered_content = rendered_content.replace('<p>', '');
     rendered_content = rendered_content.replace('</p>', '');

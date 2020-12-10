@@ -47,7 +47,7 @@ $ pulsar-admin functions create \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -90,7 +90,7 @@ $ pulsar-admin functions update \
 
 <!--REST Admin API-->
 
-{@inject: endpoint|PUT|/admin/v3/functions/{tenant}/{namespace}/{functionName}?version=((pulsar:version_number))
+{@inject: endpoint|PUT|/admin/v3/functions/:tenant/:namespace/:functionName?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -127,7 +127,7 @@ $ pulsar-admin functions start \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/start?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/start?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -156,7 +156,7 @@ $ pulsar-admin functions start \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/start?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/start?version=[[pulsar:version_number]]}
 
 <!--Java-->
 
@@ -186,7 +186,7 @@ $ pulsar-admin functions stop \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stop?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stop?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -215,7 +215,7 @@ $ pulsar-admin functions stop \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/stop?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/stop?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -245,7 +245,7 @@ $ pulsar-admin functions restart \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/restart?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/restart?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -274,7 +274,7 @@ $ pulsar-admin functions restart \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/restart?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/restart?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -302,7 +302,7 @@ $ pulsar-admin functions list \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -331,7 +331,7 @@ $ pulsar-admin functions delete \
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v3/functions/{tenant}/{namespace}/{functionName}?version=((pulsar:version_number))
+{@inject: endpoint|DELETE|/admin/v3/functions/:tenant/:namespace/:functionName?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -360,7 +360,7 @@ $ pulsar-admin functions get \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -389,7 +389,7 @@ $ pulsar-admin functions status \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/status?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/status?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -418,7 +418,7 @@ $ pulsar-admin functions status \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/status?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/status?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -447,7 +447,7 @@ $ pulsar-admin functions stats \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stats?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stats?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -476,7 +476,7 @@ $ pulsar-admin functions stats \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/stats?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/stats?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -507,7 +507,7 @@ $ pulsar-admin functions trigger \
 ```
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/trigger?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/trigger?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -537,7 +537,7 @@ $ pulsar-admin functions putstate \
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/state/{key}?version=((pulsar:version_number))
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -569,7 +569,7 @@ $ pulsar-admin functions querystate \
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/state/{key}?version=((pulsar:version_number))
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key?version=[[pulsar:version_number]]}
 
 <!--Java Admin CLI-->
 

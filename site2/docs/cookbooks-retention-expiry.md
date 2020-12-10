@@ -104,7 +104,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=((pulsar:version_number))}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
 
 > **Note**  
 > To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid. 
@@ -139,7 +139,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=((pulsar:version_number))}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -191,7 +191,7 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=((pulsar:version_number))}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -222,7 +222,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=((pulsar:version_number))}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -243,7 +243,7 @@ $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=((pulsar:version_number))}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -284,7 +284,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=((pulsar:version_number))}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -307,7 +307,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=((pulsar:version_number))}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -329,7 +329,7 @@ $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=((pulsar:version_number))}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 

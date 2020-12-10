@@ -141,7 +141,7 @@ const from = [
   /\/api\/client/g,
   /\/api\/admin/g,
 
-  /\(\(pulsar:version_number\)\)/g,
+  /\[\[pulsar:version_number\]\]/g,
 ];
 
 const options = {
