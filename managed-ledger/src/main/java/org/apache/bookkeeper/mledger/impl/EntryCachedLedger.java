@@ -36,7 +36,7 @@ public class EntryCachedLedger implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        throw new UnsupportedOperationException();
+        return entryCache.asyncReadEntry(innerLedger, firstEntry, lastEntry);
     }
 
     @Override
