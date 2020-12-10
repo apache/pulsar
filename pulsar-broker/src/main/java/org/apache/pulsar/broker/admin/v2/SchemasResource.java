@@ -22,10 +22,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.apache.pulsar.common.util.Codec.decode;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -51,18 +49,16 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
-import org.apache.pulsar.common.schema.LongSchemaVersion;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -71,8 +67,9 @@ import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.protocol.schema.PostSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,12 +108,13 @@ public class SchemasResource extends AdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic", response = GetSchemaResponse.class)
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-        @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
@@ -140,12 +138,13 @@ public class SchemasResource extends AdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic at a given version", response = GetSchemaResponse.class)
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-        @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
@@ -176,7 +175,8 @@ public class SchemasResource extends AdminResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
             @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
             @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
     })
@@ -228,7 +228,8 @@ public class SchemasResource extends AdminResource {
                         Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetAllVersionsSchemaResponse.builder().getSchemaResponses(
-                                        schemas.stream().map(SchemasResource::convertSchemaAndMetadataToGetSchemaResponse)
+                                        schemas.stream()
+                                                .map(SchemasResource::convertSchemaAndMetadataToGetSchemaResponse)
                                                 .collect(Collectors.toList())
                                         ).build()
                                 ).build()
@@ -395,12 +396,13 @@ public class SchemasResource extends AdminResource {
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
-                    value = "A JSON value presenting a schema playload. An example of the expected schema can be found down"
-                            + " here.",
+                    value = "A JSON value presenting a schema playload."
+                            + " An example of the expected schema can be found down here.",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
+                                    value = "{\"type\": \"STRING\", \"schema\": \"\","
+                                            + " \"properties\": { \"key1\" : \"value1\" + } }"
                             )
                     )
             )
@@ -461,12 +463,13 @@ public class SchemasResource extends AdminResource {
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
-                    value = "A JSON value presenting a schema playload. An example of the expected schema can be found down"
-                            + " here.",
+                    value = "A JSON value presenting a schema playload."
+                            + " An example of the expected schema can be found down here.",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
+                                    value = "{\"type\": \"STRING\", \"schema\": \"\","
+                                            + " \"properties\": { \"key1\" : \"value1\" + } }"
                             )
                     )
             )

@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.Promise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -162,7 +159,11 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStats();
-        stats.setAddress(cnx.clientAddress().toString());
+        if (cnx.hasHAProxyMessage()) {
+            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
+        } else {
+            stats.setAddress(cnx.clientAddress().toString());
+        }
         stats.consumerName = consumerName;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
@@ -355,9 +356,6 @@ public class Consumer {
     private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String,Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
         List<PositionImpl> checkBatchPositions = null;
-        if (isTransactionEnabled()) {
-            checkBatchPositions = new ArrayList<>();
-        }
         for (int i = 0; i < ack.getMessageIdCount(); i++) {
             MessageIdData msgId = ack.getMessageId(i);
             PositionImpl position;
@@ -366,21 +364,9 @@ public class Consumer {
                         SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
-                    checkBatchPositions.add(position);
-                    LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-                    if (batchSizePair == null) {
-                        String error = "Batch position [" + position + "] could not find " +
-                                "it's batch size from consumer pendingAcks!";
-                        log.warn(error);
-                        return FutureUtil.failedFuture(
-                                new BrokerServiceException.NotAllowedException(error));
-                    }
-                    ((PersistentSubscription) subscription)
-                            .syncBatchPositionBitSetForPendingAck(new MutablePair<>(position, batchSizePair.first));
-                    //check if the position can remove from the consumer pending acks.
-                    // the bit set is empty in pending ack handle.
-                    if (((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(position)) {
-                        removePendingAcks(position);
+                    if (Subscription.isIndividualAckMode(subType)) {
+                        ((PersistentSubscription) subscription)
+                                .syncBatchPositionBitSetForPendingAck(position);
                     }
                 }
             } else {
@@ -393,14 +379,28 @@ public class Consumer {
             checkAckValidationError(ack, position);
         }
         subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-        return CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(null);
+        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
+                //check if the position can remove from the consumer pending acks.
+                // the bit set is empty in pending ack handle.
+                if (((PositionImpl) position).getAckSet() != null) {
+                    if (((PersistentSubscription) subscription)
+                            .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
+                        removePendingAcks((PositionImpl) position);
+                    }
+                }
+            }));
+        }
+        return completableFuture;
     }
 
 
     //this method is for individual ack carry the transaction
     private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
-        List<MutablePair<PositionImpl, Long>> positionsAcked = new ArrayList<>();
+        List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
 
         if (!isTransactionEnabled()) {
             return FutureUtil.failedFuture(
@@ -417,15 +417,11 @@ public class Consumer {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
             }
 
-            LongPair batchSizePair = this.pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-            if (batchSizePair == null) {
-                String error = "Batch position [" + position + "] could not find " +
-                        "it's batch size from consumer pendingAcks!";
-                log.error(error);
-                return FutureUtil.failedFuture(
-                        new BrokerServiceException.NotAllowedException(error));
+            if (msgId.hasBatchIndex()) {
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
+            } else {
+                positionsAcked.add(new MutablePair<>(position, 0));
             }
-            positionsAcked.add(new MutablePair<>(position, batchSizePair.first));
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
@@ -434,12 +430,17 @@ public class Consumer {
 
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked);
-        positionsAcked.forEach(positionLongMutablePair -> {
-            if (((PersistentSubscription) subscription)
-                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                removePendingAcks(positionLongMutablePair.left);
-            }
-        });
+        if (Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) ->
+                    positionsAcked.forEach(positionLongMutablePair -> {
+                        if (positionLongMutablePair.getLeft().getAckSet() != null) {
+                            if (((PersistentSubscription) subscription)
+                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
+                                removePendingAcks(positionLongMutablePair.left);
+                            }
+                        }
+                    }));
+        }
         return completableFuture;
     }
 
@@ -465,7 +466,7 @@ public class Consumer {
     private CompletableFuture<Void> transactionIndividualAcknowledge(
             long txnidMostBits,
             long txnidLeastBits,
-            List<MutablePair<PositionImpl, Long>> positionList) {
+            List<MutablePair<PositionImpl, Integer>> positionList) {
         if (subscription instanceof PersistentSubscription) {
             TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
             return ((PersistentSubscription) subscription).transactionIndividualAcknowledge(txnID, positionList);
@@ -762,6 +763,10 @@ public class Consumer {
 
     public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
         this.readPositionWhenJoining = readPositionWhenJoining;
+    }
+
+    public TransportCnx cnx() {
+        return cnx;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

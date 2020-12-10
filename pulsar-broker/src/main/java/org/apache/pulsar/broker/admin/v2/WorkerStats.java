@@ -33,7 +33,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.functions.worker.WorkerService;
-
 import org.apache.pulsar.functions.worker.service.api.Workers;
 
 @Slf4j

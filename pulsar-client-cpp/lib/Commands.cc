@@ -688,7 +688,10 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() + requiredSpace);
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;

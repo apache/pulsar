@@ -30,6 +30,7 @@ struct ReaderConfigurationImpl {
     std::string readerName;
     std::string subscriptionRolePrefix;
     bool readCompacted;
+    std::string internalSubscriptionName;
     ReaderConfigurationImpl()
         : schemaInfo(),
           hasReaderListener(false),

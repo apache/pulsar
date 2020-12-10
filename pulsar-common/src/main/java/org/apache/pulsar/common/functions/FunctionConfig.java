@@ -19,10 +19,8 @@
 package org.apache.pulsar.common.functions;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import java.util.Collection;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -99,6 +97,7 @@ public class FunctionConfig {
     private String batchBuilder;
     private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
+    private Map<String, ExternalPulsarConfig> externalPulsars;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
     // encapsulates how the secret is fetched by the underlying

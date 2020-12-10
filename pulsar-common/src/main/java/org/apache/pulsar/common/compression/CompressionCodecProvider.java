@@ -19,9 +19,7 @@
 package org.apache.pulsar.common.compression;
 
 import java.util.EnumMap;
-
 import lombok.experimental.UtilityClass;
-
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 

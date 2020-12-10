@@ -95,7 +95,7 @@ public class PulsarMultiListenersWithoutInternalListenerNameTest extends MockedP
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (this.executorService != null) {
+        if (this.lookupService != null) {
             this.lookupService.close();
         }
         if (this.executorService != null) {

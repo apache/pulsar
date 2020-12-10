@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.io.IOException;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,11 +30,6 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
-
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import java.io.IOException;
 
 /**
  * A broker interceptor with it's classloader.
@@ -59,7 +58,8 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         this.interceptor.onWebserviceResponse(request, response);
     }
 

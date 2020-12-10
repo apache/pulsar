@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
@@ -178,6 +177,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             case Closing:
             case Closed:
                 return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            case ProducerFenced:
+                return FutureUtil.failedFuture(new PulsarClientException.ProducerFencedException("Producer was fenced"));
             case Terminated:
                 return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             case Failed:

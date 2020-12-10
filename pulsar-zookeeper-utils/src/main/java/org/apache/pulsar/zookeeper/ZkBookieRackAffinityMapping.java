@@ -54,6 +54,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private static final Logger LOG = LoggerFactory.getLogger(ZkBookieRackAffinityMapping.class);
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
+    public static final String ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE = "zk_data_cache_bk_rack_conf_instance";
 
     private ZooKeeperDataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
@@ -66,7 +67,13 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     @Override
     public void setConf(Configuration conf) {
         super.setConf(conf);
-        bookieMappingCache = getAndSetZkCache(conf);
+        if (conf.getProperty(ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE) != null) {
+            bookieMappingCache = (ZooKeeperDataCache<BookiesRackConfiguration>) conf.getProperty(ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE);
+            bookieMappingCache.registerListener(this);
+        } else {
+            bookieMappingCache = getAndSetZkCache(conf);
+            conf.setProperty(ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE, bookieMappingCache);
+        }
 
         try {
             BookiesRackConfiguration racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElse(new BookiesRackConfiguration());
@@ -152,7 +159,6 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     LOG.debug("Loading the bookie mappings with bookie info data: {}", new String(content));
                 }
                 BookiesRackConfiguration racks = jsonMapper.readValue(content, BookiesRackConfiguration.class);
-                updateRacksWithHost(racks);
                 return racks;
             }
 
@@ -172,6 +178,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             // Trigger load of z-node in case it didn't exist
             Optional<BookiesRackConfiguration> racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
+            updateRacksWithHost(racks.orElse(new BookiesRackConfiguration()));
             if (!racks.isPresent()) {
                 // since different placement policy will have different default rack,
                 // don't be smart here and just return null

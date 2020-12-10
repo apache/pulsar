@@ -35,7 +35,7 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
@@ -227,12 +227,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @return the message id of the message processed during init phase
      */
     public MessageId initialize() {
-        try {
-            Reader<byte[]> reader = WorkerUtils.createReader(
-                    workerService.getClient().newReader(),
-                    workerConfig.getWorkerId() + "-function-assignment-initialize",
-                    workerConfig.getFunctionAssignmentTopic(),
-                    MessageId.earliest);
+        try (Reader<byte[]> reader = WorkerUtils.createReader (
+          workerService.getClient().newReader(),
+          workerConfig.getWorkerId() + "-function-assignment-initialize",
+          workerConfig.getFunctionAssignmentTopic(),
+          MessageId.earliest)) {
 
             // start init phase
             this.isInitializePhase = true;
@@ -246,8 +245,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
             // init phase is done
             this.isInitializePhase = false;
-            // close reader
-            reader.close();
             // realize existing assignments
             Map<String, Assignment> assignmentMap = workerIdToAssignments.get(this.workerConfig.getWorkerId());
             if (assignmentMap != null) {

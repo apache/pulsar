@@ -54,7 +54,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -150,7 +150,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
                 txn1MessageCnt ++;
             } else {
                 producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
@@ -243,15 +243,24 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void txnAckTestNoBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
     @Test
-    public void txnAckTestBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestBatchAndSharedSub() throws Exception {
         txnAckTest(true, 200, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnIndividualAckTestNoBatchAndFailoverSub() throws Exception {
+        txnAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Failover);
+    }
 
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
@@ -263,7 +272,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
-                .ackTimeout(2, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
@@ -289,7 +297,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000L);
 
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -321,8 +328,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
         }
     }
@@ -526,8 +532,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
             message = consumer.receive(1, TimeUnit.SECONDS);

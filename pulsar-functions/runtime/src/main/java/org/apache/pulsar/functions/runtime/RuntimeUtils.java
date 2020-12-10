@@ -35,7 +35,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -81,7 +81,8 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory, functionInstanceClassPath));
+                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory,
+                functionInstanceClassPath, false));
         return cmd;
     }
 
@@ -117,7 +118,8 @@ public class RuntimeUtils {
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
-                                                String pulsarServiceUrl) throws IOException {
+                                                String pulsarServiceUrl,
+                                                boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -224,11 +226,13 @@ public class RuntimeUtils {
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
-        // Nit: at present, the implementation of go function depends on pulsar-client-go,
-        // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add("'" + configContent + "'");
+        if (k8sRuntime) {
+            args.add("'" + configContent + "'");
+        } else {
+            args.add(configContent);
+        }
         return args;
     }
 
@@ -252,11 +256,12 @@ public class RuntimeUtils {
                                       String pythonExtraDependencyRepository,
                                       int metricsPort,
                                       String narExtractionDirectory,
-                                      String functionInstanceClassPath) throws Exception {
+                                      String functionInstanceClassPath,
+                                      boolean k8sRuntime) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {

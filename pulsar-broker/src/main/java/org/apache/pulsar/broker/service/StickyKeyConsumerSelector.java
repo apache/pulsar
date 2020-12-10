@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 
 public interface StickyKeyConsumerSelector {
 

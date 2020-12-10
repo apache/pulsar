@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -33,18 +43,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
-import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 
 /**
  * The default implementation of {@link PendingAckHandle}.
@@ -81,7 +79,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
      *     <p>
      *         If it does not exits the map, the position will be added to the map.
      */
-    private Map<PositionImpl, MutablePair<PositionImpl, Long>> individualAckPositions;
+    private Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
@@ -103,7 +101,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
 
     @Override
     public synchronized CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Long>> positions) {
+                                                                List<MutablePair<PositionImpl, Integer>> positions) {
         if (txnID == null) {
             return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
         }
@@ -111,8 +109,8 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             return FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        for (int i = 0; i < positions.size(); i++) {
-            PositionImpl position = positions.get(i).left;
+        for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
+            PositionImpl position = positionIntegerMutablePair.left;
 
             // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
             if (((ManagedCursorImpl) persistentSubscription.getCursor())
@@ -127,10 +125,10 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 //in order to jude the bit set is over lap, so set the covering the batch size bit to 1,
                 // should know the two bit set don't have the same point is 0
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
-                if (positions.get(i).right.intValue() > bitSetRecyclable.size()) {
-                    bitSetRecyclable.set(positions.get(i).right.intValue());
+                if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
+                    bitSetRecyclable.set(positionIntegerMutablePair.right);
                 }
-                bitSetRecyclable.set(positions.get(i).right.intValue(), bitSetRecyclable.size());
+                bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
                 long[] ackSetOverlap = bitSetRecyclable.toLongArray();
                 bitSetRecyclable.recycle();
                 if (isAckSetOverlap(ackSetOverlap,
@@ -185,7 +183,9 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 if (!individualAckPositions.containsKey(position)) {
                     this.individualAckPositions.put(position, positions.get(i));
                 } else {
-                    andAckSet(this.individualAckPositions.get(position).getLeft(), position);
+                    MutablePair<PositionImpl, Integer> positionPair = this.individualAckPositions.get(position);
+                    positionPair.setRight(positions.get(i).right);
+                    andAckSet(positionPair.getLeft(), position);
                 }
 
             } else {
@@ -288,7 +288,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 for (Entry<PositionImpl, PositionImpl> entry : pendingAckMessageForCurrentTxn.entrySet()) {
                     if (entry.getValue().hasAckSet() && individualAckPositions.containsKey(entry.getValue())) {
                         BitSetRecyclable thisBitSet = BitSetRecyclable.valueOf(entry.getValue().getAckSet());
-                        thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right.intValue());
+                        thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right);
                         BitSetRecyclable otherBitSet =
                                 BitSetRecyclable.valueOf(individualAckPositions.get(entry.getValue()).left.getAckSet());
                         otherBitSet.or(thisBitSet);
@@ -308,19 +308,21 @@ public class PendingAckHandleImpl implements PendingAckHandle {
     }
 
     @Override
-    public synchronized void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position) {
+    public synchronized void syncBatchPositionAckSetForTransaction(PositionImpl position) {
         if (individualAckPositions == null) {
             individualAckPositions = new HashMap<>();
         }
-        if (!individualAckPositions.containsKey(position.left)) {
-            this.individualAckPositions.put(position.left, position);
+        //sync don't carry the batch size
+        //when one position is ack by transaction the batch size is for `and` operation.
+        if (!individualAckPositions.containsKey(position)) {
+            this.individualAckPositions.put(position, new MutablePair<>(position, 0));
         } else {
-            andAckSet(this.individualAckPositions.get(position.left).left, position.left);
+            andAckSet(this.individualAckPositions.get(position).left, position);
         }
     }
 
     @Override
-    public synchronized boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
         if (!individualAckPositions.containsKey(position)) {
             return true;
         } else {
@@ -328,8 +330,10 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (position.hasAckSet()) {
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
                 if (bitSetRecyclable.isEmpty()) {
+                    bitSetRecyclable.recycle();
                     return true;
                 } else {
+                    bitSetRecyclable.recycle();
                     return false;
                 }
             } else {

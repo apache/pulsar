@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -31,8 +30,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -303,6 +304,18 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testReaderHasMessageAvailable() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .startMessageIdInclusive()
+                .create();
+        assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
     public void testKeyHashRangeReader() throws IOException {
          final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
         final String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
@@ -385,4 +398,71 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
 
     }
+
+    @Test
+    public void testReaderSubName() throws Exception {
+        doTestReaderSubName(true);
+        doTestReaderSubName(false);
+    }
+
+    public void doTestReaderSubName(boolean setPrefix) throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderSubName" + System.currentTimeMillis();
+        final String subName = "my-sub-name";
+
+        ReaderBuilder<String> builder = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest);
+        if (setPrefix) {
+            builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
+        }
+        Reader<String> reader = builder.create();
+        ReaderImpl<String> readerImpl = (ReaderImpl<String>) reader;
+        assertEquals(readerImpl.getConsumer().getSubscription(), subName);
+        reader.close();
+
+        final String topic2 = "persistent://my-property/my-ns/testReaderSubName2" + System.currentTimeMillis();
+        admin.topics().createPartitionedTopic(topic2, 3);
+        builder = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic2)
+                .startMessageId(MessageId.earliest);
+        if (setPrefix) {
+            builder = builder.subscriptionRolePrefix(subName + System.currentTimeMillis());
+        }
+        reader = builder.create();
+        MultiTopicsReaderImpl<String> multiTopicsReader = (MultiTopicsReaderImpl<String>) reader;
+        multiTopicsReader.getMultiTopicsConsumer().getConsumers()
+                .forEach(consumerImpl -> assertEquals(consumerImpl.getSubscription(), subName));
+        multiTopicsReader.close();
+    }
+
+    @Test
+    public void testSameSubName() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testSameSubName";
+        final String subName = "my-sub-name";
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create();
+        //We can not create a new reader with the same subscription name
+        try (Reader<String> ignored = pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create()) {
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            assertTrue(e instanceof PulsarClientException.ConsumerBusyException);
+            assertTrue(e.getMessage().contains("Exclusive consumer is already connected"));
+        }
+        //It is possible to create a new reader with the same subscription name after closing the first reader
+        reader.close();
+        pulsarClient.newReader(Schema.STRING)
+                .subscriptionName(subName)
+                .topic(topic)
+                .startMessageId(MessageId.earliest).create().close();
+
+    }
+
 }

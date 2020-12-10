@@ -24,6 +24,18 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
@@ -34,19 +46,6 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
 
 public class SinksBase extends AdminResource {
 
@@ -59,77 +58,96 @@ public class SinksBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request (The Pulsar Sink already exists, etc.)"),
             @ApiResponse(code = 200, message = "Pulsar Sink successfully created"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to get tenant data, failed to process package, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to authorize,"
+                            + " failed to get tenant data, failed to process package, etc.)"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void registerSink(@ApiParam(value = "The tenant of a Pulsar Sink")
-                             final @PathParam("tenant") String tenant,
-                             @ApiParam(value = "The namespace of a Pulsar Sink")
-                             final @PathParam("namespace") String namespace,
-                             @ApiParam(value = "The name of a Pulsar Sink")
-                             final @PathParam("sinkName") String sinkName,
+    public void registerSink(@ApiParam(value = "The tenant of a Pulsar Sink") final @PathParam("tenant") String tenant,
+                             @ApiParam(value = "The namespace of a Pulsar Sink") final @PathParam("namespace")
+                                     String namespace,
+                             @ApiParam(value = "The name of a Pulsar Sink") final @PathParam("sinkName")
+                                         String sinkName,
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String sinkPkgUrl,
-                             @ApiParam(
-                                 value =
-                                     "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:  \n" +
-                                     "- **classname**  \n" +
-                                     "   The class name of a Pulsar Sink if archive is file-url-path (file://)  \n" +
-                                     "- **sourceSubscriptionName**  \n" +
-                                     "   Pulsar source subscription name if user wants a specific  \n" +
-                                     "   subscription-name for input-topic consumer  \n" +
-                                     "- **inputs**  \n" +
-                                     "   The input topic or topics of a Pulsar Sink (specified as a JSON array)  \n" +
-                                     "- **topicsPattern**  \n" +
-                                     "   TopicsPattern to consume from list of topics under a namespace that " +
-                                     "   match the pattern. [input] and [topicsPattern] are mutually " +
-                                     "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
-                                     "   (supported for java fun only)" +
-                                     "- **topicToSerdeClassName**  \n" +
-                                     "   The map of input topics to SerDe class names (specified as a JSON object)  \n" +
-                                     "- **topicToSchemaType**  \n" +
-                                     "   The map of input topics to Schema types or class names (specified as a JSON object)  \n" +
-                                     "- **inputSpecs**  \n" +
-                                     "   The map of input topics to its consumer configuration, each configuration has schema of " +
-                                     "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
-                                     "- **configs**  \n" +
-                                     "   The map of configs (specified as a JSON object)  \n" +
-                                     "- **secrets**  \n" +
-                                     "   a map of secretName(aka how the secret is going to be \n" +
-                                     "   accessed in the function via context) to an object that \n" +
-                                     "   encapsulates how the secret is fetched by the underlying \n" +
-                                     "   secrets provider. The type of an value here can be found by the \n" +
-                                     "   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \n" +
-                                     "- **parallelism**  \n" +
-                                     "   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n" +
-                                     "- **processingGuarantees**  \n" +
-                                     "   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \n" +
-                                     "- **retainOrdering**  \n" +
-                                     "   Boolean denotes whether the Pulsar Sink consumes and processes messages in order  \n" +
-                                     "- **resources**  \n" +
-                                     "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)  \n" +
-                                     "- **autoAck**  \n" +
-                                     "   Boolean denotes whether or not the framework will automatically acknowledge messages  \n" +
-                                     "- **timeoutMs**  \n" +
-                                     "   Long denotes the message timeout in milliseconds  \n" +
-                                     "- **cleanupSubscription**  \n" +
-                                     "   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n" +
-                                     "- **runtimeFlags**  \n" +
-                                     "   Any flags that you want to pass to the runtime as a single string  \n",
-                                 examples = @Example(
-                                     value = @ExampleProperty(
-                                         mediaType = MediaType.APPLICATION_JSON,
-                                         value = "{  \n" +
-                                             "\t\"classname\": \"org.example.MySinkTest\",\n" +
-                                             "\t\"inputs\": [\"persistent://public/default/sink-input\"],\n" +
-                                             "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
-                                             "\t\"parallelism\": 10\n" +
-                                             "}"
-                                     )
+                             @ApiParam(value =
+                                     "A JSON value presenting config payload of a Pulsar Sink."
+                                             + " All available configuration options are:\n"
+                                             + "- **classname**\n"
+                                             + "   The class name of a Pulsar Sink if"
+                                             + " archive is file-url-path (file://)\n"
+                                             + "- **sourceSubscriptionName**\n"
+                                             + "   Pulsar source subscription name if"
+                                             + " user wants a specific\n"
+                                             + "   subscription-name for input-topic consumer\n"
+                                             + "- **inputs**\n"
+                                             + "   The input topic or topics of"
+                                             + " a Pulsar Sink (specified as a JSON array)\n"
+                                             + "- **topicsPattern**\n"
+                                             + "   TopicsPattern to consume from list of topics under a namespace that "
+                                             + "   match the pattern. [input] and [topicsPattern] are mutually "
+                                             + "   exclusive. Add SerDe class name for a pattern in customSerdeInputs "
+                                             + "   (supported for java fun only)"
+                                             + "- **topicToSerdeClassName**\n"
+                                             + "   The map of input topics to SerDe class names"
+                                             + " (specified as a JSON object)\n"
+                                             + "- **topicToSchemaType**\n"
+                                             + "   The map of input topics to Schema types or class names"
+                                             + " (specified as a JSON object)\n"
+                                             + "- **inputSpecs**\n"
+                                             + "   The map of input topics to its consumer configuration,"
+                                             + " each configuration has schema of "
+                                             + "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\","
+                                             + " \"isRegexPattern\": true, \"receiverQueueSize\": 5}\n"
+                                             + "- **configs**\n"
+                                             + "   The map of configs (specified as a JSON object)\n"
+                                             + "- **secrets**\n"
+                                             + "   a map of secretName(aka how the secret is going to be \n"
+                                             + "   accessed in the function via context) to an object that \n"
+                                             + "   encapsulates how the secret is fetched by the underlying \n"
+                                             + "   secrets provider. The type of an value here can be found by the \n"
+                                             + "   SecretProviderConfigurator.getSecretObjectType() method."
+                                             + " (specified as a JSON object)\n"
+                                             + "- **parallelism**\n"
+                                             + "   The parallelism factor of a Pulsar Sink"
+                                             + " (i.e. the number of a Pulsar Sink instances to run \n"
+                                             + "- **processingGuarantees**\n"
+                                             + "   The processing guarantees (aka delivery semantics) applied to"
+                                             + " the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\","
+                                             + " \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"\n"
+                                             + "- **retainOrdering**\n"
+                                             + "   Boolean denotes whether the Pulsar Sink"
+                                             + " consumes and processes messages in order\n"
+                                             + "- **resources**\n"
+                                             + "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores),"
+                                             + " RAM (in bytes) and disk (in bytes) that needs to be "
+                                             + "allocated per Pulsar Sink instance "
+                                             + "(applicable only to Docker runtime)\n"
+                                             + "- **autoAck**\n"
+                                             + "   Boolean denotes whether or not the framework"
+                                             + " will automatically acknowledge messages\n"
+                                             + "- **timeoutMs**\n"
+                                             + "   Long denotes the message timeout in milliseconds\n"
+                                             + "- **cleanupSubscription**\n"
+                                             + "   Boolean denotes whether the subscriptions the functions"
+                                             + " created/used should be deleted when the functions is deleted\n"
+                                             + "- **runtimeFlags**\n"
+                                             + "   Any flags that you want to pass to the runtime as a single string\n",
+                                     examples = @Example(
+                                             value = @ExampleProperty(
+                                                     mediaType = MediaType.APPLICATION_JSON,
+                                                     value = "{\n"
+                                                             + "\t\"classname\": \"org.example.MySinkTest\",\n"
+                                                             + "\t\"inputs\": ["
+                                                             + "\"persistent://public/default/sink-input\"],\n"
+                                                             + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
+                                                             + "\t\"parallelism\": 10\n"
+                                                             + "}"
+                                             )
                                  )
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
@@ -140,80 +158,96 @@ public class SinksBase extends AdminResource {
     @PUT
     @ApiOperation(value = "Updates a Pulsar Sink currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Sink doesn't exist, update contains no change, etc.)"),
+            @ApiResponse(code = 400, message =
+                    "Invalid request (The Pulsar Sink doesn't exist, update contains no change, etc.)"),
             @ApiResponse(code = 200, message = "Pulsar Sink successfully updated"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to process package, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to authorize, failed to process package, etc.)"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void updateSink(@ApiParam(value = "The tenant of a Pulsar Sink")
-                           final @PathParam("tenant") String tenant,
-                           @ApiParam(value = "The namespace of a Pulsar Sink")
-                           final @PathParam("namespace") String namespace,
-                           @ApiParam(value = "The name of a Pulsar Sink")
-                           final @PathParam("sinkName") String sinkName,
+    public void updateSink(@ApiParam(value = "The tenant of a Pulsar Sink") final @PathParam("tenant") String tenant,
+                           @ApiParam(value = "The namespace of a Pulsar Sink") final @PathParam("namespace")
+                                   String namespace,
+                           @ApiParam(value = "The name of a Pulsar Sink") final @PathParam("sinkName") String sinkName,
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
                            final @FormDataParam("url") String sinkPkgUrl,
-                           @ApiParam(
-                               value =
-                                   "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:  \n" +
-                                       "- **classname**  \n" +
-                                       "   The class name of a Pulsar Sink if archive is file-url-path (file://)  \n" +
-                                       "- **sourceSubscriptionName**  \n" +
-                                       "   Pulsar source subscription name if user wants a specific  \n" +
-                                       "   subscription-name for input-topic consumer  \n" +
-                                       "- **inputs**  \n" +
-                                       "   The input topic or topics of a Pulsar Sink (specified as a JSON array)  \n" +
-                                       "- **topicsPattern**  \n" +
-                                       "   TopicsPattern to consume from list of topics under a namespace that " +
-                                       "   match the pattern. [input] and [topicsPattern] are mutually " +
-                                       "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
-                                       "   (supported for java fun only)" +
-                                       "- **topicToSerdeClassName**  \n" +
-                                       "   The map of input topics to SerDe class names (specified as a JSON object)  \n" +
-                                       "- **topicToSchemaType**  \n" +
-                                       "   The map of input topics to Schema types or class names (specified as a JSON object)  \n" +
-                                       "- **inputSpecs**  \n" +
-                                       "   The map of input topics to its consumer configuration, each configuration has schema of " +
-                                       "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
-                                       "- **configs**  \n" +
-                                       "   The map of configs (specified as a JSON object)  \n" +
-                                       "- **secrets**  \n" +
-                                       "   a map of secretName(aka how the secret is going to be \n" +
-                                       "   accessed in the function via context) to an object that \n" +
-                                       "   encapsulates how the secret is fetched by the underlying \n" +
-                                       "   secrets provider. The type of an value here can be found by the \n" +
-                                       "   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \n" +
-                                       "- **parallelism**  \n" +
-                                       "   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n" +
-                                       "- **processingGuarantees**  \n" +
-                                       "   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \n" +
-                                       "- **retainOrdering**  \n" +
-                                       "   Boolean denotes whether the Pulsar Sink consumes and processes messages in order  \n" +
-                                       "- **resources**  \n" +
-                                       "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)  \n" +
-                                       "- **autoAck**  \n" +
-                                       "   Boolean denotes whether or not the framework will automatically acknowledge messages  \n" +
-                                       "- **timeoutMs**  \n" +
-                                       "   Long denotes the message timeout in milliseconds  \n" +
-                                       "- **cleanupSubscription**  \n" +
-                                       "   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n" +
-                                       "- **runtimeFlags**  \n" +
-                                       "   Any flags that you want to pass to the runtime as a single string  \n",
-                               examples = @Example(
-                                   value = @ExampleProperty(
-                                       mediaType = MediaType.APPLICATION_JSON,
-                                       value = "{  \n" +
-                                           "\t\"classname\": \"org.example.SinkStressTest\",  \n" +
-                                               "\t\"inputs\": [\"persistent://public/default/sink-input\"],\n" +
-                                               "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
-                                               "\t\"parallelism\": 5\n" +
-                                               "}"
-                                   )
+                           @ApiParam(value =
+                                   "A JSON value presenting config payload of a Pulsar Sink."
+                                           + " All available configuration options are:\n"
+                                           + "- **classname**\n"
+                                           + "   The class name of a Pulsar Sink if"
+                                           + " archive is file-url-path (file://)\n"
+                                           + "- **sourceSubscriptionName**\n"
+                                           + "   Pulsar source subscription name if user wants a specific\n"
+                                           + "   subscription-name for input-topic consumer\n"
+                                           + "- **inputs**\n"
+                                           + "   The input topic or topics of"
+                                           + " a Pulsar Sink (specified as a JSON array)\n"
+                                           + "- **topicsPattern**\n"
+                                           + "   TopicsPattern to consume from list of topics under a namespace that "
+                                           + "   match the pattern. [input] and [topicsPattern] are mutually "
+                                           + "   exclusive. Add SerDe class name for a pattern in customSerdeInputs "
+                                           + "   (supported for java fun only)"
+                                           + "- **topicToSerdeClassName**\n"
+                                           + "   The map of input topics to"
+                                           + " SerDe class names (specified as a JSON object)\n"
+                                           + "- **topicToSchemaType**\n"
+                                           + "   The map of input topics to Schema types or"
+                                           + " class names (specified as a JSON object)\n"
+                                           + "- **inputSpecs**\n"
+                                           + "   The map of input topics to its consumer configuration,"
+                                           + " each configuration has schema of "
+                                           + "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\","
+                                           + " \"isRegexPattern\": true, \"receiverQueueSize\": 5}\n"
+                                           + "- **configs**\n"
+                                           + "   The map of configs (specified as a JSON object)\n"
+                                           + "- **secrets**\n"
+                                           + "   a map of secretName(aka how the secret is going to be \n"
+                                           + "   accessed in the function via context) to an object that \n"
+                                           + "   encapsulates how the secret is fetched by the underlying \n"
+                                           + "   secrets provider. The type of an value here can be found by the \n"
+                                           + "   SecretProviderConfigurator.getSecretObjectType() method."
+                                           + " (specified as a JSON object)\n"
+                                           + "- **parallelism**\n"
+                                           + "   The parallelism factor of a Pulsar Sink "
+                                           + "(i.e. the number of a Pulsar Sink instances to run \n"
+                                           + "- **processingGuarantees**\n"
+                                           + "   The processing guarantees (aka delivery semantics) applied to the"
+                                           + " Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\","
+                                           + " \"EFFECTIVELY_ONCE\"\n"
+                                           + "- **retainOrdering**\n"
+                                           + "   Boolean denotes whether the Pulsar Sink"
+                                           + " consumes and processes messages in order\n"
+                                           + "- **resources**\n"
+                                           + "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores),"
+                                           + " RAM (in bytes) and disk (in bytes) that needs to be allocated per"
+                                           + " Pulsar Sink instance (applicable only to Docker runtime)\n"
+                                           + "- **autoAck**\n"
+                                           + "   Boolean denotes whether or not the framework will"
+                                           + " automatically acknowledge messages\n"
+                                           + "- **timeoutMs**\n"
+                                           + "   Long denotes the message timeout in milliseconds\n"
+                                           + "- **cleanupSubscription**\n"
+                                           + "   Boolean denotes whether the subscriptions the functions"
+                                           + " created/used should be deleted when the functions is deleted\n"
+                                           + "- **runtimeFlags**\n"
+                                           + "   Any flags that you want to pass to the runtime as a single string\n",
+                                   examples = @Example(
+                                           value = @ExampleProperty(
+                                                   mediaType = MediaType.APPLICATION_JSON,
+                                                   value = "{\n"
+                                                           + "\t\"classname\": \"org.example.SinkStressTest\",\n"
+                                                           + "\t\"inputs\": ["
+                                                           + "\"persistent://public/default/sink-input\"],\n"
+                                                           + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
+                                                           + "\t\"parallelism\": 5\n"
+                                                           + "}"
+                                           )
                                )
                            )
                            final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
@@ -232,7 +266,8 @@ public class SinksBase extends AdminResource {
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 200, message = "The Pulsar Sink was successfully deleted"),
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to deregister, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to authorize, failed to deregister, etc.)"),
             @ApiResponse(code = 408, message = "Got InterruptedException while deregistering the Pulsar Sink"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -343,7 +378,9 @@ public class SinksBase extends AdminResource {
             @ApiResponse(code = 400, message = "Invalid restart request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to restart the instance of a Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to restart the instance of"
+                            + " a Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/restart")
@@ -356,7 +393,8 @@ public class SinksBase extends AdminResource {
                             final @PathParam("sinkName") String sinkName,
                             @ApiParam(value = "The instanceId of a Pulsar Sink")
                             final @PathParam("instanceId") String instanceId) {
-        sinks().restartFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        sinks().restartFunctionInstance(tenant, namespace, sinkName, instanceId,
+                uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -365,7 +403,8 @@ public class SinksBase extends AdminResource {
             @ApiResponse(code = 400, message = "Invalid restart request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to restart the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to restart the Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/restart")
@@ -384,7 +423,8 @@ public class SinksBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid stop request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink instance does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -398,7 +438,8 @@ public class SinksBase extends AdminResource {
                          final @PathParam("sinkName") String sinkName,
                          @ApiParam(value = "The instanceId of a Pulsar Sink")
                          final @PathParam("instanceId") String instanceId) {
-        sinks().stopFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        sinks().stopFunctionInstance(tenant, namespace,
+                sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -406,7 +447,8 @@ public class SinksBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid stop request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -426,7 +468,8 @@ public class SinksBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid start request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -440,7 +483,8 @@ public class SinksBase extends AdminResource {
                           final @PathParam("sinkName") String sinkName,
                           @ApiParam(value = "The instanceId of a Pulsar Sink")
                           final @PathParam("instanceId") String instanceId) {
-        sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId,
+                uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -448,7 +492,8 @@ public class SinksBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid start request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 500, message =
+                    "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })

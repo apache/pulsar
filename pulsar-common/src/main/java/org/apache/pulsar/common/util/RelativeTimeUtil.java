@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util;
 
 import java.util.concurrent.TimeUnit;
-
 import lombok.experimental.UtilityClass;
 
 /**

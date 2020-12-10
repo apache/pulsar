@@ -91,6 +91,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
+    @Category
+    private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -162,6 +164,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean haProxyProtocolEnabled;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1215,6 +1221,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerDefaultAckQuorum = 2;
 
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
+    private int managedLedgerCursorPositionFlushSeconds = 60;
+
     //
     //
     @FieldContext(
@@ -1850,14 +1861,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "Enable transaction coordinator in broker"
     )
-    private boolean transactionCoordinatorEnabled = true;
+    private boolean transactionCoordinatorEnabled = false;
 
     @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
     private String transactionMetadataStoreProviderClassName =
-            "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
+            "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -1961,6 +1972,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+
+    /* packages management service configurations (begin) */
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "Enable the packages management service or not"
+    )
+    private boolean enablePackagesManagement = false;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The packages management service storage service provider"
+    )
+    private String packagesManagementStorageProvider = "org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider";
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "When the packages storage provider is bookkeeper, you can use this configuration to\n"
+            + "control the number of replicas for storing the package"
+    )
+    private int packagesReplicas = 1;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The bookkeeper ledger root path"
+    )
+    private String packagesManagementLedgerRootPath = "/ledgers";
+
+    /* packages management service configurations (end) */
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

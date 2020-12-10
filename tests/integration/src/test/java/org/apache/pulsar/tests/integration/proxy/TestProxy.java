@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
@@ -44,19 +43,11 @@ import org.slf4j.LoggerFactory;
  */
 public class TestProxy extends PulsarTestSuite {
     private final static Logger log = LoggerFactory.getLogger(TestProxy.class);
-    private ProxyContainer proxyViaURL;
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
             String clusterName,
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        proxyViaURL = new ProxyContainer(clusterName, "proxy-via-url")
-            .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
-            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
-            .withEnv("clusterName", clusterName);
-
-        specBuilder.externalService("proxy-via-url", proxyViaURL);
-
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
@@ -107,7 +98,7 @@ public class TestProxy extends PulsarTestSuite {
 
     @Test
     public void testProxyWithNoServiceDiscoveryProxyConnectsViaURL() throws Exception {
-        testProxy(proxyViaURL.getPlainTextServiceUrl(), proxyViaURL.getHttpServiceUrl());
+        testProxy(pulsarCluster.getProxy().getPlainTextServiceUrl(), pulsarCluster.getProxy().getHttpServiceUrl());
     }
 
     @Test
@@ -119,7 +110,7 @@ public class TestProxy extends PulsarTestSuite {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsarCluster.getPlainTextServiceUrl())
+                .serviceHttpUrl(pulsarCluster.getProxy().getHttpServiceUrl())
                 .build();
 
         admin.tenants().createTenant(tenant,

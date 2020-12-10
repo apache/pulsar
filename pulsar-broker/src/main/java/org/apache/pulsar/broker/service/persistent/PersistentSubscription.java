@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +28,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -52,26 +50,26 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,7 +131,7 @@ public class PersistentSubscription implements Subscription {
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
-            this.pendingAckHandle = null;
+            this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
     }
@@ -275,10 +273,10 @@ public class PersistentSubscription implements Subscription {
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
-        PersistentTopic.USAGE_COUNT_UPDATER.decrementAndGet(topic);
+        topic.decrementUsageCount();
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    PersistentTopic.USAGE_COUNT_UPDATER.get(topic));
+                    topic.currentUsageCount());
         }
     }
 
@@ -388,21 +386,11 @@ public class PersistentSubscription implements Subscription {
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(TxnID txnId,
-                                                                    List<MutablePair<PositionImpl, Long>> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
+                                                                    List<MutablePair<PositionImpl, Integer>> positions) {
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
@@ -503,6 +491,7 @@ public class PersistentSubscription implements Subscription {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
+                dispatcher.clearDelayedMessages();
                 future.complete(null);
             }
 
@@ -1027,9 +1016,6 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(new Exception("Broker does't support Transaction pending ack!"));
-        }
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
         if (TxnAction.COMMIT.getNumber() == txnAction) {
             return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
@@ -1050,7 +1036,7 @@ public class PersistentSubscription implements Subscription {
         return cursor;
     }
 
-    public void syncBatchPositionBitSetForPendingAck(MutablePair<PositionImpl, Long> position) {
+    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 

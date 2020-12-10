@@ -330,7 +330,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
+    protected ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
         ConsumerBuilder<byte[]> builder = client.newConsumer();
 
         if (queryParams.containsKey("ackTimeoutMillis")) {

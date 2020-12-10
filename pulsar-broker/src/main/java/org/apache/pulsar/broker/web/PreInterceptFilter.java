@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
-import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.common.intercept.InterceptException;
-
+import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -31,7 +27,10 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 @Slf4j
 public class PreInterceptFilter implements Filter {

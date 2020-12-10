@@ -63,7 +63,10 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
 MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
     switch (conf_.getPartitionsRoutingMode()) {
         case ProducerConfiguration::RoundRobinDistribution:
-            return std::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
+            return std::make_shared<RoundRobinMessageRouter>(
+                conf_.getHashingScheme(), conf_.getBatchingEnabled(), conf_.getBatchingMaxMessages(),
+                conf_.getBatchingMaxAllowedSizeInBytes(),
+                boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
         case ProducerConfiguration::CustomPartition:
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
