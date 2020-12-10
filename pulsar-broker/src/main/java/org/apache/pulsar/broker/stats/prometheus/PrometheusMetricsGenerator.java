@@ -92,7 +92,9 @@ public class PrometheusMetricsGenerator {
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics, stream);
 
-            pulsar.getWorkerService().generateFunctionsStats(stream);
+            if (pulsar.getWorkerServiceOpt().isPresent()) {
+                pulsar.getWorkerService().generateFunctionsStats(stream);
+            }
 
             generateBrokerBasicMetrics(pulsar, stream);
 

@@ -874,6 +874,11 @@ public class PulsarService implements AutoCloseable {
         return this.nsService;
     }
 
+
+    public Optional<WorkerService> getWorkerServiceOpt() {
+        return functionWorkerService;
+    }
+
     public WorkerService getWorkerService() {
         return functionWorkerService.orElse(null);
     }
