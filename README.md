@@ -87,7 +87,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 Requirements:
  * Java 8 JDK (for building Pulsar)
-   * When building on newer than Java 8, the resulting artifacts are not compatible with Java 8 runtime because of issues such as https://github.com/apache/pulsar/issues/8445.
+   * When building Pulsar on a higher version (higher than Java 8), the resulting artifacts are not compatible with Java 8 runtime because of some issues, such as [issue 8445](https://github.com/apache/pulsar/issues/8445).
  * Maven 3.6.1+
 
 Compile and install:
@@ -160,19 +160,19 @@ required plugins.
   * In IntelliJ's Maven UI's tree view under "Profiles"
     * Activate "core-modules" maven profile
     * De-activate "main" maven profile
-    * Run "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by name in the IntelliJ "Search Everywhere" window that gets activated by pressing the shift key twice.
+    * Run the "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice.
 
-* Run "Generate Sources and Update Folders For All Projects" from the Maven UI toolbar. You can also find the action by name in the IntelliJ "Search Everywhere" window that gets activated by pressing the shift key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
+* Run the "Generate Sources and Update Folders For All Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
 
 
 #### IntelliJ usage tips
 
-* In the case of compilation errors with missing Protobuf classes, make sure to run "Generate Sources and Update Folders For All Projects" action.
+* In the case of compilation errors with missing Protobuf classes, ensure to run the "Generate Sources and Update Folders For All Projects" action.
 
 * All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
   * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
-  * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right clicking the project name and choosing "Ignore Projects".
-  * Because of the compilation issues, it's not currently possible to run all unit tests directly from the IDE. As a workaround, individual test classes can be run from the command line using "mvn test -Dtest=TestClassName" command.
+  * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the drop-down list.
+  * Currently, it is impossible to run all unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
 
 ### Eclipse
 
@@ -209,4 +209,3 @@ This distribution includes cryptographic software. The country in which you curr
 The U.S. Government Department of Commerce, Bureau of Industry and Security (BIS), has classified this software as Export Commodity Control Number (ECCN) 5D002.C.1, which includes information security software using or performing cryptographic functions with asymmetric algorithms. The form and manner of this Apache Software Foundation distribution makes it eligible for export under the License Exception ENC Technology Software Unrestricted (TSU) exception (see the BIS Export Administration Regulations, Section 740.13) for both object code and source code.
 
 The following provides more details on the included cryptographic software: Pulsar uses the SSL library from Bouncy Castle written by http://www.bouncycastle.org.
-
