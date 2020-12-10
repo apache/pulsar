@@ -279,7 +279,7 @@ public class EntryCacheImpl implements EntryCache {
                 entriesToReturn.add(
                         LedgerEntryImpl.create(
                                 entry.getLedgerId(), entry.getEntryId(),
-                                entry.getLength(), entry.getDataBuffer())
+                                entry.getLength(), entry.getDataBuffer().retain()) //TODO: not sure if should retain
                 );
                 totalCachedSize += entry.getLength();
                 entry.release();
@@ -297,18 +297,15 @@ public class EntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            final CompletableFuture<LedgerEntries> ledgerEntries = lh.readAsync(firstEntry, lastEntry);
-            final CompletableFuture<LedgerEntries> returnEntries = new CompletableFuture<>();
-            ledgerEntries.whenCompleteAsync(
-                    (readEntries, exception) -> {
+            final CompletableFuture<LedgerEntries> returnEntries = lh.readAsync(firstEntry, lastEntry)
+                    .handle((readEntries, exception) -> {
                         if (exception != null) {
                             if (!(exception instanceof BKException)
                                     || ((BKException) exception)
                                     .getCode() != BKException.Code.TooManyRequestsException) {
                                 ml.invalidateLedgerHandle(lh, exception);
                             }
-                            returnEntries.completeExceptionally(exception);
-                            return;
+                            return readEntries;
                         }
 
                         checkNotNull(ml.getName());
@@ -317,27 +314,31 @@ public class EntryCacheImpl implements EntryCache {
                         try {
                             // We got the entries, we need to transform them to a List<> type
                             long totalSize = 0;
-                            final List<LedgerEntry> entriesList
+                            final List<LedgerEntry> entryList
                                     = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : readEntries) {
-                                entriesList.add(e);
+                                entryList.add(
+                                        LedgerEntryImpl.create(
+                                                e.getLedgerId(), e.getEntryId(),
+                                                e.getLength(), e.getEntryBuffer()
+                                        )
+                                );
                                 totalSize += e.getLength();
                             }
 
-                            manager.mlFactoryMBean.recordCacheMiss(entriesList.size(), totalSize);
-                            ml.getMBean().addReadEntriesSample(entriesList.size(), totalSize);
-                            returnEntries.complete(LedgerEntriesImpl.create(entriesList));
+                            manager.mlFactoryMBean.recordCacheMiss(entryList.size(), totalSize);
+                            ml.getMBean().addReadEntriesSample(entryList.size(), totalSize);
+
+                            return LedgerEntriesImpl.create(entryList);
                         } finally {
                             readEntries.close();
                         }
-
-                    }, ml.getExecutor().chooseThread(ml.getName()))
+                    })
                     .exceptionally(exception -> {
                         if (!(exception instanceof BKException)
                                 || ((BKException) exception).getCode() != BKException.Code.TooManyRequestsException) {
                             ml.invalidateLedgerHandle(lh, exception);
                         }
-                        returnEntries.completeExceptionally(exception);
                         return null;
                     });
             return returnEntries;
