@@ -29,6 +29,8 @@ const createVariableInjectionPlugin = variables => {
           return renderUrl(initializedPlugin, sourceApiUrl + "#", keyparts);
       } else if (keyparts[0] == 'sink') {
         return renderUrl(initializedPlugin, sinkApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'packages') {
+        return renderUrl(initializedPlugin, packagesApiUrl + "#", keyparts);
       } else {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
@@ -92,6 +94,7 @@ const restApiUrl = url + "/admin-rest-api";
 const functionsApiUrl = url + "/functions-rest-api";
 const sourceApiUrl = url + "/source-rest-api";
 const sinkApiUrl = url + "/sink-rest-api";
+const packagesApiUrl = url + "/packages-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
