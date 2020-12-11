@@ -24,7 +24,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
  * A plugin interface that allows you to intercept the client requests to
  *  the Pulsar brokers and add timestamp from broker side metadata for each entry.
  */
-public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMetadataInterceptor{
+public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMetadataInterceptor {
 
     @Override
     public PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata) {

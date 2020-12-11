@@ -2154,7 +2154,7 @@ public class PersistentTopic extends AbstractTopic
         return future;
     }
 
-    public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
+    public boolean isOldestMessageExpired(ManagedCursor cursor, int messageTTLInSeconds) {
         MessageImpl<byte[]> msg = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
@@ -2163,12 +2163,7 @@ public class PersistentTopic extends AbstractTopic
             if (entry != null) {
                 msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
                 if (messageTTLInSeconds != 0) {
-                    isOldestMessageExpired = msg.getBrokerEntryMetadata() != null
-                            ? System.currentTimeMillis() > (msg.getBrokerEntryMetadata().getBrokerTimestamp()
-                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)))
-                            : System.currentTimeMillis() > (msg.getPublishTime()
-                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
-
+                    isOldestMessageExpired = msg.isExpired((int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD));
                 }
             }
         } catch (Exception e) {

@@ -304,6 +304,11 @@ public class MessageImpl<T> implements Message<T> {
                     brokerEntryMetadata.getBrokerTimestamp() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
     }
 
+    public boolean publishedEarlierThan(long timestamp) {
+        return brokerEntryMetadata == null ? getPublishTime() < timestamp
+                : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
+    }
+
     @Override
     public byte[] getData() {
         checkNotNull(msgMetadataBuilder);
