@@ -432,23 +432,19 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             @Override
             public boolean apply(Entry entry) {
 
-                Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> pair = null;
+                MessageImpl<byte[]> msg = null;
                 try {
-                    pair = MessageImpl.deserializeWithBrokerEntryMetaData(entry.getDataBuffer());
-                    MessageImpl msg = pair.getLeft();
-                    PulsarApi.BrokerEntryMetadata brokerMetadata = pair.getRight();
-                    if (brokerMetadata != null) {
-                        return brokerMetadata.getBrokerTimestamp() < timestamp;
-                    } else {
-                        return msg.getPublishTime() <= timestamp;
-                    }
+                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                    return msg.getBrokerEntryMetadata() != null
+                            ? msg.getBrokerEntryMetadata().getBrokerTimestamp() < timestamp
+                            : msg.getPublishTime() < timestamp;
 
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);
                 } finally {
                     entry.release();
-                    if (pair.getLeft() != null) {
-                        pair.getLeft().recycle();
+                    if (msg != null) {
+                        msg.recycle();
                     }
                 }
                 return false;

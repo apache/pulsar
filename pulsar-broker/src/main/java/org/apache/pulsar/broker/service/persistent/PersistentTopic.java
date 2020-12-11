@@ -2146,23 +2146,20 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
-        Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> pair = null;
+        MessageImpl<byte[]> msg = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                pair = MessageImpl.deserializeWithBrokerEntryMetaData(entry.getDataBuffer());
-                MessageImpl msg = pair.getLeft();
-                PulsarApi.BrokerEntryMetadata brokerMetadata = pair.getRight();
+                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
                 if (messageTTLInSeconds != 0) {
-                    if (brokerMetadata != null) {
-                        isOldestMessageExpired = System.currentTimeMillis() > (brokerMetadata.getBrokerTimestamp()
+                    isOldestMessageExpired = msg.getBrokerEntryMetadata() != null
+                            ? System.currentTimeMillis() > (msg.getBrokerEntryMetadata().getBrokerTimestamp()
+                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)))
+                            : System.currentTimeMillis() > (msg.getPublishTime()
                                 + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
-                    } else {
-                        isOldestMessageExpired = System.currentTimeMillis() > (msg.getPublishTime()
-                                + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
-                    }
+
                 }
             }
         } catch (Exception e) {
@@ -2171,8 +2168,8 @@ public class PersistentTopic extends AbstractTopic
             if (entry != null) {
                 entry.release();
             }
-            if (pair.getLeft() != null) {
-                pair.getLeft().recycle();
+            if (msg != null) {
+                msg.recycle();
             }
         }
 

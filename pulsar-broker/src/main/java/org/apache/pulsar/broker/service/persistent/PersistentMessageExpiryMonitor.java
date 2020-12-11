@@ -27,7 +27,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.stats.Rate;
@@ -70,22 +69,16 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                     messageTTLInSeconds);
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                Pair<MessageImpl<byte[]>, PulsarApi.BrokerEntryMetadata> pair = null;
+                MessageImpl<byte[]> msg = null;
                 try {
-                    pair = MessageImpl.deserializeWithBrokerEntryMetaData(entry.getDataBuffer());
-                    MessageImpl msg = pair.getLeft();
-                    PulsarApi.BrokerEntryMetadata brokerMetadata = pair.getRight();
-                    if (brokerMetadata != null) {
-                        return isExpired(messageTTLInSeconds, brokerMetadata.getBrokerTimestamp());
-                    } else {
-                        return msg.isExpired(messageTTLInSeconds);
-                    }
+                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                    return msg.isExpired(messageTTLInSeconds);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
                     entry.release();
-                    if (pair.getLeft() != null) {
-                        pair.getLeft().recycle();
+                    if (msg != null) {
+                        msg.recycle();
                     }
                 }
                 return false;
