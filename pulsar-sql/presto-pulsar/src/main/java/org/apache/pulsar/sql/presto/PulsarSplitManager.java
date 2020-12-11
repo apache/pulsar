@@ -434,8 +434,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 try {
                     msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
                     return msg.getBrokerEntryMetadata() != null
-                            ? msg.getBrokerEntryMetadata().getBrokerTimestamp() < timestamp
-                            : msg.getPublishTime() < timestamp;
+                            ? msg.getBrokerEntryMetadata().getBrokerTimestamp() <= timestamp
+                            : msg.getPublishTime() <= timestamp;
 
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);
