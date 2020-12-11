@@ -1357,11 +1357,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // If op is used by another ledger handle, we need to close it and create a new one
                 if (existsOp.ledger != null) {
                     existsOp.close();
-                    if (config.isBrokerEntryMetaEnabled()) {
-                        existsOp = OpAddEntry.create(existsOp.ml, existsOp.dataWithBrokerEntryMetadata, existsOp.callback, existsOp.ctx);
-                    } else {
-                        existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
-                    }
+                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
                 }
                 existsOp.setLedger(currentLedger);
                 pendingAddEntries.add(existsOp);

@@ -59,6 +59,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
+import org.testng.collections.Sets;
 
 /**
  */
@@ -83,6 +84,33 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
         byte[] byteMessage = headersAndPayload.nioBuffer().array();
         headersAndPayload.release();
+        return byteMessage;
+    }
+
+    public static ByteBuf createMessageByteBufWrittenToLedger(String msg) throws Exception {
+        PulsarApi.MessageMetadata.Builder messageMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        messageMetadataBuilder.setPublishTime(System.currentTimeMillis());
+        messageMetadataBuilder.setProducerName("createMessageWrittenToLedger");
+        messageMetadataBuilder.setSequenceId(1);
+        PulsarApi.MessageMetadata messageMetadata = messageMetadataBuilder.build();
+        ByteBuf data = UnpooledByteBufAllocator.DEFAULT.heapBuffer().writeBytes(msg.getBytes());
+
+        int msgMetadataSize = messageMetadata.getSerializedSize();
+        int payloadSize = data.readableBytes();
+        int totalSize = 4 + msgMetadataSize + payloadSize;
+
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.heapBuffer(totalSize, totalSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
+        headers.writeInt(msgMetadataSize);
+        messageMetadata.writeTo(outStream);
+        return ByteBufPair.coalesce(ByteBufPair.get(headers, data));
+    }
+
+    public static byte[] appendBrokerTimestamp(ByteBuf headerAndPayloads) throws Exception {
+        ByteBuf msgWithEntryMeta =
+                Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors());
+        byte[] byteMessage = msgWithEntryMeta.nioBuffer().array();
+        msgWithEntryMeta.release();
         return byteMessage;
     }
 
@@ -207,8 +235,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     @Test
     void testPersistentMessageFinderWithBrokerTimestampForMessage() throws Exception {
+
         final String ledgerAndCursorName = "publishTime";
         final String ledgerAndCursorNameForBrokerTimestampMessage = "brokerTimestamp";
+
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
@@ -240,23 +270,24 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         ManagedLedgerConfig configNew = new ManagedLedgerConfig();
-        configNew.setBrokerEntryMetadataInterceptors(getBrokerEntryMetadataInterceptors());
         ManagedLedger ledgerNew = factory.open(ledgerAndCursorNameForBrokerTimestampMessage, configNew);
         ManagedCursorImpl cursorNew = (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
         // build message which has publish time first
-        byte[] msg1 = createMessageWrittenToLedger("message1");
-        byte[] msg2 = createMessageWrittenToLedger("message2");
-        byte[] msg3 = createMessageWrittenToLedger("message3");
+        ByteBuf msg1 = createMessageByteBufWrittenToLedger("message1");
+        ByteBuf msg2 = createMessageByteBufWrittenToLedger("message2");
+        ByteBuf msg3 = createMessageByteBufWrittenToLedger("message3");
         Thread.sleep(10);
         long timeAfterPublishTime = System.currentTimeMillis();
         Thread.sleep(10);
 
-        ledgerNew.addEntry(msg1);
+        // append broker timestamp as entry metadata
+
+        ledgerNew.addEntry(appendBrokerTimestamp(msg1));
         // space apart message publish times
         Thread.sleep(100);
-        ledgerNew.addEntry(msg2);
+        ledgerNew.addEntry(appendBrokerTimestamp(msg2));
         Thread.sleep(100);
-        Position newPosition = ledgerNew.addEntry(msg3);
+        Position newPosition = ledgerNew.addEntry(appendBrokerTimestamp(msg3));
         Thread.sleep(100);
         long timeAfterBrokerTimestamp = System.currentTimeMillis();
 
@@ -289,10 +320,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
-    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
-        Set<String> interceptorNames = new HashSet<>();
-        interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
-        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
+    public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+
+        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(
+                Sets.newHashSet("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor"),
                 Thread.currentThread().getContextClassLoader());
     }
     /**

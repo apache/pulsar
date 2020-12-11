@@ -78,7 +78,6 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
-    private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors = new HashSet<>();
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -641,15 +640,4 @@ public class ManagedLedgerConfig {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 
-    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
-        return brokerEntryMetadataInterceptors;
-    }
-
-    public void setBrokerEntryMetadataInterceptors(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
-        this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
-    }
-
-    public boolean isBrokerEntryMetaEnabled() {
-        return brokerEntryMetadataInterceptors.size() > 0;
-    }
 }

@@ -126,6 +126,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -252,6 +253,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private volatile boolean reachMessagePublishBufferThreshold;
     private BrokerInterceptor interceptor;
 
+    private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.maxMessagePublishBufferBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0
@@ -359,6 +362,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .supplier(() -> pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
                         - topicLoadRequestSemaphore.get().availablePermits())
                 .register();
+
+        this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
+                .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
+                        BrokerService.class.getClassLoader());
     }
 
     // This call is used for starting additional protocol handlers
@@ -1249,9 +1256,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
-            managedLedgerConfig.setBrokerEntryMetadataInterceptors(BrokerEntryMetadataUtils
-                    .loadBrokerEntryMetadataInterceptors(serviceConfig.getBrokerEntryMetadataInterceptors(),
-                            BrokerService.class.getClassLoader()));
 
             OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
@@ -2503,4 +2507,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void setInterceptor(BrokerInterceptor interceptor) {
         this.interceptor = interceptor;
     }
+
+    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+        return brokerEntryMetadataInterceptors;
+    }
+
+    public boolean isBrokerEntryMetaEnabled() {
+        return brokerEntryMetadataInterceptors.size() > 0;
+    }
+
 }

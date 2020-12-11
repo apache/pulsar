@@ -107,6 +107,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -358,6 +359,8 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
+                // intercept headersAndPayload and add entry metadata
+                appendBrokerEntryMetadata(headersAndPayload);
                 ledger.asyncAddEntry(headersAndPayload, this, publishContext);
                 break;
             case Dup:
@@ -369,6 +372,14 @@ public class PersistentTopic extends AbstractTopic
                 publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
+        }
+    }
+
+    private void appendBrokerEntryMetadata(ByteBuf headersAndPayload) {
+        // add entry metadata if BrokerEntryMetaEnabled
+        if (brokerService.isBrokerEntryMetaEnabled()) {
+            headersAndPayload =  Commands.addBrokerEntryMetadata(headersAndPayload,
+                    brokerService.getBrokerEntryMetadataInterceptors());
         }
     }
 
