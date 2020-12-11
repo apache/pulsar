@@ -20,12 +20,22 @@ package org.apache.pulsar.tests.integration;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -38,13 +48,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
 
 public class SimpleProducerConsumerTest {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
@@ -76,7 +84,6 @@ public class SimpleProducerConsumerTest {
         pulsarContainer.stop();
         pulsarContainer.close();
     }
-
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
@@ -441,4 +448,125 @@ public class SimpleProducerConsumerTest {
         msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
+    @Test(groups = "encryption")
+    public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
+
+        final String encryptionKeyName = "client-rsa.pem";
+        final String encryptionKeyVersion = "1.0";
+        Map<String, String> metadata = Maps.newHashMap();
+        metadata.put("version", encryptionKeyVersion);
+        class EncKeyReader implements CryptoKeyReader {
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+        }
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic3")
+                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .cryptoKeyReader(new EncKeyReader()).create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
+                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
+
+        String message = "my-message";
+        producer.send(message.getBytes());
+
+        TopicMessageImpl<byte[]> msg = (TopicMessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
+
+        String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
+        assertEquals(message, receivedMessage);
+
+        consumer.close();
+    }
+
+    private String decryptMessage(TopicMessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
+            throws Exception {
+        Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
+        Assert.assertTrue(ctx.isPresent());
+        EncryptionContext encryptionCtx = ctx
+                .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
+
+        Map<String, EncryptionContext.EncryptionKey> keys = encryptionCtx.getKeys();
+        assertEquals(keys.size(), 1);
+        EncryptionContext.EncryptionKey encryptionKey = keys.get(encryptionKeyName);
+        byte[] dataKey = encryptionKey.getKeyValue();
+        Map<String, String> metadata = encryptionKey.getMetadata();
+        String version = metadata.get("version");
+        assertEquals(version, "1.0");
+
+        CompressionType compressionType = encryptionCtx.getCompressionType();
+        int uncompressedSize = encryptionCtx.getUncompressedMessageSize();
+        byte[] encrParam = encryptionCtx.getParam();
+        String encAlgo = encryptionCtx.getAlgorithm();
+        int batchSize = encryptionCtx.getBatchSize().orElse(0);
+
+        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        // try to decrypt use default MessageCryptoBc
+        MessageCrypto crypto = new MessageCryptoBc("test", false);
+        PulsarApi.MessageMetadata.Builder metadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = PulsarApi.EncryptionKeys.newBuilder();
+        encKeyBuilder.setKey(encryptionKeyName);
+        ByteString keyValue = ByteString.copyFrom(dataKey);
+        encKeyBuilder.setValue(keyValue);
+        PulsarApi.EncryptionKeys encKey = encKeyBuilder.build();
+        metadataBuilder.setEncryptionParam(ByteString.copyFrom(encrParam));
+        metadataBuilder.setEncryptionAlgo(encAlgo);
+        metadataBuilder.setProducerName("test");
+        metadataBuilder.setSequenceId(123);
+        metadataBuilder.setPublishTime(12333453454L);
+        metadataBuilder.addEncryptionKeys(encKey);
+        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
+        metadataBuilder.setUncompressedSize(uncompressedSize);
+        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
+
+        // try to uncompress
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+
+        if (batchSize > 0) {
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
+                    .newBuilder();
+            uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
+                    singleMessageMetadataBuilder, 0, batchSize);
+        }
+
+        byte[] data = new byte[uncompressedPayload.readableBytes()];
+        uncompressedPayload.readBytes(data);
+        uncompressedPayload.release();
+        return new String(data);
+    }
+
 }
