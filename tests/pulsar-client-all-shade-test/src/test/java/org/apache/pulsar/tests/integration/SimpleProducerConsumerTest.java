@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.tests.integration;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import org.apache.pulsar.shade.com.google.common.collect.Maps;
+import org.apache.pulsar.shade.com.google.common.collect.Sets;
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -48,6 +48,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Security;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -63,6 +64,7 @@ public class SimpleProducerConsumerTest {
 
     @BeforeClass
     public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
         pulsarClient = PulsarClient.builder()
