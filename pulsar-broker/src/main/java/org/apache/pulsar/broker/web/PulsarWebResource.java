@@ -504,7 +504,7 @@ public abstract class PulsarWebResource {
     /**
      * Checks whether a given bundle is currently loaded by any broker.
      */
-    protected boolean isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
+    protected CompletableFuture<Boolean> isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
@@ -515,7 +515,7 @@ public abstract class PulsarWebResource {
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
         try {
-            return nsService.getWebServiceUrl(nsBundle, options).isPresent();
+            return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
         } catch (Exception e) {
             log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(),
                     fqnn.toString(), bundleRange, e);
