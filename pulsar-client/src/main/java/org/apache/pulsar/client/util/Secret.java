@@ -30,4 +30,5 @@ import java.lang.annotation.Target;
 @JacksonAnnotationsInside
 @JsonSerialize(using = SecretsSerializer.class)
 public @interface Secret {
+
 }

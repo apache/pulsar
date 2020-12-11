@@ -175,8 +175,6 @@ public class ConfigurationDataUtilsTest {
         assertEquals("v1", confData.getAuthParamMap().get("k1"));
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
 
-        log.info("hangc, {}", confData);
-
         final String secretStr = "*****";
         try {
             String confDataJson = new ObjectMapper().writeValueAsString(confData);
@@ -184,12 +182,8 @@ public class ConfigurationDataUtilsTest {
             assertEquals("pulsar://localhost:6650", confDataMap.get("serviceUrl"));
             assertEquals(secretStr, confDataMap.get("authParams"));
             assertEquals(secretStr, confDataMap.get("authParamMap"));
-            log.info("hangc-2: {}", confDataMap);
         } catch (Exception e) {
             Assert.fail();
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ConfigurationDataUtilsTest.class);
-
 }
