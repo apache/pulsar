@@ -134,7 +134,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     public void findEntryComplete(Position position, Object ctx) {
         if (position != null) {
             log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
+            Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
             cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
+            if (!cursor.getMarkDeletedPosition().equals(prevMarkDeletePos)) {
+                subscription.updateLastMarkDeleteAdvancedTimestamp();
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] No messages to expire", topicName, subName);
