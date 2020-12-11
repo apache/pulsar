@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -308,6 +309,56 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         log.info("finish test ackCommitTest");
+    }
+
+    @Test
+    public void messageOrderTest() throws Exception {
+        Transaction txn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        log.info("init transaction {}.", txn);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(PRODUCE_COMMIT_TOPIC)
+                .create();
+
+        int incomingMessageCnt = 20;
+        List<Integer> expected = new ArrayList<>();
+        List<CompletableFuture<MessageId>> futureList = new ArrayList<>();
+        for(int i = 0; i<incomingMessageCnt; i++){
+            CompletableFuture<MessageId> future =
+                    producer.newMessage(txn).value(i).sendAsync();
+            expected.add(i);
+            futureList.add(future);
+        }
+        for(CompletableFuture<MessageId> future : futureList){
+            future.get();
+        }
+        txn.commit().get();
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(PRODUCE_COMMIT_TOPIC)
+                .subscriptionName("messageOrderTest")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        List<Integer> actual = new ArrayList<>();
+        while(true) {
+            Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+            actual.add(message.getValue());
+            if(actual.size() == expected.size()){
+                Assert.assertEquals(actual, expected);
+                break;
+            }
+        }
+        log.info("finish test messageOrderTest");
     }
 
     @Test

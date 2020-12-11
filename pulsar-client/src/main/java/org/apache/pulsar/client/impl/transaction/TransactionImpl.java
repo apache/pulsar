@@ -32,6 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -85,16 +86,12 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    public synchronized void registerProducedTopic(String topic) throws TransactionCoordinatorClientException{
         if (producedTopics.add(topic)) {
-            // we need to issue the request to TC to register the produced topic
-            completableFuture = tcClient.addPublishPartitionToTxnAsync(
-                    new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
-        } else {
-            completableFuture.complete(null);
+            // we need to issue the request to TC to register the produced topiczx
+            tcClient.addPublishPartitionToTxn(
+                        new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
         }
-        return completableFuture;
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {

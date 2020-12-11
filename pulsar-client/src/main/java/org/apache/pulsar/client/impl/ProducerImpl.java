@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -353,8 +354,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (txn == null) {
             return internalSendAsync(message);
         } else {
-            return ((TransactionImpl) txn).registerProducedTopic(topic)
-                        .thenCompose(ignored -> internalSendAsync(message));
+            try {
+                ((TransactionImpl) txn).registerProducedTopic(topic);
+            } catch (TransactionCoordinatorClientException e) {
+                return FutureUtil.failedFuture(e);
+            }
+            return internalSendAsync(message);
         }
     }
 
