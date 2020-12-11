@@ -181,6 +181,10 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
 
+    public CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) throws Exception {
+        return bundlesCache.get(fqnn).thenApply(NamespaceBundles::getFullBundle);
+    }
+
     public long getLongHashCode(String name) {
         return this.hashFunc.hashString(name, Charsets.UTF_8).padToLong();
     }
