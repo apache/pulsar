@@ -19,4 +19,8 @@
 
 -->
 <FindBugsFilter>
+    <Match>
+        <Class name="org.apache.pulsar.functions.LocalRunner"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
 </FindBugsFilter>
