@@ -1516,7 +1516,7 @@ public class PersistentTopic extends AbstractTopic
 
                 // Populate subscription specific stats here
                 topicStatsStream.writePair("msgBacklog",
-                        subscription.getNumberOfEntriesInBacklog(false));
+                        subscription.getNumberOfEntriesInBacklog(true));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
