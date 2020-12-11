@@ -267,7 +267,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
+                config, this.getFnWorkerConfigFile());
             // worker talks to local broker
             if (this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
