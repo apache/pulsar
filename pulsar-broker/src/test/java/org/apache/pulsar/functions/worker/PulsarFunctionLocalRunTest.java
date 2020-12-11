@@ -219,7 +219,7 @@ public class PulsarFunctionLocalRunTest {
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
         admin.tenants().updateTenant(tenant, propAdmin);
-        
+
         // setting up simple web sever to test submitting function via URL
         fileServer = HttpServer.create(new InetSocketAddress(0), 0);
         fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
@@ -503,6 +503,7 @@ public class PulsarFunctionLocalRunTest {
                 .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
+        // please note that in this test the sink topic schema is different from the schema of the source topic
 
         //produce message to sourceTopic
         Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();

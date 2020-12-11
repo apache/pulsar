@@ -28,6 +28,7 @@ import lombok.ToString;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
@@ -41,6 +42,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
+    private final Schema<T> schema;
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
@@ -72,6 +74,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     @Override
     public T getValue() {
         return message.getValue();
+    }
+
+    @Override
+    public Schema<T> getSchema() {
+        return schema;
     }
 
     @Override
