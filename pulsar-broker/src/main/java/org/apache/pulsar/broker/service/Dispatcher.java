@@ -33,7 +33,7 @@ public interface Dispatcher {
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
     /**
-     * Indicates that this consumer is now ready to receive more messages
+     * Indicates that this consumer is now ready to receive more messages.
      *
      * @param consumer
      */
@@ -46,7 +46,7 @@ public interface Dispatcher {
     boolean canUnsubscribe(Consumer consumer);
 
     /**
-     * mark dispatcher closed to stop new incoming requests and disconnect all consumers
+     * mark dispatcher closed to stop new incoming requests and disconnect all consumers.
      *
      * @return
      */
@@ -55,12 +55,12 @@ public interface Dispatcher {
     boolean isClosed();
 
     /**
-     * Disconnect active consumers
+     * Disconnect active consumers.
      */
     CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor);
 
     /**
-     * disconnect all consumers
+     * disconnect all consumers.
      *
      * @return
      */
@@ -73,7 +73,7 @@ public interface Dispatcher {
     void resetCloseFuture();
 
     /**
-     * mark dispatcher open to serve new incoming requests
+     * mark dispatcher open to serve new incoming requests.
      */
     void reset();
 

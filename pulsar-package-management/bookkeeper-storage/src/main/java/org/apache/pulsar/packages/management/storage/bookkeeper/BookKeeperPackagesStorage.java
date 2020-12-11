@@ -60,9 +60,9 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         DistributedLogConfiguration conf = new DistributedLogConfiguration()
             .setImmediateFlushEnabled(true)
             .setOutputBufferSize(0)
-            .setWriteQuorumSize(configuration.getNumReplicas())
-            .setEnsembleSize(configuration.getNumReplicas())
-            .setAckQuorumSize(configuration.getNumReplicas())
+            .setWriteQuorumSize(configuration.getPackagesReplicas())
+            .setEnsembleSize(configuration.getPackagesReplicas())
+            .setAckQuorumSize(configuration.getPackagesReplicas())
             .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
         if (!Strings.isNullOrEmpty(configuration.getBookkeeperClientAuthenticationPlugin())) {
             conf.setProperty("bkc.clientAuthProviderFactoryClass",
@@ -82,9 +82,11 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
     }
 
     private URI initializeDlogNamespace() throws IOException {
-        BKDLConfig bkdlConfig = new BKDLConfig(configuration.getZkServers(), configuration.getLedgersRootPath());
+        BKDLConfig bkdlConfig = new BKDLConfig(configuration.getZookeeperServers(),
+            configuration.getPackagesManagementLedgerRootPath());
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
-        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", configuration.getZkServers()));
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages",
+            configuration.getZookeeperServers()));
         try {
             dlMetadata.create(dlogURI);
         } catch (ZKException e) {

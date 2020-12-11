@@ -523,7 +523,8 @@ public class ClustersBase extends AdminResource {
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
             if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
-                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", clientAppId(), policyName, cluster);
+                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}",
+                        clientAppId(), policyName, cluster);
                 throw new RestException(Status.NOT_FOUND,
                         "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
             }
@@ -732,7 +733,8 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-    private boolean createZnodeIfNotExist(String path, Optional<Object> value) throws KeeperException, InterruptedException {
+    private boolean createZnodeIfNotExist(String path, Optional<Object> value)
+            throws KeeperException, InterruptedException {
         // create persistent node on ZooKeeper
         if (globalZk().exists(path, false) == null) {
             // create all the intermediate nodes
@@ -742,7 +744,7 @@ public class ClustersBase extends AdminResource {
                         CreateMode.PERSISTENT);
                 return true;
             } catch (KeeperException.NodeExistsException nee) {
-                if(log.isDebugEnabled()) {
+                if (log.isDebugEnabled()) {
                     log.debug("Other broker preempted the full path [{}] already. Continue...", path);
                 }
             } catch (JsonGenerationException e) {
@@ -979,7 +981,8 @@ public class ClustersBase extends AdminResource {
         validateClusterExists(cluster);
 
         try {
-            final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT, domainName);
+            final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT,
+                    domainName);
             globalZk().delete(domainPath, -1);
             // clear domain cache
             failureDomainCache().invalidate(domainPath);
@@ -1004,7 +1007,9 @@ public class ClustersBase extends AdminResource {
                         continue;
                     }
                     try {
-                        Optional<FailureDomain> domain = failureDomainCache().get(joinPath(failureDomainRootPath, domainName));
+                        Optional<FailureDomain> domain =
+                                failureDomainCache()
+                                        .get(joinPath(failureDomainRootPath, domainName));
                         if (domain.isPresent() && domain.get().brokers != null) {
                             List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
                                     .filter(inputDomain.brokers::contains).collect(Collectors.toList());

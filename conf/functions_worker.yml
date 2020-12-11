@@ -61,6 +61,7 @@ pulsarWebServiceUrl: http://localhost:8080
 ############################################
 # security settings for pulsar broker client
 ############################################
+brokerClientAuthenticationEnabled: false
 # The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
 # brokerClientTrustCertsFilePath:
 # the authentication plugin to be used by the pulsar client used in worker service

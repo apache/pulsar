@@ -22,18 +22,19 @@ import java.util.function.Predicate;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
- * Listener for <code>NamespaceBundle</code> ownership changes
+ * Listener for <code>NamespaceBundle</code> ownership changes.
  */
 public interface NamespaceBundleOwnershipListener extends Predicate<NamespaceBundle> {
 
     /**
-     * Will be call after a <code>NamespaceBundle</code> owned by broker
+     * Will be call after a <code>NamespaceBundle</code> owned by broker.
+     *
      * @param bundle owned bundle
      */
     void onLoad(NamespaceBundle bundle);
 
     /**
-     * Will be call after a <code>NamespaceBundle</code> unloaded from broker
+     * Will be call after a <code>NamespaceBundle</code> unloaded from broker.
      * @param bundle owned bundle
      */
     void unLoad(NamespaceBundle bundle);

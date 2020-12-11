@@ -143,7 +143,8 @@ public class LeaderElectionService {
             } catch (NodeExistsException nee) {
                 // Re-elect the new leader
                 log.warn(
-                        "Got exception [{}] while creating election node because it already exists. Attempting re-election...",
+                        "Got exception [{}] while creating election node because it already exists."
+                                + " Attempting re-election...",
                         nee.getMessage());
                 executor.execute(this::elect);
             } catch (Exception e) {

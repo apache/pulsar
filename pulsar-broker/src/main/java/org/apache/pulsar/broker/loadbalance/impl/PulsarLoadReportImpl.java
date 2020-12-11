@@ -56,14 +56,18 @@ public class PulsarLoadReportImpl implements LoadReport {
             SystemResourceUsage sru = report.getSystemResourceUsage();
             String resourceUnitName = report.getName();
             pulsarLoadReport.resourceDescription = new PulsarResourceDescription();
-            if (sru.bandwidthIn != null)
+            if (sru.bandwidthIn != null) {
                 pulsarLoadReport.resourceDescription.put("bandwidthIn", sru.bandwidthIn);
-            if (sru.bandwidthOut != null)
+            }
+            if (sru.bandwidthOut != null) {
                 pulsarLoadReport.resourceDescription.put("bandwidthOut", sru.bandwidthOut);
-            if (sru.memory != null)
+            }
+            if (sru.memory != null) {
                 pulsarLoadReport.resourceDescription.put("memory", sru.memory);
-            if (sru.cpu != null)
+            }
+            if (sru.cpu != null) {
                 pulsarLoadReport.resourceDescription.put("cpu", sru.cpu);
+            }
             pulsarLoadReport.resourceUnit = new SimpleResourceUnit(resourceUnitName,
                     pulsarLoadReport.resourceDescription);
 

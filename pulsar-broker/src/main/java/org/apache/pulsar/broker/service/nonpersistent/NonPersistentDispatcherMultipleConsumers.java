@@ -50,7 +50,8 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     private CompletableFuture<Void> closeFuture = null;
     private final String name;
     protected final Rate msgDrop;
-    protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
+    protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers>
+            TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     @SuppressWarnings("unused")
     private volatile int totalAvailablePermits = 0;

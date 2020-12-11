@@ -49,12 +49,13 @@ public abstract class AbstractReplicator {
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
 
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
+    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0,
+            TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
 
-    protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER = AtomicReferenceFieldUpdater
-            .newUpdater(AbstractReplicator.class, State.class, "state");
+    protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
     private volatile State state = State.Stopped;
 
     protected enum State {
@@ -62,7 +63,7 @@ public abstract class AbstractReplicator {
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-            BrokerService brokerService) throws NamingException {
+                              BrokerService brokerService) throws NamingException {
         validatePartitionedTopic(topicName, brokerService);
         this.brokerService = brokerService;
         this.topicName = topicName;
@@ -166,7 +167,8 @@ public abstract class AbstractReplicator {
         }).exceptionally(ex -> {
             long waitTimeMs = backOff.next();
             log.warn(
-                    "[{}][{} -> {}] Exception: '{}' occurred while trying to close the producer. retrying again in {} s",
+                    "[{}][{} -> {}] Exception: '{}' occurred while trying to close the producer."
+                            + " retrying again in {} s",
                     topicName, localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
             // BackOff before retrying
             brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
@@ -234,8 +236,9 @@ public abstract class AbstractReplicator {
      * if topic : persistent://prop/cluster/ns/my-topic is a partitioned topic with 2 partitions then
      * broker explicitly creates replicator producer for: "my-topic-partition-1" and "my-topic-partition-2".
      *
-     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally creates individual
-     * producers for "my-topic-partition-1" and "my-topic-partition-2" which creates conflict with existing
+     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally
+     * creates individual producers for "my-topic-partition-1" and "my-topic-partition-2" which creates
+     * conflict with existing
      * replicator producers.
      * </pre>
      *

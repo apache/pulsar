@@ -58,7 +58,8 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         this.interceptor.onWebserviceResponse(request, response);
     }
 

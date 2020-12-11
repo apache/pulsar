@@ -75,18 +75,19 @@ public class BacklogQuotaManager {
     public BacklogQuota getBacklogQuota(TopicName topicName) {
         String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         if (!isTopicLevelPoliciesEnable) {
-            return getBacklogQuota(topicName.getNamespace(),policyPath);
+            return getBacklogQuota(topicName.getNamespace(), policyPath);
         }
 
         try {
             return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
                     .map(TopicPolicies::getBackLogQuotaMap)
                     .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
-                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(),policyPath));
+                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath));
         } catch (Exception e) {
-            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}", topicName, e);
+            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
+                    topicName, e);
         }
-        return getBacklogQuota(topicName.getNamespace(),policyPath);
+        return getBacklogQuota(topicName.getNamespace(), policyPath);
     }
 
     public long getBacklogQuotaLimit(TopicName topicName) {
@@ -94,10 +95,9 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Handle exceeded backlog by using policies set in the zookeeper for given topic
+     * Handle exceeded backlog by using policies set in the zookeeper for given topic.
      *
-     * @param persistentTopic
-     *            Topic on which backlog has been exceeded
+     * @param persistentTopic Topic on which backlog has been exceeded
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
@@ -118,7 +118,7 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Drop the backlog on the topic
+     * Drop the backlog on the topic.
      *
      * @param persistentTopic
      *            The topic from which backlog should be dropped
@@ -192,7 +192,7 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Disconnect producers on given topic
+     * Disconnect producers on given topic.
      *
      * @param persistentTopic
      *            The topic on which all producers should be disconnected

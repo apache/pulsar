@@ -66,6 +66,18 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-bookkeeper-storage</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.objenesis</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
       <exclusions>
@@ -83,8 +95,8 @@
     </dependency>
 
     <dependency>
-      <artifactId>log4j</artifactId>
-      <groupId>log4j</groupId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-1.2-api</artifactId>
     </dependency>
 
     <dependency>

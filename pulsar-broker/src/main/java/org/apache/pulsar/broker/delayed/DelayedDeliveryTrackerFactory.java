@@ -31,10 +31,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 @Beta
 public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
     /**
-     * Initialize the factory implementation from the broker service configuration
+     * Initialize the factory implementation from the broker service configuration.
      *
-     * @param config
-     *            the broker service config object
+     * @param config the broker service config object
      */
     void initialize(ServiceConfiguration config) throws IOException;
 
@@ -47,7 +46,7 @@ public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
     DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher);
 
     /**
-     * Close the factory and release all the resources
+     * Close the factory and release all the resources.
      */
     void close() throws IOException;
 }

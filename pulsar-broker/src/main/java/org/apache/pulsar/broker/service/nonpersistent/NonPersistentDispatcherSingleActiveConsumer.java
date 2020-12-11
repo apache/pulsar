@@ -40,7 +40,8 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 
 @Slf4j
-public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
+public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer
+        implements NonPersistentDispatcher {
 
     private final NonPersistentTopic topic;
     private final Rate msgDrop;
@@ -49,7 +50,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            NonPersistentTopic topic, Subscription subscription) {
+                                                       NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName(), subscription);
         this.topic = topic;
         this.subscription = subscription;
@@ -100,8 +101,8 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         }
 
         if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                    policies.max_consumers_per_subscription :
+            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0
+                    ? policies.max_consumers_per_subscription :
                     serviceConfig.getMaxConsumersPerSubscription();
         }
 

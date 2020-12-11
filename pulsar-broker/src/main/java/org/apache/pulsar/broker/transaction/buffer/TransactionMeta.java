@@ -54,7 +54,7 @@ public interface TransactionMeta {
     int numEntries();
 
     /**
-     * Return messages number in one transaction
+     * Return messages number in one transaction.
      *
      * @return the number of transaction messages
      * @throws TransactionStatusException

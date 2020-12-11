@@ -35,8 +35,9 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
     protected final String topicName;
-    protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
+    protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer>
+            ACTIVE_CONSUMER_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+            AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
     protected final CopyOnWriteArrayList<Consumer> consumers;
     protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
@@ -142,7 +143,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", this.topicName);
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit",
+                    this.topicName);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 

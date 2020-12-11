@@ -51,7 +51,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
      */
     public static BrokerInterceptor load(ServiceConfiguration conf) throws IOException {
         BrokerInterceptorDefinitions definitions =
-                BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
+                BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
+                        conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, BrokerInterceptorWithClassLoader> builder = ImmutableMap.builder();
 
@@ -106,7 +107,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.onWebserviceResponse(request, response);
         }

@@ -171,6 +171,9 @@ public class PulsarCluster {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
                         brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
                     }
+                    if (spec.brokerEnvs != null) {
+                        brokerContainer.withEnv(spec.brokerEnvs);
+                    }
                     return brokerContainer;
                 }
             ));

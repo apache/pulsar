@@ -68,9 +68,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run unit tests for pulsar-broker exlcude "org/apache/pulsar/broker", "org/apache/pulsar/client"
+      - name: run unit test 'BROKER_CLIENT_OTHER'
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'
+        run: ./build/run_unit_group.sh BROKER_CLIENT_OTHER
 
       - name: package surefire artifacts
         if: failure()

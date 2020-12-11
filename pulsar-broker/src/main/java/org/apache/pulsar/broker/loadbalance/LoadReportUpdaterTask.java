@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents a task which reads load report from zookeeper for all the brokers and updates the ranking
+ * Represents a task which reads load report from zookeeper for all the brokers and updates the ranking.
  */
 public class LoadReportUpdaterTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadReportUpdaterTask.class);

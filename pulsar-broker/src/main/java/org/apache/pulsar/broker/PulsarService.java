@@ -1350,7 +1350,7 @@ public class PulsarService implements AutoCloseable {
             .newProvider(config.getPackagesManagementStorageProvider());
         DefaultPackagesStorageConfiguration storageConfiguration = new DefaultPackagesStorageConfiguration();
         storageConfiguration.setProperty(config.getProperties());
-        PackagesStorage storage = storageProvider.getStorage(new DefaultPackagesStorageConfiguration());
+        PackagesStorage storage = storageProvider.getStorage(storageConfiguration);
         storage.initialize();
         packagesManagement.initialize(storage);
     }
