@@ -86,6 +86,8 @@ public class Policies {
     public int max_unacked_messages_per_consumer = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_unacked_messages_per_subscription = -1;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_subscriptions_per_topic = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
