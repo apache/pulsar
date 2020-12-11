@@ -43,11 +43,13 @@ public class BrokerEntryMetadataUtils {
                     try {
                         interceptors.add(clz.newInstance());
                     } catch (InstantiationException | IllegalAccessException e) {
-                        log.error("Create new BrokerEntryMetadataInterceptor instance for {} falied.",
+                        log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
                                 interceptorName, e);
+                        throw new RuntimeException(e);
                     }
                 } catch (ClassNotFoundException e) {
-                    log.error("Load BrokerEntryMetadataInterceptor class for {} falied.", interceptorName, e);
+                    log.error("Load BrokerEntryMetadataInterceptor class for {} failed.", interceptorName, e);
+                    throw new RuntimeException(e);
                 }
             }
         }
