@@ -235,11 +235,12 @@ public class NamespaceService {
     }
 
     /**
-     * Return the URL of the broker who's owning a particular service unit in asynchronous way
+     * Return the URL of the broker who's owning a particular service unit in asynchronous way.
      *
-     * If the service unit is not owned, return a CompletableFuture with empty optional
+     * If the service unit is not owned, return a CompletableFuture with empty optional.
      */
-    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) throws Exception {
+    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName,
+                                                                  LookupOptions options) throws Exception {
         if (suName instanceof TopicName) {
             TopicName name = (TopicName) suName;
             if (LOG.isDebugEnabled()) {
@@ -267,7 +268,8 @@ public class NamespaceService {
      * If the service unit is not owned, return an empty optional
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
-        return getWebServiceUrlAsync(suName, options).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        return getWebServiceUrlAsync(suName, options).
+                get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {
