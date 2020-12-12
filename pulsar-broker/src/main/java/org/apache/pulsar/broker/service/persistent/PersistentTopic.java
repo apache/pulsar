@@ -357,7 +357,10 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                // intercept headersAndPayload and add entry metadata
+                if (appendBrokerEntryMetadata(headersAndPayload, publishContext)) {
+                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                }
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -369,6 +372,24 @@ public class PersistentTopic extends AbstractTopic
                 decrementPendingWriteOpsAndCheck();
 
         }
+    }
+
+    private boolean appendBrokerEntryMetadata(ByteBuf headersAndPayload, PublishContext publishContext) {
+        // just return true if BrokerEntryMetadata is not enabled
+        if (!brokerService.isBrokerEntryMetadataEnabled()) {
+            return true;
+        }
+
+        try {
+            headersAndPayload =  Commands.addBrokerEntryMetadata(headersAndPayload,
+                    brokerService.getBrokerEntryMetadataInterceptors());
+        } catch (Exception e) {
+            decrementPendingWriteOpsAndCheck();
+            publishContext.completed(new BrokerServiceException.AddEntryMetadataException(e), -1, -1);
+            log.error("[{}] Failed to add broker entry metadata.", topic, e);
+            return false;
+        }
+        return true;
     }
 
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
@@ -2145,16 +2166,17 @@ public class PersistentTopic extends AbstractTopic
         return future;
     }
 
-    public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
-        MessageImpl msg = null;
+    public boolean isOldestMessageExpired(ManagedCursor cursor, int messageTTLInSeconds) {
+        MessageImpl<byte[]> msg = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                msg = MessageImpl.deserialize(entry.getDataBuffer());
-                isOldestMessageExpired = messageTTLInSeconds != 0 && System.currentTimeMillis() > (msg.getPublishTime()
-                        + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
+                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                if (messageTTLInSeconds != 0) {
+                    isOldestMessageExpired = msg.isExpired((int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD));
+                }
             }
         } catch (Exception e) {
             log.warn("[{}] Error while getting the oldest message", topic, e);
