@@ -2073,7 +2073,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxSubscriptionsPerTopic(String namespace, int maxSubscriptionsPerTopic) throws PulsarAdminException {
+    public void setMaxSubscriptionsPerTopic(String namespace, int maxSubscriptionsPerTopic)
+            throws PulsarAdminException {
         try {
             setMaxSubscriptionsPerTopicAsync(namespace, maxSubscriptionsPerTopic).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
