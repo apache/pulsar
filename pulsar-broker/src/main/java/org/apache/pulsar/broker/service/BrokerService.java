@@ -2512,7 +2512,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return brokerEntryMetadataInterceptors;
     }
 
-    public boolean isBrokerEntryMetaEnabled() {
+    public boolean isBrokerEntryMetadataEnabled() {
         return brokerEntryMetadataInterceptors.size() > 0;
     }
 

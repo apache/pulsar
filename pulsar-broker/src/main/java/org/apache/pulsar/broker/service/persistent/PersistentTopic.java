@@ -358,8 +358,9 @@ public class PersistentTopic extends AbstractTopic
         switch (status) {
             case NotDup:
                 // intercept headersAndPayload and add entry metadata
-                appendBrokerEntryMetadata(headersAndPayload);
-                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                if (appendBrokerEntryMetadata(headersAndPayload, publishContext)) {
+                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                }
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -373,12 +374,22 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    private void appendBrokerEntryMetadata(ByteBuf headersAndPayload) {
-        // add entry metadata if BrokerEntryMetaEnabled
-        if (brokerService.isBrokerEntryMetaEnabled()) {
+    private boolean appendBrokerEntryMetadata(ByteBuf headersAndPayload, PublishContext publishContext) {
+        // just return true if BrokerEntryMetadata is not enabled
+        if (!brokerService.isBrokerEntryMetadataEnabled()) {
+            return true;
+        }
+
+        try {
             headersAndPayload =  Commands.addBrokerEntryMetadata(headersAndPayload,
                     brokerService.getBrokerEntryMetadataInterceptors());
+        } catch (Exception e) {
+            decrementPendingWriteOpsAndCheck();
+            publishContext.completed(new BrokerServiceException.AddEntryMetadataException(e), -1, -1);
+            log.error("[{}] Failed to add broker entry metadata.", topic, e);
+            return false;
         }
+        return true;
     }
 
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
