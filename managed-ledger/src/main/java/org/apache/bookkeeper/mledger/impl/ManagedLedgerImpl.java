@@ -1411,9 +1411,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
         if (entriesInLedger > 0) {
-            LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
-            ledgers.put(lh.getId(), info);
+            synchronized (ledgers) {
+                LedgerInfo.Builder builder;
+                if (ledgers.get(lh.getId()) != null) {
+                    builder = ledgers.get(lh.getId()).toBuilder();
+                } else {
+                    builder = LedgerInfo.newBuilder();
+                }
+                LedgerInfo info = builder
+                        .setLedgerId(lh.getId())
+                        .setEntries(entriesInLedger)
+                        .setSize(lh.getLength())
+                        .setTimestamp(clock.millis())
+                        .build();
+                ledgers.put(lh.getId(), info);
+            }
         } else {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
@@ -1966,7 +1978,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
 
                 // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
-                for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                // exclude the current ledger
+                for (Map.Entry<Long, LedgerInfo> e
+                        : ledgers.headMap(currentLedger.getId(), false).descendingMap().entrySet()) {
                     long size = e.getValue().getSize();
                     sizeSummed += size;
                     boolean alreadyOffloaded = e.getValue().hasOffloadContext()
