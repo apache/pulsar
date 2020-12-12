@@ -2454,6 +2454,56 @@ public interface Namespaces {
     CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String namespace);
 
     /**
+     * Get the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the maxSubscriptionsPerTopic for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String namespace);
+
+    /**
+     * Set the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @param maxSubscriptionsPerTopic
+     * @throws PulsarAdminException
+     */
+    void setMaxSubscriptionsPerTopic(String namespace, int maxSubscriptionsPerTopic) throws PulsarAdminException;
+
+    /**
+     * Set the maxSubscriptionsPerTopic for a namespace asynchronously.
+     *
+     * @param namespace
+     * @param maxSubscriptionsPerTopic
+     * @return
+     */
+    CompletableFuture<Void> setMaxSubscriptionsPerTopicAsync(String namespace, int maxSubscriptionsPerTopic);
+
+    /**
+     * Remove the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the maxSubscriptionsPerTopic for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxSubscriptionsPerTopicAsync(String namespace);
+
+    /**
      * Get the maxProducersPerTopic for a namespace.
      * <p/>
      * Response example:

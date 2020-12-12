@@ -92,6 +92,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile int maxUnackedMessagesOnConsumer = -1;
 
+    protected volatile Integer maxSubscriptionsPerTopic = null;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;

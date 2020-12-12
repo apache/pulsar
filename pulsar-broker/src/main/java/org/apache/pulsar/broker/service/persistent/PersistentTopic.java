@@ -1982,6 +1982,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
         maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
+        maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -2671,9 +2672,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed() {
-        final int maxSubscriptionsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
-        if (maxSubscriptionsPerTopic > 0) {
-            if (subscriptions != null && subscriptions.size() >= maxSubscriptionsPerTopic) {
+        Integer maxSubsPerTopic = maxSubscriptionsPerTopic;
+
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
+        }
+
+        if (maxSubsPerTopic > 0) {
+            if (subscriptions != null && subscriptions.size() >= maxSubsPerTopic) {
                 return true;
             }
         }

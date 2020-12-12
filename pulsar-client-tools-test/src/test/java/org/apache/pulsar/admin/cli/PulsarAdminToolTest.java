@@ -355,6 +355,13 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-persistence myprop/clust/ns1"));
         verify(mockNamespaces).getPersistence("myprop/clust/ns1");
 
+        namespaces.run(split("get-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxSubscriptionsPerTopic("myprop/clust/ns1");
+        namespaces.run(split("set-max-subscriptions-per-topic myprop/clust/ns1 -m 300"));
+        verify(mockNamespaces).setMaxSubscriptionsPerTopic("myprop/clust/ns1", 300);
+        namespaces.run(split("remove-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxSubscriptionsPerTopic("myprop/clust/ns1");
+
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
 
