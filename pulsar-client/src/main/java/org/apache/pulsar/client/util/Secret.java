@@ -16,33 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.client.util;
 
-package org.apache.pulsar.common.policies.data;
+import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/**
- * PolicyName authorization operations.
- */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
+@Target({ ElementType.ANNOTATION_TYPE, ElementType.FIELD, ElementType.METHOD })
+@Retention(RetentionPolicy.RUNTIME)
+@JacksonAnnotationsInside
+@JsonSerialize(using = SecretsSerializer.class)
+public @interface Secret {
+
 }

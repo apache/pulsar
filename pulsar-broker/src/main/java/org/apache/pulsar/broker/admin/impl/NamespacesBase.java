@@ -2776,6 +2776,21 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
     }
 
+    protected Integer internalGetMaxSubscriptionsPerTopic() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).max_subscriptions_per_topic;
+    }
+
+    protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+        if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxSubscriptionsPerTopic must be 0 or more");
+        }
+        internalSetPolicies("max_subscriptions_per_topic", maxSubscriptionsPerTopic);
+    }
+
     protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();

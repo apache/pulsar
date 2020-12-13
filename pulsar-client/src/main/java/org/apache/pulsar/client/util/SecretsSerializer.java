@@ -16,33 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.client.util;
 
-package org.apache.pulsar.common.policies.data;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import java.io.IOException;
 
-/**
- * PolicyName authorization operations.
- */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
+public class SecretsSerializer extends JsonSerializer<Object> {
+
+    @Override
+    public void serialize(final Object value, final JsonGenerator jsonGenerator, final SerializerProvider serializerProvider)
+            throws IOException {
+        if (value == null) {
+            serializerProvider.defaultSerializeNull(jsonGenerator);
+            return;
+        }
+
+        jsonGenerator.writeObject("*****");
+    }
 }

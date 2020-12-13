@@ -16,33 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.common.intercept;
 
-package org.apache.pulsar.common.policies.data;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
- * PolicyName authorization operations.
+ * A plugin interface that allows you to intercept the client requests to
+ *  the Pulsar brokers and add timestamp from broker side metadata for each entry.
  */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
+public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMetadataInterceptor {
+
+    @Override
+    public PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata) {
+        return brokerMetadata.setBrokerTimestamp(System.currentTimeMillis());
+    }
 }
