@@ -636,4 +636,5 @@ public class ManagedLedgerConfig {
     public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
+
 }
