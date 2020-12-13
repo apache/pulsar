@@ -1093,6 +1093,44 @@ public class Namespaces extends NamespacesBase {
         internalSetMaxUnackedMessagesPerSubscription(maxUnackedMessagesPerSubscription);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = "Get maxSubscriptionsPerTopic config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public Integer getMaxSubscriptionsPerTopic(@PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetMaxSubscriptionsPerTopic();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = " Set maxSubscriptionsPerTopic configuration on a namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxUnackedMessagesPerSubscription value is not valid")})
+    public void setMaxSubscriptionsPerTopic(
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Number of maximum subscriptions per topic", required = true)
+                    int maxSubscriptionsPerTopic) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = "Remove maxSubscriptionsPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeMaxSubscriptionsPerTopic(@PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxSubscriptionsPerTopic(null);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/antiAffinity")
     @ApiOperation(value = "Set anti-affinity group for a namespace")
