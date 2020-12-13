@@ -232,6 +232,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final AuthenticationService authenticationService;
 
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
+    public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
+
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
 
     private static final LongAdder totalUnackedMessages = new LongAdder();
@@ -1082,6 +1084,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            return;
+        }
+
+        if (!checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
             return;
         }
 
@@ -2155,6 +2161,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
 
+        if (!checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, partitionedTopicFuture)) {
+            return partitionedTopicFuture;
+        }
+
         try {
             byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMetadata);
 
@@ -2502,6 +2512,35 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             throw new RestException(Response.Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry.");
         }
+    }
+
+
+    private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
+                                            CompletableFuture<T> topicFuture) {
+        final int maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
+        if (maxTopicsPerNamespace > 0) {
+            try {
+                String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
+                        topicName.getNamespace(), topicName.getDomain().value());
+                List<String> topics = pulsar().getGlobalZkCache().getZooKeeper()
+                        .getChildren(partitionedTopicPath, false);
+                if (topics.size() + numPartitions > maxTopicsPerNamespace) {
+                    log.error("Failed to create persistent topic {}, "
+                            + "exceed maximum number of topics in namespace", topicName);
+                    topicFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Exceed maximum number of topics in namespace."));
+                    return false;
+                }
+            } catch (KeeperException.NoNodeException e) {
+                // NoNode means there are no partitioned topics in this domain for this namespace
+            } catch (Exception e) {
+                log.error("Failed to create partitioned topic {}", topicName, e);
+                topicFuture.completeExceptionally(new RestException(e));
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public void setInterceptor(BrokerInterceptor interceptor) {
