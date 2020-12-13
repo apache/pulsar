@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.presto;
 
+import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
@@ -31,7 +33,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import java.sql.Connection;
@@ -78,7 +79,6 @@ public class TestBasicPresto extends PulsarTestSuite {
     }
     
     public void testSimpleSQLQuery(boolean isBatched) throws Exception {
-
         // wait until presto worker started
         ContainerExecResult result;
         do {
@@ -123,6 +123,11 @@ public class TestBasicPresto extends PulsarTestSuite {
         result = execQuery("show schemas in pulsar;");
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains("public/default");
+
+        pulsarCluster.getBroker(0)
+            .execCmd(
+                "/bin/bash",
+                "-c", "bin/pulsar-admin namespaces unload public/default");
 
         result = execQuery("show tables in pulsar.\"public/default\";");
         assertThat(result.getExitCode()).isEqualTo(0);
@@ -216,6 +221,13 @@ public class TestBasicPresto extends PulsarTestSuite {
 
         containerExecResult = pulsarCluster.getPrestoWorkerContainer()
                 .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+
+        Stopwatch sw = Stopwatch.createStarted();
+        while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
+            TimeUnit.MILLISECONDS.sleep(500);
+            containerExecResult = pulsarCluster.getPrestoWorkerContainer()
+                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+        }
 
         return containerExecResult;
 

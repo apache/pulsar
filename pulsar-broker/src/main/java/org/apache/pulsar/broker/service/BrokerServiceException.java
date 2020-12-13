@@ -72,6 +72,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class AddEntryMetadataException extends BrokerServiceException {
+        public AddEntryMetadataException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class PersistenceException extends BrokerServiceException {
         public PersistenceException(Throwable t) {
             super(t);

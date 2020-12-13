@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -78,7 +78,7 @@ jobs:
 
       - name: build and check license
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -q -B -ntp -DskipTests license:check install
+        run: mvn -q -B -ntp -DskipTests initialize license:check install
 
       - name: license check
         if: steps.docs.outputs.changed_only == 'no'
