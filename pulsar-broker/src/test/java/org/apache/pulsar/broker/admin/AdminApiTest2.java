@@ -1262,6 +1262,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             fail("should not throw any exceptions");
         }
+
+        // reset configuration
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(0);
     }
 
     @Test
@@ -1275,6 +1278,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarAdminException);
         }
+
+        // reset configuration
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(0);
     }
 
     @Test
@@ -1405,6 +1411,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
         }
+
+        // reset configuration
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
     }
 
     @Test
