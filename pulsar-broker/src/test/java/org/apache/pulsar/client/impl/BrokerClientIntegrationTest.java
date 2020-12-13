@@ -890,6 +890,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             Assert.assertEquals(object.getValue(), testObject.getValue());
             Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
             Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(byte[].class), Mockito.any(byte[].class));
+        } finally {
+            client.close();
         }
     }
 
@@ -924,6 +926,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
             Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
             Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(byte[].class));
+        } finally {
+            client.close();
         }
     }
 
