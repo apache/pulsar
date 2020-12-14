@@ -181,6 +181,7 @@ public class KubernetesRuntimeTest {
                                                             double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
+        doNothing().when(factory).setupClient();
 
         WorkerConfig workerConfig = new WorkerConfig();
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
@@ -215,8 +216,6 @@ public class KubernetesRuntimeTest {
         workerConfig.setAuthenticationEnabled(false);
 
         factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(), Optional.empty(), manifestCustomizer);
-        doNothing().when(factory).setupClient();
-        
         return factory;
     }
 

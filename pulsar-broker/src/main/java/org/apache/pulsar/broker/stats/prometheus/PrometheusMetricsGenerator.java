@@ -45,7 +45,6 @@ import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
@@ -93,8 +92,9 @@ public class PrometheusMetricsGenerator {
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics, stream);
 
-            FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
-                    pulsar.getConfiguration().getClusterName(), stream);
+            if (pulsar.getWorkerServiceOpt().isPresent()) {
+                pulsar.getWorkerService().generateFunctionsStats(stream);
+            }
 
             generateBrokerBasicMetrics(pulsar, stream);
 

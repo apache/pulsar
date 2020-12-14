@@ -147,6 +147,7 @@ public class KubernetesRuntimeFactoryTest {
                                                             Optional<FunctionAuthProvider> functionAuthProvider,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
+        doNothing().when(factory).setupClient();
 
         WorkerConfig workerConfig = new WorkerConfig();
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
@@ -182,7 +183,6 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setAuthenticationEnabled(false);
 
         factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider, manifestCustomizer);
-        doNothing().when(factory).setupClient();
         return factory;
     }
 
