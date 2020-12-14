@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
@@ -568,6 +569,20 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public Optional<DispatchRateLimiter> getRateLimiter() {
         return dispatchRateLimiter;
+    }
+
+    @Override
+    public void updateRateLimiter(DispatchRate dispatchRate) {
+        if (!this.dispatchRateLimiter.isPresent() && dispatchRate != null) {
+            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+        }
+        this.dispatchRateLimiter.ifPresent(limiter -> {
+            if (dispatchRate != null) {
+                this.dispatchRateLimiter.get().updateDispatchRate(dispatchRate);
+            } else {
+                this.dispatchRateLimiter.get().updateDispatchRate();
+            }
+        });
     }
 
     @Override
