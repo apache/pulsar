@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
@@ -78,6 +77,15 @@ public class TopicStats {
 
     public String deduplicationStatus;
 
+    /** The topic epoch or empty if not set. */
+    public Long topicEpoch;
+
+    /** The number of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRanges;
+
+    /** The serialized size of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRangesSerializedSize;
+
     public TopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -101,6 +109,9 @@ public class TopicStats {
         this.subscriptions.clear();
         this.replication.clear();
         this.deduplicationStatus = null;
+        this.topicEpoch = null;
+        this.nonContiguousDeletedMessagesRanges = 0;
+        this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -120,6 +131,8 @@ public class TopicStats {
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
         this.backlogSize += stats.backlogSize;
+        this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
+        this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         if (this.publishers.size() != stats.publishers.size()) {
             for (int i = 0; i < stats.publishers.size(); i++) {
                 PublisherStats publisherStats = new PublisherStats();

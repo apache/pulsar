@@ -18,11 +18,18 @@
  */
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
+#include <time.h>
+#include <set>
 
 #include "../lib/Future.h"
 #include "../lib/Utils.h"
 
+#include "HttpHelper.h"
+
 using namespace pulsar;
+
+static const std::string lookupUrl = "pulsar://localhost:6650";
+static const std::string adminUrl = "http://localhost:8080/";
 
 TEST(ConsumerTest, consumerNotInitialized) {
     Consumer consumer;
@@ -94,4 +101,62 @@ TEST(ConsumerTest, consumerNotInitialized) {
 
         ASSERT_EQ(ResultConsumerNotInitialized, result);
     }
+}
+
+TEST(ConsumerTest, testPartitionIndex) {
+    Client client(lookupUrl);
+
+    const std::string nonPartitionedTopic =
+        "ConsumerTestPartitionIndex-topic-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic1 =
+        "ConsumerTestPartitionIndex-par-topic1-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic2 =
+        "ConsumerTestPartitionIndex-par-topic2-" + std::to_string(time(nullptr));
+    constexpr int numPartitions = 3;
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic1 + "/partitions", "1");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+    res = makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic2 + "/partitions",
+                         std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    auto sendMessageToTopic = [&client](const std::string& topic) {
+        Producer producer;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+
+        Message msg = MessageBuilder().setContent("hello").build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    };
+
+    // consumers
+    //   [0] subscribes a non-partitioned topic
+    //   [1] subscribes a partition of a partitioned topic
+    //   [2] subscribes a partitioned topic
+    Consumer consumers[3];
+    ASSERT_EQ(ResultOk, client.subscribe(nonPartitionedTopic, "sub", consumers[0]));
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic1 + "-partition-0", "sub", consumers[1]));
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic2, "sub", consumers[2]));
+
+    sendMessageToTopic(nonPartitionedTopic);
+    sendMessageToTopic(partitionedTopic1);
+    for (int i = 0; i < numPartitions; i++) {
+        sendMessageToTopic(partitionedTopic2 + "-partition-" + std::to_string(i));
+    }
+
+    Message msg;
+    ASSERT_EQ(ResultOk, consumers[0].receive(msg, 5000));
+    ASSERT_EQ(msg.getMessageId().partition(), -1);
+
+    ASSERT_EQ(ResultOk, consumers[1].receive(msg, 5000));
+    ASSERT_EQ(msg.getMessageId().partition(), 0);
+
+    std::set<int> partitionIndexes;
+    for (int i = 0; i < 3; i++) {
+        ASSERT_EQ(ResultOk, consumers[2].receive(msg, 5000));
+        partitionIndexes.emplace(msg.getMessageId().partition());
+    }
+    ASSERT_EQ(partitionIndexes, (std::set<int>{0, 1, 2}));
+
+    client.close();
 }

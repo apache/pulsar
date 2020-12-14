@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.io.InputStream;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Deserialize messages from bytes.
  */
-
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaReader<T> {
 
     /**
@@ -53,4 +56,34 @@ public interface SchemaReader<T> {
      * @return the serialized object
      */
     T read(InputStream inputStream);
+
+    /**
+     * Serialize bytes convert pojo.
+     *
+     * @param bytes the data
+     * @param schemaVersion the schema version of message
+     * @return the serialized object
+     */
+    default T read(byte[] bytes, byte[] schemaVersion) {
+        return read(bytes, 0, bytes.length);
+    }
+
+    /**
+     * serialize bytes convert pojo.
+     *
+     * @param inputStream the stream of message
+     * @param schemaVersion the schema version of message
+     * @return the serialized object
+     */
+    default T read(InputStream inputStream, byte[] schemaVersion) {
+        return read(inputStream);
+    }
+
+    /**
+     * Set schema info provider, this method support multi version reader.
+     *
+     * @param schemaInfoProvider the stream of message
+     */
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+    }
 }

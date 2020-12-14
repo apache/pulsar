@@ -19,11 +19,12 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import java.util.Collections;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -35,13 +36,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import java.util.Collections;
-
-import lombok.Cleanup;
 
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
@@ -65,7 +59,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -144,8 +138,8 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-            .topic(partitionedTopicName.getPartition(0).toString())
-            .startMessageId(MessageId.earliest)
+                .topic(partitionedTopicName.getPartition(0).toString())
+                .startMessageId(MessageId.earliest)
             .create();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName.toString(), 2);

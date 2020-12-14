@@ -24,6 +24,7 @@
 #include <boost/date_time/posix_time/ptime.hpp>
 
 #include "TimeUtils.h"
+#include "MessageImpl.h"
 
 namespace pulsar {
 
@@ -43,6 +44,8 @@ struct OpSendMsg {
           producerId_(producerId),
           sequenceId_(sequenceId),
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)) {}
+
+    uint32_t num_messages_in_batch() const { return msg_.impl_->metadata.num_messages_in_batch(); }
 };
 
 }  // namespace pulsar

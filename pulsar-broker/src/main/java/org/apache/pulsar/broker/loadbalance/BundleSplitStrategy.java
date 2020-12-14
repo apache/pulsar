@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Set;
-
 import org.apache.pulsar.broker.PulsarService;
 
 /**
@@ -28,7 +27,7 @@ import org.apache.pulsar.broker.PulsarService;
 public interface BundleSplitStrategy {
     /**
      * Determines which bundles, if any, should be split.
-     * 
+     *
      * @param loadData
      *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
      *            leader broker).

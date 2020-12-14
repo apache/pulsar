@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -27,10 +30,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @BeforeClass
@@ -39,13 +38,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanupTest() throws Exception {
         pulsar.getAdminClient().namespaces().removeAutoSubscriptionCreation("prop/ns-abc");
     }

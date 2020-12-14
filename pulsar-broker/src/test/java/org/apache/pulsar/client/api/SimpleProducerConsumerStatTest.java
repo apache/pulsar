@@ -58,7 +58,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -385,7 +385,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = producerBuilder.create();
 
-        int numMessages = 11;
+        int numMessages = 120;
         for (int i = 0; i < numMessages; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());

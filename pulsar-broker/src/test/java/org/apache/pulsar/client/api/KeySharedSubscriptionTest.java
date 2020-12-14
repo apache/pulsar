@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -85,7 +86,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -773,6 +774,85 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+    }
+
+    @Test
+    public void testContinueDispatchMessagesWhenMessageTTL() throws Exception {
+        int defaultTTLSec = 3;
+        int totalMessages = 1000;
+        this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // don't ack the first message
+        consumer1.receive();
+        consumer1.acknowledge(consumer1.receive());
+
+        // The consumer1 and consumer2 should be stucked because of the mark delete position did not move forward.
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Message<Integer> received = null;
+        try {
+            received = consumer2.receive(1, TimeUnit.SECONDS);
+        } catch (PulsarClientException ignore) {
+        }
+        Assert.assertNull(received);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        try {
+            received = consumer3.receive(1, TimeUnit.SECONDS);
+        } catch (PulsarClientException ignore) {
+        }
+        Assert.assertNull(received);
+
+        Optional<Topic> topicRef = pulsar.getBrokerService().getTopic(topic, false).get();
+        assertTrue(topicRef.isPresent());
+        Thread.sleep((defaultTTLSec - 1) * 1000);
+        topicRef.get().checkMessageExpiry();
+
+        // The mark delete position is move forward, so the consumers should receive new messages now.
+        for (int i = 0; i < totalMessages; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // Wait broker dispatch messages.
+        Assert.assertNotNull(consumer2.receive(1, TimeUnit.SECONDS));
+        Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {

@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Exceptions for transaction buffer client.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public class TransactionBufferClientException extends IOException {
 
     public TransactionBufferClientException(Throwable t) {

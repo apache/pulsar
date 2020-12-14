@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-
+import lombok.val;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -39,7 +38,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
@@ -126,8 +125,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                             continue;
                         } else if (entryId < nextExpectedId
-                                   && !index.getIndexEntryForEntry(nextExpectedId).equals(
-                                           index.getIndexEntryForEntry(entryId)))  {
+                                && !index.getIndexEntryForEntry(nextExpectedId).equals(
+                                index.getIndexEntryForEntry(entryId)))  {
                             inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                             continue;
                         } else if (entryId > lastEntry) {
@@ -135,7 +134,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            inputStream.skip(length);
+                            val skipped = inputStream.skip(length);
+                            log.info("Skipped {} bytes.", skipped);
                         }
                     }
 

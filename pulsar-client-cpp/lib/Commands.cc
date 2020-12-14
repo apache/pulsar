@@ -253,7 +253,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
-                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                    KeySharedPolicy keySharedPolicy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -286,6 +287,19 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         subscribe->mutable_metadata()->AddAllocated(keyValue);
+    }
+
+    if (subType == CommandSubscribe_SubType_Key_Shared) {
+        KeySharedMeta ksm;
+        switch (keySharedPolicy.getKeySharedMode()) {
+            case pulsar::AUTO_SPLIT:
+                ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
+                break;
+            case pulsar::STICKY:
+                ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+        }
+
+        ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
     }
 
     return writeMessageWithSize(cmd);
@@ -674,8 +688,10 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +
-                                                     std::max(requiredSpace, maxMessageSizeInBytes));
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;

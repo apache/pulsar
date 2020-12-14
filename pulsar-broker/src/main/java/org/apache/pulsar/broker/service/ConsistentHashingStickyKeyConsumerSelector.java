@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -39,7 +43,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     // Consistent-Hash ring
-    private final NavigableMap<Integer, Consumer> hashRing;
+    private final NavigableMap<Integer, List<Consumer>> hashRing;
 
     private final int numberOfPoints;
 
@@ -57,7 +61,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (int i = 0; i < numberOfPoints; i++) {
                 String key = consumer.consumerName() + i;
                 int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
-                hashRing.put(hash, consumer);
+                hashRing.compute(hash, (k, v) -> {
+                    if (v == null) {
+                        return Lists.newArrayList(consumer);
+                    } else {
+                        if (!v.contains(consumer)) {
+                            v.add(consumer);
+                            v.sort(Comparator.comparing(Consumer::consumerName, String::compareTo));
+                        }
+                        return v;
+                    }
+                });
             }
         } finally {
             rwLock.writeLock().unlock();
@@ -72,7 +86,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (int i = 0; i < numberOfPoints; i++) {
                 String key = consumer.consumerName() + i;
                 int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
-                hashRing.remove(hash, consumer);
+                hashRing.compute(hash, (k, v) -> {
+                    if (v == null) {
+                        return null;
+                    } else {
+                        v.removeIf(c -> c.consumerName().equals(consumer.consumerName()));
+                        if (v.isEmpty()) {
+                            v = null;
+                        }
+                        return v;
+                    }
+                });
             }
         } finally {
             rwLock.writeLock().unlock();
@@ -89,18 +113,40 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 return null;
             }
 
-            Map.Entry<Integer, Consumer> ceilingEntry = hashRing.ceilingEntry(hash);
+            List<Consumer> consumerList;
+            Map.Entry<Integer, List<Consumer>> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
-                return ceilingEntry.getValue();
+                consumerList =  ceilingEntry.getValue();
             } else {
-                return hashRing.firstEntry().getValue();
+                consumerList = hashRing.firstEntry().getValue();
             }
+
+            return consumerList.get(hash % consumerList.size());
         } finally {
             rwLock.readLock().unlock();
         }
     }
 
-    Map<Integer, Consumer> getRangeConsumer() {
+    @Override
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        rwLock.readLock().lock();
+        try {
+            int start = 0;
+            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
+                for (Consumer consumer: entry.getValue()) {
+                    result.computeIfAbsent(consumer.consumerName(), key -> new ArrayList<>())
+                            .add("[" + start + ", " + entry.getKey() + "]");
+                }
+                start = entry.getKey() + 1;
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+        return result;
+    }
+
+    Map<Integer, List<Consumer>> getRangeConsumer() {
         return Collections.unmodifiableMap(hashRing);
     }
 }

@@ -19,6 +19,7 @@
 
 #include "ClientImpl.h"
 #include "ReaderImpl.h"
+#include "TopicName.h"
 
 namespace pulsar {
 
@@ -46,14 +47,20 @@ void ReaderImpl::start(const MessageId& startMessageId) {
                                                   std::placeholders::_1, std::placeholders::_2));
     }
 
-    std::string subscription = "reader-" + generateRandomName();
-    if (!readerConf_.getSubscriptionRolePrefix().empty()) {
-        subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+    std::string subscription;
+    if (!readerConf_.getInternalSubscriptionName().empty()) {
+        subscription = readerConf_.getInternalSubscriptionName();
+    } else {
+        subscription = "reader-" + generateRandomName();
+        if (!readerConf_.getSubscriptionRolePrefix().empty()) {
+            subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+        }
     }
 
     consumer_ = std::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
+    consumer_->setPartitionIndex(TopicName::getPartitionIndex(topic_));
     consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
                                                                 shared_from_this(), std::placeholders::_1,
                                                                 std::placeholders::_2));

@@ -28,7 +28,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +71,14 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             part.topicName = topicName;
             part.producerName = producerName;
             batches.putIfAbsent(key, part);
+
+            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
+                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+            }
+            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
+                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            }
+
         } else {
             part.addMsg(msg, callback);
         }
@@ -83,6 +90,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
         batches = new HashMap<>();
+        currentTxnidMostBits = -1L;
+        currentTxnidLeastBits = -1L;
     }
 
     @Override
@@ -121,6 +130,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             currentBatchSizeBytes += message.getDataBuffer().readableBytes();
         }
         keyedBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
+        if (currentTxnidMostBits != -1) {
+            keyedBatch.messageMetadata.setTxnidMostBits(currentTxnidMostBits);
+        }
+        if (currentTxnidLeastBits != -1) {
+            keyedBatch.messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
+        }
         ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
                 keyedBatch.messageMetadata.build(), encryptedPayload);
 

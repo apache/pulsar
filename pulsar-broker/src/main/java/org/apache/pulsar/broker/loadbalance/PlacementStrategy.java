@@ -23,5 +23,5 @@ import com.google.common.collect.Multimap;
 /**
  */
 public interface PlacementStrategy {
-    public ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> finalCandidates);
+    ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> finalCandidates);
 }

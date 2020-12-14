@@ -429,11 +429,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
             batchTimer_->async_wait(std::bind(&ProducerImpl::batchMessageTimeoutHandler, shared_from_this(),
                                               std::placeholders::_1));
-            // Retain the spot only for the 1st single message of batch, the spot would be released when the
-            // batched message was sent to the pending queue or batching failed in batchMessageAndSend()
-        } else {
-            pendingMessagesQueue_.release(1);
         }
+
         if (isFull) {
             auto failures = batchMessageAndSend();
             lock.unlock();
@@ -716,8 +713,11 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         // Message was persisted correctly
         LOG_DEBUG(getName() << "Received ack for msg " << sequenceId);
         pendingMessagesQueue_.pop();
+        // Release all the additional spots in the queue, since we have reserved one per message and
+        // we are removing just 1 batch.
+        pendingMessagesQueue_.release(op.num_messages_in_batch() - 1);
 
-        lastSequenceIdPublished_ = sequenceId + op.msg_.impl_->metadata.num_messages_in_batch() - 1;
+        lastSequenceIdPublished_ = sequenceId + op.num_messages_in_batch() - 1;
 
         lock.unlock();
         if (op.sendCallback_) {

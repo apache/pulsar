@@ -19,10 +19,14 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.util.List;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * An interface represents a message with schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface GenericRecord {
 
     /**

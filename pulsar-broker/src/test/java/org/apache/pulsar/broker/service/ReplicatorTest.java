@@ -105,7 +105,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -609,7 +609,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
         Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
         pulsar2.close();
+        pulsar2 = null;
         pulsar3.close();
+        pulsar3 = null;
         replicator.disconnect(false);
         Thread.sleep(100);
         Field field = AbstractReplicator.class.getDeclaredField("producer");

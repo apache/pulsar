@@ -55,6 +55,9 @@ lib*.so*
 .pydevproject
 .idea/
 *.cbp
+*.ninja*
+.clangd/
+compile_commands.json
 
 # doxygen files
 apidocs/

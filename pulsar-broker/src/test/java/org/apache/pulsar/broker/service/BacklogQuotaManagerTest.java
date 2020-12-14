@@ -111,7 +111,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         try {
             admin.close();

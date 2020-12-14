@@ -19,9 +19,7 @@
 package org.apache.pulsar.compaction;
 
 import com.google.common.collect.ImmutableMap;
-
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -46,9 +43,9 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +85,7 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
-        Map<String,MessageId> latestForKey = new HashMap<>();
+        Map<String, MessageId> latestForKey = new HashMap<>();
         CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
 
         reader.getLastMessageIdAsync().whenComplete(
@@ -97,10 +94,12 @@ public class TwoPhaseCompactor extends Compactor {
                         loopPromise.completeExceptionally(exception);
                     } else {
                         log.info("Commencing phase one of compaction for {}, reading to {}",
-                                 reader.getTopic(), lastMessageId);
+                                reader.getTopic(), lastMessageId);
                         // Each entry is processed as a whole, discard the batchIndex part deliberately.
                         MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
-                        MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(), lastImpl.getEntryId(), lastImpl.getPartitionIndex());
+                        MessageIdImpl lastEntryMessageId =
+                                new MessageIdImpl(lastImpl.getLedgerId(), lastImpl.getEntryId(),
+                                        lastImpl.getPartitionIndex());
                         phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
                                 loopPromise);
                     }
@@ -112,7 +111,7 @@ public class TwoPhaseCompactor extends Compactor {
                               Optional<MessageId> firstMessageId,
                               Optional<MessageId> toMessageId,
                               MessageId lastMessageId,
-                              Map<String,MessageId> latestForKey,
+                              Map<String, MessageId> latestForKey,
                               CompletableFuture<PhaseOneResult> loopPromise) {
         if (loopPromise.isDone()) {
             return;
@@ -146,9 +145,9 @@ public class TwoPhaseCompactor extends Compactor {
                                          id, ioe);
                             }
                         } else {
-                            Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                            Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
                             if (keyAndSize != null) {
-                                if(keyAndSize.getRight() > 0) {
+                                if (keyAndSize.getRight() > 0) {
                                     latestForKey.put(keyAndSize.getLeft(), id);
                                 } else {
                                     deletedMessage = true;
@@ -186,7 +185,8 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
             Map<String, MessageId> latestForKey, BookKeeper bk) {
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
+        Map<String, byte[]> metadata =
+                LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
         return createLedger(bk, metadata).thenCompose((ledger) -> {
             log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
                     reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
@@ -249,7 +249,7 @@ public class TwoPhaseCompactor extends Compactor {
                                 messageToAdd = Optional.of(m);
                             }
                         } else {
-                            Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                            Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
                             MessageId msg;
                             if (keyAndSize == null) { // pass through messages without a key
                                 messageToAdd = Optional.of(m);
@@ -309,7 +309,7 @@ public class TwoPhaseCompactor extends Compactor {
                 }, scheduler);
     }
 
-    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String,byte[]> metadata) {
+    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 
         try {
@@ -371,7 +371,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private static Pair<String,Integer> extractKeyAndSize(RawMessage m) {
+    private static Pair<String, Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         try {
@@ -393,9 +393,9 @@ public class TwoPhaseCompactor extends Compactor {
         final MessageId from;
         final MessageId to; // last undeleted messageId
         final MessageId lastReadId; // last read messageId
-        final Map<String,MessageId> latestForKey;
+        final Map<String, MessageId> latestForKey;
 
-        PhaseOneResult(MessageId from, MessageId to, MessageId lastReadId, Map<String,MessageId> latestForKey) {
+        PhaseOneResult(MessageId from, MessageId to, MessageId lastReadId, Map<String, MessageId> latestForKey) {
             this.from = from;
             this.to = to;
             this.lastReadId = lastReadId;

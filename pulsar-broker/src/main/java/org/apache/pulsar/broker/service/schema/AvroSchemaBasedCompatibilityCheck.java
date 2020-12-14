@@ -20,10 +20,9 @@ package org.apache.pulsar.broker.service.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.Collections;
 import java.util.LinkedList;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
@@ -32,7 +31,6 @@ import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
@@ -41,12 +39,14 @@ import lombok.extern.slf4j.Slf4j;
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         LinkedList<Schema> fromList = new LinkedList<>();
         checkArgument(from != null, "check compatibility list is null");
         try {
@@ -69,7 +69,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         }
     }
 
-    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) throws IncompatibleSchemaException {
+    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
         final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
         switch (compatibilityStrategy) {
             case BACKWARD_TRANSITIVE:

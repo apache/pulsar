@@ -25,6 +25,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchPushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,13 +55,14 @@ public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implem
   public void discover(Consumer taskEater) throws Exception {
     log.info("Generating one task for each instance");
     for (int i = 0; i < sourceContext.getNumInstances(); ++i) {
-      taskEater.accept(String.format("something-%d", System.currentTimeMillis()).getBytes());
+      taskEater.accept(String.format("something-%d", System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));
     }
   }
 
   @Override
   public void prepare(byte[] instanceSplit) throws Exception {
-    log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task {}", new String(instanceSplit));
+    log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task {}",
+            new String(instanceSplit, StandardCharsets.UTF_8));
     executor.submit(this);
   }
 

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal.http;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
-
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;

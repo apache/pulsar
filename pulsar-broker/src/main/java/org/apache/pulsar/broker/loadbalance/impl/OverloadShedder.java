@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-
 import java.util.Map;
-
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -87,7 +85,8 @@ public class OverloadShedder implements LoadSheddingStrategy {
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
             log.info(
-                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}% -- Offloading at least {} MByte/s of traffic ({})",
+                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}%"
+                            + " -- Offloading at least {} MByte/s of traffic ({})",
                     broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
                     localData.printResourceUsage());
 
@@ -95,17 +94,19 @@ public class OverloadShedder implements LoadSheddingStrategy {
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                // Sort bundles by throughput, then pick the biggest N which combined make up for at least the minimum throughput to offload
+                // Sort bundles by throughput, then pick the biggest N which combined
+                // make up for at least the minimum throughput to offload
 
                 loadData.getBundleData().entrySet().stream()
-                .filter(e -> localData.getBundles().contains(e.getKey()))
-                .map((e) -> {
-                    // Map to throughput value
-                    // Consider short-term byte rate to address system resource burden
-                    String bundle = e.getKey();
-                    BundleData bundleData = e.getValue();
-                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                        .filter(e -> localData.getBundles().contains(e.getKey()))
+                        .map((e) -> {
+                            // Map to throughput value
+                            // Consider short-term byte rate to address system resource burden
+                            String bundle = e.getKey();
+                            BundleData bundleData = e.getValue();
+                            TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                            double throughput = shortTermData.getMsgThroughputIn() + shortTermData
+                                    .getMsgThroughputOut();
                     return Pair.of(bundle, throughput);
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently

@@ -9,7 +9,7 @@ The Pulsar Node.js client can be used to create Pulsar [producers](#producers), 
 
 ## Installation
 
-You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
+You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
 
 ### Requirements
 Pulsar Node.js client library is based on the C++ client library.

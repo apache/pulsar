@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import com.google.common.annotations.Beta;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.intercept.InterceptException;
-
+import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -36,7 +36,8 @@ import java.io.IOException;
  * <p>BrokerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Evolving
 public interface BrokerInterceptor extends AutoCloseable {
 
     /**
@@ -84,12 +85,12 @@ public interface BrokerInterceptor extends AutoCloseable {
         }
 
         @Override
-        public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        public void onWebserviceRequest(ServletRequest request) {
             // no-op
         }
 
         @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
             // no-op
         }
 

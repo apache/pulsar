@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -263,7 +262,6 @@ public interface NonPersistentTopics {
      * Get list of topics exist into given namespace asynchronously.
      *
      * @param namespace
-     * @param bundleRange
      * @return
      */
     CompletableFuture<List<String>> getListAsync(String namespace);

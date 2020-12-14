@@ -20,17 +20,14 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
-
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
 import java.io.IOException;
@@ -41,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -50,7 +46,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -324,41 +319,41 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-	@GET
-	@Path("/{cluster}/peers")
-	@ApiOperation(
-	    value = "Get the peer-cluster data for the specified cluster.",
-        response = String.class,
-        responseContainer = "Set",
-        notes = "This operation requires Pulsar superuser privileges."
+    @GET
+    @Path("/{cluster}/peers")
+    @ApiOperation(
+            value = "Get the peer-cluster data for the specified cluster.",
+            response = String.class,
+            responseContainer = "Set",
+            notes = "This operation requires Pulsar superuser privileges."
     )
-	@ApiResponses(value = {
-	    @ApiResponse(code = 403, message = "Don't have admin permission."),
-        @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
-	})
-	public Set<String> getPeerCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-	    @PathParam("cluster") String cluster
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public Set<String> getPeerCluster(
+            @ApiParam(
+                    value = "The cluster name",
+                    required = true
+            )
+            @PathParam("cluster") String cluster
     ) {
-		validateSuperUserAccess();
+        validateSuperUserAccess();
 
-		try {
-			String clusterPath = path("clusters", cluster);
-			byte[] content = globalZk().getData(clusterPath, null, null);
-			ClusterData clusterData = jsonMapper().readValue(content, ClusterData.class);
-			return clusterData.getPeerClusterNames();
-		} catch (KeeperException.NoNodeException e) {
-			log.warn("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
-			throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-		} catch (Exception e) {
-			log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-			throw new RestException(e);
-		}
-	}
+        try {
+            String clusterPath = path("clusters", cluster);
+            byte[] content = globalZk().getData(clusterPath, null, null);
+            ClusterData clusterData = jsonMapper().readValue(content, ClusterData.class);
+            return clusterData.getPeerClusterNames();
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
+            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+    }
 
     @DELETE
     @Path("/{cluster}")
@@ -528,7 +523,8 @@ public class ClustersBase extends AdminResource {
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
             if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
-                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", clientAppId(), policyName, cluster);
+                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}",
+                        clientAppId(), policyName, cluster);
                 throw new RestException(Status.NOT_FOUND,
                         "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
             }
@@ -595,6 +591,9 @@ public class ClustersBase extends AdminResource {
                             brokerIsolationData.namespaceRegex = Lists.newArrayList();
                         }
                         brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                        if (nsPolicyImpl.isPrimaryBroker(broker)) {
+                            brokerIsolationData.isPrimary = true;
+                        }
                     }
                 });
             }
@@ -734,7 +733,8 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-    private boolean createZnodeIfNotExist(String path, Optional<Object> value) throws KeeperException, InterruptedException {
+    private boolean createZnodeIfNotExist(String path, Optional<Object> value)
+            throws KeeperException, InterruptedException {
         // create persistent node on ZooKeeper
         if (globalZk().exists(path, false) == null) {
             // create all the intermediate nodes
@@ -744,7 +744,7 @@ public class ClustersBase extends AdminResource {
                         CreateMode.PERSISTENT);
                 return true;
             } catch (KeeperException.NodeExistsException nee) {
-                if(log.isDebugEnabled()) {
+                if (log.isDebugEnabled()) {
                     log.debug("Other broker preempted the full path [{}] already. Continue...", path);
                 }
             } catch (JsonGenerationException e) {
@@ -981,7 +981,8 @@ public class ClustersBase extends AdminResource {
         validateClusterExists(cluster);
 
         try {
-            final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT, domainName);
+            final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT,
+                    domainName);
             globalZk().delete(domainPath, -1);
             // clear domain cache
             failureDomainCache().invalidate(domainPath);
@@ -1006,7 +1007,9 @@ public class ClustersBase extends AdminResource {
                         continue;
                     }
                     try {
-                        Optional<FailureDomain> domain = failureDomainCache().get(joinPath(failureDomainRootPath, domainName));
+                        Optional<FailureDomain> domain =
+                                failureDomainCache()
+                                        .get(joinPath(failureDomainRootPath, domainName));
                         if (domain.isPresent() && domain.get().brokers != null) {
                             List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
                                     .filter(inputDomain.brokers::contains).collect(Collectors.toList());

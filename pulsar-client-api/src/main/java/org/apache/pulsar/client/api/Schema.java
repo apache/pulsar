@@ -31,6 +31,8 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -39,6 +41,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Message schema definition.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Schema<T> extends Cloneable{
 
     /**
@@ -249,6 +253,27 @@ public interface Schema<T> extends Cloneable{
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.newProtobufSchema(schemaDefinition);
+    }
+
+    /**
+     * Create a Protobuf-Native schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the Protobuf generated class to be used to extract the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
+        return DefaultImplementation.newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+    }
+
+    /**
+     * Create a Protobuf-Native schema type with schema definition.
+     *
+     * @param schemaDefinition schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(
+            SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newProtobufNativeSchema(schemaDefinition);
     }
 
     /**

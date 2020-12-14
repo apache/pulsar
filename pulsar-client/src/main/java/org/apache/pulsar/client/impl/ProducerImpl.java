@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
@@ -135,6 +136,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final ConnectionHandler connectionHandler;
 
     private ScheduledFuture<?> batchTimerTask;
+
+    private Optional<Long> topicEpoch = Optional.empty();
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -268,11 +271,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<?> message, Transaction txn) {
-        if (txn instanceof TransactionImpl) {
-            ((TransactionImpl) txn).registerProducedTopic(topic);
-        }
-
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
@@ -347,6 +346,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         });
         return future;
+    }
+
+    @Override
+    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        if (txn == null) {
+            return internalSendAsync(message);
+        } else {
+            return ((TransactionImpl) txn).registerProducedTopic(topic)
+                        .thenCompose(ignored -> internalSendAsync(message));
+        }
     }
 
     public void sendAsync(Message<?> message, SendCallback callback) {
@@ -671,7 +680,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private boolean canAddToCurrentBatch(MessageImpl<?> msg) {
         return batchMessageContainer.haveEnoughSpace(msg)
-               && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg));
+               && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg))
+                && batchMessageContainer.hasSameTxn(msg);
     }
 
     private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
@@ -700,6 +710,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         case Closing:
         case Closed:
             callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId));
+            return false;
+        case ProducerFenced:
+            callback.sendComplete(new PulsarClientException.ProducerFencedException("Producer was fenced"));
             return false;
         case Terminated:
             callback.sendComplete(new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId));
@@ -869,6 +882,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return connectionHandler.cnx() != null && (getState() == State.Ready);
     }
 
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        return connectionHandler.lastConnectionClosedTimestamp;
+    }
+
     public boolean isWritable() {
         ClientCnx cnx = connectionHandler.cnx();
         return cnx != null && cnx.channel().isWritable();
@@ -1025,6 +1043,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         // as msg is not corrupted : let producer resend pending-messages again including checksum failed message
         resendMessages(cnx);
+    }
+
+    protected synchronized void recoverNotAllowedError(long sequenceId) {
+        OpSendMsg op = pendingMessages.peek();
+        if(op != null && sequenceId == getHighestSequenceId(op)){
+            pendingMessages.remove();
+            releaseSemaphoreForSendOp(op);
+            try {
+                op.callback.sendComplete(
+                        new PulsarClientException.NotAllowedException(
+                                format("The size of the message which is produced by producer %s to the topic " +
+                                        "%s is not allowed", producerName, topic)));
+            } catch (Throwable t) {
+                log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
+                        producerName, sequenceId, t);
+            }
+            ReferenceCountUtil.safeRelease(op.cmd);
+            op.recycle();
+        }
     }
 
     /**
@@ -1198,7 +1235,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo, connectionHandler.epoch, userProvidedProducerName),
+                       schemaInfo, connectionHandler.epoch, userProvidedProducerName,
+                       conf.getAccessMode(), topicEpoch),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1220,6 +1258,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.info("[{}] [{}] Created producer on cnx {}", topic, producerName, cnx.ctx().channel());
                         connectionId = cnx.ctx().channel().toString();
                         connectedSince = DateFormatter.now();
+                        if (conf.getAccessMode() != ProducerAccessMode.Shared && !topicEpoch.isPresent()) {
+                            log.info("[{}] [{}] Producer epoch is {}", topic, producerName, response.getTopicEpoch());
+                        }
+                        topicEpoch = response.getTopicEpoch();
+
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
@@ -1301,6 +1344,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         failPendingMessages(cnx(), (PulsarClientException) cause);
                         producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
+                    } else if (cause instanceof PulsarClientException.ProducerFencedException) {
+                        setState(State.ProducerFenced);
+                        failPendingMessages(cnx(), (PulsarClientException) cause);
+                        producerCreatedFuture.completeExceptionally(cause);
+                        client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
                     (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
                             && System.currentTimeMillis() < createProducerTimeout)) {
@@ -1311,6 +1359,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         setState(State.Failed);
                         producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
+                        Timeout timeout = sendTimeout;
+                        if (timeout != null) {
+                            timeout.cancel();
+                            sendTimeout = null;
+                        }
                     }
 
                     return null;
@@ -1714,7 +1767,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    ClientCnx getClientCnx() {
+    public ClientCnx getClientCnx() {
         return this.connectionHandler.cnx();
     }
 

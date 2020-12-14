@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.common.util.RestException;
 
 /**
  * Definition of Pulsar policies.
@@ -64,8 +66,6 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
-    public String antiAffinityGroup;
-
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
@@ -88,6 +88,8 @@ public class Policies {
     public int max_unacked_messages_per_consumer = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_unacked_messages_per_subscription = -1;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_subscriptions_per_topic = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
@@ -113,6 +115,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public OffloadPolicies offload_policies = null;
 
+    public Integer deduplicationSnapshotIntervalSeconds = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -124,7 +128,7 @@ public class Policies {
                 message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies, inactive_topic_policies,
                 subscription_auth_mode,
-                antiAffinityGroup, max_producers_per_topic,
+                max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
                 compaction_threshold, offload_threshold,
@@ -162,7 +166,6 @@ public class Policies {
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(inactive_topic_policies, other.inactive_topic_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
@@ -214,7 +217,6 @@ public class Policies {
                 .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
-                .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds)
                 .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
                 .add("retention_policies", retention_policies)
@@ -236,5 +238,29 @@ public class Policies {
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
                 .add("offload_policies", offload_policies).toString();
+    }
+
+
+    private static final long MAX_BUNDLES = ((long) 1) << 32;
+
+    public static BundlesData getBundles(int numBundles) {
+        if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
+            throw new RestException(Status.BAD_REQUEST,
+                    "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+        }
+        Long maxVal = ((long) 1) << 32;
+        Long segSize = maxVal / numBundles;
+        List<String> partitions = Lists.newArrayList();
+        partitions.add(String.format("0x%08x", 0L));
+        Long curPartition = segSize;
+        for (int i = 0; i < numBundles; i++) {
+            if (i != numBundles - 1) {
+                partitions.add(String.format("0x%08x", curPartition));
+            } else {
+                partitions.add(String.format("0x%08x", maxVal - 1));
+            }
+            curPartition += segSize;
+        }
+        return new BundlesData(partitions);
     }
 }

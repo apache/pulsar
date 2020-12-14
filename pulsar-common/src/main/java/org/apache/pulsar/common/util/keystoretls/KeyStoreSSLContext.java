@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.keystoretls;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
@@ -174,7 +173,7 @@ public class KeyStoreSSLContext {
     }
 
     private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
-        sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
+        sslEngine.setEnabledProtocols(protocols.toArray(new String[0]));
         sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
 
         if (this.mode == Mode.SERVER) {

@@ -20,20 +20,21 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
-
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.persistent.TransactionReader;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
@@ -70,10 +71,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
                                          SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-                                         ManagedCursor cursor, TransactionReader transactionReader) {
+                                         ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
+
+        boolean isAfterTxnCommitMarker = false;
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
@@ -86,9 +89,18 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
             try {
-                if (Markers.isTxnCommitMarker(msgMetadata)) {
+                if (!isReplayRead && msgMetadata != null
+                        && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                    if (Markers.isTxnCommitMarker(msgMetadata)) {
+                        handleTxnCommitMarker(entry);
+                        if (!isAfterTxnCommitMarker) {
+                            isAfterTxnCommitMarker = true;
+                        }
+                    } else if (Markers.isTxnAbortMarker(msgMetadata)) {
+                        handleTxnAbortMarker(entry);
+                    }
                     entries.set(i, null);
-                    transactionReader.addPendingTxn(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
+                    entry.release();
                     continue;
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
@@ -109,24 +121,25 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entries.set(i, null);
                     entry.release();
                     continue;
-                }
-
-                if (entry instanceof TransactionEntryImpl) {
-                    ((TransactionEntryImpl) entry).setStartBatchIndex(
-                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
+                } else if (isAfterTxnCommitMarker) {
+                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
+                totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
                 batchSizes.setBatchSize(i, batchSize);
                 if (indexesAcks != null && cursor != null) {
-                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
                         indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                     } else {
-                        indexesAcks.setIndexesAcks(i,null);
+                        indexesAcks.setIndexesAcks(i, null);
                     }
                 }
             } finally {
@@ -170,6 +183,41 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         }
         metadata.recycle();
         return key;
+    }
+
+    protected void addMessageToReplay(long ledgerId, long entryId) {
+        // No-op
+    }
+
+    private void handleTxnCommitMarker(Entry entry) {
+        ByteBuf byteBuf = entry.getDataBuffer();
+        Commands.skipMessageMetadata(byteBuf);
+        try {
+            PulsarMarkers.TxnCommitMarker commitMarker = Markers.parseCommitMarker(byteBuf);
+            for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdList()) {
+                addMessageToReplay(messageIdData.getLedgerId(), messageIdData.getEntryId());
+            }
+        } catch (IOException e) {
+            log.error("Failed to parse commit marker.", e);
+        }
+    }
+
+    private void handleTxnAbortMarker(Entry entry) {
+        ((PersistentTopic) subscription.getTopic()).getBrokerService().getPulsar().getOrderedExecutor().execute(() -> {
+            ByteBuf byteBuf = entry.getDataBuffer();
+            Commands.skipMessageMetadata(byteBuf);
+            try {
+                List<Position> positionList = new ArrayList<>();
+                PulsarMarkers.TxnCommitMarker abortMarker = Markers.parseCommitMarker(byteBuf);
+                for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdList()) {
+                    positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
+                }
+                subscription.acknowledgeMessage(
+                        positionList, PulsarApi.CommandAck.AckType.Individual, Collections.emptyMap());
+            } catch (IOException e) {
+                log.error("Failed to parse abort marker.", e);
+            }
+        });
     }
 
 }

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -34,7 +33,7 @@ public interface Dispatcher {
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
     /**
-     * Indicates that this consumer is now ready to receive more messages
+     * Indicates that this consumer is now ready to receive more messages.
      *
      * @param consumer
      */
@@ -47,7 +46,7 @@ public interface Dispatcher {
     boolean canUnsubscribe(Consumer consumer);
 
     /**
-     * mark dispatcher closed to stop new incoming requests and disconnect all consumers
+     * mark dispatcher closed to stop new incoming requests and disconnect all consumers.
      *
      * @return
      */
@@ -56,12 +55,12 @@ public interface Dispatcher {
     boolean isClosed();
 
     /**
-     * Disconnect active consumers
+     * Disconnect active consumers.
      */
     CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor);
 
     /**
-     * disconnect all consumers
+     * disconnect all consumers.
      *
      * @return
      */
@@ -74,7 +73,7 @@ public interface Dispatcher {
     void resetCloseFuture();
 
     /**
-     * mark dispatcher open to serve new incoming requests
+     * mark dispatcher open to serve new incoming requests.
      */
     void reset();
 
@@ -108,11 +107,16 @@ public interface Dispatcher {
         return 0;
     }
 
+    default void clearDelayedMessages() {
+        //No-op
+    }
+
     default void cursorIsReset() {
         //No-op
     }
 
-    default void acknowledgementWasProcessed() {
+    default void markDeletePositionMoveForward() {
         // No-op
     }
+
 }

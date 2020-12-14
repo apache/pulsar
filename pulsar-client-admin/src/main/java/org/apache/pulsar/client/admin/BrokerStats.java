@@ -20,9 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 

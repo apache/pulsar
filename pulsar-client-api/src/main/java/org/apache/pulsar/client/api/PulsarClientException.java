@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.io.IOException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Base type of exception thrown by Pulsar client.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
     private long sequenceId = -1;
@@ -413,6 +417,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Producer fenced exception thrown by Pulsar client.
+     */
+    public static class ProducerFencedException extends PulsarClientException {
+        /**
+         * Constructs a {@code ProducerFencedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {
@@ -763,6 +783,58 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class MessageAcknowledgeException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public MessageAcknowledgeException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public MessageAcknowledgeException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class TransactionConflictException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public TransactionConflictException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public TransactionConflictException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -821,6 +893,10 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (t instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
+        } else if (t instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
+        } else if (t instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -906,8 +982,14 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (cause instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
+        } else if (cause instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
+        } else if (cause instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
+        } else if (cause instanceof ProducerFencedException) {
+            return new ProducerFencedException(msg);
         } else {
             return new PulsarClientException(t);
         }
@@ -936,6 +1018,8 @@ public class PulsarClientException extends IOException {
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
                 || t instanceof ConsumerAssignException
+                || t instanceof MessageAcknowledgeException
+                || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;

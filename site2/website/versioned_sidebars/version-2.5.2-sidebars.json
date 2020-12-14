@@ -106,7 +106,6 @@
       "version-2.5.2-admin-api-non-persistent-topics",
       "version-2.5.2-admin-api-partitioned-topics",
       "version-2.5.2-admin-api-non-partitioned-topics",
-      "version-2.5.2-admin-api-schemas",
       "version-2.5.2-admin-api-functions"
     ],
     "Adaptors": [

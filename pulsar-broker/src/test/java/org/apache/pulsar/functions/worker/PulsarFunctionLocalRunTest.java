@@ -106,7 +106,7 @@ public class PulsarFunctionLocalRunTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -180,7 +180,7 @@ public class PulsarFunctionLocalRunTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -219,7 +219,7 @@ public class PulsarFunctionLocalRunTest {
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
         admin.tenants().updateTenant(tenant, propAdmin);
-        
+
         // setting up simple web sever to test submitting function via URL
         fileServer = HttpServer.create(new InetSocketAddress(0), 0);
         fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
@@ -273,7 +273,7 @@ public class PulsarFunctionLocalRunTest {
 
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);
@@ -284,7 +284,7 @@ public class PulsarFunctionLocalRunTest {
         bkEnsemble.stop();
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -322,7 +322,9 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -503,6 +505,7 @@ public class PulsarFunctionLocalRunTest {
                 .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
+        // please note that in this test the sink topic schema is different from the schema of the source topic
 
         //produce message to sourceTopic
         Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();

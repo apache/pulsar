@@ -61,6 +61,7 @@ pulsarWebServiceUrl: http://localhost:8080
 ############################################
 # security settings for pulsar broker client
 ############################################
+brokerClientAuthenticationEnabled: false
 # The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
 # brokerClientTrustCertsFilePath:
 # the authentication plugin to be used by the pulsar client used in worker service
@@ -114,7 +115,7 @@ topicCompactionFrequencySec: 1800
 functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
 functionRuntimeFactoryConfigs:
     # location of log files for functions
-    logDirectory: /tmp
+    logDirectory: logs/
     # change the jar location only when you put the java instance jar in a different location
     javaInstanceJarLocation:
     # change the python instance location only when you put the python instance jar in a different location
@@ -175,6 +176,9 @@ functionRuntimeFactoryConfigs:
 #  # The ratio memory request and memory limit to be set for a function/source/sink.
 #  # The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio
 #  memoryOverCommitRatio: 1.0
+#  # The function instance class path to be set if it's different from the
+#  # broker/function-worker provided class path
+#  functionInstanceClassPath: 
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.

@@ -98,7 +98,7 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
@@ -173,7 +173,7 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
@@ -263,7 +263,7 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
@@ -345,7 +345,7 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
