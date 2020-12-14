@@ -141,6 +141,9 @@ public class NamespaceStatsAggregator {
                     .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
             subsStats.msgBacklog = subscriptionStats.msgBacklog;
             subsStats.msgDelayed = subscriptionStats.msgDelayed;
+            subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
+            subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
+            subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
             subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
             subscriptionStats.consumers.forEach(cStats -> {
                 stats.consumersCount++;

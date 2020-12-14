@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -863,6 +864,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
                 "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for entry metadata.")
+    private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
     /***** --- TLS --- ****/
     @FieldContext(

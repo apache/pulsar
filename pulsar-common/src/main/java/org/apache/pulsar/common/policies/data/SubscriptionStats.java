@@ -71,6 +71,9 @@ public class SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
+    /** Total messages expired on this subscription. */
+    public long totalMsgExpired;
+
     /** Last message expire execution timestamp. */
     public long lastExpireTimestamp;
 
@@ -110,6 +113,7 @@ public class SubscriptionStats {
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
+        totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         consumers.clear();
     }
@@ -127,6 +131,7 @@ public class SubscriptionStats {
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
+        this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
         if (this.consumers.size() != stats.consumers.size()) {

@@ -53,9 +53,9 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
-        configuration.setProperty("zkServers", zkUtil.getZooKeeperConnectString());
-        configuration.setProperty("numReplicas", "1");
-        configuration.setProperty("ledgerRootPath", "/ledgers");
+        configuration.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString());
+        configuration.setProperty("packagesReplicas", "1");
+        configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
         storage = provider.getStorage(configuration);
         storage.initialize();
     }
@@ -71,9 +71,9 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     public void testConfiguration() {
         assertTrue(storage instanceof BookKeeperPackagesStorage);
         BookKeeperPackagesStorage bkStorage = (BookKeeperPackagesStorage) storage;
-        assertEquals(bkStorage.configuration.getZkServers(), zkUtil.getZooKeeperConnectString());
-        assertEquals(bkStorage.configuration.getNumReplicas(), 1);
-        assertEquals(bkStorage.configuration.getLedgersRootPath(), "/ledgers");
+        assertEquals(bkStorage.configuration.getZookeeperServers(), zkUtil.getZooKeeperConnectString());
+        assertEquals(bkStorage.configuration.getPackagesReplicas(), 1);
+        assertEquals(bkStorage.configuration.getPackagesManagementLedgerRootPath(), "/ledgers");
     }
 
     @Test(timeOut = 60000)
