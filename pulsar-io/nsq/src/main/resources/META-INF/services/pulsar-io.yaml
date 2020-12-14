@@ -20,4 +20,4 @@
 name: nsq
 description: Ingest data from an NSQ topic
 sourceClass: org.apache.pulsar.io.nsq.NSQSource
-sourceConfigClass: org.apache.pulsar.io.nsq.NSQConfig
+sourceConfigClass: org.apache.pulsar.io.nsq.NSQSourceConfig
