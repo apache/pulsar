@@ -35,6 +35,11 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-api</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -74,6 +79,14 @@
                   <type>jar</type>
                   <overWrite>true</overWrite>
                   <includes>**/ProtobufSchema.class</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-client-api</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
               </artifactItems>
