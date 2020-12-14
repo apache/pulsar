@@ -607,6 +607,11 @@ public interface ManagedCursor {
     int getTotalNonContiguousDeletedMessagesRange();
 
     /**
+     * Returns the serialized size of mark-Delete ranges.
+     */
+    int getNonContiguousDeletedMessagesRangeSerializedSize();
+
+    /**
      * Returns the estimated size of the unacknowledged backlog for this cursor
      *
      * @return the estimated size from the mark delete position of the cursor
