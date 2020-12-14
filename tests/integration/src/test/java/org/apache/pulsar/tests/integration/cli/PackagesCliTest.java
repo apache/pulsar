@@ -69,11 +69,9 @@ public class PackagesCliTest {
     public void testPackagesOperationsWithoutUploadingPackages() throws Exception {
         ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
         assertEquals(result.getExitCode(), 0);
-        assertTrue(result.getStdout().isEmpty());
 
         result = runPackagesCommand("list-versions", "function://public/default/test");
         assertEquals(result.getExitCode(), 0);
-        assertTrue(result.getStdout().isEmpty());
 
         try {
             result = runPackagesCommand("download", "function://public/default/test@v1", "--path", "test-admin");
