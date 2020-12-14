@@ -1866,7 +1866,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 log.error("Updating maxSubscriptionsPerTopic failed", ex);
                 asyncResponse.resume(new RestException(ex));
             } else {
-                log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}, maxSubscriptions={}",
+                log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}" +
+                                ", maxSubscriptions={}",
                         clientAppId(),
                         namespaceName,
                         topicName.getLocalName(),
