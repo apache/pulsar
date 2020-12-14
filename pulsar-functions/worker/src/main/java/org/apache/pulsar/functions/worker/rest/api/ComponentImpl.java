@@ -79,8 +79,10 @@ import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.service.api.Component;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import java.io.File;
@@ -106,13 +108,13 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriBuilder;
 
 @Slf4j
-public abstract class ComponentImpl {
+public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
-    protected final Supplier<WorkerService> workerServiceSupplier;
+    protected final Supplier<PulsarWorkerService> workerServiceSupplier;
     protected final Function.FunctionDetails.ComponentType componentType;
 
-    public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, Function.FunctionDetails.ComponentType componentType) {
+    public ComponentImpl(Supplier<PulsarWorkerService> workerServiceSupplier, Function.FunctionDetails.ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
     }
@@ -250,7 +252,8 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected WorkerService worker() {
+    @Override
+    public PulsarWorkerService worker() {
         try {
             return checkNotNull(workerServiceSupplier.get());
         } catch (Throwable t) {
@@ -337,6 +340,7 @@ public abstract class ComponentImpl {
         return packageLocationMetaDataBuilder;
     }
 
+    @Override
     public void deregisterFunction(final String tenant,
                                    final String namespace,
                                    final String componentName,
@@ -410,6 +414,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public FunctionConfig getFunctionInfo(final String tenant,
                                           final String namespace,
                                           final String componentName,
@@ -453,6 +458,7 @@ public abstract class ComponentImpl {
         return config;
     }
 
+    @Override
     public void stopFunctionInstance(final String tenant,
                                      final String namespace,
                                      final String componentName,
@@ -463,6 +469,7 @@ public abstract class ComponentImpl {
         changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri, clientRole, clientAuthenticationDataHttps);
     }
 
+    @Override
     public void startFunctionInstance(final String tenant,
                                       final String namespace,
                                       final String componentName,
@@ -528,6 +535,7 @@ public abstract class ComponentImpl {
                         tenant, namespace, componentName, instanceId));
     }
 
+    @Override
     public void restartFunctionInstance(final String tenant,
                                         final String namespace,
                                         final String componentName,
@@ -582,6 +590,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public void stopFunctionInstances(final String tenant,
                                       final String namespace,
                                       final String componentName,
@@ -590,6 +599,7 @@ public abstract class ComponentImpl {
         changeFunctionStatusAllInstances(tenant, namespace, componentName, false, clientRole, clientAuthenticationDataHttps);
     }
 
+    @Override
     public void startFunctionInstances(final String tenant,
                                        final String namespace,
                                        final String componentName,
@@ -756,6 +766,7 @@ public abstract class ComponentImpl {
         return functionStats;
     }
 
+    @Override
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
                                                                                                    final String namespace,
                                                                                                    final String componentName,
@@ -819,6 +830,7 @@ public abstract class ComponentImpl {
         return functionInstanceStatsData;
     }
 
+    @Override
     public List<String> listFunctions(final String tenant,
                                       final String namespace,
                                       final String clientRole,
@@ -866,6 +878,7 @@ public abstract class ComponentImpl {
                 updatedVersionMetaData, false, "Update Failed");
     }
 
+    @Override
     public List<ConnectorDefinition> getListOfConnectors() {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -874,6 +887,7 @@ public abstract class ComponentImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
+    @Override
     public void reloadConnectors(String clientRole) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -891,6 +905,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public String triggerFunction(final String tenant,
                                   final String namespace,
                                   final String functionName,
@@ -1015,6 +1030,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public FunctionState getFunctionState(final String tenant,
                                           final String namespace,
                                           final String functionName,
@@ -1096,6 +1112,7 @@ public abstract class ComponentImpl {
         return value;
     }
 
+    @Override
     public void putFunctionState(final String tenant,
                                  final String namespace,
                                  final String functionName,
@@ -1174,6 +1191,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
@@ -1204,6 +1222,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
                                             String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
@@ -1251,6 +1270,7 @@ public abstract class ComponentImpl {
         return streamingOutput;
     }
 
+    @Override
     public StreamingOutput downloadFunction(final String path, String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {

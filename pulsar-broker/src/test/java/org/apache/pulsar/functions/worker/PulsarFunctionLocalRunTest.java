@@ -106,7 +106,7 @@ public class PulsarFunctionLocalRunTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -180,7 +180,7 @@ public class PulsarFunctionLocalRunTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -284,7 +284,7 @@ public class PulsarFunctionLocalRunTest {
         bkEnsemble.stop();
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -322,7 +322,9 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
