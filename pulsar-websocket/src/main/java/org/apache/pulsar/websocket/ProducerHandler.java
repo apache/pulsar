@@ -202,8 +202,15 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 return;
             }
         }
+        if (sendRequest.deliverAt > 0) {
+            builder.deliverAt(sendRequest.deliverAt);
+        }
+        if (sendRequest.deliverAfterMs > 0) {
+            builder.deliverAfter(sendRequest.deliverAfterMs, TimeUnit.MILLISECONDS);
+        }
 
         final long now = System.nanoTime();
+
         builder.sendAsync().thenAccept(msgId -> {
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
