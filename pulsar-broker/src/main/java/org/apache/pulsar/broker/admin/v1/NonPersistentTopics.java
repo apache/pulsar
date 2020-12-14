@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.admin.v1;
 
 import com.google.common.collect.Lists;
@@ -26,6 +27,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -70,12 +72,15 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(hidden = true, value = "Get partitioned topic metadata.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission") })
+            @ApiResponse(code = 403, message = "Don't have admin permission")})
     public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
+                                                           @PathParam("cluster") String cluster,
+                                                           @PathParam("namespace") String namespace,
+                                                           @PathParam("topic") @Encoded String encodedTopic,
+                                                           @QueryParam("authoritative") @DefaultValue("false")
+                                                                       boolean authoritative,
+                                                           @QueryParam("checkAllowAutoCreation") @DefaultValue("false")
+                                                                       boolean checkAllowAutoCreation) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
     }
@@ -86,11 +91,12 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Topic does not exist")})
     public NonPersistentTopicStats getStats(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+                                            @PathParam("cluster") String cluster,
+                                            @PathParam("namespace") String namespace,
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -103,12 +109,15 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Topic does not exist")})
     public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+                                                         @PathParam("cluster") String cluster, @PathParam("namespace")
+                                                                     String namespace,
+                                                         @PathParam("topic") @Encoded String encodedTopic,
+                                                         @QueryParam("authoritative") @DefaultValue("false")
+                                                                     boolean authoritative,
+                                                         @QueryParam("metadata") @DefaultValue("false")
+                                                                     boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -132,7 +141,7 @@ public class NonPersistentTopics extends PersistentTopics {
     public void createPartitionedTopic(@Suspended final AsyncResponse asyncResponse,
                                        @PathParam("property") String property, @PathParam("cluster") String cluster,
                                        @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
-                                                   String encodedTopic,
+                                               String encodedTopic,
                                        int numPartitions) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
@@ -149,11 +158,11 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Topic does not exist")})
     public void unloadTopic(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+                            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                            @PathParam("topic") @Encoded String encodedTopic,
+                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalUnloadTopic(asyncResponse, authoritative);
@@ -173,7 +182,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
 
         Policies policies = null;
@@ -255,13 +264,15 @@ public class NonPersistentTopics extends PersistentTopics {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
-        if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
-                    namespace, bundleRange);
-            return null;
-        }
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, true, true);
         try {
+            if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
+                    .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
+                        cluster, namespace, bundleRange);
+                return null;
+            }
+            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
+                    true, true);
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());

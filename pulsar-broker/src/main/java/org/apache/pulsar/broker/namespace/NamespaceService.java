@@ -230,32 +230,46 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
+    private CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) throws Exception {
+        return bundleFactory.getFullBundleAsync(fqnn);
+    }
+
+    /**
+     * Return the URL of the broker who's owning a particular service unit in asynchronous way.
+     *
+     * If the service unit is not owned, return a CompletableFuture with empty optional
+     */
+    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options)
+            throws Exception {
+        if (suName instanceof TopicName) {
+            TopicName name = (TopicName) suName;
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Getting web service URL of topic: {} - options: {}", name, options);
+            }
+            return getBundleAsync(name)
+                    .thenCompose(namespaceBundle -> internalGetWebServiceUrl(namespaceBundle, options));
+        }
+
+        if (suName instanceof NamespaceName) {
+            return getFullBundleAsync((NamespaceName) suName)
+                    .thenCompose(namespaceBundle -> internalGetWebServiceUrl(namespaceBundle, options));
+        }
+
+        if (suName instanceof NamespaceBundle) {
+            return internalGetWebServiceUrl((NamespaceBundle) suName, options);
+        }
+
+        throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
+    }
+
     /**
      * Return the URL of the broker who's owning a particular service unit.
      *
      * If the service unit is not owned, return an empty optional
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
-        if (suName instanceof TopicName) {
-            TopicName name = (TopicName) suName;
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Getting web service URL of topic: {} - options: {}", name, options);
-            }
-            return this.internalGetWebServiceUrl(getBundle(name), options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        }
-
-        if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        }
-
-        if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl((NamespaceBundle) suName, options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        }
-
-        throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
+        return getWebServiceUrlAsync(suName, options).get(
+                pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {

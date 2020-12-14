@@ -287,6 +287,7 @@ PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
+OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
 
 # Functions related logging
