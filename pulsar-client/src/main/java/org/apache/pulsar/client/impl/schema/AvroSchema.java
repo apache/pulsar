@@ -46,7 +46,7 @@ import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaIn
 @Slf4j
 public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
-
+    private boolean isCustomReaderAndWriter;
     private ClassLoader pojoClassLoader;
 
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
@@ -61,6 +61,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         super(schemaInfo);
         setReader(reader);
         setWriter(writer);
+        isCustomReaderAndWriter = true;
     }
 
     @Override
@@ -70,6 +71,9 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
 
     @Override
     public Schema<T> clone() {
+        if (isCustomReaderAndWriter) {
+            return new AvroSchema<>(reader, writer, schemaInfo);
+        }
         Schema<T> schema = new AvroSchema<>(schemaInfo, pojoClassLoader);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
