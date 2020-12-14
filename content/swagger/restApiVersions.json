@@ -57,8 +57,8 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
+                "swaggerfunctions",
                 "swaggersource"
             ]
         }
@@ -73,45 +73,13 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersink",
+                "swaggerfunctions",
                 "swaggersource",
-                "swaggerfunctions"
+                "swaggersink"
             ]
         }
     ],
     "2.4.2": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.5.1": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggersink",
-                "swaggersource",
-                "swaggerfunctions"
-            ]
-        }
-    ],
-    "2.5.2": [
         {
             "version": "v2",
             "fileName": [
@@ -138,12 +106,12 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersource",
-                "swaggersink"
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
-    "2.6.1": [
+    "2.5.1": [
         {
             "version": "v2",
             "fileName": [
@@ -159,7 +127,39 @@
             ]
         }
     ],
-    "2.6.2": [
+    "2.5.2": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.6.0": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.6.1": [
         {
             "version": "v2",
             "fileName": [
@@ -191,6 +191,22 @@
             ]
         }
     ],
+    "2.6.2": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
     "2.8.0-SNAPSHOT": [
         {
             "version": "v2",
@@ -201,10 +217,10 @@
         {
             "version": "v3",
             "fileName": [
+                "swaggerfunctions",
                 "swaggerpackages",
                 "swaggersink",
-                "swaggersource",
-                "swaggerfunctions"
+                "swaggersource"
             ]
         }
     ],
@@ -222,22 +238,6 @@
                 "swaggerpackages",
                 "swaggersink",
                 "swaggersource"
-            ]
-        }
-    ],
-    "2.6.0": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggersink",
-                "swaggersource",
-                "swaggerfunctions"
             ]
         }
     ]
