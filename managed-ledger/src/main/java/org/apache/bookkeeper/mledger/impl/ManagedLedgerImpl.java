@@ -383,6 +383,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
 
         scheduleTimeoutTask();
+
+        scheduleRollOverLedgerTask();
     }
 
     private synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -3470,7 +3472,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 checkReadTimeout();
             }), timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
+    }
 
+    private void scheduleRollOverLedgerTask() {
         if (config.getMaximumRolloverTimeMs() > 0) {
             long interval = config.getMaximumRolloverTimeMs();
             this.checkLedgerRollTask = this.scheduledExecutor.scheduleAtFixedRate(safeRun(() -> {
