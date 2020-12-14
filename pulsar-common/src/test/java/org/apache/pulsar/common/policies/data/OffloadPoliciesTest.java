@@ -42,6 +42,8 @@ public class OffloadPoliciesTest {
         final String driver = "aws-s3";
         final String region = "test-region";
         final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
         final String credentialId = "test-credential-id";
         final String credentialSecret = "test-credential-secret";
         final String endPoint = "test-endpoint";
@@ -55,6 +57,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                role,
+                roleSessionName,
                 credentialId,
                 credentialSecret,
                 maxBlockSizeInBytes,
@@ -82,6 +86,8 @@ public class OffloadPoliciesTest {
         final String region = "test-region";
         final String bucket = "test-bucket";
         final String endPoint = "test-endpoint";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
         final String credentialId = "test-credential-id";
         final String credentialSecret = "test-credential-secret";
         final Integer maxBlockSizeInBytes = 5 * M;
@@ -95,6 +101,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                role,
+                roleSessionName,
                 credentialId,
                 credentialSecret,
                 maxBlockSizeInBytes,

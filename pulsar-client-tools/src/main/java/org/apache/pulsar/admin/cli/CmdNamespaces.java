@@ -1894,6 +1894,18 @@ public class CmdNamespaces extends CmdBase {
         private String awsSecret;
 
         @Parameter(
+                names = {"--s3-role", "-ro"},
+                description = "S3 Role used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3Role;
+
+        @Parameter(
+                names = {"--s3-role-session-name", "-rsn"},
+                description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3RoleSessionName;
+
+        @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
                 description = "Max block size (eg: 32M, 64M), default is 64MB",
                 required = false)
@@ -2016,7 +2028,9 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    s3Role, s3RoleSessionName,
+                    awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis, offloadedReadPriority);
 
