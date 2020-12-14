@@ -1863,8 +1863,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--region", "-r"},
-                description = "The long term storage region, " +
-                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                description = "The long term storage region, "
+                         + "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
                 required = false)
         private String region;
 
@@ -1876,8 +1876,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--endpoint", "-e"},
-                description = "Alternative endpoint to connect to, " +
-                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                description = "Alternative endpoint to connect to, "
+                        + "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
                 required = false)
         private String endpoint;
 

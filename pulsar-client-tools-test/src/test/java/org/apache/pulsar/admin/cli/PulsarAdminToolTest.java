@@ -230,7 +230,8 @@ public class PulsarAdminToolTest {
         verify(mockClusters).deleteCluster("my-cluster");
 
         clusters.run(split("update-peer-clusters my-cluster --peer-clusters c1,c2"));
-        verify(mockClusters).updatePeerClusterNames("my-cluster", Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
+        verify(mockClusters).updatePeerClusterNames("my-cluster",
+                Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
 
         clusters.run(split("get-peer-clusters my-cluster"));
         verify(mockClusters).getPeerClusterNames("my-cluster");
@@ -390,10 +391,11 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
-                new BacklogQuota(10l * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
+                new BacklogQuota(10L * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
 
         namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
-        verify(mockNamespaces).setPersistence("myprop/clust/ns1", new PersistencePolicies(2, 1, 1, 100.0d));
+        verify(mockNamespaces).setPersistence("myprop/clust/ns1",
+                new PersistencePolicies(2, 1, 1, 100.0d));
 
         namespaces.run(split("get-persistence myprop/clust/ns1"));
         verify(mockNamespaces).getPersistence("myprop/clust/ns1");
@@ -455,7 +457,8 @@ public class PulsarAdminToolTest {
 
 
         namespaces.run(split("set-retention myprop/clust/ns1 -t 1h -s 1M"));
-        verify(mockNamespaces).setRetention("myprop/clust/ns1", new RetentionPolicies(60, 1));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(60, 1));
 
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
@@ -464,7 +467,8 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).removeRetention("myprop/clust/ns1");
 
         namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
-        verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1", new DelayedDeliveryPolicies(1000, true));
+        verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1",
+                new DelayedDeliveryPolicies(1000, true));
 
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
@@ -473,8 +477,9 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).removeDelayedDeliveryMessages("myprop/clust/ns1");
 
         namespaces.run(split("set-inactive-topic-policies myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
-        verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1"
-                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,true));
+        verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1",
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,
+                        true));
 
         namespaces.run(split("get-inactive-topic-policies myprop/clust/ns1"));
         verify(mockNamespaces).getInactiveTopicPolicies("myprop/clust/ns1");
@@ -672,7 +677,8 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("create my-prop/my-cluster/my-namespace --bundles 5 --clusters a,b,c"));
         verify(mockNamespaces).createNamespace("my-prop/my-cluster/my-namespace", 5);
-        verify(mockNamespaces).setNamespaceReplicationClusters("my-prop/my-cluster/my-namespace", Sets.newHashSet("a", "b", "c"));
+        verify(mockNamespaces).setNamespaceReplicationClusters("my-prop/my-cluster/my-namespace",
+                Sets.newHashSet("a", "b", "c"));
     }
 
     @Test
@@ -734,7 +740,8 @@ public class PulsarAdminToolTest {
         verify(mockResourceQuotas).getNamespaceBundleResourceQuota("myprop/clust/ns1", "0x80000000_0xffffffff");
 
         cmdResourceQuotas.run(split(
-                "set --namespace myprop/clust/ns1 --bundle 0x80000000_0xffffffff -mi 10 -mo 20 -bi 10000 -bo 20000 -mem 100"));
+                "set --namespace myprop/clust/ns1 --bundle 0x80000000_0xffffffff -mi 10 -mo 20"
+                        + "-bi 10000 -bo 20000 -mem 100"));
         verify(mockResourceQuotas).setNamespaceBundleResourceQuota("myprop/clust/ns1", "0x80000000_0xffffffff", quota);
 
         cmdResourceQuotas
@@ -1049,7 +1056,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
+        cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1"
+                        + "-e -t 1s -m delete_when_no_subscriptions"));
         verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
 
