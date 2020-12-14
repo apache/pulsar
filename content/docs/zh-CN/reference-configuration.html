@@ -103,7 +103,7 @@
 <tr><td>allowLoopback</td><td>是否允许 bookie 使用 loopback 接口作为它的主要接口（例如，用于确立身份的接口）。 默认情况下，loopback 接口不允许作为主接口。 使用 loopback 接口作为主接口通常意味着配置错误。 例如，在某些 VPS 设置中，通常不会配置主机名或使主机名解析为 <code>127.0.0.1</code>。 如果情况如此，那么集群中的所有 bookie 都会将其身份设置为 <code>127.0.0.1:3181</code> 并且只有一个能成功加入集群。 对于像这样配置的 VPS，你应该显性地设置监听接口。</td><td>false</td></tr>
 <tr><td>listeningInterface</td><td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.</td><td>eth0</td></tr>
 <tr><td>advertisedAddress</td><td>配置一个特定的主机名或IP地址，用于将bookie发布给客户端。 如果没有设置，则bookie会根据设置终端的<code>llisteningInterface</code>以及<code>useHostNameAsBookieID</code>发布自己的IP地址或主机名。</td><td>N/A</td></tr>
-<tr><td>allowMultipleDirsUnderSameDiskPartition</td><td>Configure the bookie to allow/disallow multiple ledger/index/journal directories in the same filesystem disk partition</td><td>false</td></tr>
+<tr><td>allowMultipleDirsUnderSameDiskPartition</td><td>设置bookie允许/禁止同一个文件系统磁盘分区中存在多个ledger/index/journal目录。</td><td>false</td></tr>
 <tr><td>minUsableSizeForIndexFileCreation</td><td>The minimum safe usable size available in index directory for bookie to create index files while replaying journal at the time of bookie starts in Readonly Mode (in bytes).</td><td>1073741824</td></tr>
 <tr><td>journalDirectory</td><td>BookKeeper 输出 write-ahead 日志（WAL）的目录</td><td>data/bookkeeper/journal</td></tr>
 <tr><td>journalDirectories</td><td>Directories that BookKeeper outputs its write ahead log. Multi directories are available, being separated by <code>,</code>. For example: <code>journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2</code>. If <code>journalDirectories</code> is set, bookies will skip <code>journalDirectory</code> and use this setting directory.</td><td>/tmp/bk-journal</td></tr>
