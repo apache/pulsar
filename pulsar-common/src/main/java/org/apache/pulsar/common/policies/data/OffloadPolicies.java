@@ -480,6 +480,10 @@ public class OffloadPolicies implements Serializable {
                     this.getS3ManagedLedgerOffloadServiceEndpoint());
             setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
                     this.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+            setProperty(properties, "s3ManagedLedgerOffloadCredentialId",
+                    this.getS3ManagedLedgerOffloadCredentialId());
+            setProperty(properties, "s3ManagedLedgerOffloadCredentialSecret",
+                    this.getS3ManagedLedgerOffloadCredentialSecret());
             setProperty(properties, "s3ManagedLedgerOffloadRole",
                     this.getS3ManagedLedgerOffloadRole());
             setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",
