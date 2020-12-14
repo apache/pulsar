@@ -298,6 +298,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public int getNonContiguousDeletedMessagesRangeSerializedSize() {
+            return 0;
+        }
+
+        @Override
         public long getEstimatedSizeSinceMarkDeletePosition() {
             return 0L;
         }

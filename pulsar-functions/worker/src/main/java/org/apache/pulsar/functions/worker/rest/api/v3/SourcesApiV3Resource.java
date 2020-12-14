@@ -18,15 +18,20 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import io.swagger.annotations.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
-import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
+import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -50,10 +55,8 @@ import java.util.List;
 @Path("/sources")
 public class SourcesApiV3Resource extends FunctionApiResource {
 
-    protected final SourcesImpl source;
-
-    public SourcesApiV3Resource() {
-        this.source = new SourcesImpl(this);
+    Sources<? extends WorkerService> sources() {
+        return get().getSources();
     }
 
     @POST
@@ -67,7 +70,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
 
-        source.registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        sources().registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, sourceConfig, clientAppId(), clientAuthData());
 
     }
@@ -84,7 +87,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
                              final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
-        source.updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
@@ -94,7 +97,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void deregisterSource(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace,
                                  final @PathParam("sourceName") String sourceName) {
-        source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -104,7 +107,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("sourceName") String sourceName)
             throws IOException {
-        return source.getSourceInfo(tenant, namespace, sourceName);
+        return sources().getSourceInfo(tenant, namespace, sourceName);
     }
 
     @GET
@@ -125,7 +128,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return source.getSourceInstanceStatus(
+        return sources().getSourceInstanceStatus(
             tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -145,7 +148,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public SourceStatus getSourceStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sourceName") String sourceName) throws IOException {
-        return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sources().getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -153,7 +156,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public List<String> listSources(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace) {
-        return source.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sources().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -169,7 +172,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName,
                               final @PathParam("instanceId") String instanceId) {
-        source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -182,7 +185,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void restartSource(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName) {
-        source.restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -196,7 +199,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName,
                            final @PathParam("instanceId") String instanceId) {
-        source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -209,7 +212,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void stopSource(final @PathParam("tenant") String tenant,
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName) {
-        source.stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -223,7 +226,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName,
                             final @PathParam("instanceId") String instanceId) {
-        source.startFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().startFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -236,7 +239,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void startSource(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName) {
-        source.startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -252,7 +255,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources")
     public List<ConnectorDefinition> getSourceList() {
-        return source.getSourceList();
+        return sources().getSourceList();
     }
 
     @GET
@@ -272,7 +275,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public List<ConfigFieldDefinition> getSourceConfigDefinition(
             @ApiParam(value = "The name of the builtin source")
             final @PathParam("name") String name) throws IOException {
-        return source.getSourceConfigDefinition(name);
+        return sources().getSourceConfigDefinition(name);
     }
 
     @POST
@@ -287,6 +290,6 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        source.reloadConnectors(clientAppId());
+        sources().reloadConnectors(clientAppId());
     }
 }

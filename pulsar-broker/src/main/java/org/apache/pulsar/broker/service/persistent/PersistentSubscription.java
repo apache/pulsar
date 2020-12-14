@@ -954,6 +954,9 @@ public class PersistentSubscription implements Subscription {
                 });
             }
         }
+        subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
+        subStats.nonContiguousDeletedMessagesRangesSerializedSize =
+                cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
         return subStats;
     }
 

@@ -40,8 +40,9 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -61,12 +62,13 @@ import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuilt
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class SourcesImpl extends ComponentImpl {
+public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerService> {
 
-    public SourcesImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public SourcesImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SOURCE);
     }
 
+    @Override
     public void registerSource(final String tenant,
                                final String namespace,
                                final String sourceName,
@@ -233,6 +235,7 @@ public class SourcesImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public void updateSource(final String tenant,
                                final String namespace,
                                final String sourceName,
@@ -587,6 +590,7 @@ public class SourcesImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public SourceStatus getSourceStatus(final String tenant,
                                         final String namespace,
                                         final String componentName,
@@ -608,6 +612,7 @@ public class SourcesImpl extends ComponentImpl {
         return sourceStatus;
     }
 
+    @Override
     public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(final String tenant,
                                                                                               final String namespace,
                                                                                               final String sourceName,
@@ -631,6 +636,7 @@ public class SourcesImpl extends ComponentImpl {
         return sourceInstanceStatusData;
     }
 
+    @Override
     public SourceConfig getSourceInfo(final String tenant,
                                       final String namespace,
                                       final String componentName) {
@@ -661,6 +667,7 @@ public class SourcesImpl extends ComponentImpl {
         return config;
     }
 
+    @Override
     public List<ConnectorDefinition> getSourceList() {
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
@@ -672,6 +679,7 @@ public class SourcesImpl extends ComponentImpl {
         return retval;
     }
 
+    @Override
     public List<ConfigFieldDefinition> getSourceConfigDefinition(String name) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
