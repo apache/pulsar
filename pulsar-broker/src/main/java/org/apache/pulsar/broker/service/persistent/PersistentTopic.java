@@ -2644,13 +2644,7 @@ public class PersistentTopic extends AbstractTopic
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
-            if (policies.isSubscriptionDispatchRateSet()) {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate(policies.getSubscriptionDispatchRate()));
-            } else {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate());
-            }
+            dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
         });
 
         if (policies.getPublishRate() != null) {
