@@ -1804,6 +1804,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean functionsWorkerEnabled = false;
 
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The nar package for the function worker service"
+    )
+    private String functionsWorkerServiceNarPackage = "";
+
     /**** --- Broker Web Stats --- ****/
     @FieldContext(
         category = CATEGORY_METRICS,

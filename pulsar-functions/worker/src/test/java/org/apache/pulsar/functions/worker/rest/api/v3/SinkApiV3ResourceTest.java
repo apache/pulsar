@@ -42,7 +42,12 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -108,7 +113,7 @@ public class SinkApiV3ResourceTest {
     private String JAR_FILE_PATH;
     private String INVALID_JAR_FILE_PATH;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -142,7 +147,7 @@ public class SinkApiV3ResourceTest {
         this.mockedLeaderService = mock(LeaderService.class);
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);

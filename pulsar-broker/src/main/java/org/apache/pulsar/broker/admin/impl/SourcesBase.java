@@ -27,7 +27,6 @@ import io.swagger.annotations.ExampleProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.function.Supplier;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -44,21 +43,14 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
+import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-public class SourcesBase extends AdminResource implements Supplier<WorkerService> {
+public class SourcesBase extends AdminResource {
 
-    private final SourcesImpl source;
-
-    public SourcesBase() {
-        this.source = new SourcesImpl(this);
-    }
-
-    @Override
-    public WorkerService get() {
-        return pulsar().getWorkerService();
+    Sources<? extends WorkerService> sources() {
+        return pulsar().getWorkerService().getSources();
     }
 
     @POST
@@ -137,7 +129,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
                     )
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
-        source.registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        sources().registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData());
     }
 
@@ -220,7 +212,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
             @ApiParam(value = "Update options for Pulsar Source")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
-        source.updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
@@ -244,7 +236,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -265,7 +257,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) throws IOException {
-        return source.getSourceInfo(tenant, namespace, sourceName);
+        return sources().getSourceInfo(tenant, namespace, sourceName);
     }
 
     @GET
@@ -287,7 +279,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiParam(value = "The instanceId of a Pulsar Source"
                     + " (if instance-id is not provided, the stats of all instances is returned).") final @PathParam(
                     "instanceId") String instanceId) throws IOException {
-        return source.getSourceInstanceStatus(
+        return sources().getSourceInstanceStatus(
             tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -310,7 +302,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) throws IOException {
-        return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(),
+        return sources().getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(),
                 clientAuthData());
     }
 
@@ -333,7 +325,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace) {
-        return source.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sources().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -355,7 +347,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiParam(value = "The instanceId of a Pulsar Source"
                     + " (if instance-id is not provided, the stats of all instances is returned).") final @PathParam(
                     "instanceId") String instanceId) {
-        source.restartFunctionInstance(tenant, namespace, sourceName, instanceId,
+        sources().restartFunctionInstance(tenant, namespace, sourceName, instanceId,
                 uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -377,7 +369,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        source.restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -397,7 +389,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiParam(value = "The name of a Pulsar Source") final @PathParam("sourceName") String sourceName,
             @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided,"
                     + " the stats of all instances is returned).") final @PathParam("instanceId") String instanceId) {
-        source.stopFunctionInstance(tenant, namespace, sourceName, instanceId,
+        sources().stopFunctionInstance(tenant, namespace, sourceName, instanceId,
                 uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -419,7 +411,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        source.stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -439,7 +431,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiParam(value = "The name of a Pulsar Source") final @PathParam("sourceName") String sourceName,
             @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided,"
                     + " the stats of all instances is returned).") final @PathParam("instanceId") String instanceId) {
-        source.startFunctionInstance(tenant, namespace, sourceName, instanceId,
+        sources().startFunctionInstance(tenant, namespace, sourceName, instanceId,
                 uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -461,7 +453,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        source.startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -479,7 +471,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources")
     public List<ConnectorDefinition> getSourceList() {
-        return source.getSourceList();
+        return sources().getSourceList();
     }
 
     @GET
@@ -499,7 +491,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     public List<ConfigFieldDefinition> getSourceConfigDefinition(
             @ApiParam(value = "The name of the builtin source")
             final @PathParam("name") String name) throws IOException {
-        return source.getSourceConfigDefinition(name);
+        return sources().getSourceConfigDefinition(name);
     }
 
     @POST
@@ -514,6 +506,6 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        source.reloadConnectors(clientAppId());
+        sources().reloadConnectors(clientAppId());
     }
 }

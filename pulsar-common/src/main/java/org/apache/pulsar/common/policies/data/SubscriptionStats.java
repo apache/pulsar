@@ -101,6 +101,12 @@ public class SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
+    /** The number of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRanges;
+
+    /** The serialized size of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRangesSerializedSize;
+
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -123,6 +129,9 @@ public class SubscriptionStats {
         lastConsumedTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
+        consumersAfterMarkDeletePosition.clear();
+        nonContiguousDeletedMessagesRanges = 0;
+        nonContiguousDeletedMessagesRangesSerializedSize = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -152,6 +161,8 @@ public class SubscriptionStats {
             }
         }
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
+        this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
+        this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         return this;
     }
 }
