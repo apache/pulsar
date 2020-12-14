@@ -2672,7 +2672,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void setMaxSubscriptionsPerTopic(String topic, int maxSubscriptionsPerTopic) throws PulsarAdminException {
         try {
-            setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
