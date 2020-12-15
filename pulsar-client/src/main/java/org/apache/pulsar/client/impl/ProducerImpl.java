@@ -1176,7 +1176,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
                     String errMsg = String.format(
-                        "%s : createdAt %s ns ago, firstSentAt % ns ago, lastSentAt %s ns ago, retryCount %s",
+                        "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
                         te.getMessage(),
                         ns - this.createdAt,
                         ns - this.firstSentAt,
