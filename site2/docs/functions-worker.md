@@ -281,7 +281,7 @@ bin/pulsar-admin namespaces get-clusters public/functions
 3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
 ```bash
-bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
 ```
 
 4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
