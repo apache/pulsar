@@ -60,6 +60,7 @@ public class SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
+    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
 
     public String getSchemaDefinition() {

@@ -1262,6 +1262,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             fail("should not throw any exceptions");
         }
+
+        // reset configuration
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(0);
     }
 
     @Test
@@ -1275,6 +1278,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarAdminException);
         }
+
+        // reset configuration
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(0);
     }
 
     @Test
@@ -1329,6 +1335,86 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.namespaces().createNamespace("testTenant/ns-" + i, Sets.newHashSet("test"));
         }
 
+    }
+
+    @Test
+    public void testMaxTopicsPerNamespace() throws Exception {
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(10);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        // check create partitioned/non-partitioned topics
+        String topic = "persistent://testTenant/ns1/test_create_topic_v";
+        admin.topics().createPartitionedTopic(topic + "1", 2);
+        admin.topics().createPartitionedTopic(topic + "2", 3);
+        admin.topics().createPartitionedTopic(topic + "3", 4);
+        admin.topics().createNonPartitionedTopic(topic + "4");
+        try {
+            admin.topics().createPartitionedTopic(topic + "5", 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
+        }
+
+        //unlimited
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(0);
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+        for (int i = 0; i < 10; ++i) {
+            admin.topics().createPartitionedTopic(topic + i, 2);
+            admin.topics().createNonPartitionedTopic(topic + i + i);
+        }
+
+        // check producer/consumer auto create partitioned topic
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(10);
+        conf.setDefaultNumPartitions(3);
+        conf.setAllowAutoTopicCreationType("partitioned");
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        pulsarClient.newProducer().topic(topic + "1").create();
+        pulsarClient.newProducer().topic(topic + "2").create();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // check producer/consumer auto create non-partitioned topic
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(3);
+        conf.setAllowAutoTopicCreationType("non-partitioned");
+        super.internalSetup();
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        pulsarClient.newProducer().topic(topic + "1").create();
+        pulsarClient.newProducer().topic(topic + "2").create();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // reset configuration
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
     }
 
     @Test
