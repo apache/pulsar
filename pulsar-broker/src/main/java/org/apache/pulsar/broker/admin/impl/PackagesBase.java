@@ -65,7 +65,7 @@ public class PackagesBase extends AdminResource {
             asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, throwable.getMessage()));
         } else if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
-        }else {
+        } else {
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
         }
         return null;
@@ -167,8 +167,9 @@ public class PackagesBase extends AdminResource {
         if (config().isAuthenticationEnabled()) {
             String role = clientAppId();
             AuthenticationDataSource authenticationData = clientAuthData();
+            NamespaceName namespaceName;
             try {
-                NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+                namespaceName = NamespaceName.get(tenant, namespace);
             } catch (Exception e) {
                 future.completeExceptionally(e);
                 return future;
@@ -182,8 +183,8 @@ public class PackagesBase extends AdminResource {
                     if (hasPermission) {
                         future.complete(null);
                     } else {
-                        future.completeExceptionally(new RestException(Response.Status.UNAUTHORIZED,
-                            String.format("Role %s has not the 'package' permission to do the packages operations.", role)));
+                        future.completeExceptionally(new RestException(Response.Status.UNAUTHORIZED, String.format(
+                            "Role %s has not the 'package' permission to do the packages operations.", role)));
                     }
                 });
         }

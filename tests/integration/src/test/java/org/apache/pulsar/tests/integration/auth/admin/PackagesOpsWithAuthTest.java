@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.auth.admin;
 
+import com.google.common.io.Files;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -30,14 +31,16 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.elasticsearch.common.collect.Set;
 import org.testcontainers.containers.Network;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
-import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +56,8 @@ import static org.testng.Assert.fail;
 public class PackagesOpsWithAuthTest {
 
     private static final String CLUSTER_PREFIX = "package-auth";
+    private static final String PRIVATE_KEY_PATH_INSIDE_CONTAINER = "/tmp/private.key";
+    private static final String PUBLIC_KEY_PATH_INSIDE_CONTAINER = "/tmp/public.key";
 
     private static final String SUPER_USER_ROLE = "super-user";
     private String superUserAuthToken;
@@ -60,6 +65,7 @@ public class PackagesOpsWithAuthTest {
     private String proxyAuthToken;
     private static final String REGULAR_USER_ROLE = "client";
     private String clientAuthToken;
+    private File publicKeyFile;
 
     private PulsarCluster pulsarCluster;
     private PulsarContainer cmdContainer;
@@ -69,7 +75,8 @@ public class PackagesOpsWithAuthTest {
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
         final String clusterName = String.format("%s-%s", CLUSTER_PREFIX, RandomStringUtils.randomAlphabetic(6));
-        cmdContainer = new ZKContainer<>(clusterName);
+        final String cliContainerName = String.format("%s-%s", "cli", RandomStringUtils.randomAlphabetic(6));
+        cmdContainer = new ZKContainer<>(cliContainerName);
         cmdContainer
             .withNetwork(Network.newNetwork())
             .withNetworkAliases(ZKContainer.NAME)
@@ -85,6 +92,8 @@ public class PackagesOpsWithAuthTest {
             .clusterName(clusterName)
             .brokerEnvs(getBrokerSettingsEnvs())
             .proxyEnvs(getProxySettingsEnvs())
+            .brokerMountFiles(Collections.singletonMap(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER))
+            .proxyMountFiles(Collections.singletonMap(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER))
             .build();
 
         pulsarCluster = PulsarCluster.forSpec(spec);
@@ -94,7 +103,7 @@ public class PackagesOpsWithAuthTest {
     @AfterClass
     public void teardown() {
         if (cmdContainer != null) {
-            cmdContainer.close();
+            cmdContainer.stop();
         }
         if (pulsarCluster != null) {
             pulsarCluster.stop();
@@ -112,6 +121,7 @@ public class PackagesOpsWithAuthTest {
         envs.put("brokerClientAuthenticationParameters", String.format("token:%s", superUserAuthToken));
         envs.put("authenticationRefreshCheckSeconds", "1");
         envs.put("authenticateOriginalAuthData", "true");
+        envs.put("tokenPublicKey", "file://" + PUBLIC_KEY_PATH_INSIDE_CONTAINER);
         return envs;
     }
 
@@ -124,39 +134,48 @@ public class PackagesOpsWithAuthTest {
         envs.put("brokerClientAuthenticationParameters", String.format("token:%s", proxyAuthToken));
         envs.put("authenticationRefreshCheckSeconds", "1");
         envs.put("forwardAuthorizationCredentials", "true");
+        envs.put("tokenPublicKey", "file://" + PUBLIC_KEY_PATH_INSIDE_CONTAINER);
         return envs;
     }
 
-    private void createKeysAndTokens(PulsarContainer container) throws Exception {
-        String secretKey = container
-            .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-secret-key", "--base64")
+    protected void createKeysAndTokens(PulsarContainer container) throws Exception {
+        container
+            .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-key-pair",
+                "--output-private-key", PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                "--output-public-key", PUBLIC_KEY_PATH_INSIDE_CONTAINER);
+
+        byte[] publicKeyBytes = DockerUtils
+            .runCommandWithRawOutput(container.getDockerClient(), container.getContainerId(),
+                "/bin/cat", PUBLIC_KEY_PATH_INSIDE_CONTAINER)
             .getStdout();
-        log.info("Created secret key: {}", secretKey);
+
+        publicKeyFile = File.createTempFile("public-", ".key", new File("/tmp"));
+        Files.write(publicKeyBytes, publicKeyFile);
 
         clientAuthToken = container
             .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                "--secret-key", "data:;base64," + secretKey,
+                "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                 "--subject", REGULAR_USER_ROLE)
             .getStdout().trim();
         log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
             .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                "--secret-key", "data:;base64," + secretKey,
+                "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                 "--subject", SUPER_USER_ROLE)
             .getStdout().trim();
         log.info("Created super-user token: {}", superUserAuthToken);
 
         proxyAuthToken = container
             .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                "--secret-key", "data:;base64," + secretKey,
+                "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                 "--subject", PROXY_ROLE)
             .getStdout().trim();
         log.info("Created proxy token: {}", proxyAuthToken);
     }
 
     @Test
-    public void testPackagesOps(boolean grantPermission) throws Exception {
+    public void testPackagesOps() throws Exception {
         @Cleanup
         PulsarAdmin superUserAdmin = PulsarAdmin.builder()
             .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
@@ -174,7 +193,7 @@ public class PackagesOpsWithAuthTest {
             List<String> packagesName = clientAdmin.packages().listPackages("function", "public/default");
             fail("list package operation should fail because the client hasn't permission to do");
         } catch (PulsarAdminException e) {
-            // expected exception
+            assertEquals(e.getStatusCode(), 401);
         }
 
         // grant package permission to the role
