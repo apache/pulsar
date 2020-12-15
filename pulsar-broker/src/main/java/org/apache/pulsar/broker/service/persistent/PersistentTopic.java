@@ -1537,7 +1537,7 @@ public class PersistentTopic extends AbstractTopic
 
                 // Populate subscription specific stats here
                 topicStatsStream.writePair("msgBacklog",
-                        subscription.getNumberOfEntriesInBacklog(false));
+                        subscription.getNumberOfEntriesInBacklog(true));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -2647,13 +2647,7 @@ public class PersistentTopic extends AbstractTopic
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
-            if (policies.isSubscriptionDispatchRateSet()) {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate(policies.getSubscriptionDispatchRate()));
-            } else {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate());
-            }
+            dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
         });
 
         if (policies.getPublishRate() != null) {
@@ -2726,8 +2720,14 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed() {
-        Integer maxSubsPerTopic = maxSubscriptionsPerTopic;
-
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        Integer maxSubsPerTopic = null;
+        if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
+            maxSubsPerTopic = topicPolicies.getMaxSubscriptionsPerTopic();
+        }
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = maxSubscriptionsPerTopic;
+        }
         if (maxSubsPerTopic == null) {
             maxSubsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
         }

@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -140,6 +141,11 @@ public class PersistentSubscription implements Subscription {
     public void updateLastMarkDeleteAdvancedTimestamp() {
         this.lastMarkDeleteAdvancedTimestamp =
             Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
+    }
+
+    @Override
+    public BrokerInterceptor interceptor() {
+        return topic.getBrokerService().getInterceptor();
     }
 
     @Override
