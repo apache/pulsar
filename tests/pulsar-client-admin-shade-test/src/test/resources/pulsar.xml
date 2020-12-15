@@ -25,6 +25,7 @@
     <test name="pulsar-client-admin-shade-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.SmokeTest" />
+            <class name="org.apache.pulsar.tests.integration.SimpleProducerConsumerTest" />
         </classes>
     </test>
 </suite>
