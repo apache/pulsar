@@ -66,7 +66,6 @@ public class SimpleProducerConsumerTest {
 
     @BeforeClass
     public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
-        log.info("setup");
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
         pulsarContainer = new PulsarContainer();
@@ -82,7 +81,6 @@ public class SimpleProducerConsumerTest {
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("standalone"));
         admin.close();
-        log.info("setup success");
     }
 
     @AfterClass
