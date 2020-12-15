@@ -66,6 +66,7 @@ public class PackagesBase extends AdminResource {
         } else if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
         } else {
+            log.error("Encountered unexpected error", throwable);
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
         }
         return null;
@@ -187,6 +188,8 @@ public class PackagesBase extends AdminResource {
                             "Role %s has not the 'package' permission to do the packages operations.", role)));
                     }
                 });
+        } else {
+            future.complete(null);
         }
         return future;
     }
