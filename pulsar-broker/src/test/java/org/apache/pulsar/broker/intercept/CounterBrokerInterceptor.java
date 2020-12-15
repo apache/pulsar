@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.intercept;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.ServletException;
@@ -33,7 +36,18 @@ import java.io.IOException;
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
+    int beforeSendCount = 0;
     int count = 0;
+
+    @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata) {
+        log.info("Send message to topic {}, subscription {}",
+            subscription.getTopic(), subscription.getName());
+        beforeSendCount++;
+    }
 
     @Override
     public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
@@ -70,5 +84,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getCount() {
         return count;
+    }
+
+    public int getBeforeSendCount() {
+        return beforeSendCount;
     }
 }
