@@ -2670,8 +2670,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed() {
-        Integer maxSubsPerTopic = maxSubscriptionsPerTopic;
-
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        Integer maxSubsPerTopic = null;
+        if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
+            maxSubsPerTopic = topicPolicies.getMaxSubscriptionsPerTopic();
+        }
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = maxSubscriptionsPerTopic;
+        }
         if (maxSubsPerTopic == null) {
             maxSubsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
         }

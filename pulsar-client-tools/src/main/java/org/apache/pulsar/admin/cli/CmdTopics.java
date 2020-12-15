@@ -184,6 +184,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
         jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
 
+        jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("remove-max-subscriptions-per-topic", new RemoveMaxSubscriptionsPerTopic());
+
         jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
         jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
         jcommander.addCommand("remove-max-message-size", new RemoveMaxMessageSize());
@@ -1793,6 +1797,46 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max number of subscriptions for a topic")
+    private class GetMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMaxSubscriptionsPerTopic(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max number of subscriptions for a topic")
+    private class SetMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-subscriptions-per-topic", "-m"},
+                description = "Maximum subscription limit for a topic", required = true)
+        private int maxSubscriptionsPerTopic;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxSubscriptionsPerTopic(persistentTopic, maxSubscriptionsPerTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max number of subscriptions for a topic")
+    private class RemoveMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxSubscriptionsPerTopic(persistentTopic);
         }
     }
 

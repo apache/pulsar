@@ -58,6 +58,11 @@ public class TopicPolicies {
     private SubscribeRate subscribeRate = null;
     private Integer deduplicationSnapshotIntervalSeconds = null;
     private Integer maxMessageSize = null;
+    private Integer maxSubscriptionsPerTopic = null;
+
+    public boolean isMaxSubscriptionsPerTopicSet() {
+        return maxSubscriptionsPerTopic != null;
+    }
 
     public boolean isMaxMessageSizeSet() {
         return maxMessageSize != null;
