@@ -115,6 +115,13 @@ public class PulsarClusterMetadataSetup {
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
 
+        @Deprecated
+        @Parameter(names = {
+            "--bookkeeper-metadata-service-uri"},
+            description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
+            hidden = true)
+        private String bookieMetadataServiceUri;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
     }
@@ -178,19 +185,23 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        if (arguments.existingBkMetadataServiceUri == null) {
+        if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             bkConf.setZkServers(arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
         }
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            String uriStr = arguments.existingBkMetadataServiceUri == null
-                    ? bkConf.getMetadataServiceUri() : arguments.existingBkMetadataServiceUri;
+            String uriStr = bkConf.getMetadataServiceUri();
+            if (arguments.existingBkMetadataServiceUri != null) {
+                uriStr = arguments.existingBkMetadataServiceUri;
+            } else if (arguments.bookieMetadataServiceUri != null) {
+                uriStr = arguments.bookieMetadataServiceUri;
+            }
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
