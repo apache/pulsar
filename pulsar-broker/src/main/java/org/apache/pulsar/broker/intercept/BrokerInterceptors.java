@@ -20,10 +20,13 @@ package org.apache.pulsar.broker.intercept;
 
 import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.ServletException;
@@ -82,6 +85,20 @@ public class BrokerInterceptors implements BrokerInterceptor {
             return new BrokerInterceptors(interceptors);
         } else {
             return DISABLED;
+        }
+    }
+
+    @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata) {
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.beforeSendMessage(
+                subscription,
+                entry,
+                ackSet,
+                msgMetadata);
         }
     }
 
