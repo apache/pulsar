@@ -46,7 +46,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -493,30 +492,5 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             }
         }
         assertTrue(hasConsumerNotDisconnected);
-    }
-
-    @Test
-    public void testUpdateStatsForSingleActiveConsumerDispatcherWhenSeek() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForSingleActiveConsumerDispatcherWhenSeek";
-        // Disable pre-fetch in consumer to track the messages received
-        pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName("my-subscription")
-                .subscribe();
-
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        assertNotNull(topicRef);
-        assertEquals(topicRef.getSubscriptions().size(), 1);
-        List<Consumer> consumers = topicRef.getSubscriptions().get("my-subscription").getConsumers();
-        assertEquals(consumers.size(), 1);
-        ConsumerStats consumerStats = new ConsumerStats();
-        consumerStats.msgOutCounter = 10;
-        consumerStats.bytesOutCounter = 1280;
-        consumers.get(0).updateStats(consumerStats);
-        ConsumerStats updatedStats = consumers.get(0).getStats();
-
-        assertEquals(updatedStats.msgOutCounter, 10);
-        assertEquals(updatedStats.bytesOutCounter, 1280);
     }
 }
