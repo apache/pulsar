@@ -106,6 +106,13 @@
       <artifactId>simpleclient_caffeine</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+
   </dependencies>
 
   <build>

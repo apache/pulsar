@@ -19,6 +19,7 @@
 package org.apache.pulsar.zookeeper;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.FeatureProvider;
 import org.apache.bookkeeper.net.DNSToSwitchMapping;
@@ -49,6 +51,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.HashedWheelTimer;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
+
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 
 public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy
         implements Deserializer<BookiesRackConfiguration> {
@@ -74,21 +78,24 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
             String isolationGroupsString = castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
-                for (String isolationGroup : isolationGroupsString.split(",")) {
-                    primaryIsolationGroups.add(isolationGroup);
-                }
+                fillIsolationGroup(isolationGroupsString, "");
                 bookieMappingCache = getAndSetZkCache(conf);
             }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
-            if (!secondaryIsolationGroupsString.isEmpty()) {
-                for (String isolationGroup : secondaryIsolationGroupsString.split(",")) {
-                    secondaryIsolationGroups.add(isolationGroup);
-                }
-            }
+            fillIsolationGroup("", secondaryIsolationGroupsString);
         }
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
+    }
+
+    private void fillIsolationGroup(String isolationBookieGroups, String secondaryIsolationBookieGroups) {
+        if (!isolationBookieGroups.isEmpty()) {
+            primaryIsolationGroups.addAll(Arrays.asList(isolationBookieGroups.split(",")));
+        }
+        if (!secondaryIsolationBookieGroups.isEmpty()) {
+            secondaryIsolationGroups.addAll(Arrays.asList(secondaryIsolationBookieGroups.split(",")));
+        }
     }
 
     private String castToString(Object obj) {
@@ -134,6 +141,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
             Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
+        // parse the ensemble placement policy from the custom metadata, if it present, we will apply it to
+        // the isolation groups for filter the bookies.
+        Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
+            getEnsemblePlacementPolicyConfig(customMetadata);
+        ensemblePlacementPolicyConfig.ifPresent(this::fillIsolationGroupWithEnsemblePlacementPolicyConfig);
         Set<BookieId> blacklistedBookies = getBlacklistedBookies(ensembleSize);
         if (excludeBookies == null) {
             excludeBookies = new HashSet<BookieId>();
@@ -147,6 +159,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             Map<String, byte[]> customMetadata, List<BookieId> currentEnsemble,
             BookieId bookieToReplace, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
+        // parse the ensemble placement policy from the custom metadata, if it present, we will apply it to
+        // the isolation groups for filter the bookies.
+        Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
+            getEnsemblePlacementPolicyConfig(customMetadata);
+        ensemblePlacementPolicyConfig.ifPresent(this::fillIsolationGroupWithEnsemblePlacementPolicyConfig);
         Set<BookieId> blacklistedBookies = getBlacklistedBookies(ensembleSize);
         if (excludeBookies == null) {
             excludeBookies = new HashSet<BookieId>();
@@ -154,6 +171,29 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         excludeBookies.addAll(blacklistedBookies);
         return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
                 bookieToReplace, excludeBookies);
+    }
+
+    private Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(Map<String, byte[]> customMetadata) {
+        byte[] ensemblePlacementPolicyConfigData = customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
+        if (ensemblePlacementPolicyConfigData != null) {
+            try {
+                return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
+            } catch (JsonUtil.ParseJsonException e) {
+                LOG.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void fillIsolationGroupWithEnsemblePlacementPolicyConfig(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+        String className = ZkIsolatedBookieEnsemblePlacementPolicy.class.getName();
+        if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
+            Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
+            fillIsolationGroup(
+                castToString(properties.get(ISOLATION_BOOKIE_GROUPS)),
+                castToString(properties.get(SECONDARY_ISOLATION_BOOKIE_GROUPS)));
+        }
     }
 
     private Set<BookieId> getBlacklistedBookies(int ensembleSize) {

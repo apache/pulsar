@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
@@ -74,6 +75,7 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
@@ -3239,6 +3241,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Map<String, byte[]> finalMetadata = new HashMap<>();
         finalMetadata.putAll(ledgerMetadata);
         finalMetadata.putAll(metadata);
+        if (config.getBookKeeperEnsemblePlacementPolicyClassName() != null) {
+            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig = new EnsemblePlacementPolicyConfig(
+                config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                config.getBookKeeperEnsemblePlacementPolicyProperties()
+            );
+            try {
+                finalMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG,
+                    ensemblePlacementPolicyConfig.encode());
+            } catch (JsonUtil.ParseJsonException e) {
+                log.error("[{}] Serialize the placement configuration failed", name, e);
+                cb.createComplete(Code.UnexpectedConditionException, null, ledgerCreated);
+                return;
+            }
+        }
         log.info("[{}] Creating ledger, metadata: {} - metadata ops timeout : {} seconds",
             name, finalMetadata, config.getMetadataOperationsTimeoutSeconds());
         try {
