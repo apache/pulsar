@@ -146,10 +146,127 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isReadCompacted</b> (
 <tr class="memitem:a21f08d3d1a273f1d352c9018df36a0a2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a21f08d3d1a273f1d352c9018df36a0a2"></a>
 const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getInternalSubscriptionName</b> () const </td></tr>
 <tr class="separator:a21f08d3d1a273f1d352c9018df36a0a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a11da218b52a8936415029509b9c707e9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a11da218b52a8936415029509b9c707e9">setUnAckedMessagesTimeoutMs</a> (const uint64_t milliSeconds)</td></tr>
+<tr class="separator:a11da218b52a8936415029509b9c707e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a942456d5cabe99e9f7ed679ccba29a62"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a942456d5cabe99e9f7ed679ccba29a62">getUnAckedMessagesTimeoutMs</a> () const </td></tr>
+<tr class="separator:a942456d5cabe99e9f7ed679ccba29a62"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a23df99b9e97709fcaa50e1766eb84e9b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a23df99b9e97709fcaa50e1766eb84e9b"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>setTickDurationInMs</b> (const uint64_t milliSeconds)</td></tr>
+<tr class="separator:a23df99b9e97709fcaa50e1766eb84e9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ed171faab038b5aa1a3afb81edf5864"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a8ed171faab038b5aa1a3afb81edf5864"></a>
+long&#160;</td><td class="memItemRight" valign="bottom"><b>getTickDurationInMs</b> () const </td></tr>
+<tr class="separator:a8ed171faab038b5aa1a3afb81edf5864"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab909115a0d99bf1d13f00d098bd4af6f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#ab909115a0d99bf1d13f00d098bd4af6f">setAckGroupingTimeMs</a> (long ackGroupingMillis)</td></tr>
+<tr class="separator:ab909115a0d99bf1d13f00d098bd4af6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a918c4a65c8170b27fe94af46ef84b79b"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a918c4a65c8170b27fe94af46ef84b79b">getAckGroupingTimeMs</a> () const </td></tr>
+<tr class="separator:a918c4a65c8170b27fe94af46ef84b79b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3e84677688a37133d9b270f86aed8da"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#af3e84677688a37133d9b270f86aed8da">setAckGroupingMaxSize</a> (long maxGroupingSize)</td></tr>
+<tr class="separator:af3e84677688a37133d9b270f86aed8da"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0bf3bfb8b9b43c6b25dd0988e2161324"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a0bf3bfb8b9b43c6b25dd0988e2161324">getAckGroupingMaxSize</a> () const </td></tr>
+<tr class="separator:a0bf3bfb8b9b43c6b25dd0988e2161324"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a689a9e87f873ccb024cfe37a545c2f48"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a689a9e87f873ccb024cfe37a545c2f48"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEncryptionEnabled</b> () const </td></tr>
+<tr class="separator:a689a9e87f873ccb024cfe37a545c2f48"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5c4186099fdaea644c35af6db771c925"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5c4186099fdaea644c35af6db771c925"></a>
+const CryptoKeyReaderPtr&#160;</td><td class="memItemRight" valign="bottom"><b>getCryptoKeyReader</b> () const </td></tr>
+<tr class="separator:a5c4186099fdaea644c35af6db771c925"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7ab4857034cf253af8e4b81695205a1b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7ab4857034cf253af8e4b81695205a1b"></a>
+<a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setCryptoKeyReader</b> (CryptoKeyReaderPtr cryptoKeyReader)</td></tr>
+<tr class="separator:a7ab4857034cf253af8e4b81695205a1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a00ff5ce8e4c076ee6be2ccd33f81a5b9"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a00ff5ce8e4c076ee6be2ccd33f81a5b9"></a>
+ConsumerCryptoFailureAction&#160;</td><td class="memItemRight" valign="bottom"><b>getCryptoFailureAction</b> () const </td></tr>
+<tr class="separator:a00ff5ce8e4c076ee6be2ccd33f81a5b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6040e935a25509a864d86518f3ebea5f"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6040e935a25509a864d86518f3ebea5f"></a>
+<a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setCryptoFailureAction</b> (ConsumerCryptoFailureAction action)</td></tr>
+<tr class="separator:a6040e935a25509a864d86518f3ebea5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad1bd0e07d5687ca7d7eee6a7d13c65ed"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#ad1bd0e07d5687ca7d7eee6a7d13c65ed">hasProperty</a> (const std::string &amp;name) const </td></tr>
+<tr class="separator:ad1bd0e07d5687ca7d7eee6a7d13c65ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a431e99ff92432453fad1f601d45bb23d"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a431e99ff92432453fad1f601d45bb23d">getProperty</a> (const std::string &amp;name) const </td></tr>
+<tr class="separator:a431e99ff92432453fad1f601d45bb23d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a10d25a78295e0d795e4fe5a368472e19"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a10d25a78295e0d795e4fe5a368472e19">getProperties</a> () const </td></tr>
+<tr class="separator:a10d25a78295e0d795e4fe5a368472e19"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a425c28bb3142221771e5731d1fd39ab4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#a425c28bb3142221771e5731d1fd39ab4">setProperty</a> (const std::string &amp;name, const std::string &amp;value)</td></tr>
+<tr class="separator:a425c28bb3142221771e5731d1fd39ab4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab0ab475a4765be5f3195f5e1cb8352cf"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html#ab0ab475a4765be5f3195f5e1cb8352cf">setProperties</a> (const std::map&lt; std::string, std::string &gt; &amp;properties)</td></tr>
+<tr class="separator:ab0ab475a4765be5f3195f5e1cb8352cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Class specifying the configuration of a consumer. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a0bf3bfb8b9b43c6b25dd0988e2161324"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long pulsar::ReaderConfiguration::getAckGroupingMaxSize </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get max number of grouped messages within one grouping time window.</p>
+<dl class="section return"><dt>Returns</dt><dd>max number of grouped messages within one grouping time window. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a918c4a65c8170b27fe94af46ef84b79b"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long pulsar::ReaderConfiguration::getAckGroupingTimeMs </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get grouping time window in milliseconds.</p>
+<dl class="section return"><dt>Returns</dt><dd>grouping time window in milliseconds. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a10d25a78295e0d795e4fe5a368472e19"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::map&lt;std::string, std::string&gt;&amp; pulsar::ReaderConfiguration::getProperties </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get all the properties attached to this producer. </p>
+
+</div>
+</div>
+<a class="anchor" id="a431e99ff92432453fad1f601d45bb23d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const std::string&amp; pulsar::ReaderConfiguration::getProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the value of a specific property</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the value of the property or null if the property was not defined </dd></dl>
+
+</div>
+</div>
 <a class="anchor" id="a14aa0170bd4cec3e12b9416f1dd9f370"></a>
 <div class="memitem">
 <div class="memproto">
@@ -163,6 +280,94 @@ const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>ge
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the schema information declared for this consumer </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a942456d5cabe99e9f7ed679ccba29a62"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long pulsar::ReaderConfiguration::getUnAckedMessagesTimeoutMs </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the configured timeout in milliseconds for unacked messages. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ad1bd0e07d5687ca7d7eee6a7d13c65ed"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ReaderConfiguration::hasProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Check whether the message has a specific property attached.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property to check </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>true if the message has the specified property </dd>
+<dd>
+false if the property is not defined </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="af3e84677688a37133d9b270f86aed8da"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ReaderConfiguration::setAckGroupingMaxSize </td>
+          <td>(</td>
+          <td class="paramtype">long&#160;</td>
+          <td class="paramname"><em>maxGroupingSize</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set max number of grouped messages within one grouping time window. If it's set to a non-positive value, number of grouped messages is not limited. Default is 1000.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">maxGroupingSize</td><td>max number of grouped messages with in one grouping time window. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="ab909115a0d99bf1d13f00d098bd4af6f"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ReaderConfiguration::setAckGroupingTimeMs </td>
+          <td>(</td>
+          <td class="paramtype">long&#160;</td>
+          <td class="paramname"><em>ackGroupingMillis</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set time window in milliseconds for grouping message ACK requests. An ACK request is not sent to broker until the time window reaches its end, or the number of grouped messages reaches limit. Default is 100 milliseconds. If it's set to a non-positive value, ACK requests will be directly sent to broker without grouping.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ackGroupMillis</td><td>time of ACK grouping window in milliseconds. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -182,6 +387,56 @@ const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>ge
 <p>Set the internal subscription name. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">internal</td><td>subscriptionName </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="ab0ab475a4765be5f3195f5e1cb8352cf"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a>&amp; pulsar::ReaderConfiguration::setProperties </td>
+          <td>(</td>
+          <td class="paramtype">const std::map&lt; std::string, std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>properties</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Add all the properties in the provided map </p>
+
+</div>
+</div>
+<a class="anchor" id="a425c28bb3142221771e5731d1fd39ab4"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a>&amp; pulsar::ReaderConfiguration::setProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Sets a new property on a message. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property </td></tr>
+    <tr><td class="paramname">value</td><td>the associated value </td></tr>
   </table>
   </dd>
 </dl>
@@ -249,6 +504,28 @@ const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>ge
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">schemaInfo</td><td>the schema definition object </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a11da218b52a8936415029509b9c707e9"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ReaderConfiguration::setUnAckedMessagesTimeoutMs </td>
+          <td>(</td>
+          <td class="paramtype">const uint64_t&#160;</td>
+          <td class="paramname"><em>milliSeconds</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the timeout in milliseconds for unacknowledged messages, the timeout needs to be greater than 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds). If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are redelivered. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">timeout</td><td>in milliseconds </td></tr>
   </table>
   </dd>
 </dl>
