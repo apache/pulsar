@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.gson.Gson;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -190,9 +191,15 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         String className = ZkIsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
+            // Because of we may have different ensemblePolicyConfig from different ledgers, so clear
+            // the isolation groups before refilling it.
+            primaryIsolationGroups.clear();
+            secondaryIsolationGroups.clear();
+            LOG.info("clear the existing groups for refilling the isolation group using custom metadata, current " +
+                "isolation group is: primary {}, secodary {}", new Gson().toJson(primaryIsolationGroups), new Gson().toJson(secondaryIsolationGroups));
             fillIsolationGroup(
-                castToString(properties.get(ISOLATION_BOOKIE_GROUPS)),
-                castToString(properties.get(SECONDARY_ISOLATION_BOOKIE_GROUPS)));
+                castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, "")),
+                castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, "")));
         }
     }
 

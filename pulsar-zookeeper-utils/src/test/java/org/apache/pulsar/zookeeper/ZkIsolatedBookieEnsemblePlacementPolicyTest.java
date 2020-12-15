@@ -39,6 +39,7 @@ import java.util.Set;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.SettableFeatureProvider;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.NullStatsLogger;
@@ -77,7 +78,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         localZkS = new ZookeeperServerTest(0);
         localZkS.start();
 
-        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
+        localZkc = ZooKeeperClient.newBuilder().sessionTimeoutMs(60000).connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
         writableBookies.add(new BookieSocketAddress(BOOKIE1).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE2).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE3).toBookieId());
@@ -448,5 +449,57 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         }
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
+    }
+
+    /**
+     * test case for auto-recovery.
+     * When the auto-recovery trigger from bookkeeper, we need to make sure the placement policy can read from
+     * custom metadata and apply it when choosing the new bookie.
+     */
+    @Test
+    public void testTheIsolationPolicyUsingCustomMetadata() throws Exception {
+        // prepare a placement policy config
+        Map<String, Object> placementPolicyProperties = new HashMap<>();
+        placementPolicyProperties.put(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+            ZkIsolatedBookieEnsemblePlacementPolicy.class,
+            placementPolicyProperties
+        );
+
+        // put the placement policy config into the custom metadata
+        Map<String, byte[]> customMetadata = new HashMap<>();
+        customMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        // do the test logic
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
+
+        mainBookieGroup.put(BOOKIE1, new BookieInfo("rack0", null));
+        mainBookieGroup.put(BOOKIE2, new BookieInfo("rack1", null));
+
+        Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
+        secondaryBookieGroup.put(BOOKIE3, new BookieInfo("rack0", null));
+
+        bookieMapping.put("group1", mainBookieGroup);
+        bookieMapping.put("group2", secondaryBookieGroup);
+
+        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+            jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        Thread.sleep(100);
+
+        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
+        });
+        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, mainBookieGroup);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+            NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        List<BookieId> ensemble = isolationPolicy
+            .newEnsemble(1, 1, 1, customMetadata, new HashSet<>()).getResult();
+        assertEquals(ensemble.size(), 1);
+        assertEquals(ensemble.get(0).toString(), BOOKIE4);
     }
 }

@@ -30,6 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -877,6 +878,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
         private final Class<? extends EnsemblePlacementPolicy> policyClass;
         private final Map<String, Object> properties;
+
+        // Add a default constructor for decode data from bytes to construct this.
+        private EnsemblePlacementPolicyConfig() {
+            this.policyClass = EnsemblePlacementPolicy.class;
+            this.properties = Collections.emptyMap();
+        }
 
         public EnsemblePlacementPolicyConfig(Class<? extends EnsemblePlacementPolicy> policyClass,
                 Map<String, Object> properties) {
