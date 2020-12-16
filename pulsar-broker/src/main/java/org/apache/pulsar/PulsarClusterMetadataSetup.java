@@ -115,6 +115,8 @@ public class PulsarClusterMetadataSetup {
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
 
+        // Hide and marked as deprecated this flag because we use the new name '--existing-bk-metadata-service-uri' to
+        // pass the service url. For compatibility of the command, we should keep both to avoid the exceptions.
         @Deprecated
         @Parameter(names = {
             "--bookkeeper-metadata-service-uri"},
