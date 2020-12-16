@@ -1441,7 +1441,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setMaxSubscriptionsPerTopicAsync(myNamespace,200).get();
         assertEquals(admin.namespaces().getMaxSubscriptionsPerTopicAsync(myNamespace).get().intValue(),200);
         admin.namespaces().removeMaxSubscriptionsPerTopicAsync(myNamespace);
-        assertNull(admin.namespaces().getMaxSubscriptionsPerTopicAsync(myNamespace).get());
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.namespaces().getMaxSubscriptionsPerTopicAsync(myNamespace).get()));
 
         try {
             admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace,-100);
