@@ -105,9 +105,9 @@
 <tr><td>listeningInterface</td><td>bookie 监听的网络接口。如果没有设置，bookie 会监听所有接口。</td><td>eth0</td></tr>
 <tr><td>advertisedAddress</td><td>配置一个特定的主机名或IP地址，用于将bookie发布给客户端。 如果没有设置，则bookie会根据设置终端的<code>llisteningInterface</code>以及<code>useHostNameAsBookieID</code>发布自己的IP地址或主机名。</td><td>N/A</td></tr>
 <tr><td>allowMultipleDirsUnderSameDiskPartition</td><td>设置bookie允许/禁止同一个文件系统磁盘分区中存在多个ledger/index/journal目录。</td><td>false</td></tr>
-<tr><td>minUsableSizeForIndexFileCreation</td><td>The minimum safe usable size available in index directory for bookie to create index files while replaying journal at the time of bookie starts in Readonly Mode (in bytes).</td><td>1073741824</td></tr>
+<tr><td>minUsableSizeForIndexFileCreation</td><td>Bookie以只读模式启动并重放日志时，供bookie在索引目录中创建索引文件的最小安全可用大小(以字节为单位)。</td><td>1073741824</td></tr>
 <tr><td>journalDirectory</td><td>BookKeeper 输出 write-ahead 日志（WAL）的目录</td><td>data/bookkeeper/journal</td></tr>
-<tr><td>journalDirectories</td><td>Directories that BookKeeper outputs its write ahead log. Multi directories are available, being separated by <code>,</code>. For example: <code>journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2</code>. If <code>journalDirectories</code> is set, bookies will skip <code>journalDirectory</code> and use this setting directory.</td><td>/tmp/bk-journal</td></tr>
+<tr><td>journalDirectories</td><td>用于BookKeeper输出WAL日志的目录。 Multi directories are available, being separated by <code>,</code>. For example: <code>journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2</code>. If <code>journalDirectories</code> is set, bookies will skip <code>journalDirectory</code> and use this setting directory.</td><td>/tmp/bk-journal</td></tr>
 <tr><td>ledgerDirectories</td><td>BookKeeper 输出 ledger 快照的目录。 这里可以定义多个目录来存储以逗号分隔的快照，比如 <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>。 最理想的情况是，ledger 目录和日志目录都是在不同的设备中，这减少了随机读写和顺序写入之间的争执。 可以用单个磁盘运行，但性能将显著降低。</td><td>data/bookkeeper/ledgers</td></tr>
 <tr><td>ledgerManagerType</td><td>用于管理 ledger 如何存储与管理，以及垃圾收集的 ledger 管理器类型。 查看 <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> 获取更多信息。</td><td>hierarchical</td></tr>
 <tr><td>zkLedgersRootPath</td><td>用于存储 ledger 元数据的根 ZooKeeper 路径。这个参数被基于 ZooKeeper 的 ledger 管理器作为根 znode 来存储所有 ledger。</td><td>/ledgers</td></tr>
