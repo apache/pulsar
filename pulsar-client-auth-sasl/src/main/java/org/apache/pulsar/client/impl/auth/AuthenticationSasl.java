@@ -56,6 +56,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.google.common.collect.Maps;
+import lombok.EqualsAndHashCode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
@@ -75,6 +76,7 @@ import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
  *   for Kerberos a krb5.conf, which is set by `-Djava.security.krb5.conf=/dir/krb5.conf`
  */
 @Slf4j
+@EqualsAndHashCode
 public class AuthenticationSasl implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
     // this is a static object that shares amongst client.

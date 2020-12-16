@@ -21,11 +21,13 @@ package org.apache.pulsar.client.impl.auth;
 import java.io.IOException;
 import java.util.Map;
 
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+@EqualsAndHashCode
 public class AuthenticationDisabled implements Authentication, EncodedAuthenticationParameterSupport {
 
     protected final AuthenticationDataProvider nullData = new AuthenticationDataNull();

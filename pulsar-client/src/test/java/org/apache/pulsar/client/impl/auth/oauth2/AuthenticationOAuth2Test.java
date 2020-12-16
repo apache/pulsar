@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -129,5 +130,13 @@ public class AuthenticationOAuth2Test {
     public void testClose() throws Exception {
         this.auth.close();
         verify(this.flow).close();
+    }
+
+    @Test
+    public void testEquals() {
+        AuthenticationOAuth2 newAuth = new AuthenticationOAuth2(flow, this.clock);
+        assertEquals(newAuth, auth);
+        newAuth = new AuthenticationOAuth2(flow, new MockClock(Instant.EPOCH, ZoneOffset.MAX));
+        assertNotEquals(newAuth, auth);
     }
 }

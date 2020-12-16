@@ -31,6 +31,7 @@ import java.security.PrivateKey;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -47,6 +48,7 @@ import com.yahoo.athenz.auth.util.CryptoException;
 import com.yahoo.athenz.zts.RoleToken;
 import com.yahoo.athenz.zts.ZTSClient;
 
+@EqualsAndHashCode
 public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
 
     private static final long serialVersionUID = 1L;

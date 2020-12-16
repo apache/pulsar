@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Map;
 
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
  * This parameter will construct a AuthenticationDataProvider
  */
 @Slf4j
+@EqualsAndHashCode
 public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
 

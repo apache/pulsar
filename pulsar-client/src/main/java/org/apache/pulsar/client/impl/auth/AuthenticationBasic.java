@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.auth;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -29,6 +30,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import java.io.IOException;
 import java.util.Map;
 
+@EqualsAndHashCode
 public class AuthenticationBasic implements Authentication, EncodedAuthenticationParameterSupport {
     private String userId;
     private String password;

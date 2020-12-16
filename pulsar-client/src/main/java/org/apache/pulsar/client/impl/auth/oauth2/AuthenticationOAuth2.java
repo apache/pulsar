@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.IOException;
 import java.time.Clock;
@@ -37,6 +38,7 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
  * Pulsar client authentication provider based on OAuth 2.0.
  */
 @Slf4j
+@EqualsAndHashCode
 public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
 
     public static final String CONFIG_PARAM_TYPE = "type";

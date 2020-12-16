@@ -85,13 +85,25 @@ public class AuthenticationAthenzTest {
 
     @BeforeClass
     public void setup() throws Exception {
+        this.auth = generateAuthentication();
+    }
+
+    private AuthenticationAthenz generateAuthentication()
+            throws IOException, NoSuchFieldException, IllegalAccessException {
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
-        auth = new AuthenticationAthenz();
+        AuthenticationAthenz auth = new AuthenticationAthenz();
         auth.configure(paramsStr);
         // Set mock ztsClient which returns fixed token instead of fetching from ZTS server
         Field field = auth.getClass().getDeclaredField("ztsClient");
         field.setAccessible(true);
         field.set(auth, new MockZTSClient("dummy"));
+        return auth;
+    }
+
+    @Test
+    public void testEquals() throws Exception {
+        AuthenticationAthenz newAuth = generateAuthentication();
+        Assert.assertEquals(newAuth, auth);
     }
 
     @Test
