@@ -1569,6 +1569,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
     }
 
+    public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
+        topics.forEach((name, topicFuture) -> {
+            TopicName topicName = TopicName.get(name);
+            if (serviceUnit.includes(topicName)) {
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
+            }
+        });
+    }
+
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
     }
