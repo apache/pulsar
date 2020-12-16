@@ -64,6 +64,7 @@ public class MessageImpl<T> implements Message<T> {
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
     private final int redeliveryCount;
+    private int uncompressedSize;
 
     private PulsarApi.BrokerEntryMetadata brokerEntryMetadata;
 
@@ -78,6 +79,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
+        msg.uncompressedSize = payload.remaining();
         return msg;
     }
 
@@ -424,7 +426,7 @@ public class MessageImpl<T> implements Message<T> {
                   this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
                            .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
                                    (oldValue,newValue) -> newValue)));
-                
+
             } else {
                 this.properties = Collections.emptyMap();
             }
@@ -556,6 +558,10 @@ public class MessageImpl<T> implements Message<T> {
         return redeliveryCount;
     }
 
+    int getUncompressedSize() {
+        return uncompressedSize;
+    }
+
     SchemaState getSchemaState() {
         return schemaState;
     }
@@ -563,6 +569,8 @@ public class MessageImpl<T> implements Message<T> {
     void setSchemaState(SchemaState schemaState) {
         this.schemaState = schemaState;
     }
+
+
 
     enum SchemaState {
         None, Ready, Broken
