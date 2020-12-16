@@ -124,9 +124,6 @@ public class SubscriptionStats {
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
-        lastAckedTimestamp = 0L;
-        lastConsumedFlowTimestamp = 0L;
-        lastConsumedTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
         consumersAfterMarkDeletePosition.clear();

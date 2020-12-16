@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -136,7 +137,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
             Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
             cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
-            if (!cursor.getMarkDeletedPosition().equals(prevMarkDeletePos)) {
+            if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos)) {
                 subscription.updateLastMarkDeleteAdvancedTimestamp();
             }
         } else {
