@@ -3250,14 +3250,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Map<String, byte[]> finalMetadata = new HashMap<>();
         finalMetadata.putAll(ledgerMetadata);
         finalMetadata.putAll(metadata);
-        if (config.getBookKeeperEnsemblePlacementPolicyClassName() != null) {
-            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig = new EnsemblePlacementPolicyConfig(
-                config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                config.getBookKeeperEnsemblePlacementPolicyProperties()
-            );
+        if (config.getBookKeeperEnsemblePlacementPolicyClassName() != null
+            && config.getBookKeeperEnsemblePlacementPolicyProperties() != null) {
             try {
-                finalMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG,
-                    ensemblePlacementPolicyConfig.encode());
+                finalMetadata.putAll(LedgerMetadataUtils.buildMetadataForPlacementPolicyConfig(
+                    config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                    config.getBookKeeperEnsemblePlacementPolicyProperties()
+                ));
             } catch (JsonUtil.ParseJsonException e) {
                 log.error("[{}] Serialize the placement configuration failed", name, e);
                 cb.createComplete(Code.UnexpectedConditionException, null, ledgerCreated);

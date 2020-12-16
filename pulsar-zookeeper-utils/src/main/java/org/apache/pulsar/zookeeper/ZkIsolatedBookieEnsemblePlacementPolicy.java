@@ -99,6 +99,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     }
 
     private String castToString(Object obj) {
+        if (null == obj) {
+            return "";
+        }
         if (obj instanceof List<?>) {
             List<String> result = new ArrayList<>();
             for (Object o : (List<?>) obj) {
