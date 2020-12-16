@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.google.gson.Gson;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -142,11 +141,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
             Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
-        // parse the ensemble placement policy from the custom metadata, if it present, we will apply it to
-        // the isolation groups for filter the bookies.
-        Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
-            getEnsemblePlacementPolicyConfig(customMetadata);
-        ensemblePlacementPolicyConfig.ifPresent(this::fillIsolationGroupWithEnsemblePlacementPolicyConfig);
         Set<BookieId> blacklistedBookies = getBlacklistedBookies(ensembleSize);
         if (excludeBookies == null) {
             excludeBookies = new HashSet<BookieId>();
@@ -160,8 +154,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             Map<String, byte[]> customMetadata, List<BookieId> currentEnsemble,
             BookieId bookieToReplace, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
-        // parse the ensemble placement policy from the custom metadata, if it present, we will apply it to
-        // the isolation groups for filter the bookies.
+        // parse the ensemble placement policy from the custom metadata, if it is present, we will apply it to
+        // the isolation groups for filtering the bookies.
         Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
             getEnsemblePlacementPolicyConfig(customMetadata);
         ensemblePlacementPolicyConfig.ifPresent(this::fillIsolationGroupWithEnsemblePlacementPolicyConfig);
@@ -174,8 +168,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 bookieToReplace, excludeBookies);
     }
 
-    private Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(Map<String, byte[]> customMetadata) {
-        byte[] ensemblePlacementPolicyConfigData = customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
+    private Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
+        Map<String, byte[]> customMetadata) {
+
+        byte[] ensemblePlacementPolicyConfigData = customMetadata.get(
+            EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
         if (ensemblePlacementPolicyConfigData != null) {
             try {
                 return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
@@ -187,7 +184,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         return Optional.empty();
     }
 
-    private void fillIsolationGroupWithEnsemblePlacementPolicyConfig(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+    private void fillIsolationGroupWithEnsemblePlacementPolicyConfig(
+        EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+
         String className = ZkIsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
@@ -195,8 +194,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             // the isolation groups before refilling it.
             primaryIsolationGroups.clear();
             secondaryIsolationGroups.clear();
-            LOG.info("clear the existing groups for refilling the isolation group using custom metadata, current " +
-                "isolation group is: primary {}, secodary {}", new Gson().toJson(primaryIsolationGroups), new Gson().toJson(secondaryIsolationGroups));
             fillIsolationGroup(
                 castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, "")),
                 castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, "")));
