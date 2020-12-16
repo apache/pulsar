@@ -110,6 +110,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+    private final MemoryLimitController memoryLimitController;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
@@ -165,6 +166,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
         }
 
+        memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
         state.set(State.Open);
     }
 
@@ -796,6 +798,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
+    }
+
+    public MemoryLimitController getMemoryLimitController() {
+        return memoryLimitController;
     }
 
     @SuppressWarnings("unchecked")
