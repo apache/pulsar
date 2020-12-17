@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
 import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
@@ -115,7 +114,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
-    private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers = new ConcurrentLinkedQueue<>();
+    private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers =
+            new ConcurrentLinkedQueue<>();
 
     private static final AtomicLongFieldUpdater<AbstractTopic> USAGE_COUNT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
@@ -342,7 +342,8 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture) {
+    public CompletableFuture<Optional<Long>> addProducer(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
         CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
@@ -379,7 +380,8 @@ public abstract class AbstractTopic implements Topic {
         return future;
     }
 
-    protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer, CompletableFuture<Void> producerQueuedFuture) {
+    protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
         lock.writeLock().lock();
         try {
             switch (producer.getAccessMode()) {
@@ -627,7 +629,8 @@ public abstract class AbstractTopic implements Topic {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
-                Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer = waitingExclusiveProducers.poll();
+                Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer =
+                        waitingExclusiveProducers.poll();
                 if (nextWaitingProducer != null) {
                     Producer nextProducer = nextWaitingProducer.getKey();
                     CompletableFuture<Optional<Long>> producerFuture = nextWaitingProducer.getValue();
