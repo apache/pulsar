@@ -376,7 +376,15 @@ public class ClientCnx extends PulsarHandler {
                     ledgerId, entryId);
         }
 
-        producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+        ProducerImpl<?> producer = producers.get(producerId);
+        if (producer != null) {
+            producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Producer is {} already closed, ignore published message [{}-{}]", producerId, ledgerId,
+                        entryId);
+            }
+        }
     }
 
     @Override

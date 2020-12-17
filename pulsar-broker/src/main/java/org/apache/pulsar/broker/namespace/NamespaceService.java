@@ -268,8 +268,8 @@ public class NamespaceService {
      * If the service unit is not owned, return an empty optional
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
-        return getWebServiceUrlAsync(suName, options).get(
-                pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        return getWebServiceUrlAsync(suName, options)
+                .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {
