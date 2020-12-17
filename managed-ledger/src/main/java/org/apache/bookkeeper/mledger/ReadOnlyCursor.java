@@ -22,9 +22,13 @@ import java.util.List;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ReadOnlyCursor {
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.

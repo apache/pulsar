@@ -330,6 +330,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get max subscriptions per topic for a namespace")
+    private class GetMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxSubscriptionsPerTopic(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max subscriptions per topic for a namespace")
+    private class SetMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--maxSubscriptionsPerTopic", "-m" }, description = "Max subscriptions per topic",
+                required = true)
+        private int maxSubscriptionsPerTopic;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxSubscriptionsPerTopic(namespace, maxSubscriptionsPerTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max subscriptions per topic for a namespace")
+    private class RemoveMaxSubscriptionsPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxSubscriptionsPerTopic(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription expiration time for a namespace")
     private class SetSubscriptionExpirationTime extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1161,6 +1201,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get deduplicationSnapshotInterval for a namespace")
+    private class GetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getDeduplicationSnapshotInterval(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove deduplicationSnapshotInterval for a namespace")
+    private class RemoveDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeDeduplicationSnapshotInterval(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Set deduplicationSnapshotInterval for a namespace")
+    private class SetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--interval", "-i"}
+                , description = "deduplicationSnapshotInterval for a namespace", required = true)
+        private int interval;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setDeduplicationSnapshotInterval(namespace, interval);
+        }
+    }
+
     @Parameters(commandDescription = "Get maxProducersPerTopic for a namespace")
     private class GetMaxProducersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1775,6 +1855,10 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
         jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
 
+        jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("remove-max-subscriptions-per-topic", new RemoveMaxSubscriptionsPerTopic());
+
         jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
         jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
 
@@ -1868,5 +1952,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
         jcommander.addCommand("remove-offload-policies", new RemoveOffloadPolicies());
         jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
+
+        jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
+        jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
+        jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
     }
 }

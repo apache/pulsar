@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.val;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -38,8 +38,8 @@ import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
@@ -104,19 +104,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
                 long nextExpectedId = firstEntry;
                 try {
-                    OffloadIndexEntry entry = index.getIndexEntryForEntry(firstEntry);
-                    inputStream.seek(entry.getDataOffset());
-
                     while (entriesToRead > 0) {
                         int length = dataStream.readInt();
                         if (length < 0) { // hit padding or new block
-                            inputStream.seekForward(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            length = dataStream.readInt();
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
                         }
                         long entryId = dataStream.readLong();
 
                         if (entryId == nextExpectedId) {
-                            ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                            ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                             entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                             int toWrite = length;
                             while (toWrite > 0) {
@@ -124,12 +121,21 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
+                        } else if (entryId > nextExpectedId) {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
+                        } else if (entryId < nextExpectedId
+                                && !index.getIndexEntryForEntry(nextExpectedId).equals(
+                                index.getIndexEntryForEntry(entryId)))  {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
                         } else if (entryId > lastEntry) {
                             log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            inputStream.skip(length);
+                            val skipped = inputStream.skip(length);
+                            log.info("Skipped {} bytes.", skipped);
                         }
                     }
 

@@ -60,7 +60,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         try {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
             reader.get(key, value);
-            this.ledgerMetadata = parseLedgerMetadata(value.copyBytes());
+            this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
         } catch (IOException e) {
             log.error("Fail to read LedgerMetadata for ledgerId {}",
                     ledgerId);

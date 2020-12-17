@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -2403,6 +2402,105 @@ public interface Namespaces {
      * @param subscriptionAuthMode
      */
     CompletableFuture<Void> setSubscriptionAuthModeAsync(String namespace, SubscriptionAuthMode subscriptionAuthMode);
+
+    /**
+     * Get the deduplicationSnapshotInterval for a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplicationSnapshotInterval for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String namespace);
+
+    /**
+     * Set the deduplicationSnapshotInterval for a namespace.
+     *
+     * @param namespace
+     * @param interval
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationSnapshotInterval(String namespace, Integer interval) throws PulsarAdminException;
+
+    /**
+     * Set the deduplicationSnapshotInterval for a namespace asynchronously.
+     *
+     * @param namespace
+     * @param interval
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationSnapshotIntervalAsync(String namespace, Integer interval);
+
+    /**
+     * Remove the deduplicationSnapshotInterval for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the deduplicationSnapshotInterval for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String namespace);
+
+    /**
+     * Get the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the maxSubscriptionsPerTopic for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String namespace);
+
+    /**
+     * Set the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @param maxSubscriptionsPerTopic
+     * @throws PulsarAdminException
+     */
+    void setMaxSubscriptionsPerTopic(String namespace, int maxSubscriptionsPerTopic) throws PulsarAdminException;
+
+    /**
+     * Set the maxSubscriptionsPerTopic for a namespace asynchronously.
+     *
+     * @param namespace
+     * @param maxSubscriptionsPerTopic
+     * @return
+     */
+    CompletableFuture<Void> setMaxSubscriptionsPerTopicAsync(String namespace, int maxSubscriptionsPerTopic);
+
+    /**
+     * Remove the maxSubscriptionsPerTopic for a namespace.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the maxSubscriptionsPerTopic for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxSubscriptionsPerTopicAsync(String namespace);
 
     /**
      * Get the maxProducersPerTopic for a namespace.

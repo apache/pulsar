@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -169,6 +170,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
+    // The cursor is considered "dirty" when there are mark-delete updates that are only applied in memory,
+    // because of the rate limiting.
+    private volatile boolean isDirty = false;
 
     private boolean alwaysInactive = false;
 
@@ -182,6 +186,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private long entriesReadCount;
     private long entriesReadSize;
+    private int individualDeletedMessagesSerializedSize;
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -821,6 +826,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public int getTotalNonContiguousDeletedMessagesRange() {
         return individualDeletedMessages.size();
+    }
+
+    @Override
+    public int getNonContiguousDeletedMessagesRangeSerializedSize() {
+        return this.individualDeletedMessagesSerializedSize;
     }
 
     @Override
@@ -1626,6 +1636,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+            isDirty = true;
             lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, properties, null, null);
             callback.markDeleteComplete(ctx);
             return;
@@ -2417,6 +2428,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                     .newBuilder();
             MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
+            AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = Lists.newArrayList();
             individualDeletedMessages.forEach((positionRange) -> {
                 PositionImpl p = positionRange.lowerEndpoint();
@@ -2427,9 +2439,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 nestedPositionBuilder.setLedgerId(p.getLedgerId());
                 nestedPositionBuilder.setEntryId(p.getEntryId());
                 messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-                rangeList.add(messageRangeBuilder.build());
+                MessageRange messageRange = messageRangeBuilder.build();
+                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
+                rangeList.add(messageRange);
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
+            this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             return rangeList;
         } finally {
             lock.readLock().unlock();
@@ -2773,6 +2788,24 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ((PositionImpl) position).getEntryId()) || ((PositionImpl) position).compareTo(markDeletePosition) <= 0 ;
     }
 
+    //this method will return a copy of the position's ack set
+    public long[] getBatchPositionAckSet(Position position) {
+        if (!(position instanceof PositionImpl)) {
+            return null;
+        }
+
+        if (batchDeletedIndexes != null) {
+            BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.get(position);
+            if (bitSetRecyclable == null) {
+                return null;
+            } else {
+                return bitSetRecyclable.toLongArray();
+            }
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
      * deleted up to that point.
@@ -2863,6 +2896,24 @@ public class ManagedCursorImpl implements ManagedCursor {
     void updateReadStats(int readEntriesCount, long readEntriesSize) {
         this.entriesReadCount += readEntriesCount;
         this.entriesReadSize += readEntriesSize;
+    }
+
+    void flush() {
+        if (!isDirty) {
+            return;
+        }
+
+        isDirty = false;
+        asyncMarkDelete(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
+            }
+        }, null);
     }
 
     private int applyMaxSizeCap(int maxEntries, long maxSizeBytes) {

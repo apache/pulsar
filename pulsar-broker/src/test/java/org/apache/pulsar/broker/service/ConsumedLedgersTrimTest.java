@@ -19,19 +19,27 @@
 package org.apache.pulsar.broker.service;
 
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 
-import java.util.concurrent.TimeUnit;
-
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ConsumedLedgersTrimTest.class);
+
     @Override
     protected void setup() throws Exception {
         //No-op
@@ -89,5 +97,76 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         //no traffic, but consumed ledger will be cleaned
         Thread.sleep(1500);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+    }
+
+
+    @Test
+    public void TestConsumedLedgersTrimNoSubscriptions() throws Exception {
+        conf.setRetentionCheckIntervalInSeconds(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        super.baseSetup();
+        final String topicName = "persistent://prop/ns-abc/TestConsumedLedgersTrimNoSubscriptions";
+
+        // write some messages
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .producerName("producer-name")
+                .create();
+
+        // set retention parameters, the ledgers are to be deleted as soon as possible
+        // but the topic is not to be automatically deleted
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        managedLedgerConfig.setRetentionSizeInMB(-1);
+        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        managedLedgerConfig.setMaxEntriesPerLedger(1000);
+        managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        MessageId initialMessageId = persistentTopic.getLastMessageId().get();
+        LOG.info("lastmessageid " + initialMessageId);
+
+        int msgNum = 7;
+        for (int i = 0; i < msgNum; i++) {
+            producer.send(new byte[1024 * 1024]);
+        }
+
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("messageIdBeforeRestart " + messageIdBeforeRestart);
+        assertNotEquals(messageIdBeforeRestart, initialMessageId);
+
+        // restart the broker we have to start a new ledger
+        // the lastMessageId is still on the previous ledger
+        restartBroker();
+        // force load topic
+        pulsar.getAdminClient().topics().getStats(topicName);
+        MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("lastmessageid " + messageIdAfterRestart);
+        assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
+
+        persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        managedLedgerConfig.setRetentionSizeInMB(-1);
+        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        // now we have two ledgers, the first is expired but is contains the lastMessageId
+        // the second is empty and should be kept as it is the current tail
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+
+        // force trimConsumedLedgers
+        Thread.sleep(3000);
+        CompletableFuture f = new CompletableFuture();
+        managedLedger.trimConsumedLedgersInBackground(f);
+        f.join();
+
+        // lastMessageId should be available even in this case, but is must
+        // refer to -1
+        MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        LOG.info("lastmessageid " + messageIdAfterTrim);
+        assertEquals(messageIdAfterTrim, MessageId.earliest);
+
     }
 }

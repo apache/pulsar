@@ -40,8 +40,10 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -61,12 +63,13 @@ import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuilt
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class SinksImpl extends ComponentImpl {
+public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerService> {
 
-    public SinksImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public SinksImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SINK);
     }
 
+    @Override
     public void registerSink(final String tenant,
                              final String namespace,
                              final String sinkName,
@@ -233,6 +236,7 @@ public class SinksImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public void updateSink(final String tenant,
                            final String namespace,
                            final String sinkName,
@@ -587,6 +591,7 @@ public class SinksImpl extends ComponentImpl {
         return exceptionInformation;
     }
 
+    @Override
     public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
                                                                                       final String namespace,
                                                                                       final String sinkName,
@@ -612,6 +617,7 @@ public class SinksImpl extends ComponentImpl {
         return sinkInstanceStatusData;
     }
 
+    @Override
     public SinkStatus getSinkStatus(final String tenant,
                                     final String namespace,
                                     final String componentName,
@@ -635,6 +641,7 @@ public class SinksImpl extends ComponentImpl {
         return sinkStatus;
     }
 
+    @Override
     public SinkConfig getSinkInfo(final String tenant,
                                   final String namespace,
                                   final String componentName) {
@@ -665,6 +672,7 @@ public class SinksImpl extends ComponentImpl {
         return config;
     }
 
+    @Override
     public List<ConnectorDefinition> getSinkList() {
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
@@ -676,6 +684,7 @@ public class SinksImpl extends ComponentImpl {
         return retval;
     }
 
+    @Override
     public List<ConfigFieldDefinition> getSinkConfigDefinition(String name) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

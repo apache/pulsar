@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
@@ -147,6 +147,7 @@ public class KubernetesRuntimeFactoryTest {
                                                             Optional<FunctionAuthProvider> functionAuthProvider,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
+        doNothing().when(factory).setupClient();
 
         WorkerConfig workerConfig = new WorkerConfig();
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
@@ -182,7 +183,6 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setAuthenticationEnabled(false);
 
         factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider, manifestCustomizer);
-        doNothing().when(factory).setupClient();
         return factory;
     }
 

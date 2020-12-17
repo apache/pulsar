@@ -125,7 +125,7 @@ $ pulsar-admin non-persistent stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
 
 
 #### Java
@@ -166,7 +166,7 @@ $ pulsar-admin non-persistent stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -189,7 +189,7 @@ $ bin/pulsar-admin non-persistent create-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -219,7 +219,7 @@ $ pulsar-admin non-persistent get-partitioned-topic-metadata \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
 
 
 #### Java
@@ -244,7 +244,7 @@ $ pulsar-admin non-persistent unload \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic}
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
 
 #### Java
 

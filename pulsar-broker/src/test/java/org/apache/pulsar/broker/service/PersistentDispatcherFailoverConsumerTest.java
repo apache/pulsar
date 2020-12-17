@@ -47,7 +47,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -89,6 +88,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -103,20 +103,21 @@ public class PersistentDispatcherFailoverConsumerTest {
     private ConfigurationCacheService configCacheService;
     private ChannelHandlerContext channelCtx;
     private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
-
+    private ZooKeeper mockZk;
+    private PulsarService pulsar;
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
     @BeforeMethod
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
-        PulsarService pulsar = spy(new PulsarService(svcConfig));
+        pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
-        ZooKeeper mockZk = createMockZooKeeper();
+        mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
         doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
             .when(pulsar).getBookKeeperClient();
@@ -173,6 +174,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getNumber());
         when(serverCnx.ctx()).thenReturn(channelCtx);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+                .when(serverCnx).getCommandSender();
 
         serverCnxWithOldVersion = spy(new ServerCnx(pulsar));
         doReturn(true).when(serverCnxWithOldVersion).isActive();
@@ -182,6 +185,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
             .thenReturn(ProtocolVersion.v11.getNumber());
         when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
+                .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
@@ -191,6 +196,21 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         setupMLAsyncCallbackMocks();
 
+    }
+    
+    @AfterMethod(alwaysRun = true)
+    public void shutdown() throws Exception {
+        if (brokerService != null) {
+            brokerService.close();
+            brokerService = null;
+        }
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (mockZk != null) {
+            mockZk.close();
+        }
     }
 
     void setupMLAsyncCallbackMocks() {

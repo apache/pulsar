@@ -86,7 +86,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

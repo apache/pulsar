@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.testng.annotations.Test;
 

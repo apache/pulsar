@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
@@ -25,6 +27,28 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -43,30 +67,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
@@ -101,6 +101,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
+    private volatile BatchMessageIdImpl startMessageId = null;
+    private final long startMessageRollbackDurationInSec;
+
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -108,9 +111,24 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture, schema, interceptors, createTopicIfDoesNotExist);
     }
 
+    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+                            long startMessageRollbackDurationInSec) {
+        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
+                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId, startMessageRollbackDurationInSec);
+    }
+
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
+        this(client, singleTopic, conf, listenerExecutor, subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, null, 0);
+    }
+
+    MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+                            long startMessageRollbackDurationInSec) {
         super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture,
                 schema, interceptors);
 
@@ -122,6 +140,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.allTopicPartitionsNumber = new AtomicInteger(0);
+        this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
+        this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {
@@ -134,7 +154,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         this.internalConfig = getInternalConsumerConfig();
-        this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl() : null;
+        this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl(this) : null;
 
         // start track and auto subscribe partition increasement
         if (conf.isAutoUpdatePartitions()) {
@@ -285,6 +305,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    @Override
     protected synchronized void messageProcessed(Message<?> msg) {
         unAckedMessageTracker.add(msg.getMessageId());
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
@@ -598,7 +619,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             consumers.values().stream().forEach(consumer -> {
                 consumer.redeliverUnacknowledgedMessages();
-                consumer.unAckedChunckedMessageIdSequenceMap.clear();
+                consumer.unAckedChunkedMessageIdSequenceMap.clear();
             });
             incomingMessages.clear();
             INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
@@ -652,12 +673,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             seekAsync(timestamp).get();
         } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
+        CompletableFuture<Void> seekFuture = new CompletableFuture<>();
+        MessageIdImpl targetMessageId = MessageIdImpl.convertToMessageIdImpl(messageId);
+        if (targetMessageId == null || isIllegalMultiTopicsMessageId(messageId)) {
+            seekFuture.completeExceptionally(
+                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest"));
+            return seekFuture;
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+        consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
+
+        unAckedMessageTracker.clear();
+        incomingMessages.clear();
+        MultiTopicsConsumerImpl.INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+
+        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
+            if (exception != null) {
+                seekFuture.completeExceptionally(exception);
+            } else {
+                seekFuture.complete(result);
+            }
+        });
+        return seekFuture;
     }
 
     @Override
@@ -675,6 +718,35 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public boolean hasReachedEndOfTopic() {
         return consumers.values().stream().allMatch(Consumer::hasReachedEndOfTopic);
+    }
+
+    public boolean hasMessageAvailable() throws PulsarClientException {
+        try {
+            return hasMessageAvailableAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        List<CompletableFuture<Void>> futureList = new ArrayList<>();
+        final AtomicBoolean hasMessageAvailable = new AtomicBoolean(false);
+        for (ConsumerImpl<T> consumer : consumers.values()) {
+            futureList.add(consumer.hasMessageAvailableAsync().thenAccept(isAvailable -> {
+                if (isAvailable) {
+                    hasMessageAvailable.compareAndSet(false, true);
+                }
+            }));
+        }
+        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+        FutureUtil.waitForAll(futureList).whenComplete((result, exception) -> {
+            if (exception != null) {
+                completableFuture.completeExceptionally(exception);
+            } else {
+                completableFuture.complete(hasMessageAvailable.get());
+            }
+        });
+        return completableFuture;
     }
 
     @Override
@@ -872,10 +944,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                            configurationData, client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, true, subFuture,
-                            null, schema, interceptors,
-                            createIfDoesNotExist);
+                                configurationData, client.externalExecutorProvider().getExecutor(),
+                                partitionIndex, true, subFuture,
+                                startMessageId, schema, interceptors,
+                                createIfDoesNotExist, startMessageRollbackDurationInSec);
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -1095,6 +1167,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        long lastDisconnectedTimestamp = 0;
+        Optional<ConsumerImpl<T>> c = consumers.values().stream().max(Comparator.comparingLong(ConsumerImpl::getLastDisconnectedTimestamp));
+        if (c.isPresent()) {
+            lastDisconnectedTimestamp = c.get().getLastDisconnectedTimestamp();
+        }
+        return lastDisconnectedTimestamp;
+    }
+
     // This listener is triggered when topics partitions are updated.
     private class TopicsPartitionChangedListener implements PartitionsChangedListener {
         // Check partitions changes of passed in topics, and subscribe new added partitions.
@@ -1177,7 +1259,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         List<ConsumerImpl<T>> newConsumerList = newPartitions.stream()
                             .map(partitionTopic -> consumers.get(partitionTopic))
                             .collect(Collectors.toList());
-
                         startReceivingMessages(newConsumerList);
                         future.complete(null);
                     })
@@ -1254,4 +1335,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
+
+    public static boolean isIllegalMultiTopicsMessageId(MessageId messageId) {
+        //only support earliest/latest
+        return !MessageId.earliest.equals(messageId) && !MessageId.latest.equals(messageId);
+    }
+
+    public void tryAcknowledgeMessage(Message<T> msg) {
+        if (msg != null) {
+            acknowledgeCumulativeAsync(msg);
+        }
+    }
 }

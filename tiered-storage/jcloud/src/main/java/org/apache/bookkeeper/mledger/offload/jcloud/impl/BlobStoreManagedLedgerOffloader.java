@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -67,7 +64,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
     private final TieredStorageConfiguration config;
-//    private final BlobStore writeBlobStore;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
@@ -104,6 +100,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getBucket(), config.getRegion());
 
         blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
+        log.info("The ledger offloader was created.");
     }
 
     @Override
@@ -115,11 +112,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public Map<String, String> getOffloadDriverMetadata() {
         return config.getOffloadDriverMetadata();
     }
-
-//    @VisibleForTesting
-//    public ConcurrentMap<BlobStoreLocation, BlobStore> getBlobStores() {
-//        return blobStores;
-//    }
 
     /**
      * Upload the DataBlocks associated with the given ReadHandle using MultiPartUpload,
@@ -300,10 +292,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return promise;
     }
 
-    
+
     @Override
     public OffloadPolicies getOffloadPolicies() {
-        // TODO Auto-generated method stub
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
         return OffloadPolicies.create(properties);

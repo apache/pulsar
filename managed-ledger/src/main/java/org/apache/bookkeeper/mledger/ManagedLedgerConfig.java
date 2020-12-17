@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
@@ -30,6 +29,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
@@ -37,7 +38,8 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 /**
  * Configuration class for a ManagedLedger.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public class ManagedLedgerConfig {
 
     private boolean createIfMissing = true;
@@ -634,4 +636,5 @@ public class ManagedLedgerConfig {
     public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
+
 }

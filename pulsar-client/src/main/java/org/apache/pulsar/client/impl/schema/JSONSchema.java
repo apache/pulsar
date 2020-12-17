@@ -25,22 +25,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Map;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
+
 /**
  * A schema implementation to deal with json data.
  */
 @Slf4j
-public class JSONSchema<T> extends StructSchema<T> {
+public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
     // return shaded version of object mapper
     private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {
@@ -57,11 +59,6 @@ public class JSONSchema<T> extends StructSchema<T> {
         this.pojo = pojo;
         setWriter(writer);
         setReader(reader);
-    }
-
-    @Override
-    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
-        throw new RuntimeException("JSONSchema don't support schema versioning");
     }
 
     /**

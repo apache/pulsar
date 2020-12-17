@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>2.8.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -64,13 +64,6 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>bouncy-castle-bc</artifactId>
-      <version>${project.version}</version>
-      <classifier>pkg</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -177,6 +170,11 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

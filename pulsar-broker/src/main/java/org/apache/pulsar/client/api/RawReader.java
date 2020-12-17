@@ -31,14 +31,14 @@ public interface RawReader {
      * Create a raw reader for a topic.
      */
 
-    public static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
+    static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
-        RawReader r = new RawReaderImpl((PulsarClientImpl)client, topic, subscription, future);
+        RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
         return future.thenCompose((consumer) -> r.seekAsync(MessageId.earliest)).thenApply((ignore) -> r);
     }
 
     /**
-     * Get the topic for the reader
+     * Get the topic for the reader.
      *
      * @return topic for the reader
      */
@@ -69,13 +69,13 @@ public interface RawReader {
      * with the individual acknowledgement, so later acknowledgements will overwrite all
      * properties from previous acknowledgements.
      *
-     * @param messageId to cumulatively acknowledge to
+     * @param messageId  to cumulatively acknowledge to
      * @param properties a map of properties which will be stored with the acknowledgement
      */
-    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties);
+    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String, Long> properties);
 
     /**
-     * Get the last message id available immediately available for reading
+     * Get the last message id available immediately available for reading.
      */
     CompletableFuture<MessageId> getLastMessageIdAsync();
 

@@ -20,16 +20,14 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.SortedSet;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.SortedSet;
 
 public class NamespaceBundles {
     private final NamespaceName nsname;
@@ -81,7 +79,7 @@ public class NamespaceBundles {
                 lowerBound = upperBound;
             }
         } else {
-            this.partitions = new long[] { 0l };
+            this.partitions = new long[]{0L};
             bundles.add(fullBundle);
         }
     }
@@ -125,7 +123,7 @@ public class NamespaceBundles {
         return bundles.get(lowerIdx);
     }
 
-    private static final long[] convertPartitions(SortedSet<Long> partitionsSet) {
+    private static long[] convertPartitions(SortedSet<Long> partitionsSet) {
         checkNotNull(partitionsSet);
         long[] partitions = new long[partitionsSet.size()];
         int idx = 0;

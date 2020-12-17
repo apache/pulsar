@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -37,10 +39,6 @@ import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 
 public class NonPersistentReplicator extends AbstractReplicator implements Replicator {
 
@@ -67,7 +65,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             backOff.reset();
         } else {
             log.info(
-                    "[{}][{} -> {}] Replicator was stopped while creating the producer. Closing it. Replicator state: {}",
+                    "[{}][{} -> {}] Replicator was stopped while creating the producer."
+                            + " Closing it. Replicator state: {}",
                     topicName, localCluster, remoteCluster, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
             closeProducerAsync();
@@ -82,7 +81,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             ByteBuf headersAndPayload = entry.getDataBuffer();
             MessageImpl msg;
             try {
-                msg = MessageImpl.deserialize(headersAndPayload);
+                msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
             } catch (Throwable t) {
                 log.error("[{}][{} -> {}] Failed to deserialize message at {} (buffer size: {}): {}", topicName,
                         localCluster, remoteCluster, entry.getPosition(), length, t.getMessage(), t);

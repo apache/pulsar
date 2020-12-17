@@ -19,13 +19,13 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>2.8.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -74,14 +74,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bc</artifactId>
-      <version>${project.version}</version>
-      <classifier>pkg</classifier>
-      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -177,6 +169,12 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- functions related dependencies (end) -->
 
     <dependency>
@@ -254,7 +252,7 @@
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
-     <dependency>
+    <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient</artifactId>
     </dependency>
@@ -340,10 +338,42 @@
 
     <!-- transaction related dependencies (end) -->
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>check-style</id>
+            <phase>verify</phase>
+            <configuration>
+              <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+              <encoding>UTF-8</encoding>
+              <excludes>**/proto/*</excludes>
+            </configuration>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -385,12 +415,14 @@
               <goal>run</goal>
             </goals>
             <configuration>
-              <tasks>
+              <target>
                 <echo>copy test examples package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar" tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
-                <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
-              </tasks>
+                <copy file="${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar"
+                      tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
+                <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
+              </target>
             </configuration>
           </execution>
         </executions>
@@ -413,7 +445,7 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.7</version>
             <configuration>
               <apiSources>
                 <apiSource>
@@ -483,6 +515,23 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swaggersink</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Packages</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Packages REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Packages operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerpackages</swaggerFileName>
                 </apiSource>
               </apiSources>
             </configuration>

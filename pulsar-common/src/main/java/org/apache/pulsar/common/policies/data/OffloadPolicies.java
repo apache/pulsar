@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
-
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;

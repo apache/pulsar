@@ -26,9 +26,7 @@ import org.apache.pulsar.transaction.common.exception.TransactionConflictExcepti
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
 /**
- * Base type of exception thrown by Pulsar Broker Service
- *
- *
+ * Base type of exception thrown by Pulsar Broker Service.
  */
 @SuppressWarnings("serial")
 public class BrokerServiceException extends Exception {
@@ -56,6 +54,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ProducerFencedException extends BrokerServiceException {
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ServiceUnitNotReadyException extends BrokerServiceException {
         public ServiceUnitNotReadyException(String msg) {
             super(msg);
@@ -64,6 +68,12 @@ public class BrokerServiceException extends Exception {
 
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
+            super(t);
+        }
+    }
+
+    public static class AddEntryMetadataException extends BrokerServiceException {
+        public AddEntryMetadataException(Throwable t) {
             super(t);
         }
     }
@@ -191,6 +201,8 @@ public class BrokerServiceException extends Exception {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
             return PulsarApi.ServerError.ConsumerBusy;
+        } else if (t instanceof ProducerBusyException) {
+            return PulsarApi.ServerError.ProducerBusy;
         } else if (t instanceof UnsupportedVersionException) {
             return PulsarApi.ServerError.UnsupportedVersionError;
         } else if (t instanceof TooManyRequestsException) {
@@ -215,8 +227,12 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof ProducerFencedException) {
+            return ServerError.ProducerFenced;
         } else if (t instanceof TransactionConflictException) {
             return ServerError.TransactionConflict;
+        } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
+            return ServerError.TransactionNotFound;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

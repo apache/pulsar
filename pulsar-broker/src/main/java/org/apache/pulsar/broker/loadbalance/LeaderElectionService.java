@@ -19,15 +19,13 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static com.google.common.base.Preconditions.checkState;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
@@ -36,8 +34,6 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * A class that provides way to elect the leader among brokers.
@@ -67,7 +63,7 @@ public class LeaderElectionService {
      * Interface which should be implemented by classes which are interested in the leader election. The listener gets
      * called when current broker becomes the leader.
      */
-    public static interface LeaderListener {
+    public interface LeaderListener {
         void brokerIsTheLeaderNow();
 
         void brokerIsAFollowerNow();
@@ -147,7 +143,8 @@ public class LeaderElectionService {
             } catch (NodeExistsException nee) {
                 // Re-elect the new leader
                 log.warn(
-                        "Got exception [{}] while creating election node because it already exists. Attempting re-election...",
+                        "Got exception [{}] while creating election node because it already exists."
+                                + " Attempting re-election...",
                         nee.getMessage());
                 executor.execute(this::elect);
             } catch (Exception e) {

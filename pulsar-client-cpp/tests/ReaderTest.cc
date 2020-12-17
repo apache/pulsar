@@ -506,3 +506,60 @@ TEST(ReaderTest, testPartitionIndex) {
 
     client.close();
 }
+
+TEST(ReaderTest, testSubscriptionNameSetting) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/test-subscription-name-setting";
+    std::string subName = "test-sub";
+
+    ReaderConfiguration readerConf;
+    readerConf.setInternalSubscriptionName(subName);
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
+
+    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+
+    reader.close();
+    client.close();
+}
+
+TEST(ReaderTest, testSetSubscriptionNameAndPrefix) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/testSetSubscriptionNameAndPrefix";
+    std::string subName = "test-sub";
+
+    ReaderConfiguration readerConf;
+    readerConf.setInternalSubscriptionName(subName);
+    readerConf.setSubscriptionRolePrefix("my-prefix");
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
+
+    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+
+    reader.close();
+    client.close();
+}
+
+TEST(ReaderTest, testMultiSameSubscriptionNameReaderShouldFail) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/testMultiSameSubscriptionNameReaderShouldFail";
+    std::string subscriptionName = "test-sub";
+
+    ReaderConfiguration readerConf1;
+    readerConf1.setInternalSubscriptionName(subscriptionName);
+    Reader reader1;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf1, reader1));
+
+    ReaderConfiguration readerConf2;
+    readerConf2.setInternalSubscriptionName(subscriptionName);
+    Reader reader2;
+    ASSERT_EQ(ResultConsumerBusy,
+              client.createReader(topicName, MessageId::earliest(), readerConf2, reader2));
+
+    reader1.close();
+    reader2.close();
+    client.close();
+}

@@ -32,10 +32,10 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -44,7 +44,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -62,7 +63,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -449,5 +450,32 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(msg);
         msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(msg);
+    }
+
+    @Test
+    public void testClearDelayedMessagesWhenClearBacklog() throws PulsarClientException, PulsarAdminException {
+        final String topic = "persistent://public/default/testClearDelayedMessagesWhenClearBacklog-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic).create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value("Delayed Message - " + i).send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName).getDispatcher();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
+
+        admin.topics().skipAllMessages(topic, subName);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
 }

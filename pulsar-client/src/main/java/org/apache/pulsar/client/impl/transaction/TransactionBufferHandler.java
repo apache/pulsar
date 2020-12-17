@@ -66,4 +66,9 @@ public interface TransactionBufferHandler {
      * @param response response
      */
     void handleEndTxnOnSubscriptionResponse(long requestId, PulsarApi.CommandEndTxnOnSubscriptionResponse response);
+
+    /**
+     * Release resources.
+     */
+    void close();
 }

@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -70,7 +70,7 @@ public class TransactionBufferTest {
         this.buffer = this.provider.newTransactionBuffer().get();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.buffer.closeAsync();
     }

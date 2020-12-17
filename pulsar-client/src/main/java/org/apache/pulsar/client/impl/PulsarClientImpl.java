@@ -110,6 +110,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+    private final MemoryLimitController memoryLimitController;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
@@ -165,6 +166,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
         }
 
+        memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
         state.set(State.Open);
     }
 
@@ -495,19 +497,26 @@ public class PulsarClientImpl implements PulsarClient {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
-
-            if (metadata.partitions > 0) {
+            if (metadata.partitions > 0 && MultiTopicsConsumerImpl.isIllegalMultiTopicsMessageId(conf.getStartMessageId())) {
                 readerFuture.completeExceptionally(
-                        new PulsarClientException("Topic reader cannot be created on a partitioned topic"));
+                        new PulsarClientException("The partitioned topic startMessageId is illegal"));
                 return;
             }
-
             CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+            Reader<T> reader;
+            ConsumerBase<T> consumer;
+            if (metadata.partitions > 0) {
+                reader = new MultiTopicsReaderImpl<>(PulsarClientImpl.this,
+                        conf, listenerThread, consumerSubscribedFuture, schema);
+                consumer = ((MultiTopicsReaderImpl<T>) reader).getMultiTopicsConsumer();
+            } else {
+                reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+                consumer = ((ReaderImpl<T>) reader).getConsumer();
+            }
 
-            consumers.add(reader.getConsumer());
+            consumers.add(consumer);
 
             consumerSubscribedFuture.thenRun(() -> {
                 readerFuture.complete(reader);
@@ -789,6 +798,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
+    }
+
+    public MemoryLimitController getMemoryLimitController() {
+        return memoryLimitController;
     }
 
     @SuppressWarnings("unchecked")

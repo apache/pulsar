@@ -40,6 +40,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
  * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
  */
+@Deprecated
 public abstract class StructSchema<T> extends AbstractStructSchema<T> {
 
     protected final Schema schema;
@@ -47,7 +48,6 @@ public abstract class StructSchema<T> extends AbstractStructSchema<T> {
     protected StructSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
         this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
-        this.schemaInfo = schemaInfo;
         if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
             this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
                     schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));

@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -68,25 +68,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
-      - name: run flaky test
+      - name: run unit test 'PROXY'
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp install -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dexclude="**/ProxyRolesEnforcementTest.java,**/ProxyAuthenticationTest.java,**/ProxyTest.java,**/MessagePublishBufferThrottleTest.java"
-
-      - name: run flaky test "**/ProxyRolesEnforcementTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyRolesEnforcementTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/ProxyAuthenticationTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyAuthenticationTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/ProxyTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/MessagePublishBufferThrottleTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/MessagePublishBufferThrottleTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/run_unit_group.sh PROXY
 
       - name: package surefire artifacts
         if: failure()

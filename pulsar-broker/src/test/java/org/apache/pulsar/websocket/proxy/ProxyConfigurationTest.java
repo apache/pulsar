@@ -47,7 +47,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers("dummy-zk-servers");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

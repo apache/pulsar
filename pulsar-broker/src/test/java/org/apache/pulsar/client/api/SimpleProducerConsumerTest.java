@@ -96,6 +96,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -130,7 +131,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         };
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -821,6 +822,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads);
         Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
         consumer.close();
+        executor.shutdown();
     }
 
     @Test
@@ -1145,6 +1147,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test(timeOut = 2000)
@@ -1184,6 +1187,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+        executor.shutdown();
     }
 
     @Test
@@ -3603,5 +3607,92 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         message = consumer5.receive(1, TimeUnit.SECONDS);
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
         consumer5.close();
+    }
+
+    @Test
+    public void testGetLastDisconnectedTimestamp() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetLastDisconnectedTimestamp";
+        final String subName = "my-sub";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        Assert.assertEquals(producer.getLastDisconnectedTimestamp(), 0L);
+        Assert.assertEquals(consumer.getLastDisconnectedTimestamp(), 0L);
+
+        pulsar.close();
+
+        Assert.assertTrue(producer.getLastDisconnectedTimestamp() > 0);
+        Assert.assertTrue(consumer.getLastDisconnectedTimestamp() > 0);
+    }
+
+    @Test
+    public void testGetLastDisconnectedTimestampForPartitionedTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetLastDisconnectedTimestampForPartitionedTopic";
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
+        Assert.assertEquals(producer.getLastDisconnectedTimestamp(), 0L);
+        Assert.assertEquals(consumer.getLastDisconnectedTimestamp(), 0L);
+
+        pulsar.close();
+
+        Assert.assertTrue(producer.getLastDisconnectedTimestamp() > 0);
+        Assert.assertTrue(consumer.getLastDisconnectedTimestamp() > 0);
+    }
+
+    @Test
+    public void testGetStats() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetStats" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final int receiveQueueSize = 100;
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).receiverQueueSize(receiveQueueSize).subscriptionName(subName).subscribe();
+        Assert.assertNull(consumer.getStats().getMsgNumInSubReceiverQueue());
+        Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), 0);
+
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.sendAsync("msg" + i);
+        }
+        //Give some time to consume
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testGetStatsForPartitionedTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetStatsForPartitionedTopic";
+        final String subName = "my-sub";
+        final int receiveQueueSize = 100;
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        MultiTopicsConsumerImpl<String> consumer = (MultiTopicsConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).receiverQueueSize(receiveQueueSize).subscriptionName(subName).subscribe();
+        Assert.assertEquals(consumer.getStats().getMsgNumInSubReceiverQueue().size(), 3);
+        Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), 0);
+
+        consumer.getStats().getMsgNumInSubReceiverQueue()
+                .forEach((key, value) -> Assert.assertEquals((int) value, 0));
+
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.sendAsync("msg" + i);
+        }
+        //Give some time to consume
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+        consumer.close();
+        producer.close();
     }
 }

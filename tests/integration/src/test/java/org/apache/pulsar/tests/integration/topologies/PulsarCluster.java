@@ -95,13 +95,15 @@ public class PulsarCluster {
 
         if (enablePrestoWorker) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+                .withNetwork(network)
+                .withNetworkAliases(PrestoWorkerContainer.NAME)
+                .withEnv("clusterName", clusterName)
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                .withEnv("pulsar.bookkeeper-explicit-interval", "10")
+                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         } else {
             prestoWorkerContainer = null;
         }
@@ -132,6 +134,9 @@ public class PulsarCluster {
             .withEnv("zookeeperServers", ZKContainer.NAME)
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
+        if (spec.proxyEnvs != null) {
+            spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
+        }
 
         // create bookies
         bookieContainers.putAll(
@@ -150,7 +155,8 @@ public class PulsarCluster {
 
         // create brokers
         brokerContainers.putAll(
-                runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
+            runNumContainers("broker", spec.numBrokers(), (name) -> {
+                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, name)
                         .withNetwork(network)
                         .withNetworkAliases(name)
                         .withEnv("zkServers", ZKContainer.NAME)
@@ -160,9 +166,17 @@ public class PulsarCluster {
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
-                        .withEnv("AWS_SECRET_KEY", "secretkey")
-                )
-        );
+                        .withEnv("AWS_SECRET_KEY", "secretkey");
+                    if (spec.queryLastMessage) {
+                        brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
+                        brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
+                    }
+                    if (spec.brokerEnvs != null) {
+                        brokerContainer.withEnv(spec.brokerEnvs);
+                    }
+                    return brokerContainer;
+                }
+            ));
 
         spec.classPathVolumeMounts.forEach((key, value) -> {
             zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
@@ -339,13 +353,17 @@ public class PulsarCluster {
         log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+                .withNetwork(network)
+                .withNetworkAliases(PrestoWorkerContainer.NAME)
+                .withEnv("clusterName", clusterName)
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            if (spec.queryLastMessage) {
+                prestoWorkerContainer.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                    .withEnv("pulsar.bookkeeper-explicit-interval", "10");
+            }
             if (offloadDriver != null && offloadProperties != null) {
                 log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
                         offloadDriver, offloadProperties);

@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -56,25 +56,9 @@ jobs:
         with:
           args: site2 deployment .asf.yaml .ci ct.yaml
 
-      - name: build and run unit tests exclude pulsar-broker and pulsar-proxy
+      - name: run unit test 'OTHER'
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp install -PbrokerSkipTest -Dexclude="org/apache/pulsar/proxy/**/*.java,**/KafkaProducerSimpleConsumerTest.java,**/ManagedLedgerTest.java,**/TestPulsarKeyValueSchemaHandler.java,**/PrimitiveSchemaTest.java,**/BlobStoreManagedLedgerOffloaderTest.java"
-
-      - name: run flaky test "**/ManagedLedgerTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/TestPulsarKeyValueSchemaHandler.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-sql/presto-pulsar-plugin -Dinclude="**/TestPulsarKeyValueSchemaHandler.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/PrimitiveSchemaTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-client -Dinclude="**/PrimitiveSchemaTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/BlobStoreManagedLedgerOffloaderTest.java"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl tiered-storage/jcloud -Dinclude="**/BlobStoreManagedLedgerOffloaderTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/run_unit_group.sh OTHER
 
       - name: package surefire artifacts
         if: failure()

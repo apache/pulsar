@@ -32,13 +32,13 @@
     <suppress checks="JavadocType" files=".*Impl\.java$" />
 
     <!-- suppress all checks in the generated directories -->
-    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java" />
-    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java" />
-    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java" />
+    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
+    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
+    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
 
     <!-- suppress all checks in the copied code -->
-    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java" />
-    
-    <suppress checks=".*" files="MLDataFormats.java" />
-    <suppress checks=".*" files="BitSetRecyclable.java" />
+    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
+
+    <suppress checks=".*" files="MLDataFormats.java"/>
+    <suppress checks=".*" files="BitSetRecyclable.java"/>
 </suppressions>

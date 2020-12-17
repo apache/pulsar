@@ -71,7 +71,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private Timeout requestTimeout;
 
-    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic) {
+    private CompletableFuture<Void> connectFuture;
+
+    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
+                                       CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
@@ -87,6 +90,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 .create(),
             this);
         this.connectionHandler.grabCnx();
+        this.connectFuture = connectFuture;
     }
 
     @Override
@@ -94,6 +98,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
             transactionCoordinatorId, exception);
         setState(State.Failed);
+        this.connectFuture.completeExceptionally(exception);
     }
 
     @Override
@@ -105,6 +110,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         if (!changeToReadyState()) {
             cnx.channel().close();
         }
+        this.connectFuture.complete(null);
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
@@ -373,6 +379,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
             case InvalidTxnStatus:
                 return new TransactionCoordinatorClientException.InvalidTxnStatusException(msg);
+            case TransactionNotFound:
+                return new TransactionCoordinatorClientException.TransactionNotFoundException(msg);
             default:
                 return new TransactionCoordinatorClientException(msg);
         }
