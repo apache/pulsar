@@ -825,7 +825,7 @@ public class KubernetesRuntime implements Runtime {
     private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {
         if (Arrays.stream(PackageType.values()).anyMatch(type ->
             functionDetails.getPackageUrl().startsWith(type.toString()))) {
-            getPackageDownloadCommand(functionDetails.getPackageUrl(), userCodeFilePath);
+            return getPackageDownloadCommand(functionDetails.getPackageUrl(), userCodeFilePath);
         } else {
             return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), userCodeFilePath);
