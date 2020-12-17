@@ -575,10 +575,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testManagedLedgerStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic1").create();
+        Producer<byte[]> p4 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
             p2.send(message.getBytes());
+            p3.send(message.getBytes());
+            p4.send(message.getBytes());
         }
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -591,18 +595,63 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
+        Map<String, String> typeDefs = new HashMap<String, String>();
+        Map<String, String> metricNames = new HashMap<String, String>();
+
+        Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
+        Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
+
+	    Splitter.on("\n").split(metricsStr).forEach(line -> {
+            if (line.isEmpty()) {
+                return;
+            }
+            if (line.startsWith("#")) {
+                // Check for duplicate type definitions
+                Matcher typeMatcher = typePattern.matcher(line);
+                checkArgument(typeMatcher.matches());
+                String metricName = typeMatcher.group(1);
+                String type = typeMatcher.group(2);
+
+                // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+                // "Only one TYPE line may exist for a given metric name."
+                if (!typeDefs.containsKey(metricName)) {
+                    typeDefs.put(metricName, type);
+                } else {
+                    fail("Duplicate type definition found for TYPE definition " + metricName);
+                    System.out.println(metricsStr);
+
+                }
+                // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+                // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
+                if (metricNames.containsKey(metricName)) {
+                    System.out.println(metricsStr);
+                    fail("TYPE definition for " + metricName + " appears after first sample");
+
+                }
+            } else {
+                Matcher metricMatcher = metricNamePattern.matcher(line);
+                checkArgument(metricMatcher.matches());
+                String metricName = metricMatcher.group(1);
+                metricNames.put(metricName, metricName);
+            }
+        });
+
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_ml_AddEntryBytesRate");
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        String ns = cm.get(0).tags.get("namespace");
+        assertEquals(ns.equals("my-property/use/my-ns") || ns.equals("my-property/use/my-ns2"), true);
 
         cm = (List<Metric>) metrics.get("pulsar_ml_AddEntryMessagesRate");
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        ns = cm.get(0).tags.get("namespace");
+        assertEquals(ns.equals("my-property/use/my-ns") || ns.equals("my-property/use/my-ns2"), true);
 
         p1.close();
         p2.close();
+        p3.close();
+        p4.close();
     }
 
     @Test
