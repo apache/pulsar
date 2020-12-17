@@ -25,7 +25,7 @@ import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.*;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 
 /**
  * Utilities for managing BookKeeper Ledgers custom metadata.

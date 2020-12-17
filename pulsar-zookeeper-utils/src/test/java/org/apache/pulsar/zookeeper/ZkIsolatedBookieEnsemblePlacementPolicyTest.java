@@ -79,7 +79,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         localZkS = new ZookeeperServerTest(0);
         localZkS.start();
 
-        localZkc = ZooKeeperClient.newBuilder().sessionTimeoutMs(60000).connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
+        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
         writableBookies.add(new BookieSocketAddress(BOOKIE1).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE2).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE3).toBookieId());
