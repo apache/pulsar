@@ -221,7 +221,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.11.1.jar
     - jackson-module-jsonSchema-2.11.1.jar
  * Guava
-    - guava-30.0-jre.jar
+    - guava-30.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
@@ -439,12 +439,13 @@ The Apache Software License, Version 2.0
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
-    - jetty-http-9.4.33.v20201020.jar
-    - jetty-io-9.4.33.v20201020.jar
-    - jetty-security-9.4.33.v20201020.jar
-    - jetty-server-9.4.33.v20201020.jar
-    - jetty-servlet-9.4.33.v20201020.jar
-    - jetty-util-9.4.33.v20201020.jar
+    - jetty-http-9.4.35.v20201120.jar
+    - jetty-io-9.4.35.v20201120.jar
+    - jetty-security-9.4.35.v20201120.jar
+    - jetty-server-9.4.35.v20201120.jar
+    - jetty-servlet-9.4.35.v20201120.jar
+    - jetty-util-9.4.35.v20201120.jar
+    - jetty-util-ajax-9.4.35.v20201120.jar
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
