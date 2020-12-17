@@ -321,7 +321,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
                             }
                             if (rc == BKException.Code.OK) {
-                                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
+                                LedgerInfo.Builder builder;
+                                if (ledgers.get(id) != null) {
+                                    builder = ledgers.get(id).toBuilder();
+                                } else {
+                                    builder = LedgerInfo.newBuilder();
+                                }
+                                LedgerInfo info = builder.setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
@@ -1411,21 +1417,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
         if (entriesInLedger > 0) {
-            synchronized (ledgers) {
-                LedgerInfo.Builder builder;
-                if (ledgers.get(lh.getId()) != null) {
-                    builder = ledgers.get(lh.getId()).toBuilder();
-                } else {
-                    builder = LedgerInfo.newBuilder();
-                }
-                LedgerInfo info = builder
-                        .setLedgerId(lh.getId())
-                        .setEntries(entriesInLedger)
-                        .setSize(lh.getLength())
-                        .setTimestamp(clock.millis())
-                        .build();
-                ledgers.put(lh.getId(), info);
+            LedgerInfo.Builder builder;
+            if (ledgers.get(lh.getId()) != null) {
+                builder = ledgers.get(lh.getId()).toBuilder();
+            } else {
+                builder = LedgerInfo.newBuilder();
             }
+            LedgerInfo info = builder
+                    .setLedgerId(lh.getId())
+                    .setEntries(entriesInLedger)
+                    .setSize(lh.getLength())
+                    .setTimestamp(clock.millis())
+                    .build();
+            ledgers.put(lh.getId(), info);
         } else {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
