@@ -41,9 +41,9 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
-import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -52,6 +52,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Supplier;
@@ -149,14 +150,17 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-
-                    if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
-                        throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
-                    }
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
+                    } else {
+                        if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
+                            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
+                        }
+                        try {
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             sinkConfig, componentPackageFile);
@@ -317,10 +321,14 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isNotBlank(sinkPkgUrl)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
+                    } else {
+                        try {
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             mergedConfig, componentPackageFile);
@@ -723,5 +731,16 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
                 worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
+    }
+
+
+    private static boolean hasPackageTypePrefix(String destPkgUrl) {
+        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
+    }
+
+    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
+        File file = Files.createTempFile("function", ".tmp").toFile();
+        worker().getBrokerAdmin().packages().download(packageName, file.toString());
+        return file;
     }
 }
