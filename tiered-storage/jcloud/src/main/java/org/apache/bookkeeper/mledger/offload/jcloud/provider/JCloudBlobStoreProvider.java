@@ -178,27 +178,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
-            Properties overrides = config.getOverrides();
-            // For security reasons, OSS supports only virtual hosted style access.
-            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
-            contextBuilder.overrides(overrides);
-
-            if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
-                contextBuilder.endpoint(config.getServiceEndpoint());
-            }
-
-            if (config.getProviderCredentials() != null) {
-                return contextBuilder
-                        .credentialsSupplier(config.getCredentials())
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            } else {
-                log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
-                return contextBuilder
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            }
+            return OSS_BLOB_STORE_BUILDER.getBlobStore(config);
         }
 
         @Override
@@ -357,4 +337,29 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             }
         }
     };
+
+    static final BlobStoreBuilder OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        Properties overrides = config.getOverrides();
+        // For security reasons, OSS supports only virtual hosted style access.
+        overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        contextBuilder.overrides(overrides);
+
+        if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
+            contextBuilder.endpoint(config.getServiceEndpoint());
+        }
+
+        if (config.getProviderCredentials() != null) {
+            return contextBuilder
+                    .credentialsSupplier(config.getCredentials())
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        }
+    };
+
 }
