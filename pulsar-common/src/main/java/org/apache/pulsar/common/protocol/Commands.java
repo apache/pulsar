@@ -1147,17 +1147,20 @@ public class Commands {
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries, long requestId) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
+        if (requestId >= 0) {
+            ackBuilder.setRequestId(requestId);
+        }
         return newMultiMessageAckCommon(ackBuilder, entries);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
-                                 ValidationError validationError, Map<String, Long> properties) {
+                                 ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
-                properties, -1L, -1L, -1L, -1);
+                properties, -1L, -1L, requestId, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,

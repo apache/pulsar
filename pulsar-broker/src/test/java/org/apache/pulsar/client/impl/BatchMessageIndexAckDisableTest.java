@@ -32,6 +32,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -57,8 +58,13 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testBatchMessageIndexAckForSharedSubscription() throws PulsarClientException, ExecutionException, InterruptedException {
+    @DataProvider(name = "ackResponseTimeout")
+    public Object[][] ackResponseTimeout() {
+        return new Object[][] { { 0L }, { 3000L } };
+    }
+
+    @Test(dataProvider = "ackResponseTimeout")
+    public void testBatchMessageIndexAckForSharedSubscription(long ackResponseTimeout) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
 
         @Cleanup
@@ -68,6 +74,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             .receiverQueueSize(100)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(1, TimeUnit.SECONDS)
+            .ackResponseTimeout(ackResponseTimeout,TimeUnit.MILLISECONDS)
             .subscribe();
 
         @Cleanup
@@ -97,8 +104,8 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test
-    public void testBatchMessageIndexAckForExclusiveSubscription() throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackResponseTimeout")
+    public void testBatchMessageIndexAckForExclusiveSubscription(long ackResponseTimeout) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
@@ -106,6 +113,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
+            .ackResponseTimeout(ackResponseTimeout,TimeUnit.MILLISECONDS)
             .subscribe();
 
         @Cleanup

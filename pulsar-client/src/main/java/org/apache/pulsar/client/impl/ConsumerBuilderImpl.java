@@ -194,6 +194,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> ackResponseTimeout(long ackResponseTimeout, TimeUnit timeUnit) {
+        checkArgument(ackResponseTimeout == 0
+                || timeUnit.toMillis(ackResponseTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
+                "Ack response timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
+        conf.setAckResponseTimeout(timeUnit.toMillis(ackResponseTimeout));
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit) {
         checkArgument(timeUnit.toMillis(tickTime) >= MIN_TICK_TIME_MILLIS,
                 "Ack timeout tick time should be greater than " + MIN_TICK_TIME_MILLIS + " ms");

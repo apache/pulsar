@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
@@ -115,10 +116,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
-    public void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds,
+                                                         AckType ackType, Map<String, Long> properties) {
         if (ackType == AckType.Cumulative) {
             messageIds.forEach(messageId -> doCumulativeAck(messageId, null));
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         messageIds.forEach(messageId -> {
             if (messageId instanceof BatchMessageIdImpl) {
@@ -136,10 +138,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (acknowledgementGroupTimeMicros == 0) {
             flush();
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
+    public CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
                                   TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() ||
                 (txn != null && ackType == AckType.Cumulative)) {
@@ -148,7 +151,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                             batchMessageId.getBatchIndex(),
                             ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
-                    return;
+                    return CompletableFuture.completedFuture(null);
                 }
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
@@ -173,9 +176,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 flush();
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
-    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
+    @Override
+    public CompletableFuture<Void> addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
                                             Map<String, Long> properties, TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties,
@@ -219,6 +224,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 flush();
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     private void doCumulativeAck(MessageIdImpl msgId, BitSetRecyclable bitSet) {
@@ -278,14 +284,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (cnx == null) {
             return false;
         }
-        if (transaction != null) {
-            newAckCommand(consumer.consumerId, msgId, null, ackType, null,
-                    properties, cnx, true /* flush */, transaction.getTxnIdMostBits(),
-                    transaction.getTxnIdLeastBits());
-        } else {
-            newAckCommand(consumer.consumerId, msgId, null, ackType, null,
-                    properties, cnx, true /* flush */, -1, -1);
-        }
+        newAckCommand(consumer.consumerId, msgId, null, ackType, null,
+                properties, cnx, true /* flush */, -1, -1);
         return true;
     }
 
@@ -468,7 +468,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         if (entriesToAck.size() > 0) {
-            cnx.ctx().write(Commands.newMultiMessageAck(consumer.consumerId, entriesToAck),
+            cnx.ctx().write(Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, -1),
                 cnx.ctx().voidPromise());
             shouldFlush = true;
         }
@@ -511,7 +511,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
                     }
                 }
-                ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck);
+                ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, -1);
                 if (flush) {
                     cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
                 } else {
@@ -520,7 +520,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             } else {
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
-                            lastCumulativeAckSet, ackType, validationError, map);
+                            lastCumulativeAckSet, ackType, validationError, map, -1);
                     if (flush) {
                         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
                     } else {

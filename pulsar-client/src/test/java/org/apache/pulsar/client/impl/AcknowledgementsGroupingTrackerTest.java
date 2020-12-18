@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
@@ -30,12 +31,14 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.util.Timer;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class AcknowledgementsGroupingTrackerTest {
@@ -48,10 +51,22 @@ public class AcknowledgementsGroupingTrackerTest {
     public void setup() {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
+
         consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
         cnx = mock(ClientCnx.class);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        Timer timer = mock(Timer.class);
+        doReturn(client).when(consumer).getClient();
+        doReturn(timer).when(client).timer();
+
+
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
+    }
+
+    @DataProvider(name = "isNeedResponse")
+    public Object[][] isNeedResponse() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
     @AfterClass
@@ -59,11 +74,16 @@ public class AcknowledgementsGroupingTrackerTest {
         eventLoopGroup.shutdownGracefully();
     }
 
-    @Test
-    public void testAckTracker() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -117,11 +137,16 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test
-    public void testBatchAckTracker() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testBatchAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -175,11 +200,16 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test
-    public void testImmediateAckingTracker() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testImmediateAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -202,11 +232,16 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test
-    public void testImmediateBatchAckingTracker() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testImmediateBatchAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -226,16 +261,23 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg1));
 
         tracker.addListAcknowledgment(Collections.singletonList(msg2), AckType.Individual, Collections.emptyMap());
+
+        tracker.flush();
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
         tracker.close();
     }
 
-    @Test
-    public void testAckTrackerMultiAck() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
 
@@ -291,11 +333,16 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test
-    public void testBatchAckTrackerMultiAck() throws Exception {
+    @Test(dataProvider = "isNeedResponse")
+    public void testBatchAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker;
+        if (!isNeedResponse) {
+            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        } else {
+            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
+        }
 
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
 

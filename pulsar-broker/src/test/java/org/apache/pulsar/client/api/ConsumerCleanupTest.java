@@ -21,12 +21,14 @@ package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.testng.Assert;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class ConsumerCleanupTest extends ProducerConsumerBase {
 
@@ -43,16 +45,22 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testAllTimerTaskShouldCanceledAfterConsumerClosed() throws PulsarClientException, InterruptedException {
+    @DataProvider(name = "ackResponseTimeout")
+    public Object[][] ackResponseTimeout() {
+        return new Object[][] { { 0L }, { 3000L } };
+    }
+
+    @Test(dataProvider = "ackResponseTimeout")
+    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(long ackResponseTimeout)
+            throws PulsarClientException, InterruptedException {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .subscriptionName("test")
+                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
                 .subscribe();
         consumer.close();
-        Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
+        Awaitility.await().atMost(6000L, TimeUnit.MILLISECONDS).until(() ->
+                ((HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer()).pendingTimeouts() == 0);
     }
 }

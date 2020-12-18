@@ -57,6 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -81,6 +82,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @DataProvider(name = "ackResponseTimeout")
+    public Object[][] ackResponseTimeout() {
+        return new Object[][] { { 0L }, { 3000 } };
+    }
+
     @Test
     public void testInvalidConfig() throws Exception {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -94,8 +100,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testLargeMessage() throws Exception {
+    @Test(dataProvider = "ackResponseTimeout")
+    public void testLargeMessage(long ackResponseTimeout) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -103,6 +109,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -158,8 +165,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     }
 
-    @Test
-    public void testLargeMessageAckTimeOut() throws Exception {
+    @Test(dataProvider = "ackResponseTimeout")
+    public void testLargeMessageAckTimeOut(long ackResponseTimeout) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -168,6 +175,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
                 .ackTimeout(5, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);

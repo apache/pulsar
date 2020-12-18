@@ -186,7 +186,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-    private final ConcurrentLongHashMap<OpForAckCallBack> ackRequests;
+    private final ConcurrentLongHashMap<OpForAckCallBack> transactionAckRequests;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
@@ -312,8 +312,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {
-            this.acknowledgmentsGroupingTracker =
-                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+            if (conf.getAckResponseTimeout() > 0) {
+                this.acknowledgmentsGroupingTracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(
+                        this,conf,client.eventLoopGroup());
+            } else {
+                this.acknowledgmentsGroupingTracker =
+                        new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+            }
         } else {
             this.acknowledgmentsGroupingTracker =
                 NonPersistentAcknowledgmentGroupingTracker.of();
@@ -346,7 +351,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
-        this.ackRequests = new ConcurrentLongHashMap<>(16, 1);
+        this.transactionAckRequests = new ConcurrentLongHashMap<>(16, 1);
 
         grabCnx();
     }
@@ -573,7 +578,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             } else {
                 if (conf.isBatchIndexAckEnabled()) {
-                    acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
+                    return acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
                             batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
                             ackType, properties, txn);
                 }
@@ -588,7 +593,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType, Map<String, Long> properties, TransactionImpl txn) {
         if (AckType.Cumulative.equals(ackType)) {
             List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-            messageIdList.forEach(messageId -> completableFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
+            messageIdList.forEach(messageId ->
+                    completableFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
             return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
         }
         if (getState() != State.Ready && getState() != State.Connecting) {
@@ -598,6 +604,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
         List<MessageIdImpl> nonBatchMessageIds = new ArrayList<>();
+        List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
         for (MessageId messageId : messageIdList) {
             MessageIdImpl messageIdImpl;
             if (messageId instanceof BatchMessageIdImpl
@@ -605,8 +612,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
-                acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                        batchMessageId.getBatchSize(), ackType, properties, txn);
+                completableFutureList.add(acknowledgmentsGroupingTracker
+                        .addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
+                                batchMessageId.getBatchSize(), ackType, properties, txn));
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
@@ -620,9 +628,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             onAcknowledge(messageId, null);
         }
         if (nonBatchMessageIds.size() > 0) {
-            acknowledgmentsGroupingTracker.addListAcknowledgment(nonBatchMessageIds, ackType, properties);
+            completableFutureList.add(acknowledgmentsGroupingTracker
+                    .addListAcknowledgment(nonBatchMessageIds, ackType, properties));
         }
-        return CompletableFuture.completedFuture(null);
+        if (conf.getAckResponseTimeout() > 0) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return FutureUtil.waitForAll(completableFutureList);
+        }
     }
 
 
@@ -780,11 +793,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties, txnImpl);
-
-        // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
-        // the messages will be re-delivered
-        return CompletableFuture.completedFuture(null);
+        return acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties, txnImpl);
     }
 
     @Override
@@ -1062,14 +1071,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleSendToDeadLetterTopicMessages.clear();
         }
 
-        if (!ackRequests.isEmpty()) {
-            ackRequests.forEach((key, value) -> {
+        if (!transactionAckRequests.isEmpty()) {
+            transactionAckRequests.forEach((key, value) -> {
                 value.callback
                         .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!"));
                 value.recycle();
             });
 
-            ackRequests.clear();
+            transactionAckRequests.clear();
         }
 
         acknowledgmentsGroupingTracker.close();
@@ -1694,7 +1703,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null, AckType.Individual,
-                                      validationError, Collections.emptyMap());
+                                      validationError, Collections.emptyMap(), -1);
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
         increaseAvailablePermits(currentCnx);
         stats.incrementNumReceiveFailed();
@@ -2434,7 +2443,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
                 new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
-        ackRequests.put(requestId, op);
+        transactionAckRequests.put(requestId, op);
         if (ackType == AckType.Cumulative) {
             unAckedMessageTracker.removeMessagesTill(messageId);
         } else {
@@ -2446,28 +2455,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     protected void ackReceipt(long requestId) {
-        OpForAckCallBack callBackOp = ackRequests.remove(requestId);
-        if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.info("Ack request has been handled requestId : {}", requestId);
+        //TODO Now transaction ack request individual handle, we should cover in tracker handle
+        if (conf.getAckResponseTimeout() > 0) {
+            this.acknowledgmentsGroupingTracker.ackReceipt(requestId);
         } else {
-            callBackOp.callback.complete(null);
-            if (log.isDebugEnabled()) {
-                log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
-                        + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
+            OpForAckCallBack callBackOp = transactionAckRequests.remove(requestId);
+            if (callBackOp == null || callBackOp.callback.isDone()) {
+                log.info("Ack request has been handled requestId : {}", requestId);
+            } else {
+                callBackOp.callback.complete(null);
+                if (log.isDebugEnabled()) {
+                    log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
+                            + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
+                }
             }
         }
     }
 
     protected void ackError(long requestId, PulsarClientException pulsarClientException) {
-        OpForAckCallBack callBackOp = ackRequests.remove(requestId);
-        if (callBackOp == null || callBackOp.callback.isDone()) {
-            log.info("Ack request has been handled requestId : {}", requestId);
+        //TODO Now transaction ack request individual handle, we should cover in tracker handle
+        if (conf.getAckResponseTimeout() > 0) {
+            this.acknowledgmentsGroupingTracker.ackReceipt(requestId);
         } else {
-            callBackOp.callback.completeExceptionally(pulsarClientException);
-            if (log.isDebugEnabled()) {
-                log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
+            OpForAckCallBack callBackOp = transactionAckRequests.remove(requestId);
+            if (callBackOp == null || callBackOp.callback.isDone()) {
+                log.info("Ack request has been handled requestId : {}", requestId);
+            } else {
+                callBackOp.callback.completeExceptionally(pulsarClientException);
+                if (log.isDebugEnabled()) {
+                    log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
+                }
+                callBackOp.recycle();
             }
-            callBackOp.recycle();
         }
     }
 

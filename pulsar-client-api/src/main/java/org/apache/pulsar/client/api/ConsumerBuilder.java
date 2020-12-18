@@ -187,6 +187,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
+     * If config this, the ack will return response but does not mean that the message will not be resent after signing.
+     *
+     * <p> The time is for ack receive response timeout time.
+     *
+     * @param ackResponseTimeout
+     *            for ack response timeout.
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> ackResponseTimeout(long ackResponseTimeout, TimeUnit timeUnit);
+
+    /**
      * Define the granularity of the ack-timeout redelivery.
      *
      * <p>By default, the tick time is set to 1 second. Using an higher tick time will

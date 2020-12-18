@@ -22,6 +22,7 @@ import lombok.Cleanup;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -46,15 +47,20 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
-    public void testBatchListAck() throws Exception {
-        ackListMessage(true,true);
-        ackListMessage(true,false);
-        ackListMessage(false,false);
-        ackListMessage(false,true);
+    @DataProvider(name = "ackResponseTimeout")
+    public Object[][] ackResponseTimeout() {
+        return new Object[][] { { 0L }, { 3000 } };
     }
 
-    public void ackListMessage(boolean isBatch, boolean isPartitioned) throws Exception {
+    @Test(timeOut = 30000, dataProvider = "ackResponseTimeout")
+    public void testBatchListAck(long ackResponseTimeout) throws Exception {
+        ackListMessage(true,true, ackResponseTimeout);
+        ackListMessage(true,false, ackResponseTimeout);
+        ackListMessage(false,false, ackResponseTimeout);
+        ackListMessage(false,true, ackResponseTimeout);
+    }
+
+    public void ackListMessage(boolean isBatch, boolean isPartitioned, long ackResponseTimeout) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
@@ -72,6 +78,7 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .topic(topic)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
+                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();

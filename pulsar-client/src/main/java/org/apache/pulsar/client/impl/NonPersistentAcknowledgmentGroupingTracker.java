@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.List;
-import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
  * A no-op acknowledgment grouping tracker.
@@ -40,22 +36,6 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     @Override
     public boolean isDuplicate(MessageId messageId) {
         return false;
-    }
-
-    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String,
-            Long> properties, TransactionImpl txnImpl) {
-        // no-op
-    }
-
-    @Override
-    public void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties) {
-        // no-op
-    }
-
-    @Override
-    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize,
-                                            AckType ackType, Map<String, Long> properties, TransactionImpl transaction) {
-        // no-op
     }
 
     @Override
