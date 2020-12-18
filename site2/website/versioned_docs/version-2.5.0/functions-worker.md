@@ -227,16 +227,21 @@ The error message prompts when either of the cases occurs:
 
 If any of these cases happens, follow the instructions below to fix the problem:
 
-1. Get the current clusters list of `public/functions` namespace.
+1. Disable Functions Worker by setting `functionsWorkerEnabled=false`, and restart brokers.
+
+2. Get the current clusters list of `public/functions` namespace.
 
 ```bash
 bin/pulsar-admin namespaces get-clusters public/functions
 ```
 
-2. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
+3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
 ```bash
-bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
 ```
 
-3. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file. 
+4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
+
+5. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file, and restart brokers. 
+
