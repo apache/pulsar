@@ -1198,7 +1198,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     // If the producer is queued waiting, we will get an immediate notification
                                     // that we need to pass to client
                                     if (isActive()) {
-                                        log.info("[{}] Producer is waiting in qeuue: {}", remoteAddress, producer);
+                                        log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
                                         commandSender.sendProducerSuccessResponse(requestId, producerName,
                                                 producer.getLastSequenceId(), producer.getSchemaVersion(),
                                                 Optional.empty(), false/* producer is not ready now */);
