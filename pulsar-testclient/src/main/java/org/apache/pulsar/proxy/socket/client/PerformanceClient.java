@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.proxy.socket.client;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -72,7 +75,7 @@ public class PerformanceClient {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"", required = true)
+        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
         public String proxyURL;
 
         @Parameter(description = "persistent://tenant/ns/my-topic", required = true)
@@ -144,8 +147,22 @@ public class PerformanceClient {
                 System.exit(1);
             }
 
-            if (arguments.proxyURL == null) {
-                arguments.proxyURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
+            if (isBlank(arguments.proxyURL)) {
+                String webSocketServiceUrl = prop.getProperty("webSocketServiceUrl");
+                if (isNotBlank(webSocketServiceUrl)) {
+                    arguments.proxyURL = webSocketServiceUrl;
+                } else {
+                    String webServiceUrl = isNotBlank(prop.getProperty("webServiceUrl"))
+                            ? prop.getProperty("webServiceUrl")
+                            : prop.getProperty("serviceUrl");
+                    if (isNotBlank(webServiceUrl)) {
+                        if (webServiceUrl.startsWith("ws://") || webServiceUrl.startsWith("wss://")) {
+                            arguments.proxyURL = webServiceUrl;
+                        } else if (webServiceUrl.startsWith("http://") || webServiceUrl.startsWith("https://")) {
+                            arguments.proxyURL = webServiceUrl.replaceFirst("^http", "ws");
+                        }
+                    }
+                }
             }
 
             if (arguments.authPluginClassName == null) {
@@ -155,6 +172,14 @@ public class PerformanceClient {
             if (arguments.authParams == null) {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
+        }
+
+        if (isBlank(arguments.proxyURL)) {
+            arguments.proxyURL = "ws://localhost:8080/";
+        }
+
+        if (!arguments.proxyURL.endsWith("/")) {
+            arguments.proxyURL += "/";
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
