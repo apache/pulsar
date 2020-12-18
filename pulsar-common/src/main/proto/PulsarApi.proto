@@ -622,6 +622,11 @@ message CommandProducerSuccess {
     // The topic epoch assigned by the broker. This field will only be set if we
     // were requiring exclusive access when creating the producer.
     optional uint64 topic_epoch = 5;
+
+    // If producer is not "ready", the client will avoid to timeout the request
+    // for creating the producer. Instead it will wait indefinitely until it gets 
+    // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
+    optional bool producer_ready = 6 [default = true];
 }
 
 message CommandError {
