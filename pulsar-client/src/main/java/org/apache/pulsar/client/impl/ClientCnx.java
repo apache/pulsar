@@ -475,7 +475,7 @@ public class ClientCnx extends PulsarHandler {
             // we have received a response, in order to avoid the timeout.
             TimedCompletableFuture<?> requestFuture = (TimedCompletableFuture<?>) pendingRequests.get(requestId);
             if (requestFuture != null) {
-                log.warn("{} Producer {} has been queued up at broker. request: {}", ctx.channel(),
+                log.info("{} Producer {} has been queued up at broker. request: {}", ctx.channel(),
                         success.getProducerName(), requestId);
                 requestFuture.markAsResponded();
             }
