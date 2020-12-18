@@ -97,7 +97,7 @@ public class SimpleProducerConsumerTest {
     @Test
     public void testRSAEncryption() throws Exception {
 
-        String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -292,7 +292,7 @@ public class SimpleProducerConsumerTest {
         int numberOfMessages = 100;
         String message = "my-message";
         Set<String> messages = new HashSet(); // Since messages are in random order
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             producer.send((message + i).getBytes());
         }
 
@@ -303,7 +303,7 @@ public class SimpleProducerConsumerTest {
         m = consumer3.receive(3, TimeUnit.SECONDS);
         assertNull(m);
 
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             // All messages would be received by consumer 1
             m = consumer1.receive();
             messages.add(new String(m.getData()));
@@ -318,7 +318,7 @@ public class SimpleProducerConsumerTest {
         assertNull(m);
 
         // checking if all messages were received
-        for (int i = 0; i<numberOfMessages; i++) {
+        for (int i = 0; i < numberOfMessages; i++) {
             assertTrue(messages.contains((message + i)));
         }
 
@@ -453,7 +453,8 @@ public class SimpleProducerConsumerTest {
         msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
-    @Test(groups = "encryption")
+
+    @Test
     public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
 
         final String encryptionKeyName = "client-rsa.pem";
