@@ -601,7 +601,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
         Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
 
-	    Splitter.on("\n").split(metricsStr).forEach(line -> {
+        Splitter.on("\n").split(metricsStr).forEach(line -> {
             if (line.isEmpty()) {
                 return;
             }
@@ -618,15 +618,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     typeDefs.put(metricName, type);
                 } else {
                     fail("Duplicate type definition found for TYPE definition " + metricName);
-                    System.out.println(metricsStr);
-
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
                 // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
                 if (metricNames.containsKey(metricName)) {
-                    System.out.println(metricsStr);
                     fail("TYPE definition for " + metricName + " appears after first sample");
-
                 }
             } else {
                 Matcher metricMatcher = metricNamePattern.matcher(line);
