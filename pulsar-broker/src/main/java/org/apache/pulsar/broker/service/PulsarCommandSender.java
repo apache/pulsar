@@ -39,7 +39,8 @@ public interface PulsarCommandSender {
     void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
     void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                     SchemaVersion schemaVersion, Optional<Long> topicEpoch);
+                                     SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+                                     boolean isProducerReady);
 
     void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
                                  long entryId);
