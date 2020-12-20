@@ -173,7 +173,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
-            VALIDATION.validate(config);
+            if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
+                throw new IllegalArgumentException(
+                        "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+            }
+
+            if (Strings.isNullOrEmpty(config.getBucket())) {
+                throw new IllegalArgumentException(
+                        "Bucket cannot be empty for " + config.getDriver() + " offload");
+            }
+
+            if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
+                throw new IllegalArgumentException(
+                        "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                                + config.getDriver() + " offload");
+            }
         }
 
         @Override
@@ -344,10 +358,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         // For security reasons, OSS supports only virtual hosted style access.
         overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
         contextBuilder.overrides(overrides);
-
-        if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
-            contextBuilder.endpoint(config.getServiceEndpoint());
-        }
+        contextBuilder.endpoint(config.getServiceEndpoint());
 
         if (config.getProviderCredentials() != null) {
             return contextBuilder
