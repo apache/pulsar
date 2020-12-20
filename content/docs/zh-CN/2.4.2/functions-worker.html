@@ -232,17 +232,19 @@ tlsTrustCertsFilePath:  /<span class="hljs-type">path</span>/<span class="hljs-k
 <p><strong>Workaround</strong></p>
 <p>If any of these cases happens, follow the instructions below to fix the problem:</p>
 <ol>
-<li>获取 <code>public/functions</code> 命名空间的当前集群列表。</li>
+<li><p>Disable Functions Worker by setting <code>functionsWorkerEnabled=false</code>, and restart brokers.</p></li>
+<li><p>获取 <code>public/functions</code> 命名空间的当前集群列表。</p></li>
 </ol>
 <pre><code class="hljs css language-bash">bin/pulsar-admin namespaces get-clusters public/<span class="hljs-built_in">functions</span>
 </code></pre>
-<ol start="2">
+<ol start="3">
 <li>检查集群是否在集群列表中。 如果集群不在列表中，则将其添加到列表中，并更新列表。</li>
 </ol>
-<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-clusters --cluster=&lt;existing-clusters&gt;,&lt;new-cluster&gt; public/<span class="hljs-built_in">functions</span>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-clusters --clusters &lt;existing-clusters&gt;,&lt;new-cluster&gt; public/<span class="hljs-built_in">functions</span>
 </code></pre>
-<ol start="3">
-<li>在 <code>conf/functions_worker.yml</code> 文件中为 <code>pulsarFunctionsCluster</code> 设置正确的集群名称。</li>
+<ol start="4">
+<li><p>After setting the cluster successfully, enable functions worker by setting <code>functionsWorkerEnabled=true</code>.</p></li>
+<li><p>Set the correct cluster name in <code>pulsarFunctionsCluster</code> in the <code>conf/functions_worker.yml</code> file, and restart brokers.</p></li>
 </ol>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/functions-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/functions-runtime"><span>Setup: Configure Functions runtime</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#与-brokers-一起运行-functions-worker">与 brokers 一起运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以与-brokers-一起运行">配置 Functions-Worker 以与 brokers 一起运行</a></li><li><a href="#同时运行-functions-worker-和-broker">同时运行 Functions-worker 和 broker</a></li></ul></li><li><a href="#单独运行-functions-worker">单独运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以单独运行">配置 Functions-Worker 以单独运行</a></li><li><a href="#启动-functions-worker">启动 Functions-worker</a></li><li><a href="#为-functions-workers-配置-proxies">为 Functions-workers 配置 Proxies</a></li></ul></li><li><a href="#对比与-broker-一起运行和单独运行">对比与 Broker 一起运行和单独运行</a></li><li><a href="#故障排除">故障排除</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

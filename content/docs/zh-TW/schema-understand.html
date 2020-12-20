@@ -159,6 +159,10 @@
 <tr><td><code>BYTES</code></td><td>8 位無符號字節的序列</td></tr>
 <tr><td><code>STRING</code></td><td>Unicode 字符序列</td></tr>
 <tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>邏輯類型代表時間內特定的即時精度毫秒。 <br>它儲存自 <code>1970年1月1日，00:00:00 GMT</code> 以來的毫秒數為 <code>INT64</code> 值</td></tr>
+<tr><td>INSTANT</td><td>A single instantaneous point on the time-line with nanoseconds precision</td></tr>
+<tr><td>LOCAL_DATE</td><td>An immutable date-time object that represents a date, often viewed as year-month-day</td></tr>
+<tr><td>LOCAL_TIME</td><td>An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.</td></tr>
+<tr><td>LOCAL_DATE_TIME</td><td>An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second</td></tr>
 </tbody>
 </table>
 <p>對於原始型別，Pulsar 不在 <code>SchemaInfo</code> 中存儲任何 schema 數據。 <code>SchemaInfo</code> 中的 <code>type</code> 用於決定如何序列化和反序列化數據。</p>
@@ -181,6 +185,10 @@
 <tr><td>TIMESTAMP</td><td>java.sql.Timestamp</td><td></td><td></td></tr>
 <tr><td>TIME</td><td>java.sql.Time</td><td></td><td></td></tr>
 <tr><td>DATE</td><td>java.util.Date</td><td></td><td></td></tr>
+<tr><td>INSTANT</td><td>java.time.Instant</td><td></td><td></td></tr>
+<tr><td>LOCAL_DATE</td><td>java.time.LocalDate</td><td></td><td></td></tr>
+<tr><td>LOCAL_TIME</td><td>java.time.LocalDateTime</td><td></td><td></td></tr>
+<tr><td>LOCAL_DATE_TIME</td><td>java.time.LocalTime</td><td></td><td></td></tr>
 </tbody>
 </table>
 <p><strong>Example</strong></p>

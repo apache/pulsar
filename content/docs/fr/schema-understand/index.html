@@ -159,6 +159,10 @@
 <tr><td><code>BYTES</code></td><td>A sequence of 8-bit unsigned bytes</td></tr>
 <tr><td><code>STRING</code></td><td>A Unicode character sequence</td></tr>
 <tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since <code>January 1, 1970, 00:00:00 GMT</code> as an <code>INT64</code> value</td></tr>
+<tr><td>INSTANT</td><td>A single instantaneous point on the time-line with nanoseconds precision</td></tr>
+<tr><td>LOCAL_DATE</td><td>An immutable date-time object that represents a date, often viewed as year-month-day</td></tr>
+<tr><td>LOCAL_TIME</td><td>An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.</td></tr>
+<tr><td>LOCAL_DATE_TIME</td><td>An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second</td></tr>
 </tbody>
 </table>
 <p>For primitive types, Pulsar does not store any schema data in <code>SchemaInfo</code>. The <code>type</code> in <code>SchemaInfo</code> is used to determine how to serialize and deserialize the data.</p>
@@ -181,6 +185,10 @@
 <tr><td>TIMESTAMP</td><td>java.sql.Timestamp</td><td></td><td></td></tr>
 <tr><td>TIME</td><td>java.sql.Time</td><td></td><td></td></tr>
 <tr><td>DATE</td><td>java.util.Date</td><td></td><td></td></tr>
+<tr><td>INSTANT</td><td>java.time.Instant</td><td></td><td></td></tr>
+<tr><td>LOCAL_DATE</td><td>java.time.LocalDate</td><td></td><td></td></tr>
+<tr><td>LOCAL_TIME</td><td>java.time.LocalDateTime</td><td></td><td></td></tr>
+<tr><td>LOCAL_DATE_TIME</td><td>java.time.LocalTime</td><td></td><td></td></tr>
 </tbody>
 </table>
 <p><strong>Example</strong></p>
