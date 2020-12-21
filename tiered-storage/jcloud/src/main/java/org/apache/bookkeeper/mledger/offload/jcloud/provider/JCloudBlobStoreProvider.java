@@ -173,26 +173,12 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
-            if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
-                throw new IllegalArgumentException(
-                        "ServiceEndpoint must specified for " + config.getDriver() + " offload");
-            }
-
-            if (Strings.isNullOrEmpty(config.getBucket())) {
-                throw new IllegalArgumentException(
-                        "Bucket cannot be empty for " + config.getDriver() + " offload");
-            }
-
-            if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
-                throw new IllegalArgumentException(
-                        "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
-                                + config.getDriver() + " offload");
-            }
+            ALIYUN_OSS_VALIDATION.validate(config);
         }
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            return OSS_BLOB_STORE_BUILDER.getBlobStore(config);
+            return ALIYUN_OSS_BLOB_STORE_BUILDER.getBlobStore(config);
         }
 
         @Override
@@ -352,7 +338,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     };
 
-    static final BlobStoreBuilder OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+    static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
         Properties overrides = config.getOverrides();
         // For security reasons, OSS supports only virtual hosted style access.
@@ -370,6 +356,24 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             return contextBuilder
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
+        }
+    };
+
+    static final ConfigValidation ALIYUN_OSS_VALIDATION = (TieredStorageConfiguration config) -> {
+        if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
+            throw new IllegalArgumentException(
+                    "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+        }
+
+        if (Strings.isNullOrEmpty(config.getBucket())) {
+            throw new IllegalArgumentException(
+                    "Bucket cannot be empty for " + config.getDriver() + " offload");
+        }
+
+        if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
+            throw new IllegalArgumentException(
+                    "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                            + config.getDriver() + " offload");
         }
     };
 
