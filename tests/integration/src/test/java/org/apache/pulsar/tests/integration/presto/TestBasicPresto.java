@@ -30,6 +30,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
@@ -129,23 +130,30 @@ public class TestBasicPresto extends PulsarTestSuite {
                 "/bin/bash",
                 "-c", "bin/pulsar-admin namespaces unload public/default");
 
-        result = execQuery("show tables in pulsar.\"public/default\";");
-        assertThat(result.getExitCode()).isEqualTo(0);
-        assertThat(result.getStdout()).contains("stocks");
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+            () -> {
+                ContainerExecResult r = execQuery("show tables in pulsar.\"public/default\";");
+                assertThat(r.getExitCode()).isEqualTo(0);
+                assertThat(r.getStdout()).contains("stocks");
+            }
+        );
 
-        ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
-        assertThat(containerExecResult.getExitCode()).isEqualTo(0);
-        log.info("select sql query output \n{}", containerExecResult.getStdout());
-        String[] split = containerExecResult.getStdout().split("\n");
-        assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+            () -> {
+                ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
+                assertThat(containerExecResult.getExitCode()).isEqualTo(0);
+                log.info("select sql query output \n{}", containerExecResult.getStdout());
+                String[] split = containerExecResult.getStdout().split("\n");
+                assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
+                String[] split2 = containerExecResult.getStdout().split("\n|,");
+                for (int i = 0; i < NUM_OF_STOCKS; ++i) {
+                    assertThat(split2).contains("\"" + i + "\"");
+                    assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
+                    assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
+                }
+            }
+        );
 
-        String[] split2 = containerExecResult.getStdout().split("\n|,");
-
-        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
-            assertThat(split2).contains("\"" + i + "\"");
-            assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
-            assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
-        }
 
         // test predicate pushdown
 
