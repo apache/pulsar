@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
@@ -63,8 +64,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
 
     private ZooKeeperCache bookieMappingCache = null;
 
-    private final List<String> primaryIsolationGroups = new ArrayList<>();
-    private final List<String> secondaryIsolationGroups = new ArrayList<>();
+    private final CopyOnWriteArrayList<String> primaryIsolationGroups = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<String> secondaryIsolationGroups = new CopyOnWriteArrayList<>();
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     public ZkIsolatedBookieEnsemblePlacementPolicy() {
