@@ -48,5 +48,5 @@ mv -f $DESTINATION/pulsar/* $DESTINATION/
 rmdir $DESTINATION/pulsar
 
 # Update /api/python to the latest version
-rm -fr $DESTINATION/{index.html,functions,pulsar}
+rm -fr $ROOT_DIR/generated-site/api/python/{index.html,functions,pulsar}
 cp -r $DESTINATION/* $ROOT_DIR/generated-site/api/python/
