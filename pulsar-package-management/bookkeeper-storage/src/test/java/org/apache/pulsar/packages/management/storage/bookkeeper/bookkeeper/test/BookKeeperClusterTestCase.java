@@ -127,7 +127,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws Exception
      */
     protected void startZKCluster() throws Exception {
-        zkUtil.startServer();
+        zkUtil.startCluster();
         zkc = zkUtil.getZooKeeperClient();
     }
 
@@ -137,7 +137,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws Exception
      */
     protected void stopZKCluster() throws Exception {
-        zkUtil.killServer();
+        zkUtil.stopCluster();
     }
 
     /**
