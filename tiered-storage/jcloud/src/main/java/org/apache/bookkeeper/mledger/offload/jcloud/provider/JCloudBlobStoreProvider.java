@@ -197,7 +197,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public void buildCredentials(TieredStorageConfiguration config) {
-            AWS_CREDENTIAL_BUILDER.buildCredentials(config);
+            ALIYUN_OSS_CREDENTIAL_BUILDER.buildCredentials(config);
         }
     },
 
@@ -371,6 +371,20 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
         }
+    };
+
+    static final CredentialBuilder ALIYUN_OSS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        String accountName = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
+        if (StringUtils.isEmpty(accountName)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key id.");
+        }
+        String accountKey = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
+        if (StringUtils.isEmpty(accountKey)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key secret.");
+        }
+        Credentials credentials = new Credentials(
+                accountName, accountKey);
+        config.setProviderCredentials(() -> credentials);
     };
 
 }
