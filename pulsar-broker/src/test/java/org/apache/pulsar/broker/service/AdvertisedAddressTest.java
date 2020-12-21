@@ -58,7 +58,7 @@ public class AdvertisedAddressTest {
         pulsar.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
         pulsar.close();
         bkEnsemble.stop();

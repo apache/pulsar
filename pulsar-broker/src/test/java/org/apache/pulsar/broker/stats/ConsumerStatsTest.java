@@ -26,11 +26,14 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -44,7 +47,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -140,4 +143,28 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForActiveConsumerAndSubscription";
+        pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        Assert.assertNotNull(topicRef);
+        Assert.assertEquals(topicRef.getSubscriptions().size(), 1);
+        List<org.apache.pulsar.broker.service.Consumer> consumers = topicRef.getSubscriptions()
+                .get("my-subscription").getConsumers();
+        Assert.assertEquals(consumers.size(), 1);
+        ConsumerStats consumerStats = new ConsumerStats();
+        consumerStats.msgOutCounter = 10;
+        consumerStats.bytesOutCounter = 1280;
+        consumers.get(0).updateStats(consumerStats);
+        ConsumerStats updatedStats = consumers.get(0).getStats();
+
+        Assert.assertEquals(updatedStats.msgOutCounter, 10);
+        Assert.assertEquals(updatedStats.bytesOutCounter, 1280);
+    }
 }

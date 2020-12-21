@@ -24,13 +24,13 @@ import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -42,8 +42,6 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.util.Optional;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Thread based function container factory implementation.
@@ -72,7 +70,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader) throws Exception {
-        initialize(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
+        initialize(threadGroupName, InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig),
                 storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
@@ -83,28 +81,6 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
         initialize(threadGroupName, pulsarClient, storageServiceUrl,
                 null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
-    }
-
-    private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
-            throws PulsarClientException {
-        ClientBuilder clientBuilder = null;
-        if (isNotBlank(pulsarServiceUrl)) {
-            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
-            if (authConfig != null) {
-                if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                        && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                    clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
-                            authConfig.getClientAuthenticationParameters());
-                }
-                clientBuilder.enableTls(authConfig.isUseTls());
-                clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
-                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
-                clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
-            }
-            clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
-            return clientBuilder.build();
-        }
-        return null;
     }
 
     private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
@@ -134,7 +110,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
 
         initialize(factoryConfig.getThreadGroupName(),
-                createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
+                InstanceUtils.createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null);
     }

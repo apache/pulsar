@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -63,6 +64,9 @@ public class MessageImpl<T> implements Message<T> {
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
     private final int redeliveryCount;
+    private int uncompressedSize;
+
+    private PulsarApi.BrokerEntryMetadata brokerEntryMetadata;
 
     // Constructor for out-going message
     public static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
@@ -75,6 +79,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
+        msg.uncompressedSize = payload.remaining();
         return msg;
     }
 
@@ -209,6 +214,55 @@ public class MessageImpl<T> implements Message<T> {
         msg.topic = null;
         msg.cnx = null;
         msg.properties = Collections.emptyMap();
+        msg.brokerEntryMetadata = null;
+        return msg;
+    }
+
+    public static MessageImpl<byte[]> deserializeBrokerEntryMetaDataFirst(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
+
+        msg.brokerEntryMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
+
+        if (msg.brokerEntryMetadata != null) {
+            msg.msgMetadataBuilder = null;
+            msg.payload = null;
+            msg.messageId = null;
+            msg.topic = null;
+            msg.cnx = null;
+            msg.properties = Collections.emptyMap();
+            return msg;
+        }
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
+        msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        msgMetadata.recycle();
+        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
+        msg.messageId = null;
+        msg.topic = null;
+        msg.cnx = null;
+        msg.properties = Collections.emptyMap();
+        return msg;
+    }
+
+    public static MessageImpl<byte[]> deserializeSkipBrokerEntryMetaData(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
+
+        Commands.skipBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
+        msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        msgMetadata.recycle();
+        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
+        msg.messageId = null;
+        msg.topic = null;
+        msg.cnx = null;
+        msg.properties = Collections.emptyMap();
+        msg.brokerEntryMetadata = null;
         return msg;
     }
 
@@ -245,8 +299,16 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean isExpired(int messageTTLInSeconds) {
-        return messageTTLInSeconds != 0
-                && System.currentTimeMillis() > (getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null
+                ? (System.currentTimeMillis() >
+                    getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
+                : (System.currentTimeMillis() >
+                    brokerEntryMetadata.getBrokerTimestamp() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
+    }
+
+    public boolean publishedEarlierThan(long timestamp) {
+        return brokerEntryMetadata == null ? getPublishTime() < timestamp
+                : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 
     @Override
@@ -364,7 +426,7 @@ public class MessageImpl<T> implements Message<T> {
                   this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
                            .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
                                    (oldValue,newValue) -> newValue)));
-                
+
             } else {
                 this.properties = Collections.emptyMap();
             }
@@ -431,6 +493,14 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadataBuilder.getOrderingKey().toByteArray();
     }
 
+    public PulsarApi.BrokerEntryMetadata getBrokerEntryMetadata() {
+        return brokerEntryMetadata;
+    }
+
+    public void setBrokerEntryMetadata(PulsarApi.BrokerEntryMetadata brokerEntryMetadata) {
+        this.brokerEntryMetadata = brokerEntryMetadata;
+    }
+
     public ClientCnx getCnx() {
         return cnx;
     }
@@ -443,6 +513,7 @@ public class MessageImpl<T> implements Message<T> {
         properties = null;
         schema = null;
         schemaState = SchemaState.None;
+        brokerEntryMetadata = null;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
@@ -487,6 +558,10 @@ public class MessageImpl<T> implements Message<T> {
         return redeliveryCount;
     }
 
+    int getUncompressedSize() {
+        return uncompressedSize;
+    }
+
     SchemaState getSchemaState() {
         return schemaState;
     }
@@ -494,6 +569,8 @@ public class MessageImpl<T> implements Message<T> {
     void setSchemaState(SchemaState schemaState) {
         this.schemaState = schemaState;
     }
+
+
 
     enum SchemaState {
         None, Ready, Broken

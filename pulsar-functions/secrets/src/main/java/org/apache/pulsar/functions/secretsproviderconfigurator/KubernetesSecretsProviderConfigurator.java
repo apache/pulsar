@@ -52,7 +52,8 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
             case PYTHON:
                 return "secretsprovider.EnvironmentBasedSecretsProvider";
             case GO:
-                throw new UnsupportedOperationException();
+                // [TODO] See GH issue #8425, we should finish this part once the issue is resolved.
+                return "";
             default:
                 throw new RuntimeException("Unknown function runtime " + functionDetails.getRuntime());
         }
@@ -107,7 +108,7 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
 
     // The secret object should be of type Map<String, String> and it should contain "id" and "key"
     @Override
-    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, Function.FunctionDetails functionDetails) {
+    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, Function.FunctionDetails functionDetails) {
         if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {
             }.getType();

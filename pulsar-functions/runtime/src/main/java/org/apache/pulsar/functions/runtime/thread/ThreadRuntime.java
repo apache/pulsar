@@ -106,7 +106,6 @@ public class ThreadRuntime implements Runtime {
                 secretsProvider,
                 collectorRegistry,
                 narExtractionDirectory);
-
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",

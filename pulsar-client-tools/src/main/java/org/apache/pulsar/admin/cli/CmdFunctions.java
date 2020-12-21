@@ -51,7 +51,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -93,7 +95,7 @@ public class CmdFunctions extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -219,6 +221,8 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)" )
+        protected String producerConfig;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -263,6 +267,10 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected Boolean retainOrdering;
+        @Parameter(names = "--retain-key-ordering", description = "Function consumes and processes messages in key order")
+        protected Boolean retainKeyOrdering;
+        @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
         @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
@@ -313,6 +321,8 @@ public class CmdFunctions extends CmdBase {
         protected String customRuntimeOptions;
         @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
+        @Parameter(names = "--external-pulsars", description = "The map of external pulsar cluster name to its configuration (as a JSON string)")
+        protected String externalPulsars;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -391,6 +401,15 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
+            if (null != externalPulsars) {
+                Type type = new TypeToken<Map<String, ExternalPulsarConfig>>() {
+                }.getType();
+                functionConfig.setExternalPulsars(new Gson().fromJson(externalPulsars, type));
+            }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
+            }
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -410,6 +429,14 @@ public class CmdFunctions extends CmdBase {
 
             if (null != retainOrdering) {
                 functionConfig.setRetainOrdering(retainOrdering);
+            }
+
+            if (null != retainKeyOrdering) {
+                functionConfig.setRetainKeyOrdering(retainKeyOrdering);
+            }
+
+            if (isNotBlank(batchBuilder)) {
+                functionConfig.setBatchBuilder(batchBuilder);
             }
 
             if (null != forwardSourceMessageProperty) {
@@ -673,6 +700,10 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getPy());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getGo());
             } else {
                 admin.functions().createFunction(functionConfig, userCodeFile);
             }

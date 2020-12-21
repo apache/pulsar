@@ -55,7 +55,7 @@ public class ClusterMetadataSetupTest {
                 "--cluster", "testReSetupClusterMetadata-cluster",
                 "--zookeeper", zkConnection,
                 "--configuration-store", zkConnection,
-                "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
+                "--existing-bk-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
@@ -67,6 +67,22 @@ public class ClusterMetadataSetupTest {
         ZooKeeper localZk = PulsarClusterMetadataSetup.initZk(zkConnection, 30000);
         // expected not exist
         assertNull(localZk.exists("/ledgers", false));
+
+        String[] bookkeeperMetadataServiceUriArgs = {
+            "--cluster", "testReSetupClusterMetadata-cluster",
+            "--zookeeper", zkConnection,
+            "--configuration-store", zkConnection,
+            "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
+            "--web-service-url", "http://127.0.0.1:8080",
+            "--web-service-url-tls", "https://127.0.0.1:8443",
+            "--broker-service-url", "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+        };
+
+        PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
+        ZooKeeper bookkeeperMetadataServiceUriZk = PulsarClusterMetadataSetup.initZk(zkConnection, 30000);
+        // expected not exist
+        assertNull(bookkeeperMetadataServiceUriZk.exists("/ledgers", false));
 
         String[] args1 = {
                 "--cluster", "testReSetupClusterMetadata-cluster",
@@ -90,7 +106,7 @@ public class ClusterMetadataSetupTest {
         localZkS.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         localZkS.close();
     }

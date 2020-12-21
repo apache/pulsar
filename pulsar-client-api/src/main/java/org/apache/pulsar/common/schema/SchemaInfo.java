@@ -19,11 +19,9 @@
 package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,10 +29,14 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Information about the schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -58,6 +60,7 @@ public class SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
+    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
 
     public String getSchemaDefinition() {
@@ -69,6 +72,7 @@ public class SchemaInfo {
             case AVRO:
             case JSON:
             case PROTOBUF:
+            case PROTOBUF_NATIVE:
                 return new String(schema, UTF_8);
             case KEY_VALUE:
                 KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =

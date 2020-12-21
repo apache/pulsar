@@ -21,7 +21,16 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
-
+import com.google.common.base.Charsets;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.common.collect.TreeMultimap;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,18 +47,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -72,18 +78,6 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Charsets;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
-import com.google.common.collect.TreeMultimap;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
@@ -116,7 +110,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evely across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
+            ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
@@ -154,12 +149,18 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH = "/loadbalance/settings/load_factor_cpu";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH = "/loadbalance/settings/load_factor_mem";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_OVERLOAD_THRESHOLD_ZPATH = "/loadbalance/settings/overload_threshold";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_COMFORT_LOAD_THRESHOLD_ZPATH = "/loadbalance/settings/comfort_load_threshold";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_UNDERLOAD_THRESHOLD_ZPATH = "/loadbalance/settings/underload_threshold";
-    private static final String LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED = "/loadbalance/settings/auto_bundle_split_enabled";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH =
+            "/loadbalance/settings/load_factor_cpu";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH =
+            "/loadbalance/settings/load_factor_mem";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_OVERLOAD_THRESHOLD_ZPATH =
+            "/loadbalance/settings/overload_threshold";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_COMFORT_LOAD_THRESHOLD_ZPATH =
+            "/loadbalance/settings/comfort_load_threshold";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_UNDERLOAD_THRESHOLD_ZPATH =
+            "/loadbalance/settings/underload_threshold";
+    private static final String LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED =
+            "/loadbalance/settings/auto_bundle_split_enabled";
     private static final String SETTING_NAME_LOAD_FACTOR_CPU = "loadFactorCPU";
     private static final String SETTING_NAME_LOAD_FACTOR_MEM = "loadFactorMemory";
     public static final String SETTING_NAME_STRATEGY = "loadBalancerStrategy";
@@ -190,7 +191,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
-        scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-simple-load-manager"));
+        scheduler = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("pulsar-simple-load-manager"));
         this.sortedRankings.set(new TreeMap<>());
         this.currentLoadReports = new HashMap<>();
         this.resourceUnitRankings = new HashMap<>();
@@ -278,7 +280,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public void start() throws PulsarServerException {
         try {
             // Register the brokers in zk list
-            ServiceConfiguration conf = pulsar.getConfiguration();
             if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
                 try {
                     ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
@@ -288,7 +289,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 }
             }
             String lookupServiceAddress = getBrokerAddress();
-;            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
@@ -473,14 +474,18 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             return resourceDescription;
         }
 
-        if (sru.bandwidthIn != null)
+        if (sru.bandwidthIn != null) {
             resourceDescription.put("bandwidthIn", sru.bandwidthIn);
-        if (sru.bandwidthOut != null)
+        }
+        if (sru.bandwidthOut != null) {
             resourceDescription.put("bandwidthOut", sru.bandwidthOut);
-        if (sru.memory != null)
+        }
+        if (sru.memory != null) {
             resourceDescription.put("memory", sru.memory);
-        if (sru.cpu != null)
+        }
+        if (sru.cpu != null) {
             resourceDescription.put("cpu", sru.cpu);
+        }
         return resourceDescription;
     }
 
@@ -496,7 +501,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     /**
-     * Get the sum of allocated resource for the list of namespace bundles
+     * Get the sum of allocated resource for the list of namespace bundles.
      */
     private ResourceQuota getTotalAllocatedQuota(Set<String> bundles) {
         ResourceQuota totalQuota = new ResourceQuota();
@@ -609,7 +614,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             // update realtime quota for each bundle
             Map<String, ResourceQuota> newQuotas = new HashMap<>();
             for (Map.Entry<ResourceUnit, LoadReport> entry : currentLoadReports.entrySet()) {
-                ResourceUnit resourceUnit = entry.getKey();
                 LoadReport loadReport = entry.getValue();
                 Map<String, NamespaceBundleStats> bundleStats = loadReport.getBundleStats();
                 if (bundleStats == null) {
@@ -646,7 +650,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (needUpdate) {
             log.info(String.format(
-                    "Update quota %s - msgRateIn: %.1f, msgRateOut: %.1f, bandwidthIn: %.1f, bandwidthOut: %.1f, memory: %.1f",
+                    "Update quota %s - msgRateIn: %.1f, msgRateOut: %.1f, bandwidthIn: %.1f,"
+                            + " bandwidthOut: %.1f, memory: %.1f",
                     (bundle == null) ? "default" : bundle, newQuota.getMsgRateIn(), newQuota.getMsgRateOut(),
                     newQuota.getBandwidthIn(), newQuota.getBandwidthOut(), newQuota.getMemory()));
 
@@ -840,7 +845,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 continue;
             }
 
-            String resourceUnitId = candidate.getResourceId();
             ResourceUnitRanking ranking = resourceUnitRankings.get(candidate);
 
             // check if this ServiceUnit is already loaded
@@ -1224,7 +1228,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         // 3) There is more than 10% change on number of bundles assigned comparing with broker's maximum capacity
         // 4) There is more than 10% change on resource usage comparing with broker's resource limit
         boolean needUpdate = false;
-        if (lastLoadReport == null || this.forceLoadReportUpdate == true) {
+        if (lastLoadReport == null || this.forceLoadReportUpdate) {
             needUpdate = true;
             this.forceLoadReportUpdate = false;
         } else {
@@ -1241,7 +1245,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 long maxCapacity = ResourceUnitRanking.calculateBrokerMaxCapacity(
                         lastLoadReport.getSystemResourceUsage(),
                         pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
-                double bundlePercentageChange = (maxCapacity > 0) ? (bundleCountChange * 100 / maxCapacity) : 0;
                 if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }
@@ -1280,7 +1283,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     if (resourceChange > pulsar.getConfiguration().getLoadBalancerReportUpdateThresholdPercentage()) {
                         needUpdate = true;
                         log.info("LoadReport update triggered by change on resource usage, detal ({}).", String.format(
-                                "cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%)",
+                                "cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%,"
+                                        + " bandwidthIn: %.1f%%, bandwidthOut: %.1f%%)",
                                 cpuChange, memChange, directMemChange, bandwidthInChange, bandwidthOutChange));
                     }
                 }
@@ -1332,8 +1336,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             final String broker = resourceUnit.getResourceId();
             final Set<String> loadedBundles = ranking.getLoadedBundles();
             final Set<String> preallocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker.replace("http://", ""), k -> new ConcurrentOpenHashMap<>());
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
+                    brokerToNamespaceToBundleRange
+                            .computeIfAbsent(broker.replace("http://", ""), k -> new ConcurrentOpenHashMap<>());
             namespaceToBundleRange.clear();
             LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);
             LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundles, namespaceToBundleRange);
@@ -1404,7 +1409,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         // We need at least one underloaded RU from list of candidates that can host this bundle
                         if (isBrokerAvailableForRebalancing(bundleStat.getKey(), comfortLoadLevel)) {
                             log.info(
-                                    "Namespace bundle {} will be unloaded from overloaded broker {}, bundle stats (topics: {}, producers {}, "
+                                    "Namespace bundle {} will be unloaded from overloaded broker {},"
+                                            + " bundle stats (topics: {}, producers {}, "
                                             + "consumers {}, bandwidthIn {}, bandwidthOut {})",
                                     bundleName, overloadedRU.getResourceId(), stats.topics, stats.producerCount,
                                     stats.consumerCount, stats.msgThroughputIn, stats.msgThroughputOut);
@@ -1422,7 +1428,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     /**
-     * Detect and split hot namespace bundles
+     * Detect and split hot namespace bundles.
      */
     @Override
     public void doNamespaceBundleSplit() throws Exception {
@@ -1430,10 +1436,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         long maxBundleTopics = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
         long maxBundleSessions = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxSessions();
         long maxBundleMsgRate = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate();
-        long maxBundleBandwidth = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
+        long maxBundleBandwidth =
+                pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
 
         log.info(
-                "Running namespace bundle split with thresholds: topics {}, sessions {}, msgRate {}, bandwidth {}, maxBundles {}",
+                "Running namespace bundle split with thresholds: topics {}, sessions {},"
+                        + " msgRate {}, bandwidth {}, maxBundles {}",
                 maxBundleTopics, maxBundleSessions, maxBundleMsgRate, maxBundleBandwidth, maxBundleCount);
         if (this.lastLoadReport == null || this.lastLoadReport.getBundleStats() == null) {
             return;
@@ -1470,12 +1478,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             if (needSplit) {
                 if (this.getLoadBalancerAutoBundleSplitEnabled()) {
                     log.info(
-                            "Will split hot namespace bundle {}, topics {}, producers+consumers {}, msgRate in+out {}, bandwidth in+out {}",
+                            "Will split hot namespace bundle {}, topics {}, producers+consumers {},"
+                                    + " msgRate in+out {}, bandwidth in+out {}",
                             bundleName, stats.topics, totalSessions, totalMsgRate, totalBandwidth);
                     bundlesToBeSplit.add(bundleName);
                 } else {
                     log.info(
-                            "DRY RUN - split hot namespace bundle {}, topics {}, producers+consumers {}, msgRate in+out {}, bandwidth in+out {}",
+                            "DRY RUN - split hot namespace bundle {}, topics {}, producers+consumers {},"
+                                    + " msgRate in+out {}, bandwidth in+out {}",
                             bundleName, stats.topics, totalSessions, totalMsgRate, totalBandwidth);
                 }
             }

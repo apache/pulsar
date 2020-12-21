@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.util.concurrent.TimeUnit;
@@ -44,7 +43,7 @@ public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
         producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

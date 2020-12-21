@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -150,6 +151,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> accessMode(ProducerAccessMode accessMode) {
+        conf.setAccessMode(accessMode);
         return this;
     }
 

@@ -83,7 +83,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -441,7 +441,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             String data = new String(message.getData());
             log.debug("Consumer received : " + data);
             consumer.acknowledge(message);
-            message = consumer.receive(100, TimeUnit.MILLISECONDS);
+            message = consumer.receive(2000, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 30);
         size =  ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();

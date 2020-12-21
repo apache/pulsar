@@ -460,10 +460,12 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
 |`--tls-allow-insecure`|Allow insecure tls connection|false|
 |`--tls-trust-cert-path`|The tls trust cert file path||
 |`--use-tls`|Use tls connection|false|
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `create`
@@ -508,7 +510,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `delete`
@@ -571,7 +575,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `get`
@@ -845,6 +851,7 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
+* `remove-message-ttl`
 * `get-anti-affinity-group`
 * `set-anti-affinity-group`
 * `get-anti-affinity-namespaces`
@@ -1163,7 +1170,16 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds|3600s|
+
+### `remove-message-ttl`
+Remove the message TTL for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-message-ttl tenant/namespace
+```
+
 
 ### `get-anti-affinity-group`
 Get Anti-affinity group name for a namespace
@@ -1210,7 +1226,7 @@ $ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
 ```
 
 ### `get-retention`
-Get the retention policy for a namespace
+Get the retention policy that is applied to each topic within the specified namespace
 
 Usage
 ```bash
@@ -1218,7 +1234,7 @@ $ pulsar-admin namespaces get-retention tenant/namespace
 ```
 
 ### `set-retention`
-Set the retention policy for a namespace
+Set the retention policy for each topic within the specified namespace
 
 Usage
 ```bash
@@ -1228,7 +1244,7 @@ $ pulsar-admin namespaces set-retention tenant/namespace
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention||
+|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T) for each topic in the namespace. 0 means no retention and -1 means infinite size retention||
 |`-t`, `--time`|The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention||
 
 
@@ -2555,6 +2571,8 @@ Options
 |`-r`, `--region`|The long term storage region||
 |`-b`, `--bucket`|Bucket to place offloaded ledger into||
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||

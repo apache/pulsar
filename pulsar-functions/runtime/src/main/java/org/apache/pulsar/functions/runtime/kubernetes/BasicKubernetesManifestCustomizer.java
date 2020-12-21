@@ -50,6 +50,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @NoArgsConstructor
     static private class RuntimeOpts {
         private String jobNamespace;
+        private String jobName;
         private Map<String, String> extraLabels;
         private Map<String, String> extraAnnotations;
         private Map<String, String> nodeSelectorLabels;
@@ -70,7 +71,17 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
             return currentNamespace;
         }
     }
-
+    
+    @Override
+    public String customizeName(Function.FunctionDetails funcDetails, String currentName) {
+        RuntimeOpts opts = getOptsFromDetails(funcDetails);
+        if (!StringUtils.isEmpty(opts.getJobName())) {
+            return opts.getJobName();
+        } else {
+            return currentName;
+        }
+    }
+    
     @Override
     public V1Service customizeService(Function.FunctionDetails funcDetails, V1Service service) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);

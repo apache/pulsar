@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-
 import com.google.common.base.Objects;
 
 /**
@@ -28,7 +27,10 @@ import com.google.common.base.Objects;
 public class LocalPolicies {
 
     public BundlesData bundles;
+    // bookie affinity group for bookie-isolation
     public BookieAffinityGroupData bookieAffinityGroup;
+    // namespace anti-affinity-group
+    public String namespaceAntiAffinityGroup;
 
     public LocalPolicies() {
         bundles = defaultBundle();
@@ -44,7 +46,8 @@ public class LocalPolicies {
         if (obj instanceof LocalPolicies) {
             LocalPolicies other = (LocalPolicies) obj;
             return Objects.equal(bundles, other.bundles)
-                    && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup);
+                    && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup)
+                    && Objects.equal(namespaceAntiAffinityGroup, other.namespaceAntiAffinityGroup);
         }
         return false;
     }

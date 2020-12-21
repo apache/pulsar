@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,17 +31,15 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 
@@ -181,7 +178,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
                                             Map<String, Long> properties, TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties,
+                    txn == null ? -1 : txn.getTxnIdMostBits(),
+                    txn == null ? -1 : txn.getTxnIdLeastBits());
         } else if (ackType == AckType.Cumulative) {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
@@ -311,7 +310,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                null, properties, txnidLeastBits, txnidMostBits);
+                null, properties, txnidLeastBits, txnidMostBits, -1);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -352,7 +351,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                     // if messageId is checked then all the chunked related to that msg also processed so, ack all of
                     // them
-                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
+                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.get(msgId);
                     if (chunkMsgIds != null && chunkMsgIds.length > 1) {
                         for (MessageIdImpl cMsgId : chunkMsgIds) {
                             if (cMsgId != null) {
@@ -360,7 +359,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                             }
                         }
                         // messages will be acked so, remove checked message sequence
-                        this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
+                        this.consumer.unAckedChunkedMessageIdSequenceMap.remove(msgId);
                     } else {
                         entriesToAck.add(Triple.of(msgId.getLedgerId(), msgId.getEntryId(), null));
                     }
@@ -400,7 +399,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                     // if messageId is checked then all the chunked related to that msg also processed so, ack all of
                     // them
-                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(entry.getRight());
+                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.get(entry.getRight());
                     long mostSigBits = entry.getLeft();
                     long leastSigBits = entry.getMiddle();
                     MessageIdImpl messageId = entry.getRight();
@@ -411,7 +410,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                             }
                         }
                         // messages will be acked so, remove checked message sequence
-                        this.consumer.unAckedChunckedMessageIdSequenceMap.remove(messageId);
+                        this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageId);
                     } else {
                         newAckCommand(consumer.consumerId, messageId, null, AckType.Individual, null, Collections.emptyMap(), cnx, false, mostSigBits, leastSigBits);
                     }
@@ -502,7 +501,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx,
                                boolean flush, long txnidMostBits, long txnidLeastBits) {
 
-        MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
+        MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.get(msgId);
         if (chunkMsgIds != null && txnidLeastBits < 0 && txnidMostBits < 0) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())
                     && ackType != AckType.Cumulative) {
@@ -529,10 +528,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     }
                 }
             }
-            this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
+            this.consumer.unAckedChunkedMessageIdSequenceMap.remove(msgId);
         } else {
             ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
-                    ackType, validationError, map, txnidLeastBits, txnidMostBits);
+                    ackType, validationError, map, txnidLeastBits, txnidMostBits, -1);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
             } else {

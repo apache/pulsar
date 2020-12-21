@@ -21,7 +21,6 @@ package org.apache.pulsar.websocket.service;
 import com.google.common.collect.Lists;
 
 import java.net.MalformedURLException;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

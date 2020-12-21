@@ -46,7 +46,8 @@ public class ProtocolHandlers implements AutoCloseable {
      */
     public static ProtocolHandlers load(ServiceConfiguration conf) throws IOException {
         ProtocolHandlerDefinitions definitions =
-            ProtocolHandlerUtils.searchForHandlers(conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
+                ProtocolHandlerUtils.searchForHandlers(
+                        conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, ProtocolHandlerWithClassLoader> handlersBuilder = ImmutableMap.builder();
 

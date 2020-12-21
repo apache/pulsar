@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Exceptions for transaction coordinator client.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public class TransactionCoordinatorClientException extends IOException {
 
     public TransactionCoordinatorClientException(Throwable t) {
@@ -62,6 +66,15 @@ public class TransactionCoordinatorClientException extends IOException {
      */
     public static class InvalidTxnStatusException extends TransactionCoordinatorClientException {
         public InvalidTxnStatusException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Thrown when transaction not found in transaction coordinator.
+     */
+    public static class TransactionNotFoundException extends TransactionCoordinatorClientException {
+        public TransactionNotFoundException(String message) {
             super(message);
         }
     }

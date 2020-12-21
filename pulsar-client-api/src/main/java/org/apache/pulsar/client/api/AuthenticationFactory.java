@@ -20,14 +20,17 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
  * for all the supported authentication methods.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public final class AuthenticationFactory {
 
     /**

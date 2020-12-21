@@ -28,7 +28,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -148,17 +147,7 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
-            }
-            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
-            }
-            if (sourceConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(sourceConfig.getProducerConfig().getUseThreadLocalProducers());
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -231,15 +220,7 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (sinkSpec.getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(sinkSpec.getProducerSpec().getMaxPendingMessages());
-            }
-            if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
-            }
-            producerConfig.setUseThreadLocalProducers(sinkSpec.getProducerSpec().getUseThreadLocalProducers());
-            sourceConfig.setProducerConfig(producerConfig);
+            sourceConfig.setProducerConfig(ProducerConfigUtils.convertFromSpec(sinkSpec.getProducerSpec()));
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
@@ -422,6 +403,10 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+        }
+
+        if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
+            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), classLoader, true);
         }
 
         if (typeArg.equals(TypeResolver.Unknown.class)) {

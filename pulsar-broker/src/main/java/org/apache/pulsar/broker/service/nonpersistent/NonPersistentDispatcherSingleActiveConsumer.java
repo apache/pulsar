@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
-import java.util.List;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -34,15 +32,16 @@ import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.Rate;
 
 @Slf4j
-public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
+public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer
+        implements NonPersistentDispatcher {
 
     private final NonPersistentTopic topic;
     private final Rate msgDrop;
@@ -51,7 +50,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            NonPersistentTopic topic, Subscription subscription) {
+                                                       NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName(), subscription);
         this.topic = topic;
         this.subscription = subscription;
@@ -66,7 +65,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, null);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
             currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
         } else {
@@ -102,8 +101,8 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         }
 
         if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                    policies.max_consumers_per_subscription :
+            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0
+                    ? policies.max_consumers_per_subscription :
                     serviceConfig.getMaxConsumersPerSubscription();
         }
 

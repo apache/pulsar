@@ -21,20 +21,19 @@ package org.apache.pulsar.broker.admin;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Method;
+import java.util.UUID;
 
 @Slf4j
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
@@ -52,6 +51,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
+        this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
@@ -61,10 +61,10 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
         producer.close();
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -75,12 +75,12 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 100);
         log.info("Message TTL set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 100);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         admin.topics().removeMessageTTL(testTopic);
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
@@ -93,14 +93,14 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
             admin.topics().setMessageTTL(testTopic, -100);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
         }
 
         try {
             admin.topics().setMessageTTL(testTopic, (int)2147483650L);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
         }
     }
 
@@ -114,7 +114,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 200);
         log.info("Message TTL set success on topic: {}", testTopic);
 
-        Thread.sleep(3000);
+        waitForZooKeeperWatchers();
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 200);
@@ -124,6 +124,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testTopicPolicyDisabled() throws Exception {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
+        stopBroker();
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
@@ -136,15 +137,43 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
             admin.topics().getMessageTTL(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().setMessageTTL(testTopic, 200);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void testDifferentLevelPolicyPriority() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        Method method = PersistentTopic.class.getDeclaredMethod("getMessageTTL");
+        method.setAccessible(true);
+
+        int namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
+        Assert.assertEquals(namespaceMessageTTL, 3600);
+        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+
+        admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
+        Thread.sleep(500);
+        Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace), 10);
+        Assert.assertEquals((int)method.invoke(persistentTopic), 10);
+
+        admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
+        Thread.sleep(500);
+        Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace), 0);
+        Assert.assertEquals((int)method.invoke(persistentTopic), 0);
+
+        admin.namespaces().removeNamespaceMessageTTL(myNamespace);
+        Thread.sleep(500);
+        Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace), 3600);
+        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
     }
 
 }

@@ -85,7 +85,7 @@ public class LookupResult {
 
     @Override
     public String toString() {
-		return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";
+        return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";
     }
 
 }

@@ -18,11 +18,19 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -32,17 +40,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 
 @Parameters(commandDescription = "Operations on persistent topics. The persistent-topics " +
         "has been deprecated in favor of topics", hidden = true)
@@ -331,10 +328,14 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-m",
+        "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getInternalStats(persistentTopic));
+            print(persistentTopics.getInternalStats(persistentTopic, metadata));
         }
     }
 
@@ -561,7 +562,7 @@ public class CmdPersistentTopics extends CmdBase {
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
                 if (msg.getProperties().size() > 0) {
-                    System.out.println("Tenants:");
+                    System.out.println("Properties:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());

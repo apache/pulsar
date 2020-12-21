@@ -165,6 +165,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
             dm.publishTime = DateFormatter.format(msg.getPublishTime());
+            dm.redeliveryCount = msg.getRedeliveryCount();
             if (msg.getEventTime() != 0) {
                 dm.eventTime = DateFormatter.format(msg.getEventTime());
             }
@@ -329,7 +330,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
+    protected ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
         ConsumerBuilder<byte[]> builder = client.newConsumer();
 
         if (queryParams.containsKey("ackTimeoutMillis")) {

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.sun.management.OperatingSystemMXBean;
-
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,8 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         this.usage = new SystemResourceUsage();
         this.totalCpuLimit = getTotalCpuLimit();
         executorService.scheduleAtFixedRate(this::checkCpuLoad, 0, CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
-        executorService.scheduleAtFixedRate(this::doCalculateBrokerHostUsage, 0, hostUsageCheckIntervalMin, TimeUnit.MINUTES);
+        executorService.scheduleAtFixedRate(this::doCalculateBrokerHostUsage, 0,
+                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     @Override

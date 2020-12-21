@@ -19,19 +19,17 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -68,7 +66,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1
+     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1.
      *
      * @return
      */
@@ -151,7 +149,7 @@ public class DispatchRateLimiter {
     public void updateDispatchRate() {
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (!dispatchRate.isPresent()) {
-            dispatchRate =Optional.ofNullable(getPoliciesDispatchRate(brokerService));
+            dispatchRate = Optional.ofNullable(getPoliciesDispatchRate(brokerService));
 
             if (!dispatchRate.isPresent()) {
                 dispatchRate = Optional.of(createDispatchRate());
@@ -304,8 +302,11 @@ public class DispatchRateLimiter {
         final String path = path(POLICIES, namespace.toString());
         Optional<Policies> policies = Optional.empty();
         try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
-                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
+            if (configurationCacheService != null) {
+                policies = configurationCacheService.policiesCache().getAsync(path)
+                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
         }

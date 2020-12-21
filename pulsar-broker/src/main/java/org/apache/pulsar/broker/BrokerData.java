@@ -20,7 +20,6 @@ package org.apache.pulsar.broker;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
@@ -36,7 +35,7 @@ public class BrokerData {
 
     /**
      * Initialize this BrokerData using the most recent local data.
-     * 
+     *
      * @param localData
      *            The data local for the broker.
      */

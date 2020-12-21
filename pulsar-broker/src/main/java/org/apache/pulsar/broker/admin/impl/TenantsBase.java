@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import com.google.common.collect.Lists;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -29,7 +34,6 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -40,14 +44,6 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class TenantsBase extends AdminResource {
 
@@ -105,6 +101,16 @@ public class TenantsBase extends AdminResource {
 
         try {
             NamedEntity.checkName(tenant);
+
+            int maxTenants = pulsar().getConfiguration().getMaxTenants();
+            //Due to the cost of distributed locks, no locks are added here.
+            //In a concurrent scenario, the threshold will be exceeded.
+            if (maxTenants > 0) {
+                List<String> tenants = globalZk().getChildren(path(POLICIES), false);
+                if (tenants != null && tenants.size() >= maxTenants) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
+                }
+            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
@@ -121,7 +127,8 @@ public class TenantsBase extends AdminResource {
 
     @POST
     @Path("/{tenant}")
-    @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value = "Update the admins for a tenant.",
+            notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
@@ -162,7 +169,8 @@ public class TenantsBase extends AdminResource {
                 if (!clustersWithActiveNamespaces.isEmpty()) {
                     // Throw an exception because colos being removed are having active namespaces
                     String msg = String.format(
-                            "Failed to update the tenant because active namespaces are present in colos %s. Please delete those namespaces first",
+                            "Failed to update the tenant because active namespaces are present in colos %s."
+                                    + " Please delete those namespaces first",
                             clustersWithActiveNamespaces);
                     throw new RestException(Status.CONFLICT, msg);
                 }
@@ -227,8 +235,9 @@ public class TenantsBase extends AdminResource {
 
     private void validateClusters(TenantInfo info) {
         // empty cluster shouldn't be allowed
-        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
-            || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
+        if (info == null || info.getAllowedClusters().stream()
+                .filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
+                || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
             throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
         }

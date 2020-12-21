@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -31,7 +32,6 @@ import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
-import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -39,9 +39,9 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -56,7 +56,6 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -66,12 +65,13 @@ import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuilt
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class FunctionsImpl extends ComponentImpl {
+public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
 
-    public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public FunctionsImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
     }
 
+    @Override
     public void registerFunction(final String tenant,
                                  final String namespace,
                                  final String functionName,
@@ -238,6 +238,7 @@ public class FunctionsImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public void updateFunction(final String tenant,
                                final String namespace,
                                final String functionName,
@@ -593,6 +594,7 @@ public class FunctionsImpl extends ComponentImpl {
      * @param instanceId the function instance id
      * @return the function status
      */
+    @Override
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
                                                                                                       final String namespace,
                                                                                                       final String componentName,
@@ -626,6 +628,7 @@ public class FunctionsImpl extends ComponentImpl {
      * @return a list of function statuses
      * @throws PulsarAdminException
      */
+    @Override
     public FunctionStatus getFunctionStatus(final String tenant,
                                             final String namespace,
                                             final String componentName,
@@ -649,6 +652,7 @@ public class FunctionsImpl extends ComponentImpl {
         return functionStatus;
     }
 
+    @Override
     public void updateFunctionOnWorkerLeader(final String tenant,
                                final String namespace,
                                final String functionName,
@@ -718,7 +722,8 @@ public class FunctionsImpl extends ComponentImpl {
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
-        FunctionConfigUtils.inferMissingArguments(functionConfig);
+        FunctionConfigUtils.inferMissingArguments(
+            functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
 
         if (!StringUtils.isEmpty(functionConfig.getJar())) {
             String builtinArchive = functionConfig.getJar();

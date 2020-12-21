@@ -23,7 +23,6 @@ import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -430,11 +429,14 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         return (PositionImpl) readOnlyCursor.findNewestMatching(SearchAllAvailableEntries, new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
-                MessageImpl msg = null;
-                try {
-                    msg = MessageImpl.deserialize(entry.getDataBuffer());
 
-                    return msg.getPublishTime() <= timestamp;
+                MessageImpl<byte[]> msg = null;
+                try {
+                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                    return msg.getBrokerEntryMetadata() != null
+                            ? msg.getBrokerEntryMetadata().getBrokerTimestamp() <= timestamp
+                            : msg.getPublishTime() <= timestamp;
+
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);
                 } finally {

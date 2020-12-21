@@ -22,10 +22,14 @@ import io.netty.buffer.ByteBuf;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface that abstracts the method to encrypt/decrypt message for End to End Encryption.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface MessageCrypto<MetadataT, BuilderT> {
 
     int IV_LEN = 12;

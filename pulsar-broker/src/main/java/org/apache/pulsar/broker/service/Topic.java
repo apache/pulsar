@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -33,8 +34,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -43,8 +44,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-
-import io.netty.buffer.ByteBuf;
 
 public interface Topic {
 
@@ -95,19 +94,30 @@ public interface Topic {
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
-    void addProducer(Producer producer) throws BrokerServiceException;
+    /**
+     * Tries to add a producer to the topic. Several validations will be performed.
+     *
+     * @param producer
+     * @param producerQueuedFuture
+     *            a future that will be triggered if the producer is being queued up prior of getting established
+     * @return the "topic epoch" if there is one or empty
+     */
+    CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture);
 
     void removeProducer(Producer producer);
 
     /**
-     * record add-latency
+     * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
-    CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
+    CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
+                                          int priorityLevel, String consumerName, boolean isDurable,
+                                          MessageId startMessageId,
+                                          Map<String, String> metadata, boolean readCompacted,
+                                          InitialPosition initialPosition,
+                                          long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
+                                          PulsarApi.KeySharedMeta keySharedMeta);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -135,6 +145,8 @@ public interface Topic {
      * backlog.
      */
     void checkBackloggedCursors();
+
+    void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
 
@@ -180,7 +192,7 @@ public interface Topic {
 
     TopicStats getStats(boolean getPreciseBacklog);
 
-    PersistentTopicInternalStats getInternalStats();
+    CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
 
@@ -235,14 +247,13 @@ public interface Topic {
     CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
 
     /**
-     * Publish Transaction message to this Topic's TransactionBuffer
+     * Publish Transaction message to this Topic's TransactionBuffer.
      *
-     * @param txnID Transaction Id
+     * @param txnID             Transaction Id
      * @param headersAndPayload Message data
-     * @param batchSize messages number in a batch
-     * @param publishContext Publish context
+     * @param publishContext    Publish context
      */
-    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext);
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
     /**
      * End the transaction in this topic.
@@ -251,6 +262,6 @@ public interface Topic {
      * @param txnAction Transaction action.
      * @return
      */
-    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction);
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList);
 
 }

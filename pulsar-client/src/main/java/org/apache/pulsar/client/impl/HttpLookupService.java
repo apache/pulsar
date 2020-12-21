@@ -100,12 +100,14 @@ public class HttpLookupService implements LookupService {
         });
     }
 
+    @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
         return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
                 PartitionedTopicMetadata.class);
     }
 
+    @Override
     public String getServiceUrl() {
     	return httpClient.getServiceUrl();
     }
