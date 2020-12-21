@@ -82,7 +82,15 @@ public interface LoadManager {
     void writeLoadReportOnZookeeper() throws Exception;
 
     /**
-     * Update namespace bundle resource quota on ZK
+     * Publish the current load report on ZK, forced or not.
+     * By default rely on method writeLoadReportOnZookeeper().
+     */
+    default void writeLoadReportOnZookeeper(boolean force) throws Exception {
+        writeLoadReportOnZookeeper();
+    }
+
+    /**
+     * Update namespace bundle resource quota on ZK.
      */
     void writeResourceQuotasToZooKeeper() throws Exception;
 

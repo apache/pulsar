@@ -863,6 +863,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = false;
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

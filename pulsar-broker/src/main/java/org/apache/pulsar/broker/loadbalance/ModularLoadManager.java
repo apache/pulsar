@@ -96,6 +96,13 @@ public interface ModularLoadManager {
     void writeBrokerDataOnZooKeeper();
 
     /**
+     * As any broker, write the local broker data to ZooKeeper, forced or not.
+     */
+    default void writeBrokerDataOnZooKeeper(boolean force) {
+        writeBrokerDataOnZooKeeper();
+    }
+
+    /**
      * As the leader broker, write bundle data aggregated from all brokers to ZooKeeper.
      */
     void writeBundleDataOnZooKeeper();
