@@ -111,8 +111,6 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         }
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
                         LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
-                    }catch (UnknownHostException e) {
-                        throw new RuntimeException(e);
                     }
                 })
         );
