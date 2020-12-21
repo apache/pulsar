@@ -74,9 +74,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         }
         msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdLeastBits());
         msgMetadataBuilder.setTxnidMostBits(txn.getTxnIdMostBits());
-        long sequenceId = txn.nextSequenceId();
-        msgMetadataBuilder.setSequenceId(sequenceId);
-        return sequenceId;
+        return -1L;
     }
 
     @Override
@@ -100,6 +98,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public CompletableFuture<MessageId> sendAsync() {
         Message<T> message = getMessage();
         CompletableFuture<MessageId> sendFuture;
+        System.out.println("sendAsync message - " + new String(message.getData()));
         if (txn != null) {
             sendFuture = producer.internalSendWithTxnAsync(message, txn);
             txn.registerSendOp(sendFuture);
