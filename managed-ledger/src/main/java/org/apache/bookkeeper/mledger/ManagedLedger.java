@@ -22,6 +22,8 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
 
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -32,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
 /**
@@ -535,4 +538,9 @@ public interface ManagedLedger {
      * Roll current ledger if it is full
      */
     void rollCurrentLedgerIfFull();
+
+    /**
+     * Find position by sequenceId.
+     * */
+    CompletableFuture<PositionImpl> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
 }

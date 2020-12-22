@@ -79,6 +79,7 @@ import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -121,9 +122,12 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1508,6 +1512,47 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }, System.nanoTime());
         }
+    }
+
+    @Override
+    public CompletableFuture<PositionImpl> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate) {
+
+
+        CompletableFuture<PositionImpl> future = new CompletableFuture();
+        Long firstLedgerId = ledgers.firstKey();
+        final PositionImpl startPosition = firstLedgerId == null ? null : new PositionImpl(firstLedgerId, 0);
+        if (startPosition == null) {
+            future.complete(null);
+            return future;
+        }
+        AsyncCallbacks.FindEntryCallback findEntryCallback = new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                final Position finalPosition;
+                if (position == null) {
+                    finalPosition = startPosition;
+                    if (finalPosition == null) {
+                        log.warn("[{}] Unable to find position for predicate {}.", name, predicate);
+                        future.complete(null);
+                        return;
+                    }
+                    log.info("[{}] Unable to find position for predicate {}. Use the first position {} instead.", name, predicate, startPosition);
+                } else {
+                    finalPosition = getNextValidPosition((PositionImpl) position);
+                }
+                future.complete((PositionImpl) finalPosition);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                log.warn("[{}] Unable to find position for predicate {}.", name, predicate);
+                future.complete(null);
+            }
+        };
+        long max = getNumberOfEntries() - 1;
+        OpFindNewest op = new OpFindNewest(this, startPosition, predicate, max, findEntryCallback, null);
+        op.find();
+        return future;
     }
 
     void clearPendingAddEntries(ManagedLedgerException e) {
