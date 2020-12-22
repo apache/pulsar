@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-deploy-docker
+id: version-2.7.1-deploy-docker
 title: Deploy a cluster on Docker
 sidebar_label: Docker
 original_id: deploy-docker

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-security-extending
+id: version-2.7.1-security-extending
 title: Extending Authentication and Authorization in Pulsar
 sidebar_label: Extending
 original_id: security-extending

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-concepts-clients
+id: version-2.7.1-concepts-clients
 title: Pulsar Clients
 sidebar_label: Clients
 original_id: concepts-clients

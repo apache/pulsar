@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-deploy-monitoring
+id: version-2.7.1-deploy-monitoring
 title: Monitor
 sidebar_label: Monitor
 original_id: deploy-monitoring

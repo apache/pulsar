@@ -147,7 +147,7 @@ require('@babel/register')({
   });
   
   // copy sidebar if necessary
-  if (versionFallback.diffLatestSidebar()) {
+  // if (versionFallback.diffLatestSidebar()) {
     mkdirp(`${CWD}/versioned_sidebars`);
     const sidebar = JSON.parse(fs.readFileSync(`${CWD}/sidebars.json`, 'utf8'));
     const versioned = {};
@@ -182,8 +182,9 @@ require('@babel/register')({
       `${JSON.stringify(versioned, null, 2)}\n`,
       'utf8',
     );
-  }
+  // }
   
+
   // update versions.json file
   versions.unshift(version);
   fs.writeFileSync(

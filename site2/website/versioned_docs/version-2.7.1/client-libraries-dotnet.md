@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-client-libraries-dotnet
+id: version-2.7.1-client-libraries-dotnet
 title: Pulsar C# client
 sidebar_label: C#
 original_id: client-libraries-dotnet

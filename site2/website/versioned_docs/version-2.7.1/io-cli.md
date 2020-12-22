@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-cli
+id: version-2.7.1-io-cli
 title: Connector Admin CLI
 sidebar_label: CLI
 original_id: io-cli

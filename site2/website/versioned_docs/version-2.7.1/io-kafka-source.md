@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-kafka-source
+id: version-2.7.1-io-kafka-source
 title: Kafka source connector
 sidebar_label: Kafka source connector
 original_id: io-kafka-source

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-security-encryption
+id: version-2.7.1-security-encryption
 title: Pulsar Encryption
 sidebar_label: End-to-End Encryption
 original_id: security-encryption

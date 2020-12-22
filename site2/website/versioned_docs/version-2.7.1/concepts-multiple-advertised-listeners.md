@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-concepts-multiple-advertised-listeners
+id: version-2.7.1-concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
 sidebar_label: Multiple advertised listeners
 original_id: concepts-multiple-advertised-listeners

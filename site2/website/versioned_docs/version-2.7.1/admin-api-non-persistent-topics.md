@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-admin-api-non-persistent-topics
+id: version-2.7.1-admin-api-non-persistent-topics
 title: Managing non-persistent topics
 sidebar_label: Non-Persistent topics
 original_id: admin-api-non-persistent-topics

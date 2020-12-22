@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-standalone-docker
+id: version-2.7.1-standalone-docker
 title: Set up a standalone Pulsar in Docker
 sidebar_label: Run Pulsar in Docker
 original_id: standalone-docker

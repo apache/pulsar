@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-reference-terminology
+id: version-2.7.1-reference-terminology
 title: Pulsar Terminology
 sidebar_label: Terminology
 original_id: reference-terminology

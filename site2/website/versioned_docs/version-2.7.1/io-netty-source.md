@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-netty-source
+id: version-2.7.1-io-netty-source
 title: Netty source connector
 sidebar_label: Netty source connector
 original_id: io-netty-source

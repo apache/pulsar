@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-mongo-sink
+id: version-2.7.1-io-mongo-sink
 title: MongoDB sink connector
 sidebar_label: MongoDB sink connector
 original_id: io-mongo-sink

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-debug
+id: version-2.7.1-functions-debug
 title: Debug Pulsar Functions
 sidebar_label: How-to: Debug
 original_id: functions-debug

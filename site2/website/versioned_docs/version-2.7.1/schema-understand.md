@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-schema-understand
+id: version-2.7.1-schema-understand
 title: Understand schema
 sidebar_label: Understand schema
 original_id: schema-understand

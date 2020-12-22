@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-debezium-source
+id: version-2.7.1-io-debezium-source
 title: Debezium source connector
 sidebar_label: Debezium source connector
 original_id: io-debezium-source

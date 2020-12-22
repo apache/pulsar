@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-solr-sink
+id: version-2.7.1-io-solr-sink
 title: Solr sink connector
 sidebar_label: Solr sink connector
 original_id: io-solr-sink

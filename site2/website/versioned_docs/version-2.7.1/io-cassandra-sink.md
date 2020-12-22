@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-cassandra-sink
+id: version-2.7.1-io-cassandra-sink
 title: Cassandra sink connector
 sidebar_label: Cassandra sink connector
 original_id: io-cassandra-sink

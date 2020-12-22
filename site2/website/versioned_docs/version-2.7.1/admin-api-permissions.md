@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-admin-api-permissions
+id: version-2.7.1-admin-api-permissions
 title: Managing permissions
 sidebar_label: Permissions
 original_id: admin-api-permissions

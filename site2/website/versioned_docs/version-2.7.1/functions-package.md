@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-package
+id: version-2.7.1-functions-package
 title: Package Pulsar Functions
 sidebar_label: How-to: Package
 original_id: functions-package

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-pulsar-2.0
+id: version-2.7.1-pulsar-2.0
 title: Pulsar 2.0
 sidebar_label: Pulsar 2.0
 original_id: pulsar-2.0

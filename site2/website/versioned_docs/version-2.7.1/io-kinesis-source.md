@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-kinesis-source
+id: version-2.7.1-io-kinesis-source
 title: Kinesis source connector
 sidebar_label: Kinesis source connector
 original_id: io-kinesis-source

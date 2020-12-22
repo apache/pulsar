@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-tiered-storage-overview
+id: version-2.7.1-tiered-storage-overview
 title: Overview of tiered storage
 sidebar_label: Overview
 original_id: tiered-storage-overview

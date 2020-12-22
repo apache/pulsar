@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-kubernetes-helm
+id: version-2.7.1-kubernetes-helm
 title: Get started in Kubernetes
 sidebar_label: Run Pulsar in Kubernetes
 original_id: kubernetes-helm

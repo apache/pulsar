@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-rabbitmq-sink
+id: version-2.7.1-io-rabbitmq-sink
 title: RabbitMQ sink connector
 sidebar_label: RabbitMQ sink connector
 original_id: io-rabbitmq-sink

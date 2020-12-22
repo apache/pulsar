@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-admin-api-overview
+id: version-2.7.1-admin-api-overview
 title: The Pulsar admin interface
 sidebar_label: Overview
 original_id: admin-api-overview

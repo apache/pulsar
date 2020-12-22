@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-schema-get-started
+id: version-2.7.1-schema-get-started
 title: Get started
 sidebar_label: Get started
 original_id: schema-get-started

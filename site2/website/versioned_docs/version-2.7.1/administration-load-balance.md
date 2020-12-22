@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-administration-load-balance
+id: version-2.7.1-administration-load-balance
 title: Pulsar load balance
 sidebar_label: Load balance
 original_id: administration-load-balance

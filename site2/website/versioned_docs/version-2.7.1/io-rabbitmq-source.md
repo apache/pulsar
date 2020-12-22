@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-rabbitmq-source
+id: version-2.7.1-io-rabbitmq-source
 title: RabbitMQ source connector
 sidebar_label: RabbitMQ source connector
 original_id: io-rabbitmq-source

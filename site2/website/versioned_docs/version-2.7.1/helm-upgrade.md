@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-helm-upgrade
+id: version-2.7.1-helm-upgrade
 title: Upgrade Pulsar Helm release
 sidebar_label: Upgrade
 original_id: helm-upgrade

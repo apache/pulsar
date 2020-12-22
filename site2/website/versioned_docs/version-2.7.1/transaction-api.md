@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-transactions-api
+id: version-2.7.1-transactions-api
 title: Transactions API (Developer Preview)
 sidebar_label: Transactions API
 original_id: transactions-api

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-nsq-source
+id: version-2.7.1-io-nsq-source
 title: NSQ source connector
 sidebar_label: NSQ source connector
 original_id: io-nsq-source

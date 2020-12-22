@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-client-libraries-python
+id: version-2.7.1-client-libraries-python
 title: Pulsar Python client
 sidebar_label: Python
 original_id: client-libraries-python

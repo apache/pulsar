@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-transactions-guarantee
+id: version-2.7.1-transactions-guarantee
 title: Transactions Guarantee
 sidebar_label: Transactions Guarantee
 original_id: transactions-guarantee

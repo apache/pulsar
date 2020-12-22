@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-client-libraries-node
+id: version-2.7.1-client-libraries-node
 title: The Pulsar Node.js client
 sidebar_label: Node.js
 original_id: client-libraries-node

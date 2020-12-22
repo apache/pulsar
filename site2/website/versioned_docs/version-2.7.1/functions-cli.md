@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-cli
+id: version-2.7.1-functions-cli
 title: Pulsar Functions command line tool
 sidebar_label: Reference: CLI
 original_id: functions-cli

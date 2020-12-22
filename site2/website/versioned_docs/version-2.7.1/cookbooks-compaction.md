@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-cookbooks-compaction
+id: version-2.7.1-cookbooks-compaction
 title: Topic compaction
 sidebar_label: Topic compaction
 original_id: cookbooks-compaction

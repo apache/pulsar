@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-deploy
+id: version-2.7.1-functions-deploy
 title: Deploy Pulsar Functions
 sidebar_label: How-to: Deploy
 original_id: functions-deploy

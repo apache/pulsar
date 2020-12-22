@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-runtime
+id: version-2.7.1-functions-runtime
 title: Configure Functions runtime
 sidebar_label: Setup: Configure Functions runtime
 original_id: functions-runtime

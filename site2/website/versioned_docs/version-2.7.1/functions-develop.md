@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-develop
+id: version-2.7.1-functions-develop
 title: Develop Pulsar Functions
 sidebar_label: How-to: Develop
 original_id: functions-develop

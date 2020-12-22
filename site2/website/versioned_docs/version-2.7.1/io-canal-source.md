@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-io-canal-source
+id: version-2.7.1-io-canal-source
 title: Canal source connector
 sidebar_label: Canal source connector
 original_id: io-canal-source

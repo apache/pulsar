@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-administration-zk-bk
+id: version-2.7.1-administration-zk-bk
 title: ZooKeeper and BookKeeper administration
 sidebar_label: ZooKeeper and BookKeeper
 original_id: administration-zk-bk

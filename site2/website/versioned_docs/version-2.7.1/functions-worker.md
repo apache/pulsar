@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-functions-worker
+id: version-2.7.1-functions-worker
 title: Deploy and manage functions worker
 sidebar_label: Setup: Pulsar Functions Worker
 original_id: functions-worker
@@ -288,4 +288,3 @@ bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-clu
 4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
 
 5. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file, and restart brokers. 
-

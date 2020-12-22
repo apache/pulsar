@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-client-libraries
+id: version-2.7.1-client-libraries
 title: Pulsar client libraries
 sidebar_label: Overview
 original_id: client-libraries

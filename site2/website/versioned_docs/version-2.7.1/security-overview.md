@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-security-overview
+id: version-2.7.1-security-overview
 title: Pulsar security overview
 sidebar_label: Overview
 original_id: security-overview

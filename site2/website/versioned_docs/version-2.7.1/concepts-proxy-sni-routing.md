@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-concepts-proxy-sni-routing
+id: version-2.7.1-concepts-proxy-sni-routing
 title: Proxy support with SNI routing
 sidebar_label: Proxy support with SNI routing
 original_id: concepts-proxy-sni-routing

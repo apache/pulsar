@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-security-oauth2
+id: version-2.7.1-security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
 sidebar_label: Authentication using OAuth 2.0 access tokens
 original_id: security-oauth2

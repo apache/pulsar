@@ -1,5 +1,5 @@
 ---
-id: version-2.7.0-security-bouncy-castle
+id: version-2.7.1-security-bouncy-castle
 title: Bouncy Castle Providers
 sidebar_label: Bouncy Castle Providers
 original_id: security-bouncy-castle
