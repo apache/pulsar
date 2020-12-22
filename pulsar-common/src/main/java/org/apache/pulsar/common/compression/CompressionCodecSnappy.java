@@ -103,6 +103,7 @@ public class CompressionCodecSnappy implements CompressionCodec {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
             ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
+            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio, uncompressedLength);
             SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
         }
 
