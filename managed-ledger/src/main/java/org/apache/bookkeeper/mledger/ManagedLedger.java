@@ -133,6 +133,21 @@ public interface ManagedLedger {
     void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx);
 
     /**
+     * Append a new entry asynchronously.
+     *
+     * @see #addEntry(byte[])
+     * @param buffer
+     *            buffer with the data entry
+     * @param batchSize
+     *            batch size for data entry
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncAddEntry(ByteBuf buffer, int batchSize, AddEntryCallback callback, Object ctx);
+
+    /**
      * Open a ManagedCursor in this ManagedLedger.
      *
      * <p/>If the cursors doesn't exist, a new one will be created and its position will be at the end of the

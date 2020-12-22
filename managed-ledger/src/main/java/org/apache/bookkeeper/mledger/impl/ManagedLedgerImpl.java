@@ -64,6 +64,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -98,6 +100,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorNotFoundExcept
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -615,6 +618,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
     }
 
+    @Override
+    public void asyncAddEntry(ByteBuf buffer, int batchSize, AddEntryCallback callback, Object ctx) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
+        }
+
+        OpAddEntry addOperation = OpAddEntry.create(this, buffer, batchSize, callback, ctx);
+
+        // Jump to specific thread to avoid contention from writers writing from different threads
+        executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
+    }
+
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
         pendingAddEntries.add(addOperation);
         final State state = STATE_UPDATER.get(this);
@@ -678,8 +693,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 addOperation.setCloseWhenDone(true);
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
+            // interceptor entry before add to bookie
+            if (beforeAddEntry(addOperation)) {
+                addOperation.initiate();
+            }
+        }
+    }
 
-            addOperation.initiate();
+    private boolean beforeAddEntry(OpAddEntry addOperation) {
+        // if no interceptor, just return true to make sure addOperation will be initiate()
+        if (managedLedgerInterceptor == null) {
+            return true;
+        }
+        try {
+            managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getBatchSize());
+            return true;
+        } catch (Exception e) {
+            addOperation.failed(
+                    new ManagedLedgerInterceptException("Interceptor managed ledger before add to bookie failed."));
+            ReferenceCountUtil.release(addOperation.data);
+            log.error("[{}] Failed to interceptor entry before add to bookie.", name, e);
+            return false;
         }
     }
 

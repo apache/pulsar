@@ -48,6 +48,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
+    private int batchSize;
 
     @SuppressWarnings("unused")
     private static final AtomicReferenceFieldUpdater<OpAddEntry, AddEntryCallback> callbackUpdater =
@@ -79,6 +80,27 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
+        op.data = data.retain();
+        op.dataLength = data.readableBytes();
+        op.callback = callback;
+        op.ctx = ctx;
+        op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
+        op.closeWhenDone = false;
+        op.entryId = -1;
+        op.startTime = System.nanoTime();
+        op.state = State.OPEN;
+        ml.mbean.addAddEntrySample(op.dataLength);
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int batchSize, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = RECYCLER.get();
+        op.ml = ml;
+        op.ledger = null;
+        op.batchSize = batchSize;
         op.data = data.retain();
         op.dataLength = data.readableBytes();
         op.callback = callback;
@@ -277,6 +299,14 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return data;
     }
 
+    public int getBatchSize() {
+        return batchSize;
+    }
+
+    public void setBatchSize(int batchSize) {
+        this.batchSize = batchSize;
+    }
+
     public void setData(ByteBuf data) {
         this.data = data;
     }
@@ -298,6 +328,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ml = null;
         ledger = null;
         data = null;
+        batchSize = 0;
         dataLength = -1;
         callback = null;
         ctx = null;
