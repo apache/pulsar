@@ -63,6 +63,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to append buffer to txn {}", txnId, exception);
                 completableFuture.completeExceptionally(exception);
             }
         }, null);
@@ -91,6 +92,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to commit for txn {}", txnID, exception);
                 completableFuture.completeExceptionally(exception);
             }
         }, null);
@@ -106,14 +108,18 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
         ByteBuf abortMarker = Markers.newTxnAbortMarker(
                 -1L, txnID.getMostSigBits(), txnID.getLeastSigBits(), getMessageIdDataList(sendMessageIdList));
-        topic.publishMessage(abortMarker, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to abort for txn {}", txnID, e);
-                completableFuture.completeExceptionally(e);
-                return;
+        topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(null);
             }
-            completableFuture.complete(null);
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to abort for txn {}", txnID, exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
