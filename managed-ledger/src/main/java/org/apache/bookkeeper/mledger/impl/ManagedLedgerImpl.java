@@ -1404,10 +1404,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // If op is used by another ledger handle, we need to close it and create a new one
                 if (existsOp.ledger != null) {
                     existsOp.close();
-                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
+                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getBatchSize(), existsOp.callback, existsOp.ctx);
                 }
                 existsOp.setLedger(currentLedger);
-                pendingAddEntries.add(existsOp);
+                if (beforeAddEntry(existsOp)) {
+                    pendingAddEntries.add(existsOp);
+                }
             }
         } while (existsOp != null && --pendingSize > 0);
 
