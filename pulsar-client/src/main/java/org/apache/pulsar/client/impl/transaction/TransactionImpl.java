@@ -55,10 +55,7 @@ public class TransactionImpl implements Transaction {
     private final long transactionTimeoutMs;
     private final long txnIdLeastBits;
     private final long txnIdMostBits;
-    private final AtomicLong sequenceId = new AtomicLong(0L);
 
-    private final Set<String> producedTopics;
-    private final Set<String> ackedTopics;
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<String, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
@@ -76,18 +73,12 @@ public class TransactionImpl implements Transaction {
         this.txnIdLeastBits = txnIdLeastBits;
         this.txnIdMostBits = txnIdMostBits;
 
-        this.producedTopics = new HashSet<>();
-        this.ackedTopics = new HashSet<>();
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
         this.sendFutureList = new ArrayList<>();
         this.ackFutureList = new ArrayList<>();
-    }
-
-    public long nextSequenceId() {
-        return sequenceId.getAndIncrement();
     }
 
     // register the topics that will be modified by this transaction
