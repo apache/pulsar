@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * Handles the life-cycle of an addEntry() operation.
  *
  */
-class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
+public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
@@ -272,7 +272,15 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public State getState() {
         return state;
     }
-    
+
+    public ByteBuf getData() {
+        return data;
+    }
+
+    public void setData(ByteBuf data) {
+        this.data = data;
+    }
+
     private final Handle<OpAddEntry> recyclerHandle;
 
     private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
