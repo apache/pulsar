@@ -30,4 +30,5 @@ public interface ManagedLedgerInterceptor {
     OpAddEntry beforeAddEntry(OpAddEntry op, int batchSize);
     void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap);
     void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle);
+    void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap);
 }

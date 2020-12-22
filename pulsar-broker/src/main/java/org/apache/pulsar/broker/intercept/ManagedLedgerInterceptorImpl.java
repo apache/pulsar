@@ -93,4 +93,13 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
             log.error("[{}] Read last entry error.", name, e);
         }
     }
+
+    @Override
+    public void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap) {
+        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+            if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                propertiesMap.put(OFFSET, String.valueOf(((AppendOffsetMetadataInterceptor)interceptor).getOffset()));
+            }
+        }
+    }
 }

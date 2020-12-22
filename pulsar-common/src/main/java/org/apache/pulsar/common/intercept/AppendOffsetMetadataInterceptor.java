@@ -48,4 +48,7 @@ public class AppendOffsetMetadataInterceptor implements BrokerEntryMetadataInter
         return brokerMetadata.setOffset(offsetGenerator.addAndGet(batchSize));
     }
 
+    public long getOffset() {
+        return offsetGenerator.get();
+    }
 }
