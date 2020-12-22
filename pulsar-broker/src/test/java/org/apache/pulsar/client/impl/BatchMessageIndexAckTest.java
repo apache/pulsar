@@ -59,13 +59,13 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseTimeout")
-    public Object[][] ackResponseTimeout() {
-        return new Object[][] { { 0L }, { 3000L } };
+    @DataProvider(name = "ackResponseEnabled")
+    public Object[][] ackResponseEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testBatchMessageIndexAckForSharedSubscription(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testBatchMessageIndexAckForSharedSubscription(boolean ackResponseEnabled) throws Exception {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
         final String subscriptionName = "sub";
 
@@ -74,7 +74,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName(subscriptionName)
             .receiverQueueSize(100)
-            .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+            .enableAckResponse(ackResponseEnabled)
             .subscriptionType(SubscriptionType.Shared)
             .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
@@ -145,8 +145,8 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testBatchMessageIndexAckForExclusiveSubscription(long ackResponseTimeout) throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackResponseEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
@@ -154,7 +154,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
-            .ackResponseTimeout(ackResponseTimeout,TimeUnit.MILLISECONDS)
+            .enableAckResponse(ackResponseEnabled)
             .enableBatchIndexAcknowledgment(true)
             .subscribe();
 

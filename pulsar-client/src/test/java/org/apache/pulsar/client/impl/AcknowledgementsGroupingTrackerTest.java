@@ -20,18 +20,21 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import io.netty.util.Timer;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -48,18 +51,14 @@ public class AcknowledgementsGroupingTrackerTest {
     private EventLoopGroup eventLoopGroup;
 
     @BeforeClass
-    public void setup() {
+    public void setup() throws NoSuchFieldException, IllegalAccessException {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
-
         consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
-        cnx = mock(ClientCnx.class);
+        cnx = spy(new ClientCnxTest(new ClientConfigurationData(), new NioEventLoopGroup()));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
-        Timer timer = mock(Timer.class);
         doReturn(client).when(consumer).getClient();
-        doReturn(timer).when(client).timer();
-
-
+        doReturn(cnx).when(consumer).getClientCnx();
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
     }
@@ -251,8 +250,6 @@ public class AcknowledgementsGroupingTrackerTest {
         when(consumer.getClientCnx()).thenReturn(null);
 
         tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
-        tracker.flush();
-        //cnx is null can not flush
         assertTrue(tracker.isDuplicate(msg1));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -396,5 +393,17 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg6));
 
         tracker.close();
+    }
+
+    public class ClientCnxTest extends ClientCnx {
+
+        public ClientCnxTest(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+            super(conf, eventLoopGroup);
+        }
+
+        @Override
+        public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId, boolean flush) {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 }

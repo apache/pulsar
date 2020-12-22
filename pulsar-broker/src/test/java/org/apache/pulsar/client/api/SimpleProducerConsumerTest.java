@@ -131,9 +131,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         };
     }
 
-    @DataProvider(name = "ackResponseTimeout")
-    public Object[][] ackResponseTimeout() {
-        return new Object[][] { { 0L }, { 3000L } };
+    @DataProvider(name = "ackResponseEnabled")
+    public Object[][] ackResponseEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @AfterMethod(alwaysRun = true)
@@ -278,7 +278,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batchAndAckResponse")
     public Object[][] codecProviderWithAckResponse() {
-        return new Object[][] { { 0, 0}, { 1000, 0 }, { 0, 3000 }, { 1000, 3000 }};
+        return new Object[][] { { 0, true}, { 1000, false }, { 0, true }, { 1000, false }};
     }
 
     @DataProvider(name = "batch")
@@ -324,10 +324,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchAndAckResponse")
-    public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, long ackResponseTimeout) throws Exception {
+    public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic2")
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -1046,8 +1046,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testDeactivatingBacklogConsumer(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testDeactivatingBacklogConsumer(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final long batchMessageDelayMs = 100;
@@ -1060,12 +1060,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 1. Subscriber Faster subscriber: let it consume all messages immediately
         Consumer<byte[]> subscriber1 = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
         // 1.b. Subscriber Slow subscriber:
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub2)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
@@ -1273,14 +1273,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "ackResponseTimeout", timeOut = 30000)
-    public void testSharedConsumerAckDifferentConsumer(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled", timeOut = 30000)
+    public void testSharedConsumerAckDifferentConsumer(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name")
                 .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
@@ -1371,8 +1371,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testConsumerBlockingWithUnAckedMessages(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testConsumerBlockingWithUnAckedMessages(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1384,7 +1384,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1445,8 +1445,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testConsumerBlockingWithUnAckedMessagesMultipleIteration(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testConsumerBlockingWithUnAckedMessagesMultipleIteration(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1461,7 +1461,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared)
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1520,8 +1520,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testMutlipleSharedConsumerBlockingWithUnAckedMessages(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testMutlipleSharedConsumerBlockingWithUnAckedMessages(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1534,13 +1534,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnackedMessages);
             Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1677,8 +1677,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testUnackBlockRedeliverMessages(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testUnackBlockRedeliverMessages(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1691,7 +1691,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);
             ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1746,7 +1746,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchAndAckResponse")
-    public void testUnackedBlockAtBatch(int batchMessageDelayMs, long ackResponseTimeout) throws Exception {
+    public void testUnackedBlockAtBatch(int batchMessageDelayMs, boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1759,7 +1759,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnackedMessages);
             Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                    .enableAckResponse(ackResponseEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             ProducerBuilder<byte[]> producerBuidler = pulsarClient.newProducer()
@@ -2342,8 +2342,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testRedeliveryFailOverConsumer(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testRedeliveryFailOverConsumer(boolean ackResponseEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final int receiverQueueSize = 10;
@@ -2352,7 +2352,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                 .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover)
-                .ackResponseTimeout(ackResponseTimeout,TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")

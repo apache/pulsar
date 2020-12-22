@@ -47,20 +47,20 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseTimeout")
-    public Object[][] ackResponseTimeout() {
-        return new Object[][] { { 0L }, { 3000 } };
+    @DataProvider(name = "ackResponseEnabled")
+    public Object[][] ackResponseEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
-    @Test(timeOut = 30000, dataProvider = "ackResponseTimeout")
-    public void testBatchListAck(long ackResponseTimeout) throws Exception {
-        ackListMessage(true,true, ackResponseTimeout);
-        ackListMessage(true,false, ackResponseTimeout);
-        ackListMessage(false,false, ackResponseTimeout);
-        ackListMessage(false,true, ackResponseTimeout);
+    @Test(timeOut = 30000, dataProvider = "ackResponseEnabled")
+    public void testBatchListAck(boolean ackResponseEnabled) throws Exception {
+        ackListMessage(true,true, ackResponseEnabled);
+        ackListMessage(true,false, ackResponseEnabled);
+        ackListMessage(false,false, ackResponseEnabled);
+        ackListMessage(false,true, ackResponseEnabled);
     }
 
-    public void ackListMessage(boolean isBatch, boolean isPartitioned, long ackResponseTimeout) throws Exception {
+    public void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackResponseEnabled) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
@@ -78,7 +78,8 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .topic(topic)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableBatchIndexAcknowledgment(isBatch)
+                .enableAckResponse(ackResponseEnabled)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();

@@ -82,9 +82,9 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseTimeout")
-    public Object[][] ackResponseTimeout() {
-        return new Object[][] { { 0L }, { 3000 } };
+    @DataProvider(name = "ackResponseEnabled")
+    public Object[][] ackResponseEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @Test
@@ -100,8 +100,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testLargeMessage(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testLargeMessage(boolean ackResponseEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -109,7 +109,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -165,8 +165,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testLargeMessageAckTimeOut(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testLargeMessageAckTimeOut(boolean ackResponseEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -175,7 +175,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
                 .ackTimeout(5, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);

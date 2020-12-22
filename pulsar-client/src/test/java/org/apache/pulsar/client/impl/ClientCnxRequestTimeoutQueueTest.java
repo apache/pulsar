@@ -86,6 +86,16 @@ public class ClientCnxRequestTimeoutQueueTest {
     }
 
     @Test
+    void testNewAckForResponseNoFlushTimeout() {
+        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L, false));
+    }
+
+    @Test
+    void testNewAckForResponseFlushTimeout() {
+        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L, true));
+    }
+
+    @Test
     void testGetSchemaRequestTimeout() {
         assertFutureTimesOut(cnx.sendGetRawSchema(requestMessage, 1L));
     }

@@ -68,7 +68,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientException.MessageAcknowledgeException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -101,7 +100,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -185,8 +183,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
-
-    private final ConcurrentLongHashMap<OpForAckCallBack> transactionAckRequests;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
@@ -312,7 +308,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {
-            if (conf.getAckResponseTimeout() > 0) {
+            if (conf.isAckResponseEnabled()) {
                 this.acknowledgmentsGroupingTracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(
                         this,conf,client.eventLoopGroup());
             } else {
@@ -351,7 +347,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
-        this.transactionAckRequests = new ConcurrentLongHashMap<>(16, 1);
 
         grabCnx();
     }
@@ -577,13 +572,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ackType);
                 }
             } else {
-                if (conf.isBatchIndexAckEnabled()) {
-                    return acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
-                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
-                            ackType, properties, txn);
-                }
-                // other messages in batch are still pending ack.
-                return CompletableFuture.completedFuture(null);
+                return acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
+                        batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
+                        ackType, properties, txn);
             }
         }
         return sendAcknowledge(messageId, ackType, properties, txn);
@@ -595,7 +586,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
             messageIdList.forEach(messageId ->
                     completableFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
-            return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+            return FutureUtil.waitForAll(completableFutures);
         }
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -604,7 +595,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
         List<MessageIdImpl> nonBatchMessageIds = new ArrayList<>();
-        List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
+        List<CompletableFuture<Void>> completableFutureList = null;
+        if (conf.isAckResponseEnabled()) {
+            completableFutureList = new ArrayList<>(messageIdList.size());
+        }
         for (MessageId messageId : messageIdList) {
             MessageIdImpl messageIdImpl;
             if (messageId instanceof BatchMessageIdImpl
@@ -612,9 +606,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
-                completableFutureList.add(acknowledgmentsGroupingTracker
+                CompletableFuture<Void> future = acknowledgmentsGroupingTracker
                         .addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                                batchMessageId.getBatchSize(), ackType, properties, txn));
+                                batchMessageId.getBatchSize(), ackType, properties, txn);
+                if (completableFutureList != null) {
+                    completableFutureList.add(future);
+                }
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
@@ -628,10 +625,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             onAcknowledge(messageId, null);
         }
         if (nonBatchMessageIds.size() > 0) {
-            completableFutureList.add(acknowledgmentsGroupingTracker
-                    .addListAcknowledgment(nonBatchMessageIds, ackType, properties));
+            CompletableFuture<Void> completableFuture = acknowledgmentsGroupingTracker
+                    .addListAcknowledgment(nonBatchMessageIds, ackType, properties);
+            if (completableFutureList != null) {
+                completableFutureList.add(completableFuture);
+            }
         }
-        if (conf.getAckResponseTimeout() > 0) {
+        if (completableFutureList == null) {
             return CompletableFuture.completedFuture(null);
         } else {
             return FutureUtil.waitForAll(completableFutureList);
@@ -1070,17 +1070,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.clear();
         }
-
-        if (!transactionAckRequests.isEmpty()) {
-            transactionAckRequests.forEach((key, value) -> {
-                value.callback
-                        .completeExceptionally(new MessageAcknowledgeException("Consumer has closed!"));
-                value.recycle();
-            });
-
-            transactionAckRequests.clear();
-        }
-
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
@@ -2411,7 +2400,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(MessageId messageId, AckType ackType,
                                                                         ValidationError validationError,
                                                                         Map<String, Long> properties, TxnID txnID) {
-        CompletableFuture<Void> callBack = new CompletableFuture<>();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         BitSetRecyclable bitSetRecyclable = null;
         long ledgerId;
         long entryId;
@@ -2441,89 +2430,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
         }
 
-        OpForAckCallBack op = OpForAckCallBack.create(cmd, callBack, messageId,
-                new TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits()));
-        transactionAckRequests.put(requestId, op);
         if (ackType == AckType.Cumulative) {
             unAckedMessageTracker.removeMessagesTill(messageId);
         } else {
             unAckedMessageTracker.remove(messageId);
         }
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
-        return callBack;
-    }
-
-    protected void ackReceipt(long requestId) {
-        //TODO Now transaction ack request individual handle, we should cover in tracker handle
-        if (conf.getAckResponseTimeout() > 0) {
-            this.acknowledgmentsGroupingTracker.ackReceipt(requestId);
-        } else {
-            OpForAckCallBack callBackOp = transactionAckRequests.remove(requestId);
-            if (callBackOp == null || callBackOp.callback.isDone()) {
-                log.info("Ack request has been handled requestId : {}", requestId);
-            } else {
-                callBackOp.callback.complete(null);
-                if (log.isDebugEnabled()) {
-                    log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
-                            + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
-                }
-            }
-        }
-    }
-
-    protected void ackError(long requestId, PulsarClientException pulsarClientException) {
-        //TODO Now transaction ack request individual handle, we should cover in tracker handle
-        if (conf.getAckResponseTimeout() > 0) {
-            this.acknowledgmentsGroupingTracker.ackReceipt(requestId);
-        } else {
-            OpForAckCallBack callBackOp = transactionAckRequests.remove(requestId);
-            if (callBackOp == null || callBackOp.callback.isDone()) {
-                log.info("Ack request has been handled requestId : {}", requestId);
-            } else {
-                callBackOp.callback.completeExceptionally(pulsarClientException);
-                if (log.isDebugEnabled()) {
-                    log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
-                }
-                callBackOp.recycle();
-            }
-        }
-    }
-
-    private static class OpForAckCallBack {
-        protected ByteBuf cmd;
-        protected CompletableFuture<Void> callback;
-        protected MessageIdImpl messageId;
-        protected TxnID txnID;
-
-        static OpForAckCallBack create(ByteBuf cmd, CompletableFuture<Void> callback,
-                                       MessageId messageId, TxnID txnID) {
-            OpForAckCallBack op = RECYCLER.get();
-            op.callback = callback;
-            op.cmd = cmd;
-            op.messageId = (MessageIdImpl) messageId;
-            op.txnID = txnID;
-            return op;
-        }
-
-        private OpForAckCallBack(Recycler.Handle<OpForAckCallBack> recyclerHandle) {
-            this.recyclerHandle = recyclerHandle;
-        }
-
-        void recycle() {
-            if (cmd != null) {
-                ReferenceCountUtil.safeRelease(cmd);
-            }
-            recyclerHandle.recycle(this);
-        }
-
-        private final Recycler.Handle<OpForAckCallBack> recyclerHandle;
-        private static final Recycler<OpForAckCallBack> RECYCLER = new Recycler<OpForAckCallBack>() {
-            @Override
-            protected OpForAckCallBack newObject(Handle<OpForAckCallBack> handle) {
-                return new OpForAckCallBack(handle);
-            }
-        };
+        return cnx().newAckForResponse(cmd, requestId, true);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

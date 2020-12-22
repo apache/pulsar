@@ -29,6 +29,7 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -55,9 +56,9 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseTimeout")
-    public Object[][] ackResponseTimeout() {
-        return new Object[][] { { 0L }, { 3000L } };
+    @DataProvider(name = "ackResponseEnabled")
+    public Object[][] ackResponseEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     /**
@@ -70,8 +71,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * </pre>
      * @throws Exception
      */
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testOrderedRedelivery(long ackResponseTimeout) throws Exception {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testOrderedRedelivery(boolean ackResponseEnabled) throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
@@ -84,7 +85,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
                 .create();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS);
+                .enableAckResponse(ackResponseEnabled);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         final int totalMsgs = 100;
@@ -137,13 +138,14 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackResponseTimeout")
-    public void testUnAckMessageRedeliveryWithReceiveAsync(long ackResponseTimeout) throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackResponseEnabled")
+    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackResponseEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
-                .ackResponseTimeout(ackResponseTimeout, TimeUnit.MILLISECONDS)
+                .enableAckResponse(ackResponseEnabled)
+                .enableBatchIndexAcknowledgment(ackResponseEnabled)
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
@@ -173,7 +175,6 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
 
         assertEquals(10, messageReceived);
-
         for (int i = 0; i < messages; i++) {
             Message<String> message = consumer.receive();
             assertNotNull(message);
