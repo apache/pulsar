@@ -98,7 +98,6 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public CompletableFuture<MessageId> sendAsync() {
         Message<T> message = getMessage();
         CompletableFuture<MessageId> sendFuture;
-        System.out.println("sendAsync message - " + new String(message.getData()));
         if (txn != null) {
             sendFuture = producer.internalSendWithTxnAsync(message, txn);
             txn.registerSendOp(sendFuture);

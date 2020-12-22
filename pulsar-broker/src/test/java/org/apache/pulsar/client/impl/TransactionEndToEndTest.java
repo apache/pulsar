@@ -619,12 +619,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     public void publishTxnMessageOrderTest() throws Exception {
         String topic = NAMESPACE1 + "/txn-publish-order";
 
-        PulsarClient newPulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
@@ -638,20 +632,17 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
-                .build()
-                .get();
+                .build().get();
 
         for (int i = 0; i < 1000; i++) {
             producer.newMessage(txn).value(("" + i).getBytes()).sendAsync();
         }
-
         txn.commit().get();
 
         for (int i = 0; i < 1000; i++) {
             Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("receive message {} - {}", new String(message.getData()), message.getMessageId());
-//            Assert.assertEquals(Integer.valueOf(new String(message.getData())), new Integer(i));
+            Assert.assertEquals(Integer.valueOf(new String(message.getData())), new Integer(i));
         }
     }
 
