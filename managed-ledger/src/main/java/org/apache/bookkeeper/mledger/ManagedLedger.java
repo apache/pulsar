@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.interceptor.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
 /**
@@ -78,6 +79,18 @@ public interface ManagedLedger {
     Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Append a new entry to the end of a managed ledger.
+     *
+     * @param data
+     *            data entry to be persisted
+     * @param batchSize
+     *            batchSize of entry
+     * @return the Position at which the entry has been inserted
+     * @throws ManagedLedgerException
+     */
+    Position addEntry(byte[] data, int batchSize) throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Append a new entry asynchronously.
      *
      * @see #addEntry(byte[])
@@ -106,6 +119,22 @@ public interface ManagedLedger {
     Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Append a new entry to the end of a managed ledger.
+     *
+     * @param data
+     *            data entry to be persisted
+     * @param batchSize
+     *            batchSize of entry
+     * @param offset
+     *            offset in the data array
+     * @param length
+     *            number of bytes
+     * @return the Position at which the entry has been inserted
+     * @throws ManagedLedgerException
+     */
+    Position addEntry(byte[] data, int batchSize, int offset, int length) throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Append a new entry asynchronously.
      *
      * @see #addEntry(byte[])
@@ -121,6 +150,26 @@ public interface ManagedLedger {
      *            opaque context
      */
     void asyncAddEntry(byte[] data, int offset, int length, AddEntryCallback callback, Object ctx);
+
+    /**
+     * Append a new entry asynchronously.
+     *
+     * @see #addEntry(byte[])
+     * @param data
+     *            data entry to be persisted
+     * @param batchSize
+     *            batchSize of entry
+     * @param offset
+     *            offset in the data array
+     * @param length
+     *            number of bytes
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncAddEntry(byte[] data, int batchSize, int offset, int length, AddEntryCallback callback, Object ctx);
+
 
     /**
      * Append a new entry asynchronously.
@@ -543,4 +592,9 @@ public interface ManagedLedger {
      * Find position by sequenceId.
      * */
     CompletableFuture<PositionImpl> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
+
+    /**
+     * Get the ManagedLedgerInterceptor for ManagedLedger.
+     * */
+    ManagedLedgerInterceptor getManagedLedgerInterceptor();
 }

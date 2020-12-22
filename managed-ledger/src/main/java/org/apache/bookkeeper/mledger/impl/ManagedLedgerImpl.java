@@ -567,6 +567,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public Position addEntry(byte[] data, int batchSize) throws InterruptedException, ManagedLedgerException {
+        return addEntry(data, batchSize,0, data.length);
+    }
+
+    @Override
     public Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         // Result list will contain the status exception and the resulting
@@ -602,6 +607,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public Position addEntry(byte[] data, int batchSize, int offset, int length) throws InterruptedException, ManagedLedgerException {
+        final CountDownLatch counter = new CountDownLatch(1);
+        // Result list will contain the status exception and the resulting
+        // position
+        class Result {
+            ManagedLedgerException status = null;
+            Position position = null;
+        }
+        final Result result = new Result();
+
+        asyncAddEntry(data, batchSize, offset, length, new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                result.position = position;
+                counter.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                result.status = exception;
+                counter.countDown();
+            }
+        }, null);
+
+        counter.await();
+
+        if (result.status != null) {
+            log.error("[{}] Error adding entry", name, result.status);
+            throw result.status;
+        }
+
+        return result.position;
+    }
+
+    @Override
     public void asyncAddEntry(final byte[] data, final AddEntryCallback callback, final Object ctx) {
         asyncAddEntry(data, 0, data.length, callback, ctx);
     }
@@ -611,6 +651,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final Object ctx) {
         ByteBuf buffer = Unpooled.wrappedBuffer(data, offset, length);
         asyncAddEntry(buffer, callback, ctx);
+    }
+
+    @Override
+    public void asyncAddEntry(final byte[] data, int batchSize, int offset, int length, final AddEntryCallback callback,
+                              final Object ctx) {
+        ByteBuf buffer = Unpooled.wrappedBuffer(data, offset, length);
+        asyncAddEntry(buffer, batchSize, callback, ctx);
     }
 
     @Override
@@ -1558,6 +1605,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpFindNewest op = new OpFindNewest(this, startPosition, predicate, max, findEntryCallback, null);
         op.find();
         return future;
+    }
+
+    @Override
+    public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
+        return managedLedgerInterceptor;
     }
 
     void clearPendingAddEntries(ManagedLedgerException e) {

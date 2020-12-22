@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.util.Map;
+import java.util.Set;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -29,10 +31,6 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.Set;
-
 
 public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
@@ -46,20 +44,30 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
     }
 
+    public long getOffset() {
+        long offset = -1;
+        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+            if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                offset = ((AppendOffsetMetadataInterceptor) interceptor).getOffset();
+            }
+        }
+        return offset;
+    }
 
     @Override
     public OpAddEntry beforeAddEntry(OpAddEntry op, int batchSize) {
-        assert op != null;
-        assert batchSize > 0;
-
+       if (op == null || batchSize <= 0) {
+           return op;
+       }
         op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, batchSize));
         return op;
     }
 
     @Override
     public void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap) {
-        assert propertiesMap != null;
-        assert propertiesMap.size() > 0;
+        if (propertiesMap == null || propertiesMap.size() == 0) {
+            return;
+        }
 
         if (propertiesMap.containsKey(OFFSET)) {
             for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
@@ -98,7 +106,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     public void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap) {
         for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
             if (interceptor instanceof AppendOffsetMetadataInterceptor) {
-                propertiesMap.put(OFFSET, String.valueOf(((AppendOffsetMetadataInterceptor)interceptor).getOffset()));
+                propertiesMap.put(OFFSET, String.valueOf(((AppendOffsetMetadataInterceptor) interceptor).getOffset()));
             }
         }
     }
