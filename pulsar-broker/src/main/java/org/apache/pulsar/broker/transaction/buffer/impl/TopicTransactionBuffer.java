@@ -23,8 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -54,14 +55,17 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        topic.publishMessage(buffer, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to append buffer to txn {}", txnId, e);
-                completableFuture.completeExceptionally(e);
-                return;
+        topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(position);
             }
-            completableFuture.complete(PositionImpl.get(ledgerId, entryId));
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
@@ -78,14 +82,18 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                 txnID.getLeastSigBits(), getMessageIdDataList(sendMessageIdList));
-        topic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to commit for txn {}", txnID, e);
-                completableFuture.completeExceptionally(e);
-                return;
+
+        topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(null);
             }
-            completableFuture.complete(null);
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
