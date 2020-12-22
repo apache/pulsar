@@ -140,9 +140,15 @@ public class PrometheusMetricsGenerator {
                         continue;
                     }
                 } else {
-                    stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
-                            .write(getTypeStr(metricType)).write('\n');
-                    stream.write(entry.getKey().replace("brk_", "pulsar_"))
+
+
+                    String name = entry.getKey();
+                    if (!names.contains(name)) {
+                        stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
+                                .write(getTypeStr(metricType)).write('\n');
+                        names.add(name);
+                    }
+                    stream.write(name.replace("brk_", "pulsar_"))
                             .write("{cluster=\"").write(cluster).write('"');
                 }
 
