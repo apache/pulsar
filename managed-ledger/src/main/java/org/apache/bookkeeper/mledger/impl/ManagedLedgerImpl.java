@@ -108,6 +108,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.interceptor.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
@@ -194,6 +195,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
+
+    private ManagedLedgerInterceptor managedLedgerInterceptor;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -283,6 +286,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
+        this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -310,6 +314,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         propertiesMap.put(property.getKey(), property.getValue());
                     }
                 }
+                managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(propertiesMap);
 
                 // Last ledger stat may be zeroed, we must update it
                 if (ledgers.size() > 0) {
@@ -325,6 +330,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
+                                managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
                                 initializeBookKeeper(callback);
                             } else if (isNoSuchLedgerExistsException(rc)) {
                                 log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
