@@ -1965,7 +1965,6 @@ public class Commands {
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
-                                                 AtomicLong offsetGenerator,
                                                  int batchSize) {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
@@ -1973,8 +1972,8 @@ public class Commands {
         PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerMetadataBuilder);
+            interceptor.interceptWithBatchSize(brokerMetadataBuilder, batchSize);
         }
-        brokerMetadataBuilder.setOffset(offsetGenerator.addAndGet(batchSize));
         PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
         ByteBuf brokerMeta =

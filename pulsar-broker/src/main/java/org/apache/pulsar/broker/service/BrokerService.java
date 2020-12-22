@@ -128,6 +128,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.intercept.AppendOffsetMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -1094,10 +1095,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
-            // init managedLedger interceptor
-            ManagedLedgerInterceptor mlInterceptor =
-                    new ManagedLedgerInterceptorImpl(new AtomicLong(-1), brokerEntryMetadataInterceptors);
-            managedLedgerConfig.setManagedLedgerInterceptor(mlInterceptor);
+            if (isBrokerEntryMetadataEnabled()) {
+                // init managedLedger interceptor
+                for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                    if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                        // add individual AppendOffsetMetadataInterceptor for each topic
+                        brokerEntryMetadataInterceptors.remove(interceptor);
+                        brokerEntryMetadataInterceptors.add(new AppendOffsetMetadataInterceptor());
+                    }
+                }
+                ManagedLedgerInterceptor mlInterceptor =
+                        new ManagedLedgerInterceptorImpl(brokerEntryMetadataInterceptors);
+                managedLedgerConfig.setManagedLedgerInterceptor(mlInterceptor);
+            }
+
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation

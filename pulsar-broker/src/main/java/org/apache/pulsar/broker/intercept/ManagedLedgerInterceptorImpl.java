@@ -24,6 +24,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.interceptor.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.intercept.AppendOffsetMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
@@ -31,32 +32,27 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 
 public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String OFFSET = "offset";
 
-    private AtomicLong offsetGenerator;
-    private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    public ManagedLedgerInterceptorImpl() {
-        offsetGenerator = new AtomicLong(-1);
-    }
+    private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    public ManagedLedgerInterceptorImpl(AtomicLong offsetGenerator,
-                                        Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
-        this.offsetGenerator = offsetGenerator;
+
+    public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
     }
+
 
     @Override
     public OpAddEntry beforeAddEntry(OpAddEntry op, int batchSize) {
         assert op != null;
         assert batchSize > 0;
-        op.setData(Commands.addBrokerEntryMetadata(op.getData(),
-                brokerEntryMetadataInterceptors, offsetGenerator, batchSize));
+
+        op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, batchSize));
         return op;
     }
 
@@ -66,22 +62,31 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         assert propertiesMap.size() > 0;
 
         if (propertiesMap.containsKey(OFFSET)) {
-            offsetGenerator.set(Long.parseLong(propertiesMap.get(OFFSET)));
+            for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                  ((AppendOffsetMetadataInterceptor) interceptor)
+                          .recoveryOffsetGenerator(Long.parseLong(propertiesMap.get(OFFSET)));
+                }
+            }
         }
     }
 
     @Override
     public void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
         try {
-            LedgerEntries ledgerEntries =
-                    lh.read(lh.getLastAddConfirmed() - 1, lh.getLastAddConfirmed());
-            for (LedgerEntry entry : ledgerEntries) {
-                PulsarApi.BrokerEntryMetadata brokerEntryMetadata =
-                        Commands.parseBrokerEntryMetadataIfExist(entry.getEntryBuffer());
-                if (brokerEntryMetadata != null) {
-                    if (brokerEntryMetadata.hasOffset() && offsetGenerator.get() < brokerEntryMetadata.getOffset()) {
-                        offsetGenerator.set(brokerEntryMetadata.getOffset());
+            for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                    LedgerEntries ledgerEntries =
+                            lh.read(lh.getLastAddConfirmed() - 1, lh.getLastAddConfirmed());
+                    for (LedgerEntry entry : ledgerEntries) {
+                        PulsarApi.BrokerEntryMetadata brokerEntryMetadata =
+                                Commands.parseBrokerEntryMetadataIfExist(entry.getEntryBuffer());
+                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasOffset()) {
+                            ((AppendOffsetMetadataInterceptor) interceptor)
+                                    .recoveryOffsetGenerator(brokerEntryMetadata.getOffset());
+                        }
                     }
+
                 }
             }
         } catch (org.apache.bookkeeper.client.api.BKException | InterruptedException e) {
