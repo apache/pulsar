@@ -191,6 +191,8 @@ public class BrokerServiceException extends Exception {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
             return PulsarApi.ServerError.ConsumerBusy;
+        } else if (t instanceof SubscriptionBusyException) {
+            return PulsarApi.ServerError.ConsumerBusy;
         } else if (t instanceof ProducerBusyException) {
             return PulsarApi.ServerError.ProducerBusy;
         } else if (t instanceof UnsupportedVersionException) {
