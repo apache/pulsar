@@ -25116,6 +25116,10 @@ public final class PulsarApi {
     // optional uint64 topic_epoch = 5;
     boolean hasTopicEpoch();
     long getTopicEpoch();
+    
+    // optional bool producer_ready = 6 [default = true];
+    boolean hasProducerReady();
+    boolean getProducerReady();
   }
   public static final class CommandProducerSuccess extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -25224,12 +25228,23 @@ public final class PulsarApi {
       return topicEpoch_;
     }
     
+    // optional bool producer_ready = 6 [default = true];
+    public static final int PRODUCER_READY_FIELD_NUMBER = 6;
+    private boolean producerReady_;
+    public boolean hasProducerReady() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public boolean getProducerReady() {
+      return producerReady_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       producerName_ = "";
       lastSequenceId_ = -1L;
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       topicEpoch_ = 0L;
+      producerReady_ = true;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -25271,6 +25286,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeUInt64(5, topicEpoch_);
       }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBool(6, producerReady_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -25298,6 +25316,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(5, topicEpoch_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(6, producerReady_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -25422,6 +25444,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         topicEpoch_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000010);
+        producerReady_ = true;
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -25475,6 +25499,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000010;
         }
         result.topicEpoch_ = topicEpoch_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.producerReady_ = producerReady_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -25495,6 +25523,9 @@ public final class PulsarApi {
         }
         if (other.hasTopicEpoch()) {
           setTopicEpoch(other.getTopicEpoch());
+        }
+        if (other.hasProducerReady()) {
+          setProducerReady(other.getProducerReady());
         }
         return this;
       }
@@ -25556,6 +25587,11 @@ public final class PulsarApi {
             case 40: {
               bitField0_ |= 0x00000010;
               topicEpoch_ = input.readUInt64();
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              producerReady_ = input.readBool();
               break;
             }
           }
@@ -25683,6 +25719,27 @@ public final class PulsarApi {
       public Builder clearTopicEpoch() {
         bitField0_ = (bitField0_ & ~0x00000010);
         topicEpoch_ = 0L;
+        
+        return this;
+      }
+      
+      // optional bool producer_ready = 6 [default = true];
+      private boolean producerReady_ = true;
+      public boolean hasProducerReady() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public boolean getProducerReady() {
+        return producerReady_;
+      }
+      public Builder setProducerReady(boolean value) {
+        bitField0_ |= 0x00000020;
+        producerReady_ = value;
+        
+        return this;
+      }
+      public Builder clearProducerReady() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        producerReady_ = true;
         
         return this;
       }

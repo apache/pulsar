@@ -882,6 +882,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

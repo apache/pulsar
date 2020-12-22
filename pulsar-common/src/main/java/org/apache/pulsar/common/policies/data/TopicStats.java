@@ -69,6 +69,8 @@ public class TopicStats {
     /** List of connected publishers on this topic w/ their stats. */
     public List<PublisherStats> publishers;
 
+    public int waitingPublishers;
+
     /** Map of subscriptions with their individual statistics. */
     public Map<String, SubscriptionStats> subscriptions;
 
@@ -107,6 +109,7 @@ public class TopicStats {
         this.msgOutCounter = 0;
         this.publishers.clear();
         this.subscriptions.clear();
+        this.waitingPublishers = 0;
         this.replication.clear();
         this.deduplicationStatus = null;
         this.topicEpoch = null;
@@ -127,6 +130,7 @@ public class TopicStats {
         this.msgInCounter += stats.msgInCounter;
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;
+        this.waitingPublishers += stats.waitingPublishers;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
