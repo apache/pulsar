@@ -37,7 +37,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -184,8 +183,7 @@ public class PersistentAcknowledgmentsWithResponseGroupingTracker implements Ack
 
         }
 
-        msgId = new MessageIdImpl(msgId.getLedgerId(),
-                msgId.getEntryId(), msgId.getPartitionIndex());
+        this.pendingIndividualAcks.put(msgId, completableFuture);
         MutablePair<List<CompletableFuture<Void>>, ConcurrentBitSetRecyclable> mutablePair =
                 pendingIndividualBatchIndexAcks.remove(msgId);
         if (mutablePair != null) {
@@ -461,8 +459,7 @@ public class PersistentAcknowledgmentsWithResponseGroupingTracker implements Ack
             });
         }
 
-        if (pendingIndividualBatchIndexAcks != null && !pendingIndividualBatchIndexAcks.isEmpty()
-                && batchIndexAckEnabled) {
+        if (pendingIndividualBatchIndexAcks != null && !pendingIndividualBatchIndexAcks.isEmpty()) {
             pendingIndividualBatchIndexAcks.forEach((k, v) ->
                     entriesToAck.add(Triple.of(k.ledgerId, k.entryId, v.getRight())));
         }
@@ -477,7 +474,7 @@ public class PersistentAcknowledgmentsWithResponseGroupingTracker implements Ack
                             if (pendingIndividualAcks != null) {
                                 pendingIndividualAcks.forEach((k, v) -> v.completeExceptionally(e));
                             }
-                            if (pendingIndividualBatchIndexAcks != null && batchIndexAckEnabled) {
+                            if (pendingIndividualBatchIndexAcks != null) {
                                 pendingIndividualBatchIndexAcks.forEach((k, v) ->
                                         v.getLeft().forEach(future -> {
                                             future.completeExceptionally(e);
@@ -487,7 +484,7 @@ public class PersistentAcknowledgmentsWithResponseGroupingTracker implements Ack
                             if (pendingIndividualAcks != null) {
                                 pendingIndividualAcks.forEach((k, v) -> v.complete(null));
                             }
-                            if (pendingIndividualBatchIndexAcks != null && batchIndexAckEnabled) {
+                            if (pendingIndividualBatchIndexAcks != null) {
                                 pendingIndividualBatchIndexAcks.forEach((k, v) ->
                                         v.getLeft().forEach(future -> {
                                             future.complete(null);
