@@ -257,4 +257,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
         return "Pulsar topic";
     }
+
+    @Override
+    public boolean storageExists() {
+        return true;
+    }
 }
