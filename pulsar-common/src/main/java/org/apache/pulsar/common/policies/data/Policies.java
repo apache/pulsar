@@ -97,6 +97,8 @@ public class Policies {
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_topics_per_namespace = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated

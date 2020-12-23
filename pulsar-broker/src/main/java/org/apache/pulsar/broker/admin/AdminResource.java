@@ -811,9 +811,14 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
-        final int maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
-        if (maxTopicsPerNamespace > 0) {
-            try {
+        Integer maxTopicsPerNamespace;
+        try {
+            maxTopicsPerNamespace = getNamespacePolicies(namespaceName).max_topics_per_namespace;
+            if (maxTopicsPerNamespace == null || maxTopicsPerNamespace < 0) {
+                maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
+            }
+
+            if (maxTopicsPerNamespace > 0) {
                 List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
                 if (partitionedTopics.size() + numPartitions > maxTopicsPerNamespace) {
                     log.error("[{}] Failed to create partitioned topic {}, "
@@ -822,11 +827,11 @@ public abstract class AdminResource extends PulsarWebResource {
                             "Exceed maximum number of topics in namespace."));
                     return;
                 }
-            } catch (Exception e) {
-                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
             }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
         }
 
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
