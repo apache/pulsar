@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.io.StringWriter;
@@ -76,6 +77,11 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, out, null);
+    }
+
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+        OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
@@ -91,6 +97,11 @@ public class PrometheusMetricsGenerator {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
+            if (metricsProviders != null) {
+                for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
+                    metricsProvider.generate(stream);
+                }
+            }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
             buf.release();
