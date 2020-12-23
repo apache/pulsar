@@ -39,6 +39,12 @@
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -58,6 +64,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.pulsar:pulsar-client-api</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -92,6 +99,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>io.swagger:*</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>

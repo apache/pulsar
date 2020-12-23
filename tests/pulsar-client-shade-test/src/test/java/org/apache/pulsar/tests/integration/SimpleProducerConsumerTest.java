@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.tests.integration;
 
-import org.apache.pulsar.shade.com.google.common.collect.Maps;
-import org.apache.pulsar.shade.com.google.common.collect.Sets;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -35,6 +31,10 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.shade.com.google.common.collect.Maps;
+import org.apache.pulsar.shade.com.google.common.collect.Sets;
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,11 +49,13 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.*;
-import static org.testng.Assert.assertEquals;
 
 public class SimpleProducerConsumerTest {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
@@ -451,7 +453,7 @@ public class SimpleProducerConsumerTest {
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
 
         final String encryptionKeyName = "client-rsa.pem";
@@ -540,7 +542,7 @@ public class SimpleProducerConsumerTest {
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
         PulsarApi.MessageMetadata.Builder metadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = PulsarApi.EncryptionKeys.newBuilder();
+        PulsarApi.EncryptionKeys.Builder encKeyBuilder = PulsarApi.EncryptionKeys.newBuilder();
         encKeyBuilder.setKey(encryptionKeyName);
         ByteString keyValue = ByteString.copyFrom(dataKey);
         encKeyBuilder.setValue(keyValue);
