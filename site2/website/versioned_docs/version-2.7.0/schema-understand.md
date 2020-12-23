@@ -144,6 +144,10 @@ Currently, Pulsar supports the following primitive types:
 | `BYTES` | A sequence of 8-bit unsigned bytes |
 | `STRING` | A Unicode character sequence |
 | `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
+| INSTANT | A single instantaneous point on the time-line with nanoseconds precision|
+| LOCAL_DATE | An immutable date-time object that represents a date, often viewed as year-month-day|
+| LOCAL_TIME | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.|
+| LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second |
 
 For primitive types, Pulsar does not store any schema data in `SchemaInfo`. The `type` in `SchemaInfo` is used to determine how to serialize and deserialize the data. 
 
@@ -165,6 +169,10 @@ The conversions between **Pulsar schema types** and **language-specific primitiv
 | TIMESTAMP | java.sql.Timestamp | | |
 | TIME | java.sql.Time | | |
 | DATE | java.util.Date | | |
+| INSTANT | java.time.Instant | | |
+| LOCAL_DATE | java.time.LocalDate | | |
+| LOCAL_TIME | java.time.LocalDateTime | |
+| LOCAL_DATE_TIME | java.time.LocalTime | |
 
 **Example**
 

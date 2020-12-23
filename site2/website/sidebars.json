@@ -54,7 +54,8 @@
      "tiered-storage-overview",
      "tiered-storage-aws",
      "tiered-storage-gcs",
-     "tiered-storage-filesystem"
+     "tiered-storage-filesystem",
+     "tiered-storage-azure"
   ],
   "Transactions": [
     "transactions",

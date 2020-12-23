@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -44,12 +46,16 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -58,6 +64,7 @@ import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -675,6 +682,7 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void setNamespaceIsolationPolicy(
+        @Suspended final AsyncResponse asyncResponse,
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -690,14 +698,16 @@ public class ClustersBase extends AdminResource {
             required = true
         )
         NamespaceIsolationData policyData
-    ) throws Exception {
+    ) {
         validateSuperUserAccess();
         validateClusterExists(cluster);
         validatePoliciesReadOnlyAccess();
 
+        String jsonInput = null;
         try {
             // validate the policy data before creating the node
             policyData.validate();
+            jsonInput = ObjectMapperFactory.create().writeValueAsString(policyData);
 
             String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
@@ -715,22 +725,111 @@ public class ClustersBase extends AdminResource {
                     -1);
             // make sure that the cache content will be refreshed for the next read access
             namespaceIsolationPoliciesCache().invalidate(nsIsolationPolicyPath);
+
+            // whether or not make the isolation update on time.
+            if (pulsar().getConfiguration().isEnableNamespaceIsolationUpdateOnTime()) {
+                filterAndUnloadMatchedNameSpaces(asyncResponse, policyData);
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+                return;
+            }
         } catch (IllegalArgumentException iae) {
             log.info("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}. Input data is invalid",
                     clientAppId(), cluster, policyName, iae);
-            String jsonInput = ObjectMapperFactory.create().writeValueAsString(policyData);
-            throw new RestException(Status.BAD_REQUEST,
-                    "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonInput);
+            asyncResponse.resume(new RestException(Status.BAD_REQUEST,
+                    "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonInput));
         } catch (KeeperException.NoNodeException nne) {
             log.warn("[{}] Failed to update clusters/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
                     cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
+            asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
                     policyName, e);
-            throw new RestException(e);
+            asyncResponse.resume(new RestException(e));
         }
+    }
+
+    // get matched namespaces; call unload for each namespaces;
+    private void filterAndUnloadMatchedNameSpaces(AsyncResponse asyncResponse,
+                                                  NamespaceIsolationData policyData) throws Exception {
+        Namespaces namespaces = pulsar().getAdminClient().namespaces();
+
+        List<String> nssToUnload = Lists.newArrayList();
+
+        pulsar().getAdminClient().tenants().getTenantsAsync()
+            .whenComplete((tenants, ex) -> {
+                if (ex != null) {
+                    log.error("[{}] Failed to get tenants when setNamespaceIsolationPolicy.", clientAppId(), ex);
+                    return;
+                }
+                AtomicInteger tenantsNumber = new AtomicInteger(tenants.size());
+                // get all tenants now, for each tenants, get its namespaces
+                tenants.forEach(tenant -> namespaces.getNamespacesAsync(tenant)
+                    .whenComplete((nss, e) -> {
+                        int leftTenantsToHandle = tenantsNumber.decrementAndGet();
+                        if (ex != null) {
+                            log.error("[{}] Failed to get namespaces for tenant {} when setNamespaceIsolationPolicy.",
+                                clientAppId(), tenant, ex);
+
+                            if (leftTenantsToHandle == 0) {
+                                unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);
+                            }
+
+                            return;
+                        }
+
+                        AtomicInteger nssNumber = new AtomicInteger(nss.size());
+
+                        // get all namespaces for this tenant now.
+                        nss.forEach(namespaceName -> {
+                            int leftNssToHandle = nssNumber.decrementAndGet();
+
+                            // if namespace match any policy regex, add it to ns list to be unload.
+                            if (policyData.namespaces.stream()
+                                .anyMatch(nsnameRegex -> namespaceName.matches(nsnameRegex))) {
+                                nssToUnload.add(namespaceName);
+                            }
+
+                            // all the tenants & namespaces get filtered.
+                            if (leftNssToHandle == 0 && leftTenantsToHandle == 0) {
+                                unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);
+                            }
+                        });
+                    }));
+            });
+    }
+
+    private void unloadMatchedNamespacesList(AsyncResponse asyncResponse,
+                                             List<String> nssToUnload,
+                                             Namespaces namespaces) {
+        if (nssToUnload.size() == 0) {
+            asyncResponse.resume(Response.noContent().build());
+            return;
+        }
+
+        List<CompletableFuture<Void>> futures = nssToUnload.stream()
+            .map(namespaceName -> namespaces.unloadAsync(namespaceName))
+            .collect(Collectors.toList());
+
+        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
+            if (exception != null) {
+                log.error("[{}] Failed to unload namespace while setNamespaceIsolationPolicy.",
+                    clientAppId(), exception);
+                asyncResponse.resume(new RestException(exception));
+                return;
+            }
+
+            try {
+                // write load info to load manager to make the load happens fast
+                pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
+            } catch (Exception e) {
+                log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
+            }
+
+            asyncResponse.resume(Response.noContent().build());
+            return;
+        });
     }
 
     private boolean createZnodeIfNotExist(String path, Optional<Object> value)
