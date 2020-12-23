@@ -23,12 +23,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
+@Slf4j
 class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
     private final PositionImpl startPosition;
@@ -74,21 +76,23 @@ class OpFindNewest implements ReadEntryCallback {
                 return;
             } else {
                 lastMatchedPosition = position;
-
                 // check last entry
                 state = State.checkLast;
                 searchPosition = cursor.ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
+                log.info("condition verified for first message at {}, looking now at ", position, searchPosition);
                 find();
             }
             break;
         case checkLast:
             if (condition.apply(entry)) {
+                log.info("condition verified for last position {}. exiting", position);
                 callback.findEntryComplete(position, OpFindNewest.this.ctx);
                 return;
             } else {
                 // start binary search
                 state = State.searching;
                 searchPosition = cursor.ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+                log.info("condition not verified for last position {}. continue from", searchPosition);
                 find();
             }
             break;
