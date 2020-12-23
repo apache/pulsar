@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Lists;
@@ -53,10 +55,9 @@ public class TransactionImpl implements Transaction {
     private final long transactionTimeoutMs;
     private final long txnIdLeastBits;
     private final long txnIdMostBits;
-    private final AtomicLong sequenceId = new AtomicLong(0L);
 
-    private final Set<String> producedTopics;
-    private final Set<String> ackedTopics;
+    private final Map<String, CompletableFuture<Void>> registerPartitionMap;
+    private final Map<String, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
@@ -72,29 +73,27 @@ public class TransactionImpl implements Transaction {
         this.txnIdLeastBits = txnIdLeastBits;
         this.txnIdMostBits = txnIdMostBits;
 
-        this.producedTopics = new HashSet<>();
-        this.ackedTopics = new HashSet<>();
+        this.registerPartitionMap = new ConcurrentHashMap<>();
+        this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
         this.sendFutureList = new ArrayList<>();
         this.ackFutureList = new ArrayList<>();
     }
 
-    public long nextSequenceId() {
-        return sequenceId.getAndIncrement();
-    }
-
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (producedTopics.add(topic)) {
-            // we need to issue the request to TC to register the produced topic
-            completableFuture = tcClient.addPublishPartitionToTxnAsync(
-                    new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
-        } else {
-            completableFuture.complete(null);
-        }
-        return completableFuture;
+        // we need to issue the request to TC to register the produced topic
+        return registerPartitionMap.compute(topic, (key, future) -> {
+            if (future != null) {
+                return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+            } else {
+                return tcClient.addPublishPartitionToTxnAsync(
+                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
+                        .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+            }
+        });
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
@@ -104,14 +103,16 @@ public class TransactionImpl implements Transaction {
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (ackedTopics.add(topic)) {
-            // we need to issue the request to TC to register the acked topic
-            completableFuture = tcClient.addSubscriptionToTxnAsync(
-                    new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
-        } else {
-            completableFuture.complete(null);
-        }
-        return completableFuture;
+        // we need to issue the request to TC to register the acked topic
+        return registerSubscriptionMap.compute(topic, (key, future) -> {
+            if (future != null) {
+                return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+            } else {
+                return tcClient.addSubscriptionToTxnAsync(
+                        new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
+                        .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+            }
+        });
     }
 
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
