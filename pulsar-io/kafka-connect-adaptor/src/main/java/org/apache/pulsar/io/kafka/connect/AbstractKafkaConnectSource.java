@@ -103,6 +103,20 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         valueConverter.configure(config, false);
 
         offsetStore = new PulsarOffsetBackingStore();
+        // add auth configs if it's not passed in config
+        if (stringConfig.get(PulsarKafkaWorkerConfig.AUTH_PLUGIN_CONFIG) == null) {
+            stringConfig.put(PulsarKafkaWorkerConfig.AUTH_PLUGIN_CONFIG, sourceContext.getAuthPluginName());
+        }
+        if (stringConfig.get(PulsarKafkaWorkerConfig.AUTH_PLUGIN_PARAM_CONFIG) == null) {
+            stringConfig.put(PulsarKafkaWorkerConfig.AUTH_PLUGIN_PARAM_CONFIG, sourceContext.getAuthPluginParam());
+        }
+        if (stringConfig.get(PulsarKafkaWorkerConfig.TLS_ALLOW_INSECURE_CONNECTION_CONFIG) == null) {
+            stringConfig.put(PulsarKafkaWorkerConfig.TLS_ALLOW_INSECURE_CONNECTION_CONFIG,
+                    Boolean.toString(sourceContext.tlsAllowInsecureConnection()));
+        }
+        if (stringConfig.get(PulsarKafkaWorkerConfig.TLS_TRUST_CERT_CONFIG) == null) {
+            stringConfig.put(PulsarKafkaWorkerConfig.TLS_TRUST_CERT_CONFIG, sourceContext.getTlsTrustCert());
+        }
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(stringConfig);
         offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();

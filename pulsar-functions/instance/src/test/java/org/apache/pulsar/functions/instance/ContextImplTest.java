@@ -85,6 +85,7 @@ public class ContextImplTest {
         context = new ContextImpl(
             config,
             logger,
+            null, null,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager());

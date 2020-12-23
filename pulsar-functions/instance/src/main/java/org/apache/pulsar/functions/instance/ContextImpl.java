@@ -79,6 +79,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private Record<?> record;
 
     private PulsarClient client;
+    private String serviceUrl;
+    private AuthenticationConfig authConfig;
     private Map<String, Producer<?>> publishProducers;
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
@@ -111,12 +113,15 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final Function.FunctionDetails.ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+    public ContextImpl(InstanceConfig config, Logger logger, 
+                       String serviceUrl, AuthenticationConfig authConfig, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager) {
         this.config = config;
         this.logger = logger;
+        this.serviceUrl = serviceUrl;
+        this.authConfig = authConfig;
         this.client = client;
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
@@ -638,5 +643,29 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         } catch (InterruptedException | ExecutionException e) {
             logger.warn("Failed to close producers", e);
         }
+    }
+
+    public String getServiceUrl() {
+        return serviceUrl;
+    }
+
+    @Override
+    public String getAuthPluginName() {
+        return authConfig.getClientAuthenticationPlugin();
+    }
+
+    @Override
+    public String getAuthPluginParam() {
+        return authConfig.getClientAuthenticationParameters();
+    }
+
+    @Override
+    public boolean tlsAllowInsecureConnection() {
+        return authConfig.isTlsAllowInsecureConnection();
+    }
+
+    @Override
+    public String getTlsTrustCert() {
+        return authConfig.getTlsTrustCertsFilePath();
     }
 }

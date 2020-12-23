@@ -86,6 +86,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // input topic consumer & output topic producer
     private final PulsarClientImpl client;
+    private final String serviceUrl;
+    private final AuthenticationConfig authConfig;
 
     private LogAppender logAppender;
 
@@ -120,10 +122,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final ClassLoader instanceClassLoader;
     private ClassLoader functionClassLoader;
     private String narExtractionDirectory;
-
+    
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
+                                String serviceUrl,
+                                AuthenticationConfig authConfig,
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
@@ -132,6 +136,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
+        this.serviceUrl = serviceUrl;
+        this.authConfig = authConfig;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
@@ -220,7 +226,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     ContextImpl setupContext() {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+        return new ContextImpl(instanceConfig, instanceLog, serviceUrl, authConfig, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager);
     }
 
@@ -693,13 +699,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(this.functionClassLoader);
         }
         try {
+            Map<String, Object> config;
             if (sourceSpec.getConfigs().isEmpty()) {
-                this.source.open(new HashMap<>(), contextImpl);
+                config = new HashMap<>();
             } else {
-                this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                config = new Gson().fromJson(sourceSpec.getConfigs(),
                         new TypeToken<Map<String, Object>>() {
-                        }.getType()), contextImpl);
+                        }.getType());
             }
+            this.source.open(config, contextImpl);
         } catch (Exception e) {
             log.error("Source open produced uncaught exception: ", e);
             throw e;

@@ -162,4 +162,40 @@ public interface ConnectorContext {
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+
+    /**
+     * Auth plugin name if authentication is enabled.
+     * 
+     * @return plugin name
+     */
+    default String getAuthPluginName() {
+        return null;
+    }
+
+    /**
+     * Auth plugin param if authentication is enabled.
+     *
+     * @return plugin param
+     */
+    default String getAuthPluginParam() {
+        return null;
+    }
+
+    /**
+     * TLS allow insecure connection.
+     * 
+     * @return
+     */
+    default boolean tlsAllowInsecureConnection() {
+        return false;
+    }
+
+    /**
+     * Get TLS trust store cert.
+     * 
+     * @return trust store cert
+     */
+    default String getTlsTrustCert() {
+        return null;
+    }
 }

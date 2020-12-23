@@ -26,6 +26,7 @@ import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -58,10 +59,14 @@ public class ThreadRuntime implements Runtime {
     private SecretsProvider secretsProvider;
     private CollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
+    private String serviceUrl;
+    private AuthenticationConfig authConfig;
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
+                  String serviceUrl,
+                  AuthenticationConfig authConfig,
                   PulsarClient pulsarClient,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
@@ -75,6 +80,8 @@ public class ThreadRuntime implements Runtime {
         this.threadGroup = threadGroup;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
+        this.serviceUrl = serviceUrl;
+        this.authConfig = authConfig;
         this.pulsarClient = pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
@@ -84,6 +91,8 @@ public class ThreadRuntime implements Runtime {
                 instanceConfig,
                 fnCache,
                 jarFile,
+                serviceUrl,
+                authConfig,
                 pulsarClient,
                 stateStorageServiceUrl,
                 secretsProvider,
@@ -101,6 +110,8 @@ public class ThreadRuntime implements Runtime {
                 instanceConfig,
                 fnCache,
                 jarFile,
+                serviceUrl,
+                authConfig,
                 pulsarClient,
                 stateStorageServiceUrl,
                 secretsProvider,

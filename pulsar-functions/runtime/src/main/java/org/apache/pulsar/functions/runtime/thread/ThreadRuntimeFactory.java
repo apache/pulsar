@@ -63,6 +63,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private volatile boolean closed;
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private ClassLoader rootClassLoader;
+    private String servieUrl;
+    private AuthenticationConfig authConfig;
 
     /**
      * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime) that rely on ThreadRuntime to actually run an instance of the function.
@@ -72,6 +74,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader) throws Exception {
+        this.authConfig = authConfig;
+        this.servieUrl = pulsarServiceUrl;
         initialize(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
                 storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
@@ -80,7 +84,6 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
                                 String narExtractionDirectory, ClassLoader rootClassLoader) {
-
         initialize(threadGroupName, pulsarClient, storageServiceUrl,
                 null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
@@ -157,6 +160,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             fnCache,
             threadGroup,
             jarFile,
+            servieUrl,
+            authConfig,
             pulsarClient,
             storageServiceUrl,
             secretsProvider,
