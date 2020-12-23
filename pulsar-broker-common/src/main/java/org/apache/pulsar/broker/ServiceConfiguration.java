@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -468,6 +469,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Max number of topics allowed to be created in the namespace. "
+                + "When the topics reach the max topics of the namespace, the broker should reject "
+                + "the new topic request(include topic auto-created by the producer or consumer) until "
+                + "the number of connected consumers decrease. "
+                + " Using a value of 0, is disabling maxTopicsPerNamespace-limit check."
+    )
+    private int maxTopicsPerNamespace = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -864,6 +876,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
                 "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for entry metadata.")
+    private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
 
     /***** --- TLS --- ****/
     @FieldContext(
@@ -1797,6 +1821,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Flag indicates enabling or disabling function worker on brokers"
     )
     private boolean functionsWorkerEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The nar package for the function worker service"
+    )
+    private String functionsWorkerServiceNarPackage = "";
 
     /**** --- Broker Web Stats --- ****/
     @FieldContext(

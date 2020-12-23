@@ -126,6 +126,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -230,6 +232,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final AuthenticationService authenticationService;
 
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
+    public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
+
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
 
     private static final LongAdder totalUnackedMessages = new LongAdder();
@@ -250,6 +254,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
     private BrokerInterceptor interceptor;
+
+    private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -358,6 +364,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .supplier(() -> pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
                         - topicLoadRequestSemaphore.get().availablePermits())
                 .register();
+
+        this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
+                .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
+                        BrokerService.class.getClassLoader());
     }
 
     // This call is used for starting additional protocol handlers
@@ -1077,6 +1087,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return;
         }
 
+        if (!checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
+            return;
+        }
+
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
 
@@ -1553,6 +1567,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
 
         return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
+    }
+
+    public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
+        topics.forEach((name, topicFuture) -> {
+            TopicName topicName = TopicName.get(name);
+            if (serviceUnit.includes(topicName)) {
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
+            }
+        });
     }
 
     public AuthorizationService getAuthorizationService() {
@@ -2147,6 +2170,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
 
+        if (!checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, partitionedTopicFuture)) {
+            return partitionedTopicFuture;
+        }
+
         try {
             byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMetadata);
 
@@ -2496,7 +2523,45 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+
+    private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
+                                            CompletableFuture<T> topicFuture) {
+        final int maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
+        if (maxTopicsPerNamespace > 0) {
+            try {
+                String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
+                        topicName.getNamespace(), topicName.getDomain().value());
+                List<String> topics = pulsar().getGlobalZkCache().getZooKeeper()
+                        .getChildren(partitionedTopicPath, false);
+                if (topics.size() + numPartitions > maxTopicsPerNamespace) {
+                    log.error("Failed to create persistent topic {}, "
+                            + "exceed maximum number of topics in namespace", topicName);
+                    topicFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Exceed maximum number of topics in namespace."));
+                    return false;
+                }
+            } catch (KeeperException.NoNodeException e) {
+                // NoNode means there are no partitioned topics in this domain for this namespace
+            } catch (Exception e) {
+                log.error("Failed to create partitioned topic {}", topicName, e);
+                topicFuture.completeExceptionally(new RestException(e));
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public void setInterceptor(BrokerInterceptor interceptor) {
         this.interceptor = interceptor;
     }
+
+    public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+        return brokerEntryMetadataInterceptors;
+    }
+
+    public boolean isBrokerEntryMetadataEnabled() {
+        return brokerEntryMetadataInterceptors.size() > 0;
+    }
+
 }

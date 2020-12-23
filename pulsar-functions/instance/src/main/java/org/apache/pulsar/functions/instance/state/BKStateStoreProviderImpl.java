@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -156,11 +158,13 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         Stopwatch openSw = Stopwatch.createStarted();
         while (openSw.elapsed(TimeUnit.MINUTES) < 1) {
             try {
-                return result(client.openTable(name));
+                return result(client.openTable(name), 1, TimeUnit.MINUTES);
             } catch (InternalServerException ise) {
                 log.warn("Encountered internal server on opening state table '{}/{}/{}', re-attempt in 100 milliseconds : {}",
                     tenant, namespace, name, ise.getMessage());
                 TimeUnit.MILLISECONDS.sleep(100);
+            } catch (TimeoutException e) {
+                throw new RuntimeException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name + " within timeout period", e);
             }
         }
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);

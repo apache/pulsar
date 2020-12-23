@@ -13,7 +13,8 @@ module.exports = [
     {
         name: 'Giggso',
         url: 'https://giggso.com/',
-        logo: 'https://pbs.twimg.com/profile_banners/4179602009/1470596851/600x200'
+        logo: 'https://www.giggso.com/wp-content/uploads/2019/11/logo-2.png',
+        logo_white: true
     },
     {
         name: 'STICorp',

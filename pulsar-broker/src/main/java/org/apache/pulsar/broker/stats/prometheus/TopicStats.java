@@ -184,6 +184,12 @@ class TopicStats {
                     subsStats.bytesOutCounter);
             metric(stream, cluster, namespace, topic, n, "pulsar_out_messages_total",
                     subsStats.msgOutCounter);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_expire_timestamp",
+                    subsStats.lastExpireTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_expired",
+                    subsStats.msgRateExpired);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_total_msg_expired",
+                    subsStats.totalMsgExpired);
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
                         "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);

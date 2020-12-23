@@ -74,7 +74,12 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -128,7 +133,7 @@ public class FunctionApiV3ResourceTest {
     }
     private static final int parallelism = 1;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -163,7 +168,7 @@ public class FunctionApiV3ResourceTest {
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
@@ -1438,7 +1443,7 @@ public class FunctionApiV3ResourceTest {
     public void testDownloadFunctionHttpUrl() throws Exception {
         String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        WorkerService worker = mock(WorkerService.class);
+        PulsarWorkerService worker = mock(PulsarWorkerService.class);
         doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);
@@ -1460,7 +1465,7 @@ public class FunctionApiV3ResourceTest {
         File file = Paths.get(fileUrl.toURI()).toFile();
         String fileLocation = file.getAbsolutePath();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        WorkerService worker = mock(WorkerService.class);
+        PulsarWorkerService worker = mock(PulsarWorkerService.class);
         doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);

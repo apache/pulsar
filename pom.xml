@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
-    <jetty.version>9.4.33.v20201020</jetty.version>
+    <jetty.version>9.4.35.v20201120</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -152,7 +152,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
-    <guava.version>30.0-jre</guava.version>
+    <guava.version>30.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
@@ -172,8 +172,8 @@ flexible messaging model and an intuitive client API.</description>
     <java-semver.version>0.9.0</java-semver.version>
     <hppc.version>0.7.3</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.11.1</assertj-core.version>
-    <lombok.version>1.18.10</lombok.version>
+    <assertj-core.version>3.18.1</assertj-core.version>
+    <lombok.version>1.18.16</lombok.version>
     <javax.annotation-api.version>1.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -196,13 +196,14 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
     <objenesis.version>3.1</objenesis.version>
-    <awaitility.version>4.0.2</awaitility.version>
+    <awaitility.version>4.0.3</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
+    <directory-maven-plugin.version>0.3.1</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
@@ -880,25 +881,15 @@ flexible messaging model and an intuitive client API.</description>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.arquillian.cube</groupId>
-        <artifactId>arquillian-cube-docker</artifactId>
-        <version>${arquillian-cube.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jboss.arquillian.junit</groupId>
-        <artifactId>arquillian-junit-standalone</artifactId>
-        <version>${arquillian-junit.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.datastax.cassandra</groupId>
         <artifactId>cassandra-driver-core</artifactId>
         <version>${cassandra.version}</version>
       </dependency>
       <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<version>${assertj-core.version}</version>
-	  </dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${assertj-core.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.projectlombok</groupId>
@@ -1015,10 +1006,10 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<scope>test</scope>
-	 </dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -1120,13 +1111,35 @@ flexible messaging model and an intuitive client API.</description>
       </plugin>
 
       <plugin>
+        <groupId>org.commonjava.maven.plugins</groupId>
+        <artifactId>directory-maven-plugin</artifactId>
+        <version>${directory-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>directories</id>
+            <goals>
+              <goal>directory-of</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <property>pulsar.basedir</property>
+              <project>
+                <groupId>org.apache.pulsar</groupId>
+                <artifactId>pulsar</artifactId>
+              </project>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <version>${license-maven-plugin.version}</version>
         <configuration>
           <licenseSets>
             <licenseSet>
-              <header>src/license-header.txt</header>
+              <header>${pulsar.basedir}/src/license-header.txt</header>
               <excludes>
                 <exclude>LICENSE</exclude>
                 <exclude>NOTICE</exclude>
@@ -1211,6 +1224,7 @@ flexible messaging model and an intuitive client API.</description>
         </configuration>
         <executions>
           <execution>
+            <phase>verify</phase>
             <goals>
               <goal>check</goal>
             </goals>
@@ -1431,9 +1445,10 @@ flexible messaging model and an intuitive client API.</description>
             </dependency>
           </dependencies>
           <configuration>
-            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
             <encoding>UTF-8</encoding>
+            <excludes>**/proto/*</excludes>
           </configuration>
         </plugin>
         <plugin>
@@ -1505,9 +1520,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-checkstyle-plugin</artifactId>
             <configuration>
-              <configLocation>pulsar/checkstyle.xml</configLocation>
-              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
-              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+              <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+              <encoding>UTF-8</encoding>
+              <excludes>**/proto/*</excludes>
             </configuration>
           </plugin>
           <plugin>
@@ -1563,11 +1579,12 @@ flexible messaging model and an intuitive client API.</description>
                        <execution>
                           <id>check-style</id>
                           <phase>verify</phase>
-                          <configuration>
-         					  <configLocation>./buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-         					  <suppressionsLocation>/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                              <encoding>UTF-8</encoding>
-                          </configuration>
+                         <configuration>
+                           <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+                           <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+                           <encoding>UTF-8</encoding>
+                           <excludes>**/proto/*</excludes>
+                         </configuration>
                           <goals>
                              <goal>check</goal>
                           </goals>

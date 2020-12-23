@@ -352,6 +352,13 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-persistence myprop/clust/ns1"));
         verify(mockNamespaces).getPersistence("myprop/clust/ns1");
 
+        namespaces.run(split("get-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxSubscriptionsPerTopic("myprop/clust/ns1");
+        namespaces.run(split("set-max-subscriptions-per-topic myprop/clust/ns1 -m 300"));
+        verify(mockNamespaces).setMaxSubscriptionsPerTopic("myprop/clust/ns1", 300);
+        namespaces.run(split("remove-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxSubscriptionsPerTopic("myprop/clust/ns1");
+
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
 
@@ -796,6 +803,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
         verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
+        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -m 100"));
+        verify(mockTopics).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 100);
+        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
