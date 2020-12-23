@@ -27,6 +27,7 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
@@ -80,11 +81,13 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     @Override
     public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
                                                       PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+        List<ColumnMetadata> columnMetadata;
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
             throw new PrestoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
+
         Schema schema;
         try {
             schema = GenericJsonSchema.of(schemaInfo).getAvroSchema();
@@ -93,16 +96,22 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                     + topicName.toString() + " does not have a valid schema");
         }
 
-        //TODO : check schema cyclic definitions which may case java.lang.StackOverflowError
+        try {
+            columnMetadata = schema.getFields().stream()
+                    .map(field ->
+                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.name()), parseJsonPrestoType(field.name(), field.schema()),
+                                    field.schema().toString(), null, false, false,
+                                    handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
+                                    field.name(), null, null))
 
-        return schema.getFields().stream()
-                .map(field ->
-                        new PulsarColumnMetadata(field.name(), parseJsonPrestoType(field.name(), field.schema()),
-                                field.schema().toString(), null, false, false,
-                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
-                                        field.name(), null, null))
-
-                ).collect(toList());
+                    ).collect(toList());
+        } catch (StackOverflowError e) {
+            log.warn(e, "Topic "
+                    + topicName.toString() + " extractColumnMetadata failed.");
+            throw new PrestoException(NOT_SUPPORTED, "Topic "
+                    + topicName.toString() + " schema may contains cyclic definitions.", e);
+        }
+        return columnMetadata;
     }
 
 
@@ -171,4 +180,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                         schema.getType(), schema.getFullName()));
         }
     }
+
+    private static final Logger log = Logger.get(PulsarJsonRowDecoderFactory.class);
+
 }

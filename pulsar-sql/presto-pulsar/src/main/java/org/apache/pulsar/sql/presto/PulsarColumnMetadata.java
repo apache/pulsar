@@ -86,6 +86,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             + "isInternal=" + isInternal
             + ", nameWithCase='" + nameWithCase + '\''
             + ", handleKeyValueType=" + handleKeyValueType
+            + ", decoderExtraInfo=" + decoderExtraInfo.toString()
             + '}';
     }
 
@@ -109,6 +110,9 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) {
             return false;
         }
+        if (decoderExtraInfo != null ? !decoderExtraInfo.equals(that.decoderExtraInfo) : that.decoderExtraInfo != null) {
+            return false;
+        }
         return Objects.equals(handleKeyValueType, that.handleKeyValueType);
     }
 
@@ -117,6 +121,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         int result = super.hashCode();
         result = 31 * result + (isInternal ? 1 : 0);
         result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
+        result = 31 * result + (decoderExtraInfo != null ? decoderExtraInfo.hashCode() : 0);
         result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
@@ -191,6 +196,14 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             return Objects.equals(formatHint, that.formatHint);
         }
 
+        @Override
+        public String  toString() {
+            return "DecoderExtraInfo{"
+                    + "mapping=" + mapping
+                    + ", dataFormat=" + dataFormat
+                    + ", formatHint=" + formatHint
+                    + '}';
+        }
 
         @Override
         public int hashCode() {

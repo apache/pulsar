@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.block.Block;
@@ -38,7 +39,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -51,11 +54,14 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.jctools.queues.MessagePassingQueue;
@@ -95,7 +101,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
     private PulsarSqlSchemaInfoProvider schemaInfoProvider;
 
-    private  FieldValueProvider[] currentRowValues = null;
+    private FieldValueProvider[] currentRowValues = null;
 
     PulsarDispatchingRowDecoderFactory decoderFactory;
 
@@ -445,31 +451,56 @@ public class PulsarRecordCursor implements RecordCursor {
         Map<ColumnHandle, FieldValueProvider> currentRowValuesMap = new HashMap<>();
 
         if (schemaInfo.getType().equals(SchemaType.KEY_VALUE)) {
+            ByteBuf keyByteBuf;
+            ByteBuf valueByteBuf;
 
-            PulsarRowDecoder keyDecoder = decoderFactory.createRowDecoder(topicName,
-                    schemaInfo,
-                    columnHandles.stream()
-                            .filter(col -> !col.isInternal())
-                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.KEY
-                                    .equals(col.getHandleKeyValueType()))
-                            .collect(toImmutableSet()));
+            KeyValueEncodingType keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
+            if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {
+                ByteBuf dataPayload = this.currentMessage.getData();
+                int keyLength = dataPayload.readInt();
+                keyByteBuf = dataPayload.readSlice(keyLength);
+                int valueLength = dataPayload.readInt();
+                valueByteBuf = dataPayload.readSlice(valueLength);
+            } else {
+                keyByteBuf = this.currentMessage.getKeyBytes().get();
+                valueByteBuf = this.currentMessage.getData();
+            }
 
-            PulsarRowDecoder messageDecoder = decoderFactory.createRowDecoder(topicName,
-                    schemaInfo,
-                    columnHandles.stream()
-                            .filter(col -> !col.isInternal())
-                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.VALUE
-                                    .equals(col.getHandleKeyValueType()))
-                            .collect(toImmutableSet()));
+            KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+            Set<DecoderColumnHandle> keyColumnHandles = columnHandles.stream()
+                    .filter(col -> !col.isInternal())
+                    .filter(col -> PulsarColumnHandle.HandleKeyValueType.KEY
+                            .equals(col.getHandleKeyValueType()))
+                    .collect(toImmutableSet());
+            PulsarRowDecoder keyDecoder = null;
+            if (keyColumnHandles.size() > 0) {
+                keyDecoder = decoderFactory.createRowDecoder(topicName,
+                        kvSchemaInfo.getKey(), keyColumnHandles
+                );
+            }
+
+            Set<DecoderColumnHandle> valueColumnHandles = columnHandles.stream()
+                    .filter(col -> !col.isInternal())
+                    .filter(col -> PulsarColumnHandle.HandleKeyValueType.VALUE
+                            .equals(col.getHandleKeyValueType()))
+                    .collect(toImmutableSet());
+            PulsarRowDecoder valueDecoder = null;
+            if (valueColumnHandles.size() > 0) {
+                valueDecoder = decoderFactory.createRowDecoder(topicName,
+                        kvSchemaInfo.getValue(),
+                        valueColumnHandles);
+            }
 
             Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedKey;
-            if (this.currentMessage.getKeyBytes().isPresent()) {
-                decodedKey = keyDecoder.decodeRow(this.currentMessage.getKeyBytes().get());
+            if (keyColumnHandles.size() > 0) {
+                decodedKey = keyDecoder.decodeRow(keyByteBuf);
                 decodedKey.ifPresent(currentRowValuesMap::putAll);
             }
-            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
-                    messageDecoder.decodeRow(this.currentMessage.getData());
-            decodedValue.ifPresent(currentRowValuesMap::putAll);
+            if (valueColumnHandles.size() > 0) {
+                Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
+                        valueDecoder.decodeRow(valueByteBuf);
+                decodedValue.ifPresent(currentRowValuesMap::putAll);
+            }
         } else {
             PulsarRowDecoder messageDecoder = decoderFactory.createRowDecoder(topicName,
                     schemaInfo,

@@ -26,6 +26,7 @@ import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespace
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -320,37 +321,33 @@ public class PulsarMetadata implements ConnectorMetadata {
     /**
      * Convert pulsar schema into presto table metadata.
      */
-     List<ColumnMetadata> getPulsarColumns(TopicName topicName,
-                                           SchemaInfo schemaInfo,
-                                           boolean withInternalColumns,
-                                           PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
-         SchemaType schemaType = schemaInfo.getType();
-         if (schemaType.isStruct() || schemaType.isPrimitive()) {
-             return getPulsarColumnsFromSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
-         } else if (schemaType.equals(SchemaType.KEY_VALUE)) {
-             return getPulsarColumnsFromKeyValueSchema(topicName, schemaInfo, withInternalColumns);
-         } else {
-             throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
+    @VisibleForTesting
+    public List<ColumnMetadata> getPulsarColumns(TopicName topicName,
+                                                 SchemaInfo schemaInfo,
+                                                 boolean withInternalColumns,
+                                                 PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+        SchemaType schemaType = schemaInfo.getType();
+        if (schemaType.isStruct() || schemaType.isPrimitive()) {
+            return getPulsarColumnsFromSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
+        } else if (schemaType.equals(SchemaType.KEY_VALUE)) {
+            return getPulsarColumnsFromKeyValueSchema(topicName, schemaInfo, withInternalColumns);
+        } else {
+            throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
         }
     }
 
-
-
-     List<ColumnMetadata> getPulsarColumnsFromSchema(TopicName topicName,
-                                                     SchemaInfo schemaInfo,
-                                                     boolean withInternalColumns,
-                                                     PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
-
+    List<ColumnMetadata> getPulsarColumnsFromSchema(TopicName topicName,
+                                                    SchemaInfo schemaInfo,
+                                                    boolean withInternalColumns,
+                                                    PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
-
         builder.addAll(decoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType));
-
         if (withInternalColumns) {
             PulsarInternalColumn.getInternalFields()
                     .stream()
                     .forEach(pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
         }
-         return builder.build();
+        return builder.build();
     }
 
     List<ColumnMetadata> getPulsarColumnsFromKeyValueSchema(TopicName topicName,
@@ -374,8 +371,5 @@ public class PulsarMetadata implements ConnectorMetadata {
         }
         return builder.build();
     }
-
-
-
 
 }

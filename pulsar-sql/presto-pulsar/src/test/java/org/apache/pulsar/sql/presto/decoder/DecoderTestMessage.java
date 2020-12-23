@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.sql.presto.decoder;
 
+import lombok.Data;
+
 import java.util.List;
 import java.util.Map;
 
@@ -68,4 +70,22 @@ public class DecoderTestMessage {
         public NestedRow nestedRow;
         public Map<String,List<Long>> structedField;
     }
+
+    /**
+     * POJO for cyclic detect.
+     */
+    @Data
+    static public class CyclicFoo {
+        private String field1;
+        private Integer field2;
+        private CyclicBoo boo;
+    }
+
+    @Data
+    static public class CyclicBoo {
+        private String field1;
+        private Boolean field2;
+        private CyclicFoo foo;
+    }
+
 }

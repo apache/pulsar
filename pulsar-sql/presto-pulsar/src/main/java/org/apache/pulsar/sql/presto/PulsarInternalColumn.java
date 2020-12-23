@@ -99,7 +99,7 @@ public class PulsarInternalColumn {
 
     PulsarColumnMetadata getColumnMetadata(boolean hidden) {
         return new PulsarColumnMetadata(name, type, comment, null, hidden, true,
-                PulsarColumnHandle.HandleKeyValueType.NONE, null);
+                PulsarColumnHandle.HandleKeyValueType.NONE, new PulsarColumnMetadata.DecoderExtraInfo());
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {

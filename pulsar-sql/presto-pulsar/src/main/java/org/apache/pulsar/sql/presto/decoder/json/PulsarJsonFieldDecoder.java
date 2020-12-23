@@ -45,6 +45,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -317,18 +318,19 @@ public class PulsarJsonFieldDecoder
 
         private void serializePrimitive(BlockBuilder blockBuilder, Object node, Type type, String columnName) {
             requireNonNull(blockBuilder, "parent blockBuilder is null");
+
             JsonNode value;
+            if (node == null) {
+                blockBuilder.appendNull();
+                return;
+            }
+
             if (node instanceof JsonNode) {
                 value = (JsonNode) node;
             } else {
                 throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
                         format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
                                 node.getClass(), type, columnName));
-            }
-
-            if (value == null) {
-                blockBuilder.appendNull();
-                return;
             }
 
             if (type instanceof BooleanType) {
@@ -430,4 +432,7 @@ public class PulsarJsonFieldDecoder
         }
 
     }
+
+    private static final Logger log = Logger.get(PulsarJsonFieldDecoder.class);
+
 }

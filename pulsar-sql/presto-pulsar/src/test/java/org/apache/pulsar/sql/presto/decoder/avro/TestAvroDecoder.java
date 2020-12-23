@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
+import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.type.*;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
@@ -45,9 +46,10 @@ import static io.prestosql.spi.type.IntegerType.INTEGER;
 import static io.prestosql.spi.type.RealType.REAL;
 import static io.prestosql.spi.type.VarcharType.VARCHAR;
 import static java.lang.Float.floatToIntBits;
-import static org.apache.pulsar.sql.presto.TestPulsarConnector.getColumnColumnHandles;
 import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class TestAvroDecoder extends AbstractDecoderTester {
 
@@ -270,4 +272,19 @@ public class TestAvroDecoder extends AbstractDecoderTester {
 
         checkRowValues(getBlock(decodedRow, columnHandle), columnHandle.getType(), fieldValue);
     }
+
+    @Test(singleThreaded = true)
+    public void testCyclicDefinitionDetect() {
+        AvroSchema cyclicSchema = AvroSchema.of(DecoderTestMessage.CyclicFoo.class);
+        PrestoException exception = expectThrows(PrestoException.class,
+                () -> {
+                    decoderFactory.extractColumnMetadata(topicName, cyclicSchema.getSchemaInfo(),
+                            PulsarColumnHandle.HandleKeyValueType.NONE);
+                });
+
+        assertEquals("Topic "
+                + topicName.toString() + " schema may contains cyclic definitions.", exception.getMessage());
+
+    }
+
 }

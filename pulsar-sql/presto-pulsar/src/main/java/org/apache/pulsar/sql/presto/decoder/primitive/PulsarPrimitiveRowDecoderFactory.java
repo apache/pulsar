@@ -37,6 +37,8 @@ import io.prestosql.spi.type.VarcharType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -52,11 +54,14 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
 
     private static final Logger log = Logger.get(PulsarPrimitiveRowDecoderFactory.class);
 
+    public static final String PRIMITIVE_COLUMN_NAME = "__value__";
+
     @Override
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
                                              Set<DecoderColumnHandle> columns) {
         if (columns.size() == 1) {
-            return new PulsarPrimitiveRowDecoder(columns.iterator().next());
+            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
+                    columns.iterator().next());
         } else {
             throw new RuntimeException("Primitive type must has only one ColumnHandle.");
         }
@@ -66,10 +71,10 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
     public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
                                                       PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
-                PulsarColumnMetadata.getColumnName(handleKeyValueType, "__value__"),
-                parsePrimitivePrestoType("__value__", schemaInfo.getType()),
+                PulsarColumnMetadata.getColumnName(handleKeyValueType, PRIMITIVE_COLUMN_NAME),
+                parsePrimitivePrestoType(PRIMITIVE_COLUMN_NAME, schemaInfo.getType()),
                 "The value of the message with primitive type schema", null, false, false,
-                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo("__value__",
+                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(PRIMITIVE_COLUMN_NAME,
                 null, null));
         return Arrays.asList(valueColumn);
     }

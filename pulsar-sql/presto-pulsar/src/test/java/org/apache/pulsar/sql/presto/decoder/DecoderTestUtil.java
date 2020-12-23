@@ -26,7 +26,6 @@ import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.MapType;
 import io.prestosql.spi.type.RowType;
 import io.prestosql.spi.type.Type;
-
 import java.util.Map;
 
 import static io.prestosql.testing.TestingConnectorSession.SESSION;
@@ -49,7 +48,6 @@ public abstract class DecoderTestUtil {
 
     public abstract void checkPrimitiveValue(Object actual, Object expected);
 
-
     public void checkField(Block actualBlock, Type type, int position, Object expectedValue) {
         assertNotNull(type, "Type is null");
         assertNotNull(actualBlock, "actualBlock is null");
@@ -67,7 +65,6 @@ public abstract class DecoderTestUtil {
         }
     }
 
-
     public boolean isIntegralType(Object value) {
         return value instanceof Long
                 || value instanceof Integer
@@ -79,14 +76,12 @@ public abstract class DecoderTestUtil {
         return value instanceof Float || value instanceof Double;
     }
 
-
     public Object getObjectValue(Type type, Block block, int position) {
         if (block.isNull(position)) {
             return null;
         }
         return type.getObjectValue(SESSION, block, position);
     }
-
 
     public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, Slice value) {
         FieldValueProvider provider = decodedRow.get(handle);

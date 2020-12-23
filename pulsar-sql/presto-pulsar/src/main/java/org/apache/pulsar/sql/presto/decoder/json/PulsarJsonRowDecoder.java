@@ -26,6 +26,7 @@ import static java.util.function.Function.identity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Splitter;
+import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -83,4 +84,6 @@ public class PulsarJsonRowDecoder implements PulsarRowDecoder {
         }
         return Optional.of(decodedRow);
     }
+
+    private static final Logger log = Logger.get(PulsarJsonRowDecoderFactory.class);
 }
