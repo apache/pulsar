@@ -89,7 +89,7 @@ flexible messaging model and an intuitive client API.</description>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
-    <testRetryCount>1</testRetryCount>
+    <testRetryCount>0</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
 
     <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
