@@ -980,12 +980,15 @@ table {
           
   <ul>
     <li class="mono"><a href="#pulsar.functions.context.Context.ack">ack</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.del_counter">del_counter</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_counter">get_counter</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_current_message_topic_name">get_current_message_topic_name</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_id">get_function_id</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_name">get_function_name</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_namespace">get_function_namespace</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_tenant">get_function_tenant</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_version">get_function_version</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_input_topics">get_input_topics</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_instance_id">get_instance_id</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_logger">get_logger</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_message_eventtime">get_message_eventtime</a></li>
@@ -994,10 +997,14 @@ table {
     <li class="mono"><a href="#pulsar.functions.context.Context.get_message_properties">get_message_properties</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_serde_class_name">get_output_serde_class_name</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_topic">get_output_topic</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_partition_key">get_partition_key</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_secret">get_secret</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_state">get_state</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_user_config_map">get_user_config_map</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_user_config_value">get_user_config_value</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.incr_counter">incr_counter</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.publish">publish</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.put_state">put_state</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.record_metric">record_metric</a></li>
   </ul>
 
@@ -1143,14 +1150,36 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_partition_key(self):
+    """Returns partition key of the input message is one exists"""
+    pass
+
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, message_conf=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
-    The message will have properties specified if any"""
+    The message will have properties specified if any
+
+    The available options for message_conf:
+
+      properties,
+      partition_key,
+      sequence_id,
+      replication_clusters,
+      disable_replication,
+      event_timestamp
+
+    """
+    pass
+
+  @abstractmethod
+  def get_input_topics(self):
+    """Returns the input topics of function"""
     pass
 
   @abstractmethod
@@ -1166,6 +1195,31 @@ class Context(object):
   @abstractmethod
   def ack(self, msgid, topic):
     """ack this message id"""
+    pass
+
+  @abstractmethod
+  def incr_counter(self, key, amount):
+    """incr the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_counter(self, key):
+    """get the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def del_counter(self, key):
+    """delete the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def put_state(self, key, value):
+    """update the value of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_state(self, key):
+    """get the value of a given key in the managed state"""
     pass
 </code></pre>
   </div>
@@ -1262,14 +1316,36 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_partition_key(self):
+    """Returns partition key of the input message is one exists"""
+    pass
+
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, message_conf=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
-    The message will have properties specified if any"""
+    The message will have properties specified if any
+
+    The available options for message_conf:
+
+      properties,
+      partition_key,
+      sequence_id,
+      replication_clusters,
+      disable_replication,
+      event_timestamp
+
+    """
+    pass
+
+  @abstractmethod
+  def get_input_topics(self):
+    """Returns the input topics of function"""
     pass
 
   @abstractmethod
@@ -1285,6 +1361,31 @@ class Context(object):
   @abstractmethod
   def ack(self, msgid, topic):
     """ack this message id"""
+    pass
+
+  @abstractmethod
+  def incr_counter(self, key, amount):
+    """incr the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_counter(self, key):
+    """get the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def del_counter(self, key):
+    """delete the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def put_state(self, key, value):
+    """update the value of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_state(self, key):
+    """get the value of a given key in the managed state"""
     pass
 </code></pre>
   </div>
@@ -1314,6 +1415,52 @@ class Context(object):
     <pre><code>@abstractmethod
 def ack(self, msgid, topic):
   """ack this message id"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.del_counter">
+    <p>def <span class="ident">del_counter</span>(</p><p>self, key)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>delete the counter of a given key in the managed state</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.del_counter', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.del_counter" class="source">
+    <pre><code>@abstractmethod
+def del_counter(self, key):
+  """delete the counter of a given key in the managed state"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_counter">
+    <p>def <span class="ident">get_counter</span>(</p><p>self, key)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>get the counter of a given key in the managed state</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_counter', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_counter" class="source">
+    <pre><code>@abstractmethod
+def get_counter(self, key):
+  """get the counter of a given key in the managed state"""
   pass
 </code></pre>
   </div>
@@ -1451,6 +1598,29 @@ def get_function_tenant(self):
     <pre><code>@abstractmethod
 def get_function_version(self):
   """Returns the version of function that we are executing"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_input_topics">
+    <p>def <span class="ident">get_input_topics</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns the input topics of function</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_input_topics', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_input_topics" class="source">
+    <pre><code>@abstractmethod
+def get_input_topics(self):
+  """Returns the input topics of function"""
   pass
 </code></pre>
   </div>
@@ -1644,6 +1814,29 @@ def get_output_topic(self):
   
             
   <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_partition_key">
+    <p>def <span class="ident">get_partition_key</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns partition key of the input message is one exists</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_partition_key', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_partition_key" class="source">
+    <pre><code>@abstractmethod
+def get_partition_key(self):
+  """Returns partition key of the input message is one exists"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
     <div class="name def" id="pulsar.functions.context.Context.get_secret">
     <p>def <span class="ident">get_secret</span>(</p><p>self, secret_name)</p>
     </div>
@@ -1658,6 +1851,29 @@ def get_output_topic(self):
     <pre><code>@abstractmethod
 def get_secret(self, secret_name):
   """Returns the secret value associated with the name. None if nothing was found"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_state">
+    <p>def <span class="ident">get_state</span>(</p><p>self, key)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>get the value of a given key in the managed state</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_state', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_state" class="source">
+    <pre><code>@abstractmethod
+def get_state(self, key):
+  """get the value of a given key in the managed state"""
   pass
 </code></pre>
   </div>
@@ -1713,22 +1929,83 @@ def get_user_config_value(self, key):
   
             
   <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.incr_counter">
+    <p>def <span class="ident">incr_counter</span>(</p><p>self, key, amount)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>incr the counter of a given key in the managed state</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.incr_counter', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.incr_counter" class="source">
+    <pre><code>@abstractmethod
+def incr_counter(self, key, amount):
+  """incr the counter of a given key in the managed state"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
     <div class="name def" id="pulsar.functions.context.Context.publish">
-    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message, serde_class_name=&#39;serde.IdentitySerDe&#39;, properties=None, compression_type=None)</p>
+    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message, serde_class_name=&#39;serde.IdentitySerDe&#39;, properties=None, compression_type=None, callback=None, message_conf=None)</p>
     </div>
     
 
     
   
     <div class="desc"><p>Publishes message to topic_name by first serializing the message using serde_class_name serde
-The message will have properties specified if any</p></div>
+The message will have properties specified if any</p>
+<p>The available options for message_conf:</p>
+<p>properties,
+  partition_key,
+  sequence_id,
+  replication_clusters,
+  disable_replication,
+  event_timestamp</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.publish', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.context.Context.publish" class="source">
     <pre><code>@abstractmethod
-def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, message_conf=None):
   """Publishes message to topic_name by first serializing the message using serde_class_name serde
-  The message will have properties specified if any"""
+  The message will have properties specified if any
+  The available options for message_conf:
+    properties,
+    partition_key,
+    sequence_id,
+    replication_clusters,
+    disable_replication,
+    event_timestamp
+  """
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.put_state">
+    <p>def <span class="ident">put_state</span>(</p><p>self, key, value)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>update the value of a given key in the managed state</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.put_state', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.put_state" class="source">
+    <pre><code>@abstractmethod
+def put_state(self, key, value):
+  """update the value of a given key in the managed state"""
   pass
 </code></pre>
   </div>
