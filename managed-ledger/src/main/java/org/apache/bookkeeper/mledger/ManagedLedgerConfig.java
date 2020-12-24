@@ -584,7 +584,7 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
      * group of bookies).
-     * 
+     *
      * @return
      */
     public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
@@ -593,7 +593,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyClassName
      */
     public void setBookKeeperEnsemblePlacementPolicyClassName(
@@ -603,7 +603,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
-     * 
+     *
      * @return
      */
     public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
@@ -613,7 +613,7 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
      * bookKeeperEnsemblePlacementPolicy-Properties.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyProperties
      */
     public void setBookKeeperEnsemblePlacementPolicyProperties(

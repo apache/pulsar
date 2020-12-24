@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.common.intercept;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 
 /**
  * A plugin interface that allows you to intercept the client requests to
  *  the Pulsar brokers and add metadata for each entry from broker side.
  */
 public interface BrokerEntryMetadataInterceptor {
-    PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata);
+    BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata);
 }

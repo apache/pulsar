@@ -59,12 +59,12 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -207,8 +207,7 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
-                            : KeySharedMeta.getDefaultInstance();
+                    KeySharedMeta ksm = consumer.getKeySharedMeta();
                     dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                             topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                 }
@@ -375,7 +374,6 @@ public class PersistentSubscription implements Subscription {
                     isDeleteTransactionMarkerInProcess = false;
                     if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
                         lastMarkDeleteForTransactionMarker = position;
-                        messageMetadata.recycle();
                         acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
                     }
                 }
@@ -1035,9 +1033,9 @@ public class PersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-        if (TxnAction.COMMIT.getNumber() == txnAction) {
+        if (TxnAction.COMMIT.getValue() == txnAction) {
             return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
-        } else if (TxnAction.ABORT.getNumber() == txnAction) {
+        } else if (TxnAction.ABORT.getValue() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)

@@ -55,5 +55,21 @@
         </dependency>
 
     </dependencies>
-
+    
+    <build>
+        <plugins>
+  	        <plugin>
+  		        <groupId>com.github.splunk.lightproto</groupId>
+                <artifactId>lightproto-maven-plugin</artifactId>
+                <version>${lightproto-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

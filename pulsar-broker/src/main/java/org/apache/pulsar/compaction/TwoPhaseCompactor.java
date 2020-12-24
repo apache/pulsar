@@ -43,7 +43,7 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -374,18 +374,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static Pair<String, Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        try {
-            if (msgMetadata.hasPartitionKey()) {
-                int size = headersAndPayload.readableBytes();
-                if (msgMetadata.hasUncompressedSize()) {
-                    size = msgMetadata.getUncompressedSize();
-                }
-                return Pair.of(msgMetadata.getPartitionKey(), size);
-            } else {
-                return null;
+        if (msgMetadata.hasPartitionKey()) {
+            int size = headersAndPayload.readableBytes();
+            if (msgMetadata.hasUncompressedSize()) {
+                size = msgMetadata.getUncompressedSize();
             }
-        } finally {
-            msgMetadata.recycle();
+            return Pair.of(msgMetadata.getPartitionKey(), size);
+        } else {
+            return null;
         }
     }
 
