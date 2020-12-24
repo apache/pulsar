@@ -49,5 +49,5 @@ var searchData=
   ['sticky',['STICKY',['../namespacepulsar.html#a499d1327931169d068b9b353f106dd04aed98d14aabee0f3bc70a0cc7723e5b16',1,'pulsar']]],
   ['string',['STRING',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305ab936a9dad2cbb5fca28fc477ff39fb70',1,'pulsar']]],
   ['subscribe',['subscribe',['../classpulsar_1_1_client.html#aea2d7918286ecd127751d06e191a5471',1,'pulsar::Client']]],
-  ['subscribewithregex',['subscribeWithRegex',['../classpulsar_1_1_client.html#a4fdb7b45054200fb133a9496f9909796',1,'pulsar::Client']]]
+  ['subscribewithregex',['subscribeWithRegex',['../classpulsar_1_1_client.html#a086549ca0d057be1e9d00ca483995621',1,'pulsar::Client']]]
 ];

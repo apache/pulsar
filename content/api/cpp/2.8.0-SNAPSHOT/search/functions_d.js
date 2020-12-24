@@ -45,5 +45,5 @@ var searchData=
   ['settopicname',['setTopicName',['../classpulsar_1_1_message_id.html#a3d84665dab3feb64ed00183a322b92f2',1,'pulsar::MessageId']]],
   ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration::setUnAckedMessagesTimeoutMs()'],['../classpulsar_1_1_reader_configuration.html#a11da218b52a8936415029509b9c707e9',1,'pulsar::ReaderConfiguration::setUnAckedMessagesTimeoutMs()']]],
   ['subscribe',['subscribe',['../classpulsar_1_1_client.html#aea2d7918286ecd127751d06e191a5471',1,'pulsar::Client']]],
-  ['subscribewithregex',['subscribeWithRegex',['../classpulsar_1_1_client.html#a4fdb7b45054200fb133a9496f9909796',1,'pulsar::Client']]]
+  ['subscribewithregex',['subscribeWithRegex',['../classpulsar_1_1_client.html#a086549ca0d057be1e9d00ca483995621',1,'pulsar::Client']]]
 ];
