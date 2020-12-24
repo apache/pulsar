@@ -49,17 +49,17 @@
     ],
     "2.4.0": [
         {
-            "version": "v2",
+            "version": "v3",
             "fileName": [
-                "swagger"
+                "swaggersink",
+                "swaggersource",
+                "swaggerfunctions"
             ]
         },
         {
-            "version": "v3",
+            "version": "v2",
             "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
+                "swagger"
             ]
         }
     ],
