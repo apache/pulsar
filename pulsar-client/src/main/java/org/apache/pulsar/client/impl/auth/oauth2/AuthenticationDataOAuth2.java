@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 /**
@@ -30,11 +32,16 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
 
     private final String accessToken;
-    private final Set<Map.Entry<String, String>> headers;
+    private final Function<Boolean, String> tokenFunction;
 
     public AuthenticationDataOAuth2(String accessToken) {
         this.accessToken = accessToken;
-        this.headers = Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + accessToken).entrySet();
+        this.tokenFunction = null;
+    }
+
+    public AuthenticationDataOAuth2(Function<Boolean, String> tokenFunction) {
+        this.tokenFunction = tokenFunction;
+        this.accessToken = tokenFunction.apply(false);
     }
 
     @Override
@@ -44,7 +51,7 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return this.headers;
+        return Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + getAccessToken()).entrySet();
     }
 
     @Override
@@ -54,7 +61,25 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public String getCommandData() {
-        return this.accessToken;
+        return getAccessToken();
     }
 
+    @Override
+    public String getRefreshCommandData() {
+        return getRefreshToken();
+    }
+
+    private String getAccessToken() {
+        if (tokenFunction != null) {
+            return tokenFunction.apply(false);
+        }
+        return accessToken;
+    }
+
+    private String getRefreshToken() {
+        if (tokenFunction != null) {
+            return tokenFunction.apply(true);
+        }
+        return accessToken;
+    }
 }

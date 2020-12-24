@@ -222,7 +222,7 @@ public class DirectProxyHandler {
             this.ctx = ctx;
             // Send the Connect command to broker
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+            AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             ByteBuf command = null;
             command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);

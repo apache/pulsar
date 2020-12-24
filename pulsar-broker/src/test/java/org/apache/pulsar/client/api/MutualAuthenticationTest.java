@@ -70,7 +70,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             String dataString = new String(data.getBytes(), UTF_8);
             AuthData toSend;
 
-            if (Arrays.equals(dataString.getBytes(), AuthData.INIT_AUTH_DATA)) {
+            if (Arrays.equals(dataString.getBytes(), AuthData.INIT_AUTH_DATA_BYTES)) {
                 toSend = AuthData.of(clientAuthStrings[0].getBytes(UTF_8));
             } else if (Arrays.equals(dataString.getBytes(), serverAuthStrings[0].getBytes(UTF_8))) {
                 toSend = AuthData.of(clientAuthStrings[1].getBytes(UTF_8));

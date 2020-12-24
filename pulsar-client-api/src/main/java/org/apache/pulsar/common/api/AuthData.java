@@ -27,8 +27,12 @@ import lombok.Data;
 @Data(staticConstructor = "of")
 public final class AuthData {
     // CHECKSTYLE.OFF: StaticVariableName
-    public static byte[] INIT_AUTH_DATA = "PulsarAuthInit".getBytes(UTF_8);
+    public static byte[] INIT_AUTH_DATA_BYTES = "PulsarAuthInit".getBytes(UTF_8);
+    public static byte[] REFRESH_AUTH_DATA_BYTES = "PulsarAuthRefresh".getBytes(UTF_8);
     // CHECKSTYLE.ON: StaticVariableName
+
+    public static AuthData INIT_AUTH_DATA = AuthData.of(INIT_AUTH_DATA_BYTES);
+    public static AuthData REFRESH_AUTH_DATA = AuthData.of(REFRESH_AUTH_DATA_BYTES);
 
     private final byte[] bytes;
 
