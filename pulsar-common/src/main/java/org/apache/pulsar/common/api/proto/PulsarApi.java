@@ -7075,9 +7075,9 @@ public final class PulsarApi {
     boolean hasBrokerTimestamp();
     long getBrokerTimestamp();
     
-    // optional uint64 offset = 2;
-    boolean hasOffset();
-    long getOffset();
+    // optional uint64 index = 2;
+    boolean hasIndex();
+    long getIndex();
   }
   public static final class BrokerEntryMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -7124,19 +7124,19 @@ public final class PulsarApi {
       return brokerTimestamp_;
     }
     
-    // optional uint64 offset = 2;
-    public static final int OFFSET_FIELD_NUMBER = 2;
-    private long offset_;
-    public boolean hasOffset() {
+    // optional uint64 index = 2;
+    public static final int INDEX_FIELD_NUMBER = 2;
+    private long index_;
+    public boolean hasIndex() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    public long getOffset() {
-      return offset_;
+    public long getIndex() {
+      return index_;
     }
     
     private void initFields() {
       brokerTimestamp_ = 0L;
-      offset_ = 0L;
+      index_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7159,7 +7159,7 @@ public final class PulsarApi {
         output.writeUInt64(1, brokerTimestamp_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeUInt64(2, offset_);
+        output.writeUInt64(2, index_);
       }
     }
     
@@ -7175,7 +7175,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(2, offset_);
+          .computeUInt64Size(2, index_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -7292,7 +7292,7 @@ public final class PulsarApi {
         super.clear();
         brokerTimestamp_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000001);
-        offset_ = 0L;
+        index_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
@@ -7334,7 +7334,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.offset_ = offset_;
+        result.index_ = index_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7344,8 +7344,8 @@ public final class PulsarApi {
         if (other.hasBrokerTimestamp()) {
           setBrokerTimestamp(other.getBrokerTimestamp());
         }
-        if (other.hasOffset()) {
-          setOffset(other.getOffset());
+        if (other.hasIndex()) {
+          setIndex(other.getIndex());
         }
         return this;
       }
@@ -7383,7 +7383,7 @@ public final class PulsarApi {
             }
             case 16: {
               bitField0_ |= 0x00000002;
-              offset_ = input.readUInt64();
+              index_ = input.readUInt64();
               break;
             }
           }
@@ -7413,23 +7413,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 offset = 2;
-      private long offset_ ;
-      public boolean hasOffset() {
+      // optional uint64 index = 2;
+      private long index_ ;
+      public boolean hasIndex() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
-      public long getOffset() {
-        return offset_;
+      public long getIndex() {
+        return index_;
       }
-      public Builder setOffset(long value) {
+      public Builder setIndex(long value) {
         bitField0_ |= 0x00000002;
-        offset_ = value;
+        index_ = value;
         
         return this;
       }
-      public Builder clearOffset() {
+      public Builder clearIndex() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        offset_ = 0L;
+        index_ = 0L;
         
         return this;
       }

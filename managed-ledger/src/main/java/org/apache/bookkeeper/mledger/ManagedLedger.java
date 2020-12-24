@@ -22,8 +22,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-import java.util.function.Predicate;
 
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -34,7 +32,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.interceptor.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
@@ -83,12 +80,12 @@ public interface ManagedLedger {
      *
      * @param data
      *            data entry to be persisted
-     * @param batchSize
-     *            batchSize of entry
+     * @param numberOfMessages
+     *            numberOfMessages of entry
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data, int batchSize) throws InterruptedException, ManagedLedgerException;
+    Position addEntry(byte[] data, int numberOfMessages) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Append a new entry asynchronously.
@@ -123,8 +120,8 @@ public interface ManagedLedger {
      *
      * @param data
      *            data entry to be persisted
-     * @param batchSize
-     *            batchSize of entry
+     * @param numberOfMessages
+     *            numberOfMessages of entry
      * @param offset
      *            offset in the data array
      * @param length
@@ -132,7 +129,7 @@ public interface ManagedLedger {
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data, int batchSize, int offset, int length) throws InterruptedException, ManagedLedgerException;
+    Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Append a new entry asynchronously.
@@ -157,8 +154,8 @@ public interface ManagedLedger {
      * @see #addEntry(byte[])
      * @param data
      *            data entry to be persisted
-     * @param batchSize
-     *            batchSize of entry
+     * @param numberOfMessages
+     *            numberOfMessages of entry
      * @param offset
      *            offset in the data array
      * @param length
@@ -168,7 +165,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(byte[] data, int batchSize, int offset, int length, AddEntryCallback callback, Object ctx);
+    void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback, Object ctx);
 
 
     /**
@@ -190,14 +187,14 @@ public interface ManagedLedger {
      * @see #addEntry(byte[])
      * @param buffer
      *            buffer with the data entry
-     * @param batchSize
-     *            batch size for data entry
+     * @param numberOfMessages
+     *            numberOfMessages for data entry
      * @param callback
      *            callback object
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(ByteBuf buffer, int batchSize, AddEntryCallback callback, Object ctx);
+    void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx);
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -591,7 +588,7 @@ public interface ManagedLedger {
     /**
      * Find position by sequenceId.
      * */
-    CompletableFuture<PositionImpl> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
+    CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
 
     /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.

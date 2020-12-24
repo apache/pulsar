@@ -69,13 +69,13 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
 
 
-        assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset());
+        assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
         for (int i = 0 ; i < numberOfEntries; i ++) {
             PulsarApi.BrokerEntryMetadata metadata =
                     Commands.parseBrokerEntryMetadataIfExist(entryList.get(i).getDataBuffer());
             assertNotNull(metadata);
-            assertEquals(metadata.getOffset(), (i + 1) * MOCK_BATCH_SIZE - 1);
+            assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
         }
 
         cursor.close();;
@@ -85,13 +85,13 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
 
     @Test(timeOut = 20000)
-    public void testRecoveryOffset() throws Exception {
+    public void testRecoveryIndex() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors());
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setManagedLedgerInterceptor(interceptor);
-        ManagedLedger ledger = factory.open("my_recovery_offset_test_ledger", config);
+        ManagedLedger ledger = factory.open("my_recovery_index_test_ledger", config);
 
         ledger.addEntry("dummy-entry-1".getBytes(Encoding), MOCK_BATCH_SIZE);
 
@@ -99,7 +99,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         ledger.addEntry("dummy-entry-2".getBytes(Encoding), MOCK_BATCH_SIZE);
 
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(), MOCK_BATCH_SIZE * 2 - 1);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), MOCK_BATCH_SIZE * 2 - 1);
 
         ledger.close();
 
@@ -107,12 +107,12 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         // / Reopen the same managed-ledger
         ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = factory2.open("my_recovery_offset_test_ledger", config);
+        ledger = factory2.open("my_recovery_index_test_ledger", config);
 
         cursor = ledger.openCursor("c1");
 
         assertEquals(ledger.getNumberOfEntries(), 2);
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(), MOCK_BATCH_SIZE * 2 - 1);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), MOCK_BATCH_SIZE * 2 - 1);
 
 
         List<Entry> entries = cursor.readEntries(100);
@@ -125,7 +125,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testFindPositionByOffset() throws Exception {
+    public void testFindPositionByIndex() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         final int maxEntriesPerLedger = 5;
         int maxSequenceIdPerLedger = MOCK_BATCH_SIZE * maxEntriesPerLedger;
@@ -144,13 +144,13 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             firstLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
         }
 
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(), 9);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
 
 
         PositionImpl position = null;
-        for (int offset = 0 ; offset <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(); offset ++) {
-            position = ledger.asyncFindPosition(new OffsetSearchPredicate(offset)).get();
-            assertEquals(position.getEntryId(), (offset % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
+            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
         // roll over ledger
@@ -158,12 +158,12 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         for (int i = 0; i < maxEntriesPerLedger; i++) {
             secondLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
         }
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(), 19);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 19);
         assertNotEquals(firstLedgerId, secondLedgerId);
 
-        for (int offset = 0 ; offset <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(); offset ++) {
-            position = ledger.asyncFindPosition(new OffsetSearchPredicate(offset)).get();
-            assertEquals(position.getEntryId(), (offset % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
+            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
         // reopen ledger
@@ -176,12 +176,12 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         for (int i = 0; i < maxEntriesPerLedger; i++) {
             thirdLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
         }
-        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(), 29);
+        assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 29);
         assertNotEquals(secondLedgerId, thirdLedgerId);
 
-        for (int offset = 0 ; offset <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getOffset(); offset ++) {
-            position = ledger.asyncFindPosition(new OffsetSearchPredicate(offset)).get();
-            assertEquals(position.getEntryId(), (offset % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
+        for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
+            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
         cursor.close();
         ledger.close();
@@ -191,31 +191,23 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
         Set<String> interceptorNames = new HashSet<>();
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
-        interceptorNames.add("org.apache.pulsar.common.intercept.AppendOffsetMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
         return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
                 Thread.currentThread().getContextClassLoader());
     }
 
-    class OffsetSearchPredicate implements com.google.common.base.Predicate<Entry> {
+    class IndexSearchPredicate implements com.google.common.base.Predicate<Entry> {
 
-        long offsetToSearch = -1;
-        public OffsetSearchPredicate(long offsetToSearch) {
-            this.offsetToSearch = offsetToSearch;
-        }
-
-        @Override
-        public String toString() {
-            final StringBuffer sb = new StringBuffer("OffsetSearchPredicate{");
-            sb.append("offsetToSearch=").append(offsetToSearch);
-            sb.append('}');
-            return sb.toString();
+        long indexToSearch = -1;
+        public IndexSearchPredicate(long indexToSearch) {
+            this.indexToSearch = indexToSearch;
         }
 
         @Override
         public boolean apply(@Nullable Entry entry) {
             try {
                 PulsarApi.BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                return brokerEntryMetadata.getOffset() < offsetToSearch;
+                return brokerEntryMetadata.getIndex() < indexToSearch;
             } catch (Exception e) {
                 log.error("Error deserialize message for message position find", e);
             } finally {

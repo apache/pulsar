@@ -22,16 +22,16 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class AppendOffsetMetadataInterceptor implements BrokerEntryMetadataInterceptor{
-    private final AtomicLong offsetGenerator;
+public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterceptor{
+    private final AtomicLong indexGenerator;
 
-    public AppendOffsetMetadataInterceptor() {
-        this.offsetGenerator = new AtomicLong(-1);
+    public AppendIndexMetadataInterceptor() {
+        this.indexGenerator = new AtomicLong(-1);
     }
 
-    public void recoveryOffsetGenerator(long offset) {
-        if (offsetGenerator.get() < offset) {
-            offsetGenerator.set(offset);
+    public void recoveryIndexGenerator(long index) {
+        if (indexGenerator.get() < index) {
+            indexGenerator.set(index);
         }
     }
 
@@ -45,10 +45,10 @@ public class AppendOffsetMetadataInterceptor implements BrokerEntryMetadataInter
     public PulsarApi.BrokerEntryMetadata.Builder interceptWithBatchSize(
             PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
             int batchSize) {
-        return brokerMetadata.setOffset(offsetGenerator.addAndGet(batchSize));
+        return brokerMetadata.setIndex(indexGenerator.addAndGet(batchSize));
     }
 
-    public long getOffset() {
-        return offsetGenerator.get();
+    public long getIndex() {
+        return indexGenerator.get();
     }
 }

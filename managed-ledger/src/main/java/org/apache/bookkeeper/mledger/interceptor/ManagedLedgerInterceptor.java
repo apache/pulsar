@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.interceptor;
 
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 
 import java.util.Map;
@@ -26,9 +28,33 @@ import java.util.Map;
 /**
  * Interceptor for ManagedLedger.
  * */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedLedgerInterceptor {
+
+    /**
+     * Intercept an OpAddEntry and return an OpAddEntry.
+     * @param op an OpAddEntry to be intercepted.
+     * @param batchSize
+     * @return an OpAddEntry.
+     */
     OpAddEntry beforeAddEntry(OpAddEntry op, int batchSize);
+
+    /**
+     * Intercept when ManagedLedger is initialized.
+     * @param propertiesMap map of properties.
+     */
     void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap);
+
+    /**
+     * Intercept when ManagedLedger is initialized.
+     * @param name name of ManagedLedger
+     * @param ledgerHandle a LedgerHandle.
+     */
     void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle);
+
+    /**
+     * @param propertiesMap  map of properties.
+     */
     void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap);
 }

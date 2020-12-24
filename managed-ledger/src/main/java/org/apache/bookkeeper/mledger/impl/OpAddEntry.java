@@ -48,7 +48,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
-    private int batchSize;
+    private int numberOfMessages;
 
     @SuppressWarnings("unused")
     private static final AtomicReferenceFieldUpdater<OpAddEntry, AddEntryCallback> callbackUpdater =
@@ -96,11 +96,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return op;
     }
 
-    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int batchSize, AddEntryCallback callback, Object ctx) {
+    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
-        op.batchSize = batchSize;
+        op.numberOfMessages = numberOfMessages;
         op.data = data.retain();
         op.dataLength = data.readableBytes();
         op.callback = callback;
@@ -299,12 +299,12 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return data;
     }
 
-    public int getBatchSize() {
-        return batchSize;
+    public int getNumberOfMessages() {
+        return numberOfMessages;
     }
 
-    public void setBatchSize(int batchSize) {
-        this.batchSize = batchSize;
+    public void setNumberOfMessages(int numberOfMessages) {
+        this.numberOfMessages = numberOfMessages;
     }
 
     public void setData(ByteBuf data) {
@@ -328,7 +328,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ml = null;
         ledger = null;
         data = null;
-        batchSize = 0;
+        numberOfMessages = 0;
         dataLength = -1;
         callback = null;
         ctx = null;

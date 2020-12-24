@@ -128,7 +128,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.intercept.AppendOffsetMetadataInterceptor;
+import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -1098,10 +1098,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (isBrokerEntryMetadataEnabled()) {
                 // init managedLedger interceptor
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                    if (interceptor instanceof AppendOffsetMetadataInterceptor) {
+                    if (interceptor instanceof AppendIndexMetadataInterceptor) {
                         // add individual AppendOffsetMetadataInterceptor for each topic
                         brokerEntryMetadataInterceptors.remove(interceptor);
-                        brokerEntryMetadataInterceptors.add(new AppendOffsetMetadataInterceptor());
+                        brokerEntryMetadataInterceptors.add(new AppendIndexMetadataInterceptor());
                     }
                 }
                 ManagedLedgerInterceptor mlInterceptor =

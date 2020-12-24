@@ -154,7 +154,7 @@ public class CommandUtilsTests {
                 PulsarApi.BrokerEntryMetadata
                         .newBuilder()
                         .setBrokerTimestamp(System.currentTimeMillis())
-                        .setOffset(MOCK_BATCH_SIZE - 1)
+                        .setIndex(MOCK_BATCH_SIZE - 1)
                         .build();
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
@@ -194,7 +194,7 @@ public class CommandUtilsTests {
                 Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
-        assertEquals(brokerMetadata.getOffset(), MOCK_BATCH_SIZE - 1);
+        assertEquals(brokerMetadata.getIndex(), MOCK_BATCH_SIZE - 1);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
@@ -205,7 +205,7 @@ public class CommandUtilsTests {
     public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
         Set<String> interceptorNames = new HashSet<>();
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
-        interceptorNames.add("org.apache.pulsar.common.intercept.AppendOffsetMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
         return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
                 Thread.currentThread().getContextClassLoader());
     }

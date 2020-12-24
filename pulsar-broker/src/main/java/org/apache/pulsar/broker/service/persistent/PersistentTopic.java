@@ -357,7 +357,8 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                ledger.asyncAddEntry(headersAndPayload,
+                        (int) publishContext.getNumberOfMessages(), this, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message

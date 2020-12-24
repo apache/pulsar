@@ -567,8 +567,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public Position addEntry(byte[] data, int batchSize) throws InterruptedException, ManagedLedgerException {
-        return addEntry(data, batchSize,0, data.length);
+    public Position addEntry(byte[] data, int numberOfMessages) throws InterruptedException, ManagedLedgerException {
+        return addEntry(data, numberOfMessages, 0, data.length);
     }
 
     @Override
@@ -607,7 +607,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public Position addEntry(byte[] data, int batchSize, int offset, int length) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         // Result list will contain the status exception and the resulting
         // position
@@ -617,7 +617,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncAddEntry(data, batchSize, offset, length, new AddEntryCallback() {
+        asyncAddEntry(data, numberOfMessages, offset, length, new AddEntryCallback() {
             @Override
             public void addComplete(Position position, Object ctx) {
                 result.position = position;
@@ -654,10 +654,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void asyncAddEntry(final byte[] data, int batchSize, int offset, int length, final AddEntryCallback callback,
+    public void asyncAddEntry(final byte[] data, int numberOfMessages, int offset, int length, final AddEntryCallback callback,
                               final Object ctx) {
         ByteBuf buffer = Unpooled.wrappedBuffer(data, offset, length);
-        asyncAddEntry(buffer, batchSize, callback, ctx);
+        asyncAddEntry(buffer, numberOfMessages, callback, ctx);
     }
 
     @Override
@@ -673,12 +673,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void asyncAddEntry(ByteBuf buffer, int batchSize, AddEntryCallback callback, Object ctx) {
+    public void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
 
-        OpAddEntry addOperation = OpAddEntry.create(this, buffer, batchSize, callback, ctx);
+        OpAddEntry addOperation = OpAddEntry.create(this, buffer, numberOfMessages, callback, ctx);
 
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
@@ -760,13 +760,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return true;
         }
         try {
-            managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getBatchSize());
+            managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
             return true;
         } catch (Exception e) {
             addOperation.failed(
                     new ManagedLedgerInterceptException("Interceptor managed ledger before add to bookie failed."));
             ReferenceCountUtil.release(addOperation.data);
-            log.error("[{}] Failed to interceptor entry before add to bookie.", name, e);
+            log.error("[{}] Failed to intercept adding an entry to bookie.", name, e);
             return false;
         }
     }
@@ -1451,7 +1451,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // If op is used by another ledger handle, we need to close it and create a new one
                 if (existsOp.ledger != null) {
                     existsOp.close();
-                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getBatchSize(), existsOp.callback, existsOp.ctx);
+                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
                 }
                 existsOp.setLedger(currentLedger);
                 if (beforeAddEntry(existsOp)) {
@@ -1567,10 +1567,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public CompletableFuture<PositionImpl> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate) {
+    public CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate) {
 
-
-        CompletableFuture<PositionImpl> future = new CompletableFuture();
+        CompletableFuture<Position> future = new CompletableFuture();
         Long firstLedgerId = ledgers.firstKey();
         final PositionImpl startPosition = firstLedgerId == null ? null : new PositionImpl(firstLedgerId, 0);
         if (startPosition == null) {
