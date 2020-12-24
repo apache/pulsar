@@ -241,18 +241,16 @@ public class Policies {
     }
 
 
-    private static final long MAX_BUNDLES = ((long) 1) << 32;
-
     public static BundlesData getBundles(int numBundles) {
-        if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
+        if (numBundles <= 0) {
             throw new RestException(Status.BAD_REQUEST,
-                    "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+                "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
         }
-        Long maxVal = ((long) 1) << 32;
-        Long segSize = maxVal / numBundles;
+        int maxVal = Integer.MAX_VALUE;
+        int segSize = maxVal / numBundles;
         List<String> partitions = Lists.newArrayList();
         partitions.add(String.format("0x%08x", 0L));
-        Long curPartition = segSize;
+        int curPartition = segSize;
         for (int i = 0; i < numBundles; i++) {
             if (i != numBundles - 1) {
                 partitions.add(String.format("0x%08x", curPartition));

@@ -32,50 +32,14 @@
     </Match>
 
     <Match>
-        <Class name="org.apache.pulsar.common.api.raw.RawMessageImpl"/>
-        <Method name="getKeyBytes"/>
-        <Bug pattern="DM_DEFAULT_ENCODING"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.policies.data.loadbalancer.ResourceUsage"/>
-        <Method name="compareTo"/>
-        <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
-    </Match>
-
-    <Match>
         <Class name="org.apache.pulsar.common.nar.FileUtils"/>
         <Method name="deleteFilesInDirectory"/>
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
 
     <Match>
-        <Class name="org.apache.pulsar.common.nar.NarClassLoader"/>
-        <Method name="getServiceImplementation"/>
-        <Bug pattern="DM_DEFAULT_ENCODING"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.policies.data.Policies"/>
-        <Method name="getBundles"/>
-        <Bug pattern="INT_BAD_COMPARISON_WITH_INT_VALUE"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.nar.NarClassLoader"/>
-        <Method name="getFromArchive"/>
-        <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
-    </Match>
-
-    <Match>
         <Class name="org.apache.pulsar.common.policies.data.FunctionStats$FunctionInstanceStats$FunctionInstanceStatsData"/>
         <Bug pattern="EQ_OVERRIDING_EQUALS_NOT_SYMMETRIC"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.util.ClassLoaderUtils"/>
-        <Method name="loadJar"/>
-        <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
     </Match>
 
     <Match>
@@ -86,12 +50,6 @@
     <Match>
         <Class name="org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable"/>
         <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.util.SecurityUtility"/>
-        <Method name="loadPrivateKeyFromPemStream"/>
-        <Bug pattern="DM_DEFAULT_ENCODING"/>
     </Match>
 
     <Match>
@@ -110,9 +68,6 @@
     </Match>
     <Match>
         <Bug pattern="EI_EXPOSE_REP2"/>
-    </Match>
-    <Match>
-        <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
     </Match>
     <Match>
         <Bug pattern="VO_VOLATILE_INCREMENT"/>

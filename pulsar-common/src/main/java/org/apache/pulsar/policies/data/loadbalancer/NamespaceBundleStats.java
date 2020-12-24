@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.EqualsAndHashCode;
+
 /**
  */
+@EqualsAndHashCode
 public class NamespaceBundleStats implements Comparable<NamespaceBundleStats> {
 
     public double msgRateIn;
