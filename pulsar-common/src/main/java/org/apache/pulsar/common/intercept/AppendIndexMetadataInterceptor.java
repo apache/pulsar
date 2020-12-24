@@ -18,14 +18,37 @@
  */
 package org.apache.pulsar.common.intercept;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 
-/**
- * A plugin interface that allows you to intercept the client requests to
- *  the Pulsar brokers and add metadata for each entry from broker side.
- */
-public interface BrokerEntryMetadataInterceptor {
-    BrokerEntryMetadata intercept( BrokerEntryMetadata brokerMetadata);
-    BrokerEntryMetadata interceptWithBatchSize(BrokerEntryMetadata brokerMetadata,
-                                                                 int batchSize);
+public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterceptor{
+    private final AtomicLong indexGenerator;
+
+    public AppendIndexMetadataInterceptor() {
+        this.indexGenerator = new AtomicLong(-1);
+    }
+
+    public void recoveryIndexGenerator(long index) {
+        if (indexGenerator.get() < index) {
+            indexGenerator.set(index);
+        }
+    }
+
+    @Override
+    public BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata) {
+        // do nothing, just return brokerMetadata
+        return brokerMetadata;
+    }
+
+    @Override
+    public BrokerEntryMetadata interceptWithBatchSize(
+            BrokerEntryMetadata brokerMetadata,
+            int batchSize) {
+        return brokerMetadata.setIndex(indexGenerator.addAndGet(batchSize));
+    }
+
+    public long getIndex() {
+        return indexGenerator.get();
+    }
 }

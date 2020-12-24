@@ -1408,12 +1408,21 @@ public class Commands {
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> interceptors) {
+        return addBrokerEntryMetadata(headerAndPayload, interceptors, -1);
+    }
+
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
+                                                 int batchSize) {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
         BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
-        for (BrokerEntryMetadataInterceptor interceptor : interceptors) {
+        for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerEntryMetadata);
+            if (batchSize >= 0) {
+                interceptor.interceptWithBatchSize(brokerEntryMetadata, batchSize);
+            }
         }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();

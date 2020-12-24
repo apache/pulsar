@@ -30,4 +30,12 @@ public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMeta
     public BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata) {
         return brokerMetadata.setBrokerTimestamp(System.currentTimeMillis());
     }
+
+    @Override
+    public BrokerEntryMetadata interceptWithBatchSize(
+             BrokerEntryMetadata brokerMetadata,
+            int batchSize) {
+        // do nothing, just return brokerMetadata
+        return brokerMetadata;
+    }
 }

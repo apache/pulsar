@@ -90,6 +90,10 @@ public interface Topic {
         default long getOriginalHighestSequenceId() {
             return  -1L;
         }
+
+        default long getNumberOfMessages() {
+            return  1L;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
