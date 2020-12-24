@@ -1556,6 +1556,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @VisibleForTesting
+    @Override
     public void rollCurrentLedgerIfFull() {
         log.info("[{}] Start checking if current ledger is full", name);
         if (currentLedgerEntries > 0 && currentLedgerIsFull()) {
