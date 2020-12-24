@@ -814,7 +814,7 @@ public abstract class AdminResource extends PulsarWebResource {
         Integer maxTopicsPerNamespace;
         try {
             maxTopicsPerNamespace = getNamespacePolicies(namespaceName).max_topics_per_namespace;
-            if (maxTopicsPerNamespace == null || maxTopicsPerNamespace < 0) {
+            if (maxTopicsPerNamespace == null) {
                 maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
             }
 

@@ -1476,12 +1476,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
 
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1490,8 +1490,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // remove namespace limit
         admin.namespaces().removeMaxTopicsPerNamespace(namespace);
         for (int i = 0; i < 10; ++i) {
-            pulsarClient.newProducer().topic(topic + "_p" + i).create();
-            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe();
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
         }
 
         // check producer/consumer auto create non-partitioned topic
@@ -1506,12 +1506,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
 
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1519,10 +1519,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // set namespace limit to 5
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 5);
-        pulsarClient.newProducer().topic(topic + "4").create();
-        pulsarClient.newProducer().topic(topic + "5").create();
+        pulsarClient.newProducer().topic(topic + "4").create().close();
+        pulsarClient.newProducer().topic(topic + "5").create().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1531,8 +1531,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // remove namespace limit
         admin.namespaces().removeMaxTopicsPerNamespace(namespace);
         for (int i = 0; i< 10; ++i) {
-            pulsarClient.newProducer().topic(topic + "_p" + i).create();
-            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe();
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
         }
 
         conf.setMaxTopicsPerNamespace(0);
