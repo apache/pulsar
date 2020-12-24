@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -1941,6 +1942,37 @@ public class Commands {
         PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
         for (BrokerEntryMetadataInterceptor interceptor : interceptors) {
             interceptor.intercept(brokerMetadataBuilder);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
+        try {
+            brokerEntryMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
+        return compositeByteBuf;
+    }
+
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
+                                                 int batchSize) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+            interceptor.interceptWithBatchSize(brokerMetadataBuilder, batchSize);
         }
         PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();

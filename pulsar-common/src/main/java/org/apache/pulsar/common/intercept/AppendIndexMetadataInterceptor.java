@@ -20,22 +20,35 @@ package org.apache.pulsar.common.intercept;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
-/**
- * A plugin interface that allows you to intercept the client requests to
- *  the Pulsar brokers and add timestamp from broker side metadata for each entry.
- */
-public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMetadataInterceptor {
+import java.util.concurrent.atomic.AtomicLong;
+
+public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterceptor{
+    private final AtomicLong indexGenerator;
+
+    public AppendIndexMetadataInterceptor() {
+        this.indexGenerator = new AtomicLong(-1);
+    }
+
+    public void recoveryIndexGenerator(long index) {
+        if (indexGenerator.get() < index) {
+            indexGenerator.set(index);
+        }
+    }
 
     @Override
     public PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata) {
-        return brokerMetadata.setBrokerTimestamp(System.currentTimeMillis());
+        // do nothing, just return brokerMetadata
+        return brokerMetadata;
     }
 
     @Override
     public PulsarApi.BrokerEntryMetadata.Builder interceptWithBatchSize(
             PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
             int batchSize) {
-        // do nothing, just return brokerMetadata
-        return brokerMetadata;
+        return brokerMetadata.setIndex(indexGenerator.addAndGet(batchSize));
+    }
+
+    public long getIndex() {
+        return indexGenerator.get();
     }
 }
