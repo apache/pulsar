@@ -2524,7 +2524,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     .map(p -> p.max_topics_per_namespace)
                     .orElse(null);
 
-            if (maxTopicsPerNamespace == null || maxTopicsPerNamespace < 0) {
+            if (maxTopicsPerNamespace == null) {
                 maxTopicsPerNamespace = pulsar.getConfig().getMaxTopicsPerNamespace();
             }
 

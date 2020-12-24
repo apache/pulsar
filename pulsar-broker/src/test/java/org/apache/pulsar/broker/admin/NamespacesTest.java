@@ -1414,7 +1414,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testMaxTopicsPerNamespace() throws Exception {
         super.internalCleanup();
         conf.setMaxTopicsPerNamespace(15);

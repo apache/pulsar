@@ -1427,7 +1427,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testMaxSubscriptionsPerTopic() throws Exception {
         super.internalCleanup();
         conf.setMaxSubscriptionsPerTopic(2);
