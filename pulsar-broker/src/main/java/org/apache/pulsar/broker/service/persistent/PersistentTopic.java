@@ -357,8 +357,7 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                ledger.asyncAddEntry(headersAndPayload,
-                        (int) publishContext.getNumberOfMessages(), this, publishContext);
+                asyncAddEntry(headersAndPayload, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -369,6 +368,15 @@ public class PersistentTopic extends AbstractTopic
                 publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
+        }
+    }
+
+    private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (brokerService.isBrokerEntryMetadataEnabled()) {
+            ledger.asyncAddEntry(headersAndPayload,
+                    (int) publishContext.getNumberOfMessages(), this, publishContext);
+        } else {
+            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
         }
     }
 
