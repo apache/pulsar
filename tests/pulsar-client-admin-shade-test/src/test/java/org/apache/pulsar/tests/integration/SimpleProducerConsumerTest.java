@@ -549,7 +549,6 @@ public class SimpleProducerConsumerTest {
                 .setProducerName("test")
                 .setSequenceId(123)
                 .setPublishTime(12333453454L)
-                .addEncryptionKeys(encKey)
                 .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
                 .setUncompressedSize(uncompressedSize);
 

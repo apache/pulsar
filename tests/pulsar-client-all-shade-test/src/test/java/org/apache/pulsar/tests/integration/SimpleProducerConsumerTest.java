@@ -552,7 +552,7 @@ public class SimpleProducerConsumerTest {
                 .setKey(encryptionKeyName)
                 .setValue(dataKey);
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
+        ByteBuf decryptedPayload = crypto.decrypt(() -> metadata.build(), payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
