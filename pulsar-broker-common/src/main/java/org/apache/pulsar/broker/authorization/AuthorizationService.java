@@ -341,11 +341,6 @@ public class AuthorizationService {
         return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
     }
 
-    public CompletableFuture<Boolean> canDoPackageOpsAsync(NamespaceName namespaceName, String role,
-                                                           AuthenticationDataSource authenticationData) {
-        return provider.canDoPackageOpsAsync(namespaceName, role, authenticationData);
-    }
-
     private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
                                                   String originalPrincipal) {
         if (proxyRoles.contains(authenticatedPrincipal)) {

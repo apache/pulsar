@@ -219,26 +219,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
     }
 
     @Override
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
     }
 
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
     }
 
-    @Override
-    public CompletableFuture<Boolean> canDoPackageOpsAsync(NamespaceName namespaceName, String role,
-                                                           AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.packages);
-    }
-
-    private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
+    private CompletableFuture<Boolean> allowFunctionSourceSinkOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
