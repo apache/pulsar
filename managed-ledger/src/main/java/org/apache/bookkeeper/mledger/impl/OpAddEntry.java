@@ -191,6 +191,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             if (cb != null) {
                 cb.addComplete(lastEntry, ctx);
                 ml.notifyCursors();
+                ml.notifyWaitingEntryCallBack();
                 this.recycle();
             }
         }
@@ -214,6 +215,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (cb != null) {
             cb.addComplete(PositionImpl.get(lh.getId(), entryId), ctx);
             ml.notifyCursors();
+            ml.notifyWaitingEntryCallBack();
             this.recycle();
         }
     }
