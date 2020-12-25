@@ -35,10 +35,10 @@ public interface ManagedLedgerInterceptor {
     /**
      * Intercept an OpAddEntry and return an OpAddEntry.
      * @param op an OpAddEntry to be intercepted.
-     * @param batchSize
+     * @param numberOfMessages
      * @return an OpAddEntry.
      */
-    OpAddEntry beforeAddEntry(OpAddEntry op, int batchSize);
+    OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages);
 
     /**
      * Intercept when ManagedLedger is initialized.

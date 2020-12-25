@@ -32,9 +32,9 @@ public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMeta
     }
 
     @Override
-    public PulsarApi.BrokerEntryMetadata.Builder interceptWithBatchSize(
+    public PulsarApi.BrokerEntryMetadata.Builder interceptWithNumberOfMessages(
             PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
-            int batchSize) {
+            int numberOfMessages) {
         // do nothing, just return brokerMetadata
         return brokerMetadata;
     }

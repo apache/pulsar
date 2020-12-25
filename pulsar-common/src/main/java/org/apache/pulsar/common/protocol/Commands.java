@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -1965,14 +1964,14 @@ public class Commands {
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
-                                                 int batchSize) {
+                                                 int numberOfMessages) {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
         PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerMetadataBuilder);
-            interceptor.interceptWithBatchSize(brokerMetadataBuilder, batchSize);
+            interceptor.interceptWithNumberOfMessages(brokerMetadataBuilder, numberOfMessages);
         }
         PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
