@@ -137,20 +137,14 @@ public class PulsarStats implements Closeable {
                                 }
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
-<<<<<<< HEAD
                                 topic.checkBackloggedCursors();
-                            } else if (topic instanceof NonPersistentTopic) {
-=======
-                                ((PersistentTopic) topic).checkBackloggedCursors();
                                 // update dispatch stats
                                 topic.getSubscriptions().forEach((subName, sub) -> {
                                     if (sub.getDispatcher() instanceof AbstractBaseDispatcher) {
-                                        ((AbstractBaseDispatcher)sub.getDispatcher()).refreshStats();
+                                        ((AbstractBaseDispatcher) sub.getDispatcher()).refreshStats();
                                     }
                                 });
-
-                            }else if (topic instanceof NonPersistentTopic) {
->>>>>>> add cache hit ratio metrics for topic subscription
+                            } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
                                 log.warn("Unsupported type of topic {}", topic.getClass().getName());

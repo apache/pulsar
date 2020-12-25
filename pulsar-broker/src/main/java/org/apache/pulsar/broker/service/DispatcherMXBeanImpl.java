@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.pulsar.common.stats.Rate;
-
-import java.util.concurrent.TimeUnit;
 
 public class DispatcherMXBeanImpl implements DispatcherMXBean {
     private AbstractBaseDispatcher dispatcher;

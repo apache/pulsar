@@ -371,7 +371,7 @@ public class PersistentSubscription implements Subscription {
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
             managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
                 @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
+                public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                     MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     isDeleteTransactionMarkerInProcess = false;
                     if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {

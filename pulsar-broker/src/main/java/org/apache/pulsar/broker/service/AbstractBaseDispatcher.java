@@ -24,12 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-<<<<<<< HEAD
-=======
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-
->>>>>>> add cache hit ratio metrics for topic subscription
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -51,18 +46,11 @@ import org.apache.pulsar.common.protocol.Markers;
 public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
-<<<<<<< HEAD
-
-    protected AbstractBaseDispatcher(Subscription subscription) {
-        this.subscription = subscription;
-=======
-    protected final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
     private long lastStatTimestamp = System.nanoTime();
     protected DispatcherMXBeanImpl bean;
 
     protected AbstractBaseDispatcher(Subscription subscription) {
         this.subscription = subscription;
-        this.pendingTxnQueue = Queues.newConcurrentLinkedQueue();
         this.bean = new DispatcherMXBeanImpl(this);
     }
 
@@ -70,8 +58,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         long now = System.nanoTime();
         long period = now - lastStatTimestamp;
         bean.refreshStats(period, TimeUnit.NANOSECONDS);
->>>>>>> add cache hit ratio metrics for topic subscription
     }
+
 
     /**
      * Filter messages that are being sent to a consumers.
@@ -114,7 +102,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             try {
                 if (!isReplayRead && msgMetadata != null
-                        && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                    && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                     if (Markers.isTxnCommitMarker(msgMetadata)) {
                         handleTxnCommitMarker(entry);
                         if (!isAfterTxnCommitMarker) {
@@ -137,10 +125,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entries.set(i, null);
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                            Collections.emptyMap());
+                        Collections.emptyMap());
                     continue;
                 } else if (msgMetadata.hasDeliverAtTime()
-                        && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                     // The message is marked for delayed delivery. Ignore for now.
                     entries.set(i, null);
                     entry.release();
@@ -160,7 +148,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 long[] ackSet = null;
                 if (indexesAcks != null && cursor != null) {
                     ackSet = cursor.getDeletedBatchIndexesAsLongArray(
-                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                        PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
                         indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                     } else {
@@ -249,17 +237,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
                 }
                 subscription.acknowledgeMessage(
-                        positionList, PulsarApi.CommandAck.AckType.Individual, Collections.emptyMap());
+                    positionList, PulsarApi.CommandAck.AckType.Individual, Collections.emptyMap());
             } catch (IOException e) {
                 log.error("Failed to parse abort marker.", e);
             }
         });
     }
 
-<<<<<<< HEAD
-=======
     public DispatcherMXBeanImpl getBean() {
         return bean;
     }
->>>>>>> add cache hit ratio metrics for topic subscription
+
 }
