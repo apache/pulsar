@@ -49,6 +49,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
+
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -72,6 +74,7 @@ public class SecurityUtility {
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
     public static final String BC = "BC";
+    private static final String SSLCONTEXT_ALGORITHM = "TLSv1.2";
 
     public static boolean isBCFIPS() {
         return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);
@@ -146,6 +149,37 @@ public class SecurityUtility {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
+    }
+
+    /**
+     * Creates {@link SslContext} with capability to do auto-cert refresh.
+     * @param allowInsecureConnection
+     * @param trustCertsFilePath
+     * @param certFilePath
+     * @param keyFilePath
+     * @param sslContextAlgorithm
+     * @param refreshDurationSec
+     * @param executor
+     * @return
+     * @throws GeneralSecurityException
+     * @throws SSLException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public static SslContext createAutoRefreshSslContextForClient(boolean allowInsecureConnection,
+            String trustCertsFilePath, String certFilePath, String keyFilePath, String sslContextAlgorithm,
+            int refreshDurationSec, ScheduledExecutorService executor)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
+        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient();
+        sslContexBuilder.keyManager(keyManager);
+        if (allowInsecureConnection) {
+            sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else {
+            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+            sslContexBuilder.trustManager(trustManager);
+        }
+        return sslContexBuilder.build();
     }
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,

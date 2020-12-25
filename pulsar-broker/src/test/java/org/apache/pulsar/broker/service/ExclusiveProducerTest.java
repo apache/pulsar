@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
 import org.apache.pulsar.client.api.Schema;
@@ -59,9 +62,15 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         };
     }
 
-    @DataProvider(name = "partitioned")
-    public static Object[][] partitioned() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    @DataProvider(name = "accessMode")
+    public static Object[][] accessMode() {
+        return new Object[][] {
+                // ProducerAccessMode, partitioned
+                { ProducerAccessMode.Exclusive, Boolean.TRUE},
+                { ProducerAccessMode.Exclusive, Boolean.FALSE },
+                { ProducerAccessMode.WaitForExclusive, Boolean.TRUE },
+                { ProducerAccessMode.WaitForExclusive, Boolean.FALSE },
+        };
     }
 
     @Test(dataProvider = "topics")
@@ -124,13 +133,13 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         }
     }
 
-    @Test(dataProvider = "topics")
-    public void producerReconnection(String type, boolean partitioned) throws Exception {
-        String topic = newTopic(type, partitioned);
+    @Test(dataProvider = "accessMode")
+    public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
+        String topic = newTopic("persistent", partitioned);
 
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
-                .accessMode(ProducerAccessMode.Exclusive)
+                .accessMode(accessMode)
                 .create();
 
         p1.send("msg-1");
@@ -140,13 +149,13 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p1.send("msg-2");
     }
 
-    @Test(dataProvider = "partitioned")
-    public void producerFenced(boolean partitioned) throws Exception {
+    @Test(dataProvider = "accessMode")
+    public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
-                .accessMode(ProducerAccessMode.Exclusive)
+                .accessMode(accessMode)
                 .create();
 
         p1.send("msg-1");
@@ -198,6 +207,84 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         // The producer should be able to publish again on the topic
         p1.send("msg-2");
+    }
+
+    @Test(dataProvider = "topics")
+    public void waitForExclusiveTest(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .producerName("p1")
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .create();
+
+        CompletableFuture<Producer<String>> fp2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .producerName("p2")
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+
+        // This sleep is made to ensure P2 is enqueued before P3. Because of the lookups
+        // there's no strict guarantee they would be attempted in the same order otherwise
+        Thread.sleep(1000);
+
+        CompletableFuture<Producer<String>> fp3 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .producerName("p3")
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+
+        Thread.sleep(1000);
+        // The second producer should get queued
+        assertFalse(fp2.isDone());
+        assertFalse(fp3.isDone());
+
+        p1.close();
+
+        // Now P2 should get created
+        Producer<String> p2 = fp2.get(1, TimeUnit.SECONDS);
+
+        assertFalse(fp3.isDone());
+
+        p2.close();
+
+        // Now P3 should get created
+        Producer<String> p3 = fp3.get(1, TimeUnit.SECONDS);
+        p3.close();
+    }
+
+    @Test(dataProvider = "topics")
+    public void waitForExclusiveWithClientTimeout(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .build();
+
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .create();
+
+        CompletableFuture<Producer<String>> fp2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+
+        // Wait enough time to have caused an operation timeout on p2
+        Thread.sleep(2000);
+
+        // There should be timeout error, since the broker should reply immediately
+        // with the instruction to wait
+        assertFalse(fp2.isDone());
+
+        p1.close();
+
+        // Now P2 should get created
+        fp2.get(1, TimeUnit.SECONDS);
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {

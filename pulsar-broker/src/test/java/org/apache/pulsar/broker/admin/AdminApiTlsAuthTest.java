@@ -20,9 +20,15 @@ package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.NotAuthorizedException;
@@ -34,6 +40,7 @@ import javax.ws.rs.core.MediaType;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.mutable.MutableBoolean;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -369,6 +376,59 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
             log.info("Deleting namespace");
             admin.namespaces().deleteNamespace("tenant1/ns1");
+        }
+    }
+
+    /**
+     * Validates Pulsar-admin performs auto cert refresh.
+     * @throws Exception
+     */
+    @Test
+    public void testCertRefreshForPulsarAdmin() throws Exception {
+        String adminUser = "admin";
+        String user2 = "user1";
+        File keyFile = new File(getTLSFile("temp" + ".key-pk8"));
+        Path keyFilePath = Paths.get(keyFile.getAbsolutePath());
+        int autoCertRefreshTimeSec = 1;
+        try {
+            Files.copy(Paths.get(getTLSFile(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            PulsarAdmin admin = PulsarAdmin.builder()
+                    .allowTlsInsecureConnection(false)
+                    .enableTlsHostnameVerification(false)
+                    .serviceHttpUrl(brokerUrlTls.toString())
+                    .autoCertRefreshTime(1, TimeUnit.SECONDS)
+                    .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                                    String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                                                  getTLSFile(adminUser + ".cert"), keyFile))
+                    .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
+            // try to call admin-api which should fail due to incorrect key-cert
+            try {
+                admin.tenants().createTenant("tenantX",
+                        new TenantInfo(ImmutableSet.of("foobar"), ImmutableSet.of("test")));
+                Assert.fail("should have failed due to invalid key file");
+            } catch (Exception e) {
+                //OK
+            }
+            // replace correct key file
+            Files.delete(keyFile.toPath());
+            Thread.sleep(2 * autoCertRefreshTimeSec * 1000);
+            Files.copy(Paths.get(getTLSFile(adminUser + ".key-pk8")), keyFilePath);
+            MutableBoolean success = new MutableBoolean(false);
+            retryStrategically((test) -> {
+                try {
+                    admin.tenants().createTenant("tenantX",
+                            new TenantInfo(ImmutableSet.of("foobar"), ImmutableSet.of("test")));
+                    success.setValue(true);
+                    return true;
+                }catch(Exception e) {
+                    return false;
+                }
+            }, 5, 1000);
+            Assert.assertTrue(success.booleanValue());
+            Assert.assertEquals(ImmutableSet.of("tenantX"), admin.tenants().getTenants());
+            admin.close();
+        }finally {
+            Files.delete(keyFile.toPath());
         }
     }
 }

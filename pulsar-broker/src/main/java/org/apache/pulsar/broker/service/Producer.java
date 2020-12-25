@@ -463,6 +463,11 @@ public class Producer {
             return callback;
         }
 
+        @Override
+        public long getNumberOfMessages() {
+            return batchSize;
+        }
+
         private final Handle<MessagePublishContext> recyclerHandle;
 
         private MessagePublishContext(Handle<MessagePublishContext> recyclerHandle) {

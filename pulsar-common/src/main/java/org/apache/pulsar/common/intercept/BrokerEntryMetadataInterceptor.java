@@ -26,4 +26,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
  */
 public interface BrokerEntryMetadataInterceptor {
     PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata);
+    PulsarApi.BrokerEntryMetadata.Builder interceptWithBatchSize(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
+                                                                 int batchSize);
 }

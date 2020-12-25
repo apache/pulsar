@@ -35,6 +35,7 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.bookkeeper.stats.NullStatsProvider;
@@ -83,7 +84,12 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                OutputStream out) throws IOException {
+        OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, out, null);
+    }
+
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+        OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
@@ -100,6 +106,11 @@ public class PrometheusMetricsGenerator {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
+            if (metricsProviders != null) {
+                for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
+                    metricsProvider.generate(stream);
+                }
+            }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
             buf.release();
@@ -149,9 +160,15 @@ public class PrometheusMetricsGenerator {
                         continue;
                     }
                 } else {
-                    stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
-                            .write(getTypeStr(metricType)).write('\n');
-                    stream.write(entry.getKey().replace("brk_", "pulsar_"))
+
+
+                    String name = entry.getKey();
+                    if (!names.contains(name)) {
+                        stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
+                                .write(getTypeStr(metricType)).write('\n');
+                        names.add(name);
+                    }
+                    stream.write(name.replace("brk_", "pulsar_"))
                             .write("{cluster=\"").write(cluster).write('"');
                 }
 
