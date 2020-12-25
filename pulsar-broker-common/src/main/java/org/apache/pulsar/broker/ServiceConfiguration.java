@@ -469,6 +469,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Max number of topics allowed to be created in the namespace. "
+                + "When the topics reach the max topics of the namespace, the broker should reject "
+                + "the new topic request(include topic auto-created by the producer or consumer) until "
+                + "the number of connected consumers decrease. "
+                + " Using a value of 0, is disabling maxTopicsPerNamespace-limit check."
+    )
+    private int maxTopicsPerNamespace = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -870,6 +881,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
 
     /***** --- TLS --- ****/
     @FieldContext(
