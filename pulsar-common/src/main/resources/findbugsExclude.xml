@@ -32,32 +32,6 @@
     </Match>
 
     <Match>
-        <Class name="org.apache.pulsar.common.nar.FileUtils"/>
-        <Method name="deleteFilesInDirectory"/>
-        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.policies.data.FunctionStats$FunctionInstanceStats$FunctionInstanceStatsData"/>
-        <Bug pattern="EQ_OVERRIDING_EQUALS_NOT_SYMMETRIC"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.util.collections.ConcurrentBitSet"/>
-        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable"/>
-        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
-    </Match>
-
-    <Match>
-        <Class name="org.apache.pulsar.common.util.NamespaceBundleStatsComparator"/>
-        <Bug pattern="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE"/>
-    </Match>
-
-    <Match>
         <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
     </Match>
     <Match>
@@ -70,12 +44,10 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
-        <Bug pattern="VO_VOLATILE_INCREMENT"/>
-    </Match>
-    <Match>
         <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
     </Match>
     <Match>
+        <Class name="org.apache.pulsar.common.policies.data.NonPersistentTopicStats"/>
         <Bug pattern="MF_CLASS_MASKS_FIELD"/>
     </Match>
 </FindBugsFilter>
