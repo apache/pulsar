@@ -37,7 +37,7 @@ public interface StreamingDispatcher extends Dispatcher {
     /**
      * Notify dispatcher can issue next read request.
      */
-    void canReadMoreEntries();
+    void canReadMoreEntries(boolean withBackoff);
 
     /**
      * Notify dispatcher to inform consumers reached end of topic.

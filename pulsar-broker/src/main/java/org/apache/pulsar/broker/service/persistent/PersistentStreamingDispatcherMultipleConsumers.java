@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.collect.Lists;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -27,6 +28,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
@@ -57,6 +59,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
         ReadType readType = (ReadType) ctx.ctx;
         if (ctx.isLast()) {
+            readFailureBackoff.reduceToHalf();
             if (readType == ReadType.Normal) {
                 havePendingRead = false;
             } else {
@@ -95,9 +98,21 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
      * {@inheritDoc}
      */
     @Override
-    public void canReadMoreEntries() {
+    public void canReadMoreEntries(boolean withBackoff) {
         havePendingRead = false;
-        readMoreEntries();
+        topic.getBrokerService().executor().schedule(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+                synchronized (PersistentStreamingDispatcherMultipleConsumers.this) {
+                    if (!havePendingRead) {
+                        log.info("[{}] Scheduling read operation", name);
+                        readMoreEntries();
+                    } else {
+                        log.info("[{}] Skipping read since we have pendingRead", name);
+                    }
+                }
+            }));
+        }, withBackoff
+                ? readFailureBackoff.next() : 0, TimeUnit.MILLISECONDS);
     }
 
     /**

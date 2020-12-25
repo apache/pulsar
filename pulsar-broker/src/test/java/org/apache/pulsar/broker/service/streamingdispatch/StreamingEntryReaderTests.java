@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -160,7 +161,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
                 readComplete.set(true);
                 return null;
             }
-        ).when(mockDispatcher).canReadMoreEntries();
+        ).when(mockDispatcher).canReadMoreEntries(anyBoolean());
 
         PositionImpl position = ledger.getPositionAfterN(ledger.getFirstPosition(), 3, ManagedLedgerImpl.PositionBound.startExcluded);
         // Make reading from mledger return out of order.

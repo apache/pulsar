@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.streamingdispatch;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -71,7 +73,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     private volatile int maxReadSizeByte;
 
     private final Backoff readFailureBackoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            30, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
+            5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
 
     /**
      * Read entries in streaming way, that said instead reading with micro batch and send entries to consumer after all
@@ -93,6 +95,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             }
             return;
         }
+
         PositionImpl nextReadPosition = (PositionImpl) cursor.getReadPosition();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
         // Edge case, when a old ledger is full and new ledger is not yet opened, position can point to next
@@ -130,6 +133,12 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             // Else register callback with managed ledger to get notify when new entries are available.
             if (managedLedger.hasMoreEntries(pendingReads.peek().position)) {
                 entriesAvailable();
+            } else if (managedLedger.isTerminated()) {
+                dispatcher.notifyConsumersEndOfTopic();
+                cleanQueue(pendingReads);
+                if (issuedReads.size() == 0) {
+                    dispatcher.canReadMoreEntries(true);
+                }
             } else {
                 managedLedger.addWaitingEntryCallBack(this);
             }
@@ -158,7 +167,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
                 //Cancel remaining requests and reset cursor if maxReadSizeByte exceeded.
                 if (currentReadSizeByte.get() > maxReadSizeByte) {
                     cancelReadRequests(readEntry.getPosition());
-                    dispatcher.canReadMoreEntries();
+                    dispatcher.canReadMoreEntries(false);
                     STATE_UPDATER.set(this, State.Completed);
                     return;
                 } else {
@@ -167,12 +176,17 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
                         firstPendingReadEntryRequest.isLast = true;
                         STATE_UPDATER.set(this, State.Completed);
                     }
+                    ByteBuf cp = entry != null && entry.getDataBuffer() != null
+                            ? entry.getDataBuffer().copy() : Unpooled.buffer();
+                    byte[] array = new byte[cp.readableBytes()];
+                    cp.getBytes(cp.readerIndex(), array);
+                    System.out.println("Dispatching msg: " +  new String(array));
                     dispatcher.readEntryComplete(readEntry, firstPendingReadEntryRequest);
                 }
             }
         } else if (!issuedReads.isEmpty() && issuedReads.peek().retry > maxRetry) {
             cancelReadRequests(issuedReads.peek().position);
-            dispatcher.canReadMoreEntries();
+            dispatcher.canReadMoreEntries(true);
             STATE_UPDATER.set(this, State.Completed);
         }
     }
@@ -190,10 +204,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         PositionImpl readPosition = pendingReadEntryRequest.position;
         pendingReadEntryRequest.retry++;
         long waitTimeMillis = readFailureBackoff.next();
-
-        if (exception instanceof ManagedLedgerException.NoMoreEntriesToReadException) {
-            dispatcher.notifyConsumersEndOfTopic();
-        } else if (exception.getCause() instanceof TransactionNotSealedException) {
+        if (exception.getCause() instanceof TransactionNotSealedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, - Retrying to read in {} seconds",
@@ -211,7 +222,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         if (!issuedReads.isEmpty()) {
             if (issuedReads.peek().retry > maxRetry) {
                 cancelReadRequests(issuedReads.peek().position);
-                dispatcher.canReadMoreEntries();
+                dispatcher.canReadMoreEntries(true);
                 STATE_UPDATER.set(this, State.Completed);
                 return;
             }
