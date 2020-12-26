@@ -524,6 +524,7 @@
 <tr><td>webServicePort</td><td>THe port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
 <tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
 <tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
+<tr><td>numAcceptorThreads</td><td>Number of threads to use for Netty Acceptor</td><td>1</td></tr>
 <tr><td>numIOThreads</td><td>Number of threads to use for Netty IO</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
 <tr><td>numHttpServerThreads</td><td>Number of threads to use for HTTP requests processing</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
 <tr><td>isRunningStandalone</td><td>This flag controls features that are meant to be used when running in standalone mode.</td><td>N/A</td></tr>
