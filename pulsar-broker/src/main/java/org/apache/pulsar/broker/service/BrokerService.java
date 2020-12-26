@@ -287,7 +287,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         final int numThreads = pulsar.getConfiguration().getNumIOThreads();
         log.info("Using {} threads for broker service IO", numThreads);
 
-        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
+                pulsar.getConfiguration().getNumAcceptorThreads(), acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
