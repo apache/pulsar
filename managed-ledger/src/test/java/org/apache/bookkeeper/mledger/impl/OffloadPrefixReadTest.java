@@ -40,7 +40,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.val;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -53,6 +52,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -147,9 +147,10 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().stream()
                 .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
 
-        val firstLedger = ledger.getLedgersInfoAsList().get(0);
+        LedgerInfo firstLedger = ledger.getLedgersInfoAsList().get(0);
         Assert.assertTrue(firstLedger.getOffloadContext().getComplete());
-        val secondLedger = ledger.getLedgersInfoAsList().get(1);
+        LedgerInfo secondLedger;
+        secondLedger = ledger.getLedgersInfoAsList().get(1);
         Assert.assertTrue(secondLedger.getOffloadContext().getComplete());
 
         UUID firstLedgerUUID = new UUID(firstLedger.getOffloadContext().getUidMsb(),
