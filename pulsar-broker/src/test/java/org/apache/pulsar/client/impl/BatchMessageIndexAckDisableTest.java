@@ -29,7 +29,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -41,9 +40,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
@@ -93,19 +89,11 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             futures.add(producer.sendAsync(i));
         }
         FutureUtil.waitForAll(futures).get();
-        List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
-        List<Message<Integer>> messageList = new ArrayList<>();
+
         for (int i = 0; i < messages; i++) {
             if (i % 2 == 0) {
-                completableFutureList.add(consumer.acknowledgeAsync(consumer.receive()));
-            } else {
-                messageList.add(consumer.receive());
+                consumer.acknowledge(consumer.receive());
             }
-        }
-        if (ackResponseEnabled) {
-            assertFalse(FutureUtil.waitForAll(completableFutureList).isDone());
-        } else {
-            assertTrue(FutureUtil.waitForAll(completableFutureList).isDone());
         }
 
         List<Message<Integer>> received = new ArrayList<>(messages);
@@ -114,13 +102,6 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         }
 
         Assert.assertEquals(received.size(), 100);
-
-        if (ackResponseEnabled) {
-            messageList.forEach(consumer::acknowledgeAsync);
-
-            Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .until(() -> FutureUtil.waitForAll(completableFutureList).isDone());
-        }
     }
 
     @Test(dataProvider = "ackResponseEnabled")

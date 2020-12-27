@@ -733,11 +733,18 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true);
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true,
+                new TimedCompletableFuture<>());
     }
 
-    public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId, boolean flush) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, flush);
+    public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true,
+                new TimedCompletableFuture<>());
+    }
+
+    public CompletableFuture<Void> newAckForResponseWithFuture(ByteBuf request, long requestId,
+                                                               TimedCompletableFuture<Void> future) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
     }
 
     @Override
@@ -809,12 +816,13 @@ public class ClientCnx extends PulsarHandler {
     }
 
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
-        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
+        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true,
+                new TimedCompletableFuture<>());
     }
 
     private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
-                                                                 RequestType requestType, boolean flush) {
-        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
+                                                                 RequestType requestType, boolean flush,
+                                                                 TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
         if (flush) {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
@@ -835,7 +843,8 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId,
+                true, new TimedCompletableFuture<>());
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
@@ -857,12 +866,13 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<CommandGetSchemaResponse> sendGetRawSchema(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema, true);
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema, true,
+                new TimedCompletableFuture<>());
     }
 
     public CompletableFuture<byte[]> sendGetOrCreateSchema(ByteBuf request, long requestId) {
         CompletableFuture<CommandGetOrCreateSchemaResponse> future = sendRequestAndHandleTimeout(request, requestId,
-                RequestType.GetOrCreateSchema, true);
+                RequestType.GetOrCreateSchema, true, new TimedCompletableFuture<>());
         return future.thenCompose(response -> {
             if (response.hasErrorCode()) {
                 // Request has failed

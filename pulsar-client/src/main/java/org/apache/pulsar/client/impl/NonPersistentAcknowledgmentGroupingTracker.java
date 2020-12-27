@@ -45,20 +45,13 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     }
 
     public CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String,
-            Long> properties, TransactionImpl txnImpl) {
+            Long> properties) {
         // no-op
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties) {
-        // no-op
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public CompletableFuture<Void> addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize,
-                                            AckType ackType, Map<String, Long> properties, TransactionImpl transaction) {
+    public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType, Map<String, Long> properties) {
         // no-op
         return CompletableFuture.completedFuture(null);
     }

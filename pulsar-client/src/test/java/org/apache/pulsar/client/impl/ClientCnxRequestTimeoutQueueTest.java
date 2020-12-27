@@ -23,6 +23,7 @@ import io.netty.channel.*;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.*;
 
@@ -87,12 +88,12 @@ public class ClientCnxRequestTimeoutQueueTest {
 
     @Test
     void testNewAckForResponseNoFlushTimeout() {
-        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L, false));
+        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L));
     }
 
     @Test
     void testNewAckForResponseFlushTimeout() {
-        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L, true));
+        assertFutureTimesOut(cnx.newAckForResponseWithFuture(requestMessage, 1L, new TimedCompletableFuture<>()));
     }
 
     @Test

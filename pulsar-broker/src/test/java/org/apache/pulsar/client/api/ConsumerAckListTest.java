@@ -78,7 +78,7 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .topic(topic)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(isBatch)
+                .enableBatchIndexAcknowledgment(ackResponseEnabled)
                 .enableAckResponse(ackResponseEnabled)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, messageNum);

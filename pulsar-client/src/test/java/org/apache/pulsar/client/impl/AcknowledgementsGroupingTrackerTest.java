@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -59,6 +60,9 @@ public class AcknowledgementsGroupingTrackerTest {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         doReturn(client).when(consumer).getClient();
         doReturn(cnx).when(consumer).getClientCnx();
+        doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
+        doReturn(new UnAckedMessageTracker().UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(consumer).getUnAckedMessageTracker();
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
     }
@@ -77,12 +81,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -93,12 +94,12 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
         assertTrue(tracker.isDuplicate(msg2));
         assertTrue(tracker.isDuplicate(msg3));
@@ -118,7 +119,7 @@ public class AcknowledgementsGroupingTrackerTest {
         assertTrue(tracker.isDuplicate(msg5));
         assertFalse(tracker.isDuplicate(msg6));
 
-        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -140,12 +141,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testBatchAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -203,12 +201,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testImmediateAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -217,7 +212,7 @@ public class AcknowledgementsGroupingTrackerTest {
 
         when(consumer.getClientCnx()).thenReturn(null);
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
         assertFalse(tracker.isDuplicate(msg1));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -225,7 +220,7 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap());
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
         tracker.close();
@@ -235,12 +230,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testImmediateBatchAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -269,12 +261,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
 
@@ -287,12 +276,12 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
         assertTrue(tracker.isDuplicate(msg2));
         assertTrue(tracker.isDuplicate(msg3));
@@ -312,7 +301,7 @@ public class AcknowledgementsGroupingTrackerTest {
         assertTrue(tracker.isDuplicate(msg5));
         assertFalse(tracker.isDuplicate(msg6));
 
-        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), null);
+        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -334,12 +323,9 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testBatchAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckResponseEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
-        if (!isNeedResponse) {
-            tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        } else {
-            tracker = new PersistentAcknowledgmentsWithResponseGroupingTracker(consumer, conf, eventLoopGroup);
-        }
+        tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
 
@@ -402,7 +388,13 @@ public class AcknowledgementsGroupingTrackerTest {
         }
 
         @Override
-        public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId, boolean flush) {
+        public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> newAckForResponseWithFuture(ByteBuf request, long requestId,
+                                                                   TimedCompletableFuture<Void> future) {
             return CompletableFuture.completedFuture(null);
         }
     }

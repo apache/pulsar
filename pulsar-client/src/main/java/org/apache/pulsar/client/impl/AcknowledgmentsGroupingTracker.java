@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
@@ -33,12 +32,10 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
 
     boolean isDuplicate(MessageId messageId);
 
-    CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties, TransactionImpl txn);
+    CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
 
-    CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties);
-
-    CompletableFuture<Void> addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
-                                     Map<String, Long> properties, TransactionImpl txn);
+    CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType,
+                                                  Map<String, Long> properties);
 
     void flush();
 
