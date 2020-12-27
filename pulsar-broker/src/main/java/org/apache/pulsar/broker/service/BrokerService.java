@@ -140,7 +140,6 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1263,12 +1262,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     topicLevelOffloadPolicies,
                     OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
-
-            if (offloadPolicies != null && serviceConfig.getManagedLedgerDataReadPriority() != null) {
-                offloadPolicies.setManagedLedgerOffloadedReadPriority(
-                        OffloadedReadPriority.fromString(serviceConfig.getManagedLedgerDataReadPriority()));
-            }
-
             if (topicLevelOffloadPolicies != null) {
                 try {
                     LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(offloadPolicies);
