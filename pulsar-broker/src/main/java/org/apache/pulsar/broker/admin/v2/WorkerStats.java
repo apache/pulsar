@@ -24,7 +24,6 @@ import io.swagger.annotations.ApiResponses;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Supplier;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -32,22 +31,16 @@ import javax.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 
 @Slf4j
 @Path("/worker-stats")
-public class WorkerStats extends AdminResource implements Supplier<WorkerService> {
+public class WorkerStats extends AdminResource {
 
-    private final WorkerImpl worker;
-
-    public WorkerStats() {
-        this.worker = new WorkerImpl(this);
-    }
-
-    @Override
-    public WorkerService get() {
-        return pulsar().getWorkerService();
+    public Workers<? extends WorkerService> workers() {
+        return pulsar().getWorkerService().getWorkers();
     }
 
     @GET
@@ -62,8 +55,8 @@ public class WorkerStats extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 503, message = "Worker service is not running")
     })
     @Produces(MediaType.APPLICATION_JSON)
-    public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
-        return worker.getWorkerMetrics(clientAppId());
+    public Collection<Metrics> getMetrics() throws Exception {
+        return workers().getWorkerMetrics(clientAppId());
     }
 
     @GET
@@ -79,6 +72,6 @@ public class WorkerStats extends AdminResource implements Supplier<WorkerService
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {
-        return worker.getFunctionsMetrics(clientAppId());
+        return workers().getFunctionsMetrics(clientAppId());
     }
 }

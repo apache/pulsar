@@ -130,7 +130,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final PulsarAdmin functionAdmin;
 
     @Getter
-    private WorkerService workerService;
+    private PulsarWorkerService workerService;
 
     boolean isInitializePhase = false;
 
@@ -143,7 +143,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private final ErrorNotifier errorNotifier;
 
-    public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
+    public FunctionRuntimeManager(WorkerConfig workerConfig, PulsarWorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
                                   FunctionMetaDataManager functionMetaDataManager, WorkerStatsManager workerStatsManager, ErrorNotifier errorNotifier) throws Exception {
         this.workerConfig = workerConfig;

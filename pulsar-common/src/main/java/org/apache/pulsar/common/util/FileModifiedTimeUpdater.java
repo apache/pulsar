@@ -24,12 +24,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import lombok.Getter;
+import lombok.ToString;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Class working with file's modified time.
  */
+@ToString
 public class FileModifiedTimeUpdater {
     @Getter
     String fileName;

@@ -107,7 +107,7 @@ public abstract class KeySharedPolicy {
             }
             for (int i = 0; i < ranges.size(); i++) {
                 Range range1 = ranges.get(i);
-                if (range1.getStart() < 0 || range1.getEnd() > DEFAULT_HASH_RANGE_SIZE) {
+                if (range1.getStart() < 0 || range1.getEnd() >= DEFAULT_HASH_RANGE_SIZE) {
                     throw new IllegalArgumentException("Ranges must be [0, 65535] but provided range is " + range1);
                 }
                 for (int j = 0; j < ranges.size(); j++) {

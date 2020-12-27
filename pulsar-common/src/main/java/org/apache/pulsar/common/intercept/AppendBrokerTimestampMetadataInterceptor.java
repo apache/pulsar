@@ -30,4 +30,12 @@ public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMeta
     public PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata) {
         return brokerMetadata.setBrokerTimestamp(System.currentTimeMillis());
     }
+
+    @Override
+    public PulsarApi.BrokerEntryMetadata.Builder interceptWithNumberOfMessages(
+            PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
+            int numberOfMessages) {
+        // do nothing, just return brokerMetadata
+        return brokerMetadata;
+    }
 }

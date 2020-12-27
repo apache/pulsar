@@ -24,6 +24,10 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * The data of namespace isolation configuration.
@@ -83,8 +87,23 @@ public class NamespaceIsolationData {
 
     public void validate() {
         checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && secondary != null && auto_failover_policy != null);
+                && validateRegex(primary) && secondary != null && validateRegex(secondary) && auto_failover_policy != null);
         auto_failover_policy.validate();
+    }
+
+    private boolean validateRegex(List<String> policies) {
+        if (policies != null && !policies.isEmpty()) {
+            policies.forEach((policy) -> {
+                try {
+                    if (StringUtils.isNotBlank(policy)) {
+                        Pattern.compile(policy);
+                    }
+                } catch (PatternSyntaxException exception) {
+                    throw new IllegalArgumentException("invalid policy regex " + policy);
+                }
+            });
+        }
+        return true;
     }
 
     @Override

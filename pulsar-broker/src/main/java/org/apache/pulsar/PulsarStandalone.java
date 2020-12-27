@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -28,7 +27,6 @@ import java.util.Optional;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,6 +35,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -51,6 +50,7 @@ public class PulsarStandalone implements AutoCloseable {
     LocalBookkeeperEnsemble bkEnsemble;
     ServiceConfiguration config;
     WorkerService fnWorkerService;
+    WorkerConfig workerConfig;
 
     public void setBroker(PulsarService broker) {
         this.broker = broker;
@@ -267,12 +267,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            WorkerConfig workerConfig;
-            if (isBlank(this.getFnWorkerConfigFile())) {
-                workerConfig = new WorkerConfig();
-            } else {
-                workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
-            }
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
+                config, this.getFnWorkerConfigFile());
             // worker talks to local broker
             if (this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
@@ -280,41 +276,14 @@ public class PulsarStandalone implements AutoCloseable {
             } else if (workerConfig.getStateStorageServiceUrl() == null) {
                 workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
             }
-
-            String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-                config.getAdvertisedAddress());
-            workerConfig.setWorkerHostname(hostname);
-            workerConfig.setWorkerPort(config.getWebServicePort().get());
-            workerConfig.setWorkerId(
-                "c-" + config.getClusterName()
-                    + "-fw-" + hostname
-                    + "-" + workerConfig.getWorkerPort());
-            // inherit broker authorization setting
-            workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
-            workerConfig.setAuthenticationProviders(config.getAuthenticationProviders());
-
-            workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
-            workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
-            workerConfig.setConfigurationStoreServers(config.getConfigurationStoreServers());
-            workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
-            workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
-
-            workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-            workerConfig.setTlsEnableHostnameVerification(false);
-            workerConfig.setBrokerClientTrustCertsFilePath(config.getTlsTrustCertsFilePath());
-
-            // client in worker will use this config to authenticate with broker
-            workerConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
-            workerConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
-
-            // inherit super users
-            workerConfig.setSuperUserRoles(config.getSuperUserRoles());
-
-            fnWorkerService = new WorkerService(workerConfig);
+            fnWorkerService = WorkerServiceLoader.load(workerConfig);
+        } else {
+            workerConfig = new WorkerConfig();
         }
 
         // Start Broker
         broker = new PulsarService(config,
+                                   workerConfig,
                                    Optional.ofNullable(fnWorkerService),
                                    (exitCode) -> {
                                        log.info("Halting standalone process with code {}", exitCode);

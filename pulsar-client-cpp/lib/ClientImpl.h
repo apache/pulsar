@@ -53,13 +53,13 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
     void createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                              CreateProducerCallback callback);
 
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,

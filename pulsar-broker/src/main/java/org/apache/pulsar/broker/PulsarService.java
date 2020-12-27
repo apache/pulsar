@@ -19,21 +19,20 @@
 package org.apache.pulsar.broker;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,7 +61,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -91,6 +89,7 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -104,24 +103,18 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
-import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
@@ -141,9 +134,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
@@ -200,6 +190,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerVersion;
     private SchemaStorage schemaStorage = null;
     private SchemaRegistryService schemaRegistryService = null;
+    private final WorkerConfig workerConfig;
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
@@ -215,6 +206,8 @@ public class PulsarService implements AutoCloseable {
 
     // packages management service
     private PackagesManagement packagesManagement;
+    private PrometheusMetricsServlet metricsServlet;
+    private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
 
     public enum State {
@@ -236,6 +229,13 @@ public class PulsarService implements AutoCloseable {
     }
 
     public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService,
+                         Consumer<Integer> processTerminator) {
+        this(config, new WorkerConfig(), functionWorkerService, processTerminator);
+    }
+
+    public PulsarService(ServiceConfiguration config,
+                         WorkerConfig workerConfig,
+                         Optional<WorkerService> functionWorkerService,
                          Consumer<Integer> processTerminator) {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
@@ -261,6 +261,7 @@ public class PulsarService implements AutoCloseable {
         this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
+        this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
         this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
                 new DefaultThreadFactory("pulsar"));
@@ -401,7 +402,7 @@ public class PulsarService implements AutoCloseable {
      * @return the current function worker service configuration.
      */
     public Optional<WorkerConfig> getWorkerConfig() {
-        return functionWorkerService.map(service -> service.getWorkerConfig());
+        return functionWorkerService.map(service -> workerConfig);
     }
 
     public Map<String, String> getProtocolDataToAdvertise() {
@@ -516,11 +517,16 @@ public class PulsarService implements AutoCloseable {
                     "org.apache.pulsar.broker.admin.v3", true, attributeMap);
             this.webService.addRestResources("/lookup",
                     "org.apache.pulsar.broker.lookup", true, attributeMap);
+            this.metricsServlet = new PrometheusMetricsServlet(
+                    this, config.isExposeTopicLevelMetricsInPrometheus(),
+                    config.isExposeConsumerLevelMetricsInPrometheus());
+            if (pendingMetricsProviders != null) {
+                pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+                this.pendingMetricsProviders = null;
+            }
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(
-                            this, config.isExposeTopicLevelMetricsInPrometheus(),
-                            config.isExposeConsumerLevelMetricsInPrometheus())),
+                    new ServletHolder(metricsServlet),
                     false, attributeMap);
 
             if (config.isWebSocketServiceEnabled()) {
@@ -875,6 +881,11 @@ public class PulsarService implements AutoCloseable {
      */
     public NamespaceService getNamespaceService() {
         return this.nsService;
+    }
+
+
+    public Optional<WorkerService> getWorkerServiceOpt() {
+        return functionWorkerService;
     }
 
     public WorkerService getWorkerService() {
@@ -1233,13 +1244,22 @@ public class PulsarService implements AutoCloseable {
         return topicPoliciesService;
     }
 
+    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsServlet == null) {
+            if (pendingMetricsProviders == null) {
+                pendingMetricsProviders = new LinkedList<>();
+            }
+            pendingMetricsProviders.add(metricsProvider);
+        } else {
+            this.metricsServlet.addRawMetricsProvider(metricsProvider);
+        }
+    }
+
     private void startWorkerService(AuthenticationService authenticationService,
                                     AuthorizationService authorizationService)
-            throws InterruptedException, IOException, KeeperException {
+            throws Exception {
         if (functionWorkerService.isPresent()) {
             LOG.info("Starting function worker service");
-
-            WorkerConfig workerConfig = functionWorkerService.get().getWorkerConfig();
             if (workerConfig.isUseTls()) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
@@ -1247,98 +1267,20 @@ public class PulsarService implements AutoCloseable {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
             }
-            String namespace = functionWorkerService.get()
-                    .getWorkerConfig().getPulsarFunctionsNamespace();
-            String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
-            String property = a[0];
-            String cluster = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster();
 
-                /*
-                multiple brokers may be trying to create the property, cluster, and namespace
-                for function worker service this in parallel. The function worker service uses the namespace
-                to create topics for internal function
-                */
+            functionWorkerService.get().initInBroker(
+                config,
+                workerConfig,
+                getGlobalZkCache(),
+                getConfigurationCacheService(),
+                getInternalConfigurationData()
+            );
 
-            // create property for function worker service
-            try {
-                NamedEntity.checkName(property);
-                this.getGlobalZkCache().getZooKeeper().create(
-                        AdminResource.path(POLICIES, property),
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                                new TenantInfo(
-                                        Sets.newHashSet(config.getSuperUserRoles()),
-                                        Sets.newHashSet(cluster))),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                LOG.info("Created property {} for function worker", property);
-            } catch (KeeperException.NodeExistsException e) {
-                LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
-            } catch (IllegalArgumentException e) {
-                LOG.error("Failed to create property with invalid name {} for function worker service", cluster, e);
-                throw e;
-            } catch (Exception e) {
-                LOG.error("Failed to create property {} for function worker", cluster, e);
-                throw e;
-            }
-
-            // create cluster for function worker service
-            try {
-                NamedEntity.checkName(cluster);
-                ClusterData clusterData = new ClusterData(this.getSafeWebServiceAddress(), null /* serviceUrlTls */,
-                        brokerServiceUrl, null /* brokerServiceUrlTls */);
-                this.getGlobalZkCache().getZooKeeper().create(
-                        AdminResource.path("clusters", cluster),
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                LOG.info("Created cluster {} for function worker", cluster);
-            } catch (KeeperException.NodeExistsException e) {
-                LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
-            } catch (IllegalArgumentException e) {
-                LOG.error("Failed to create cluster with invalid name {} for function worker service", cluster, e);
-                throw e;
-            } catch (Exception e) {
-                LOG.error("Failed to create cluster {} for function worker service", cluster, e);
-                throw e;
-            }
-
-            // create namespace for function worker service
-            try {
-                Policies policies = new Policies();
-                policies.retention_policies = new RetentionPolicies(-1, -1);
-                policies.replication_clusters = Collections.singleton(
-                        functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
-                int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
-                policies.bundles = getBundles(defaultNumberOfBundles);
-
-                this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, namespace));
-                ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
-                        AdminResource.path(POLICIES, namespace),
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-                LOG.info("Created namespace {} for function worker service", namespace);
-            } catch (KeeperException.NodeExistsException e) {
-                LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
-            } catch (Exception e) {
-                LOG.error("Failed to create namespace {}", namespace, e);
-                throw e;
-            }
-
-            InternalConfigurationData internalConf = this.getInternalConfigurationData();
-
-            URI dlogURI;
-            try {
-                // initializing dlog namespace for function worker
-                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
-            } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace with zookeeper {}"
-                                + " at metadata service uri {} for storing function packages",
-                        internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
-                throw ioe;
-            }
-            LOG.info("Function worker service setup completed");
             // TODO figure out how to handle errors from function worker service
-            functionWorkerService.get().start(dlogURI, authenticationService,
-                    authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
+            functionWorkerService.get().start(
+                authenticationService,
+                authorizationService,
+                ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
     }
@@ -1369,5 +1311,46 @@ public class PulsarService implements AutoCloseable {
 
     public Optional<Integer> getBrokerListenPortTls() {
         return brokerService.getListenPortTls();
+    }
+
+    public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
+                                                                      String workerConfigFile) throws IOException {
+        WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
+        // worker talks to local broker
+        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
+            brokerConfig.getAdvertisedAddress());
+        workerConfig.setWorkerHostname(hostname);
+        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
+        workerConfig.setWorkerId(
+            "c-" + brokerConfig.getClusterName()
+                + "-fw-" + hostname
+                + "-" + workerConfig.getWorkerPort());
+        // inherit broker authorization setting
+        workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
+        workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
+
+        workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
+        workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
+        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
+        workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
+        workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
+
+        workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+        workerConfig.setTlsEnableHostnameVerification(false);
+        workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+
+        // client in worker will use this config to authenticate with broker
+        workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+        workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+
+        // inherit super users
+        workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+
+        // inherit the nar package locations
+        if (isBlank(workerConfig.getFunctionsWorkerServiceNarPackage())) {
+            workerConfig.setFunctionsWorkerServiceNarPackage(
+                brokerConfig.getFunctionsWorkerServiceNarPackage());
+        }
+        return workerConfig;
     }
 }
