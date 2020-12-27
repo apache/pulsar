@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -1413,15 +1414,15 @@ public class Commands {
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
-                                                 int batchSize) {
+                                                 int numberOfMessages) {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
         BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerEntryMetadata);
-            if (batchSize >= 0) {
-                interceptor.interceptWithBatchSize(brokerEntryMetadata, batchSize);
+            if (numberOfMessages >= 0) {
+                interceptor.interceptWithNumberOfMessages(brokerEntryMetadata, numberOfMessages);
             }
         }
 

@@ -42,10 +42,10 @@ public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterc
     }
 
     @Override
-    public BrokerEntryMetadata interceptWithBatchSize(
+    public BrokerEntryMetadata interceptWithNumberOfMessages(
             BrokerEntryMetadata brokerMetadata,
-            int batchSize) {
-        return brokerMetadata.setIndex(indexGenerator.addAndGet(batchSize));
+            int numberOfMessages) {
+        return brokerMetadata.setIndex(indexGenerator.addAndGet(numberOfMessages));
     }
 
     public long getIndex() {

@@ -19,13 +19,24 @@
 package org.apache.pulsar.common.intercept;
 
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A plugin interface that allows you to intercept the client requests to
  *  the Pulsar brokers and add metadata for each entry from broker side.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface BrokerEntryMetadataInterceptor {
-    BrokerEntryMetadata intercept( BrokerEntryMetadata brokerMetadata);
-    BrokerEntryMetadata interceptWithBatchSize(BrokerEntryMetadata brokerMetadata,
-                                                                 int batchSize);
+    /**
+     * Called by ManagedLedger to intercept adding an entry.
+     */
+    BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata);
+
+    /**
+     * Called by ManagedLedger to intercept adding an entry with numberOfMessages.
+     */
+    BrokerEntryMetadata interceptWithNumberOfMessages(BrokerEntryMetadata brokerMetadata,
+            int numberOfMessages);
 }
