@@ -33,9 +33,8 @@ public enum ProducerAccessMode {
      */
     Exclusive,
 
-// TODO
-//    /**
-//     * Producer creation is pending until it can acquire exclusive access.
-//     */
-//    WaitForExclusive,
+    /**
+     * Producer creation is pending until it can acquire exclusive access.
+     */
+    WaitForExclusive,
 }

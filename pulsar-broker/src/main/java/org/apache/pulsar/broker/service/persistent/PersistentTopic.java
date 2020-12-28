@@ -357,10 +357,7 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                // intercept headersAndPayload and add entry metadata
-                if (appendBrokerEntryMetadata(headersAndPayload, publishContext)) {
-                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-                }
+                asyncAddEntry(headersAndPayload, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -374,22 +371,13 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    private boolean appendBrokerEntryMetadata(ByteBuf headersAndPayload, PublishContext publishContext) {
-        // just return true if BrokerEntryMetadata is not enabled
-        if (!brokerService.isBrokerEntryMetadataEnabled()) {
-            return true;
+    private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (brokerService.isBrokerEntryMetadataEnabled()) {
+            ledger.asyncAddEntry(headersAndPayload,
+                    (int) publishContext.getNumberOfMessages(), this, publishContext);
+        } else {
+            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
         }
-
-        try {
-            headersAndPayload =  Commands.addBrokerEntryMetadata(headersAndPayload,
-                    brokerService.getBrokerEntryMetadataInterceptors());
-        } catch (Exception e) {
-            decrementPendingWriteOpsAndCheck();
-            publishContext.completed(new BrokerServiceException.AddEntryMetadataException(e), -1, -1);
-            log.error("[{}] Failed to add broker entry metadata.", topic, e);
-            return false;
-        }
-        return true;
     }
 
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
@@ -496,13 +484,14 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Optional<Long>> addProducer(Producer producer) {
-        return super.addProducer(producer).thenApply(epoch -> {
+    public CompletableFuture<Optional<Long>> addProducer(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
+        return super.addProducer(producer, producerQueuedFuture).thenApply(topicEpoch -> {
             messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
             startReplProducers();
-            return epoch;
+            return topicEpoch;
         });
     }
 
@@ -1642,6 +1631,7 @@ public class PersistentTopic extends AbstractTopic
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
         stats.msgChunkPublished = this.msgChunkPublished;
+        stats.waitingPublishers = getWaitingProducersCount();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);

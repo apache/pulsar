@@ -992,16 +992,21 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void writeBrokerDataOnZooKeeper() {
+        writeBrokerDataOnZooKeeper(false);
+    }
+
+    @Override
+    public void writeBrokerDataOnZooKeeper(boolean force) {
         try {
             updateLocalBrokerData();
-            if (needBrokerDataUpdate()) {
+            if (needBrokerDataUpdate() || force) {
                 localData.setLastUpdate(System.currentTimeMillis());
 
                 try {
                     zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
                 } catch (KeeperException.NoNodeException e) {
                     ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                 }
 
                 // Clear deltas.

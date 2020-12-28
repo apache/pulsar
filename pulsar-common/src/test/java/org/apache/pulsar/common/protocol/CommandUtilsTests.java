@@ -145,14 +145,19 @@ public class CommandUtilsTests {
 
     @Test
     public void testAddBrokerEntryMetadata() throws Exception {
+        int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
 
         PulsarApi.BrokerEntryMetadata brokerMetadata =
-                PulsarApi.BrokerEntryMetadata.newBuilder().setBrokerTimestamp(System.currentTimeMillis()).build();
+                PulsarApi.BrokerEntryMetadata
+                        .newBuilder()
+                        .setBrokerTimestamp(System.currentTimeMillis())
+                        .setIndex(MOCK_BATCH_SIZE - 1)
+                        .build();
         ByteBuf dataWithBrokerEntryMetadata =
-                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors());
+                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         assertEquals(brokerMetadata.getSerializedSize() + data.length() + 6,
                 dataWithBrokerEntryMetadata.readableBytes());
 
@@ -167,7 +172,7 @@ public class CommandUtilsTests {
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
         ByteBuf dataWithBrokerEntryMetadata =
-                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors());
+                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), 11);
 
         Commands.skipBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
@@ -179,15 +184,49 @@ public class CommandUtilsTests {
 
     @Test
     public void testParseBrokerEntryMetadata() throws Exception {
+        int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
         ByteBuf dataWithBrokerEntryMetadata =
-                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors());
+                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         PulsarApi.BrokerEntryMetadata brokerMetadata =
                 Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
+        assertEquals(brokerMetadata.getIndex(), MOCK_BATCH_SIZE - 1);
+        assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
+
+        byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        dataWithBrokerEntryMetadata.readBytes(content);
+        assertEquals(new String(content, StandardCharsets.UTF_8), data);
+    }
+
+    @Test
+    public void testPeekBrokerEntryMetadata() throws Exception {
+        int MOCK_BATCH_SIZE = 10;
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+        ByteBuf dataWithBrokerEntryMetadata =
+                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
+        int bytesBeforePeek = dataWithBrokerEntryMetadata.readableBytes();
+        PulsarApi.BrokerEntryMetadata brokerMetadata =
+                Commands.peekBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+
+        assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
+        assertEquals(brokerMetadata.getIndex(), MOCK_BATCH_SIZE - 1);
+
+        int bytesAfterPeek = dataWithBrokerEntryMetadata.readableBytes();
+        assertEquals(bytesBeforePeek, bytesAfterPeek);
+
+        // test parse logic after peek
+
+        PulsarApi.BrokerEntryMetadata brokerMetadata1 =
+                Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        assertTrue(brokerMetadata1.getBrokerTimestamp() <= System.currentTimeMillis());
+
+        assertEquals(brokerMetadata1.getIndex(), MOCK_BATCH_SIZE - 1);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
@@ -198,6 +237,7 @@ public class CommandUtilsTests {
     public Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
         Set<String> interceptorNames = new HashSet<>();
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
         return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
                 Thread.currentThread().getContextClassLoader());
     }

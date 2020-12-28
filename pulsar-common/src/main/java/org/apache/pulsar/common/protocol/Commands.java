@@ -364,20 +364,22 @@ public class Commands {
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName,
             SchemaVersion schemaVersion) {
-        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty());
+        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
-        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty());
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName, long lastSequenceId,
-                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
+                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+                                                 boolean isProducerReady) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        producerSuccessBuilder.setProducerReady(isProducerReady);
         topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         BaseCommand.Builder builder = BaseCommand.newBuilder();
@@ -388,12 +390,14 @@ public class Commands {
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
-        SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
+        SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+        boolean isProducerReady) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        producerSuccessBuilder.setProducerReady(isProducerReady);
         topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
@@ -1958,6 +1962,37 @@ public class Commands {
         return compositeByteBuf;
     }
 
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
+                                                 int numberOfMessages) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+            interceptor.interceptWithNumberOfMessages(brokerMetadataBuilder, numberOfMessages);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
+        try {
+            brokerEntryMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
+        return compositeByteBuf;
+    }
+
     public static ByteBuf skipBrokerEntryMetadataIfExist(ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
         int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
         if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
@@ -1993,6 +2028,15 @@ public class Commands {
             headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
             return null;
         }
+    }
+
+    public static PulsarApi.BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        final int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        PulsarApi.BrokerEntryMetadata entryMetadata =
+                parseBrokerEntryMetadataIfExist(headerAndPayloadWithBrokerEntryMetadata);
+        headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+        return entryMetadata;
     }
 
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
@@ -2251,8 +2295,8 @@ public class Commands {
             return PulsarApi.ProducerAccessMode.Exclusive;
         case Shared:
             return PulsarApi.ProducerAccessMode.Shared;
-//        case WaitForExclusive:
-//            return PulsarApi.ProducerAccessMode.WaitForExclusive;
+        case WaitForExclusive:
+            return PulsarApi.ProducerAccessMode.WaitForExclusive;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
@@ -2264,8 +2308,8 @@ public class Commands {
             return ProducerAccessMode.Exclusive;
         case Shared:
             return ProducerAccessMode.Shared;
-//        case WaitForExclusive:
-//            return ProducerAccessMode.WaitForExclusive;
+        case WaitForExclusive:
+            return ProducerAccessMode.WaitForExclusive;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }

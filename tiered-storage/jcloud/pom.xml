@@ -72,6 +72,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.jclouds</groupId>
+      <artifactId>jclouds-allblobstore</artifactId>
+      <version>${jclouds.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
