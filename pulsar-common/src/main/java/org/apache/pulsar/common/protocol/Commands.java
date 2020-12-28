@@ -2030,6 +2030,15 @@ public class Commands {
         }
     }
 
+    public static PulsarApi.BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        final int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        PulsarApi.BrokerEntryMetadata entryMetadata =
+                parseBrokerEntryMetadataIfExist(headerAndPayloadWithBrokerEntryMetadata);
+        headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+        return entryMetadata;
+    }
+
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
                                                       MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format
