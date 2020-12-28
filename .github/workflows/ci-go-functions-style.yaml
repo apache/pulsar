@@ -45,11 +45,6 @@ jobs:
         go-version: [1.11, 1.12, 1.13, 1.14]
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
