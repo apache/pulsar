@@ -66,7 +66,7 @@ class ConsumerImpl : public ConsumerImplBase,
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscriptionName,
                  const ConsumerConfiguration&,
-                 const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(),
+                 const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(), bool hasParent = false,
                  const ConsumerTopicType consumerTopicType = NonPartitioned,
                  Commands::SubscriptionMode = Commands::SubscriptionModeDurable,
                  Optional<MessageId> startMessageId = Optional<MessageId>::empty());
@@ -166,6 +166,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+    void trackMessage(const Message& msg);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -175,6 +176,7 @@ class ConsumerImpl : public ConsumerImplBase,
     std::string originalSubscriptionName_;
     MessageListener messageListener_;
     ExecutorServicePtr listenerExecutor_;
+    bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
     Commands::SubscriptionMode subscriptionMode_;
