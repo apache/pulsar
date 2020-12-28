@@ -77,19 +77,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
-        OpAddEntry op = RECYCLER.get();
-        op.ml = ml;
-        op.ledger = null;
-        op.data = data.retain();
-        op.dataLength = data.readableBytes();
-        op.callback = callback;
-        op.ctx = ctx;
-        op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
-        op.closeWhenDone = false;
-        op.entryId = -1;
-        op.startTime = System.nanoTime();
-        op.state = State.OPEN;
-        ml.mbean.addAddEntrySample(op.dataLength);
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
         }
@@ -97,10 +85,18 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+        op.numberOfMessages = numberOfMessages;
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    private static OpAddEntry createOpAddEntry(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
-        op.numberOfMessages = numberOfMessages;
         op.data = data.retain();
         op.dataLength = data.readableBytes();
         op.callback = callback;
@@ -111,9 +107,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
         ml.mbean.addAddEntrySample(op.dataLength);
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
         return op;
     }
 

@@ -42,10 +42,10 @@ public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterc
     }
 
     @Override
-    public PulsarApi.BrokerEntryMetadata.Builder interceptWithBatchSize(
+    public PulsarApi.BrokerEntryMetadata.Builder interceptWithNumberOfMessages(
             PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
-            int batchSize) {
-        return brokerMetadata.setIndex(indexGenerator.addAndGet(batchSize));
+            int numberOfMessages) {
+        return brokerMetadata.setIndex(indexGenerator.addAndGet(numberOfMessages));
     }
 
     public long getIndex() {
