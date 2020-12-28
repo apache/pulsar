@@ -134,13 +134,6 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * @return authentication refresh data which will be stored in a command.
-     */
-    default String getRefreshCommandData() {
-        return "";
-    }
-
-    /**
      * For mutual authentication, This method use passed in `data` to evaluate and challenge,
      * then returns null if authentication has completed;
      * returns authenticated data back to server side, if authentication has not completed.
@@ -148,13 +141,7 @@ public interface AuthenticationDataProvider extends Serializable {
      * <p>Mainly used for mutual authentication like sasl.
      */
     default AuthData authenticate(AuthData data) throws AuthenticationException {
-        if (AuthData.INIT_AUTH_DATA.equals(data)) {
-            byte[] commandDataBytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);
-            return AuthData.of(commandDataBytes);
-        } else if (AuthData.REFRESH_AUTH_DATA.equals(data)) {
-            byte[] refreshAuthDataBytes = this.getRefreshCommandData().getBytes(UTF_8);
-            return AuthData.of(refreshAuthDataBytes);
-        }
-        return AuthData.of("".getBytes(UTF_8));
+        byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);
+        return AuthData.of(bytes);
     }
 }

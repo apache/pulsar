@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import lombok.SneakyThrows;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
-import java.util.function.Function;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +49,6 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     final Clock clock;
     Flow flow;
     transient CachedToken cachedToken;
-    Function<Boolean, String> tokenfunction;
 
     public AuthenticationOAuth2() {
         this.clock = Clock.systemDefaultZone();
@@ -98,18 +95,6 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     @Override
     public void start() throws PulsarClientException {
         flow.initialize();
-        this.tokenfunction = new Function<Boolean, String>() {
-            @Override
-            @SneakyThrows
-            public String apply(Boolean isRefresh) {
-                if (cachedToken == null || cachedToken.isExpired() || isRefresh) {
-                    TokenResult tr = flow.authenticate();
-                    cachedToken = new CachedToken(tr);
-                    return tr.getAccessToken();
-                }
-                return cachedToken.getLatest().getAccessToken();
-            }
-        };
     }
 
     @Override

@@ -32,16 +32,11 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
 
     private final String accessToken;
-    private final Function<Boolean, String> tokenFunction;
+    private final Set<Map.Entry<String, String>> headers;
 
     public AuthenticationDataOAuth2(String accessToken) {
         this.accessToken = accessToken;
-        this.tokenFunction = null;
-    }
-
-    public AuthenticationDataOAuth2(Function<Boolean, String> tokenFunction) {
-        this.tokenFunction = tokenFunction;
-        this.accessToken = tokenFunction.apply(false);
+        this.headers = Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + accessToken).entrySet();
     }
 
     @Override
@@ -51,7 +46,7 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + getAccessToken()).entrySet();
+        return this.headers;
     }
 
     @Override
@@ -61,25 +56,6 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public String getCommandData() {
-        return getAccessToken();
-    }
-
-    @Override
-    public String getRefreshCommandData() {
-        return getRefreshToken();
-    }
-
-    private String getAccessToken() {
-        if (tokenFunction != null) {
-            return tokenFunction.apply(false);
-        }
-        return accessToken;
-    }
-
-    private String getRefreshToken() {
-        if (tokenFunction != null) {
-            return tokenFunction.apply(true);
-        }
-        return accessToken;
+        return this.accessToken;
     }
 }
