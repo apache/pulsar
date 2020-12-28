@@ -872,9 +872,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> topics = admin.topics().getList("prop-xyz/ns1");
         assertEquals(topics.size(), 4);
 
-        assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
-                0);
-
+        assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions, 0);
         // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 admin.topics().getPartitionedStats(partitionedTopicName,false).metadata.partitions);
@@ -994,7 +992,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(partitionedTopicName);
 
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
-
         admin.topics().createPartitionedTopic(partitionedTopicName, 32);
 
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 32);

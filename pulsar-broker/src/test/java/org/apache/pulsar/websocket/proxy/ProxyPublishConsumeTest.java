@@ -421,7 +421,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         } catch (Exception e) {
             // Expected
             assertTrue(e.getCause() instanceof UpgradeException);
-            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(), HttpServletResponse.SC_NOT_FOUND);
         } finally {
             stopWebSocketClient(produceClient);
         }
@@ -435,7 +434,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         } catch (Exception e) {
             // Expected
             assertTrue(e.getCause() instanceof UpgradeException);
-            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(), HttpServletResponse.SC_NOT_FOUND);
         } finally {
             stopWebSocketClient(consumeClient);
         }
