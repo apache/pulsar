@@ -69,9 +69,4 @@ Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` metho
     JavaReceiverInputDStream<byte[]> lineDStream = jsc.receiverStream(pulsarReceiver);
 ```
 
-
-## Example
-
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/examples/spark/src/main/java/org/apache/spark/streaming/receiver/example/SparkStreamingPulsarReceiverExample.java).
-In this example, the number of messages which contain the string "Pulsar" in received messages is counted.
-
+For a complete example, click [here](https://github.com/apache/pulsar-adapters/blob/master/examples/spark/src/main/java/org/apache/spark/streaming/receiver/example/SparkStreamingPulsarReceiverExample.java). In this example, the number of messages that contain the string "Pulsar" in received messages is counted.

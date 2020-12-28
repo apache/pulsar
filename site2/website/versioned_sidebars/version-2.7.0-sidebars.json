@@ -54,7 +54,8 @@
       "version-2.7.0-tiered-storage-overview",
       "version-2.7.0-tiered-storage-aws",
       "version-2.7.0-tiered-storage-gcs",
-      "version-2.7.0-tiered-storage-filesystem"
+      "version-2.7.0-tiered-storage-filesystem",
+      "version-2.7.0-tiered-storage-azure"
     ],
     "Transactions": [
       "version-2.7.0-transactions",

@@ -74,9 +74,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         }
         msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdLeastBits());
         msgMetadataBuilder.setTxnidMostBits(txn.getTxnIdMostBits());
-        long sequenceId = txn.nextSequenceId();
-        msgMetadataBuilder.setSequenceId(sequenceId);
-        return sequenceId;
+        return -1L;
     }
 
     @Override

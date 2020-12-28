@@ -92,6 +92,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Set<String> tlsCiphers = Sets.newTreeSet();
     private Set<String> tlsProtocols = Sets.newTreeSet();
 
+    private long memoryLimitBytes = 0;
+
     /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
     private String proxyServiceUrl;
     private ProxyProtocol proxyProtocol;

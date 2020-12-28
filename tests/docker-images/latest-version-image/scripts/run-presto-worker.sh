@@ -18,8 +18,6 @@
 # under the License.
 #
 
-bin/set_python_version.sh
-
 bin/apply-config-from-env.py conf/presto/catalog/pulsar.properties && \
     bin/apply-config-from-env.py conf/pulsar_env.sh
 

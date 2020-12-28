@@ -115,6 +115,11 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
+    public void writeLoadReportOnZookeeper(boolean force) {
+        loadManager.writeBrokerDataOnZooKeeper(force);
+    }
+
+    @Override
     public void writeResourceQuotasToZooKeeper() {
         loadManager.writeBundleDataOnZooKeeper();
     }
