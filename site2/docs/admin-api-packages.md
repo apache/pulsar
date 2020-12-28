@@ -18,7 +18,7 @@ A `package` is identified by five parts: `type`, `tenant`, `namespace`, `package
 
 The following is a code sample.
 
-```
+```java
 class PackageName {
    private final PackageType type;
    // REST API handlers.
@@ -37,14 +37,14 @@ enum PackageType {
 ## Package URL
 A package is located using a URL. The package URL is written in the following format:
 
-```
+```shell
 <type>://<tenant>/<namespace>/<package name>@<version>
 ```
 
 The following are package URL examples:
 
-`sink://public/default/mysql-sink@1.0`
-`function://my-tenant/my-ns/my-function@0.1`
+`sink://public/default/mysql-sink@1.0`   
+`function://my-tenant/my-ns/my-function@0.1`   
 `source://my-tenant/my-ns/mysql-cdc-source@2.3`
 
 The package management system stores the data, versions and metadata of each package. The metadata is shown in the following table.
@@ -55,7 +55,7 @@ The package management system stores the data, versions and metadata of each pac
 |contact    |The contact information of a package. For example, team email.|
 |create_time| The time when the package is created.|
 |modification_time| The time when the package is modified.|
-|properties |A key/value map that enables users to store their own information.|
+|properties |A key/value map that stores your own information.|
 
 ## Permissions
 
@@ -75,7 +75,7 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 
 <!--REST API-->
 
-{@inject: endpoint| POST |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint| POST |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Upload a package to the package management service synchronously.
@@ -100,7 +100,7 @@ bin/pulsar-admin packages download functions://public/default/example@v0.1 --pat
 
 <!--REST API-->
 
-{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Download a package to the package management service synchronously.
@@ -140,7 +140,7 @@ List all versions of a package asynchronously.
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List all the specified type packages under a namespace
-You can get a list all the packages with the given type in a namespace in the following ways.
+You can get a list of all the packages with the given type in a namespace in the following ways.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
@@ -175,7 +175,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 
 <!--REST API-->
 
-{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}/metadata
+{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Get the metadata of a package synchronously.
@@ -191,7 +191,6 @@ Get the metadata of a package asynchronously.
 
 ### Update the metadata of a package
 You can update the metadata of a package in the following ways.
-...
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
@@ -200,7 +199,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 
 <!--REST API-->
 
-{@inject: endpoint| PUT |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}/metadata
+{@inject: endpoint| PUT |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Update a package metadata information synchronously.
@@ -227,9 +226,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 
 <!--REST API-->
 
-https://pulsar.apache.org/admin/v3/packages/{type}/{tenant}/{namespace}/{packageName}/{version}
-
-{@inject: endpoint| DELETE |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint| DELETE |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Delete a specified package synchronously.
