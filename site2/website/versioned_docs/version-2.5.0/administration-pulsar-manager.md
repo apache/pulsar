@@ -77,9 +77,9 @@ If you want to turn on JWT authentication, configure the following parameters:
 
 * `backend.jwt.token`: token for the superuser. You need to configure this parameter during cluster initialization.
 * `jwt.broker.token.mode`: multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET.
-* `jwt.broker.public.key`: configure this option if you are using the PUBLIC mode.
-* `jwt.broker.private.key`: configure this option if you are using the PRIVATE mode.
-* `jwt.broker.secret.key`: configure this option if you are using the SECRET mode.
+* `jwt.broker.public.key`: configure this option if you use the PUBLIC mode.
+* `jwt.broker.private.key`: configure this option if you use the PRIVATE mode.
+* `jwt.broker.secret.key`: configure this option if you use the SECRET mode.
 
 For more information, see [Token Authentication Admin of Pulsar](http://pulsar.apache.org/docs/en/security-token-admin/).
 
