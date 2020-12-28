@@ -253,11 +253,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return doImmediateAck(messageId, AckType.Individual, properties, null);
         } else {
             if (ackResponseEnabled) {
+                // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
+                // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
+                // any ack operation is allowed.
+                this.lock.readLock().lock();
                 try {
-                    // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
-                    // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
-                    // any ack operation is allowed.
-                    this.lock.readLock().lock();
                     doIndividualAckAsync(messageId);
                     return this.currentIndividualAckFuture;
                 } finally {
@@ -294,11 +294,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private CompletableFuture<Void> doIndividualBatchAck(BatchMessageIdImpl batchMessageId) {
         if (ackResponseEnabled) {
+            // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
+            // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
+            // any ack operation is allowed.
+            this.lock.readLock().lock();
             try {
-                // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
-                // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
-                // any ack operation is allowed.
-                this.lock.readLock().lock();
                 doIndividualBatchAckAsync(batchMessageId);
                 return this.currentIndividualAckFuture;
             } finally {
@@ -463,8 +463,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         if (ackResponseEnabled) {
+            this.lock.writeLock().lock();
             try {
-                this.lock.writeLock().lock();
                 flushAsync(cnx);
             } finally {
                 this.lock.writeLock().unlock();
