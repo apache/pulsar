@@ -1895,7 +1895,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-//<<<<<<< HEAD
     protected void handleAddSubscriptionToTxn(CommandAddSubscriptionToTxn command) {
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final long requestId = command.getRequestId();
@@ -1906,21 +1905,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID,
                 MLTransactionMetadataStore.subscriptionToTxnSubscription(command.getSubscriptionsList()))
-//=======
-//    protected void handleAddSubscriptionToTxn(CommandAddSubscriptionToTxn command) {
-//        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
-//        if (log.isDebugEnabled()) {
-//            log.debug("Receive add published partition to txn request {} from {} with txnId {}",
-//                    command.getRequestId(), remoteAddress, txnID);
-//        }
-//        List<TransactionSubscription> subscriptionList = command.getSubscriptionsList().stream()
-//                .map(subscription -> TransactionSubscription.builder()
-//                        .topic(subscription.getTopic())
-//                        .subscription(subscription.getSubscription())
-//                        .build())
-//                .collect(Collectors.toList());
-//        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID, subscriptionList)
-//>>>>>>> d9ca6e47428 (WIP)
                 .whenComplete(((v, ex) -> {
                     if (ex == null) {
                         if (log.isDebugEnabled()) {

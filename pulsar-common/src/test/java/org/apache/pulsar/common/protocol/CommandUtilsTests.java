@@ -196,7 +196,7 @@ public class CommandUtilsTests {
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         int bytesBeforePeek = dataWithBrokerEntryMetadata.readableBytes();
-        PulsarApi.BrokerEntryMetadata brokerMetadata =
+        BrokerEntryMetadata brokerMetadata =
                 Commands.peekBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
@@ -207,7 +207,7 @@ public class CommandUtilsTests {
 
         // test parse logic after peek
 
-        PulsarApi.BrokerEntryMetadata brokerMetadata1 =
+        BrokerEntryMetadata brokerMetadata1 =
                 Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertTrue(brokerMetadata1.getBrokerTimestamp() <= System.currentTimeMillis());
 
