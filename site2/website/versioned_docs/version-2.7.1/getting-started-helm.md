@@ -84,6 +84,8 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ```bash
     helm install \
         --values examples/values-minikube.yaml \
+        --set initialize=true \
+        --namespace pulsar \
         pulsar-mini apache/pulsar
     ```
 
