@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 /**
@@ -58,4 +56,5 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public String getCommandData() {
         return this.accessToken;
     }
+
 }

@@ -77,6 +77,6 @@ public interface AuthenticationState {
      * @throws AuthenticationException
      */
     default AuthData refreshAuthentication() throws AuthenticationException {
-        return AuthData.of(AuthData.REFRESH_AUTH_DATA);
+        return AuthData.REFRESH_AUTH_DATA;
     }
 }
