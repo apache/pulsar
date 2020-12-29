@@ -85,6 +85,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -2138,6 +2139,28 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
+    }
+
+    @Test(timeOut = 20000)
+    void testFindNewestMatchingAfterLedgerRollover() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ledger.addEntry("expired".getBytes(Encoding));
+        ledger.addEntry("expired".getBytes(Encoding));
+        ledger.addEntry("expired".getBytes(Encoding));
+        ledger.addEntry("expired".getBytes(Encoding));
+        Position last = ledger.addEntry("expired".getBytes(Encoding));
+
+        // roll a new ledger
+        int numLedgersBefore = ledger.getLedgersInfo().size();
+        ledger.getConfig().setMaxEntriesPerLedger(1);
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS)
+                .until(() -> ledger.getLedgersInfo().size() > numLedgersBefore);
+
+        assertEquals(last,
+                c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
+
     }
 
     public static byte[] getEntryPublishTime(String msg) throws Exception {
