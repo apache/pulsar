@@ -22,7 +22,6 @@ import com.google.common.base.Preconditions;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
@@ -139,12 +138,15 @@ public class UnAckedMessageTracker implements Closeable {
                     headPartition.clear();
                     timePartitions.addLast(headPartition);
                 } finally {
-                    if (messageIds.size() > 0) {
-                        consumerBase.onAckTimeoutSend(messageIds);
-                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    try {
+                        if (messageIds.size() > 0) {
+                            consumerBase.onAckTimeoutSend(messageIds);
+                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                        }
+                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    } finally {
+                        writeLock.unlock();
                     }
-                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
-                    writeLock.unlock();
                 }
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);

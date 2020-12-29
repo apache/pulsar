@@ -650,22 +650,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (delayTime < 0) {
             delayTime = 0;
         }
-        if (retryLetterProducer == null) {
-            try {
-                createProducerLock.writeLock().lock();
-                if (retryLetterProducer == null) {
-                    retryLetterProducer = client.newProducer(schema)
-                            .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                            .enableBatching(false)
-                            .blockIfQueueFull(false)
-                            .create();
-                }
-            } catch (Exception e) {
-                log.error("Create retry letter producer exception with topic: {}", deadLetterPolicy.getRetryLetterTopic(), e);
-            } finally {
-                createProducerLock.writeLock().unlock();
-            }
-        }
+        createRetryLetterProducerIfNeeded();
         if (retryLetterProducer != null) {
             try {
                 MessageImpl<T> retryMessage = null;
@@ -700,22 +685,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount()) {
                    processPossibleToDLQ((MessageIdImpl)messageId);
-                    if (deadLetterProducer == null) {
-                        try {
-                            if (deadLetterProducer == null) {
-                                createProducerLock.writeLock().lock();
-                                deadLetterProducer = client.newProducer(schema)
-                                        .topic(this.deadLetterPolicy
-                                        .getDeadLetterTopic())
-                                        .blockIfQueueFull(false)
-                                        .create();
-                            }
-                        } catch (Exception e) {
-                           log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
-                       } finally {
-                           createProducerLock.writeLock().unlock();
-                       }
-                   }
+                   createDeadLetterProducerIfNeeded();
                    if (deadLetterProducer != null) {
                        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
                        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
@@ -1831,33 +1801,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(messageId);
             }
         }
-        if (deadLetterMessages != null) {
-            if (deadLetterProducer == null) {
-                try {
-                    deadLetterProducer = client.newProducer(schema)
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .create();
-                } catch (Exception e) {
-                    log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
-                }
-            }
-            if (deadLetterProducer != null) {
-                try {
-                    for (MessageImpl<T> message : deadLetterMessages) {
-                        deadLetterProducer.newMessage()
-                                .value(message.getValue())
-                                .properties(message.getProperties())
-                                .send();
-                    }
-                    acknowledge(messageId);
-                    return true;
-                } catch (Exception e) {
-                    log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
-                }
-            }
+        if (deadLetterMessages == null) {
+            return false;
         }
-        return false;
+        createDeadLetterProducerIfNeeded();
+        if (deadLetterProducer == null) {
+            return false;
+        }
+        for (MessageImpl<T> message : deadLetterMessages) {
+            deadLetterProducer.newMessage()
+                    .value(message.getValue())
+                    .properties(message.getProperties())
+                    .sendAsync()
+                    .whenComplete((msgId, ex) -> {
+                        if (ex != null) {
+                            log.error("Send to dead letter topic exception with topic: {}, messageId: {}",
+                                    deadLetterProducer.getTopic(), messageId, ex);
+                            return;
+                        }
+
+                        log.debug("Redeliver dead letter message topic: {}, messageId: {} to dead letter topic with topic: {}, messageId: {}",
+                                message.getTopicName(), messageId, deadLetterProducer.getTopic(), msgId);
+                        try {
+                            acknowledge(messageId);
+                        } catch (Exception e) {
+                            log.error("Acknowledge dead letter message exception with topic: {}, messageId: {}",
+                                    message.getTopicName(), messageId);
+                        }
+                    });
+        }
+        return true;
     }
 
     @Override
@@ -2468,6 +2441,47 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId, callBackOp.txnID);
             }
             callBackOp.recycle();
+        }
+    }
+
+    private void createRetryLetterProducerIfNeeded() {
+        if (retryLetterProducer != null) {
+            return;
+        }
+        createProducerLock.writeLock().lock();
+        try {
+            if (retryLetterProducer != null) {
+                return;
+            }
+            retryLetterProducer = client.newProducer(schema)
+                    .topic(this.deadLetterPolicy.getRetryLetterTopic())
+                    .enableBatching(false)
+                    .blockIfQueueFull(false)
+                    .create();
+        } catch (Exception e) {
+            log.error("Create retry letter producer exception with topic: {}", deadLetterPolicy.getRetryLetterTopic(), e);
+        } finally {
+            createProducerLock.writeLock().unlock();
+        }
+    }
+
+    private void createDeadLetterProducerIfNeeded() {
+        if (deadLetterProducer != null) {
+            return;
+        }
+        createProducerLock.writeLock().lock();
+        try {
+            if (deadLetterProducer != null) {
+                return;
+            }
+            deadLetterProducer = client.newProducer(schema)
+                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                    .blockIfQueueFull(false)
+                    .create();
+        } catch (Exception e) {
+            log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+        } finally {
+            createProducerLock.writeLock().unlock();
         }
     }
 
