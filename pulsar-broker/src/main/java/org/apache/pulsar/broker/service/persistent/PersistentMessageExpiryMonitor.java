@@ -74,7 +74,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 MessageImpl<byte[]> msg = null;
                 try {
                     msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                    return msg.isExpired(messageTTLInSeconds);
+                    boolean res =  msg.isExpired(messageTTLInSeconds);
+                    log.error("[{}][{}] Check message {} for expiry check expired={}",
+                            topicName, subName, msg, res);
+                    return res;
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
@@ -132,8 +135,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
 
     @Override
     public void findEntryComplete(Position position, Object ctx) {
+        log.info("findEntryComplete {}", position);
         if (position != null) {
-            log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
+            log.info("[{}][{}] QUI Expiring all messages until position {}", topicName, subName, position);
             cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
         } else {
             if (log.isDebugEnabled()) {

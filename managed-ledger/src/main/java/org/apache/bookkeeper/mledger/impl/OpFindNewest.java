@@ -94,7 +94,6 @@ class OpFindNewest implements ReadEntryCallback {
                 return;
             } else {
                 lastMatchedPosition = position;
-
                 // check last entry
                 state = State.checkLast;
                 PositionImpl lastPosition = ledger.getLastPosition();
@@ -108,12 +107,18 @@ class OpFindNewest implements ReadEntryCallback {
             break;
         case checkLast:
             if (condition.apply(entry)) {
+                log.info("condition verified for last position {}. exiting", position);
                 callback.findEntryComplete(position, OpFindNewest.this.ctx);
                 return;
             } else {
                 // start binary search
                 state = State.searching;
+<<<<<<< HEAD
                 searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+=======
+                searchPosition = cursor.ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+                log.info("condition not verified for last position {}. continue from", searchPosition);
+>>>>>>> fix/expire-batch
                 find();
             }
             break;
