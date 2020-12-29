@@ -23,12 +23,14 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.testng.Assert.assertNotNull;
@@ -55,7 +57,54 @@ public class MessageTTLTest extends BrokerTestBase {
     }
 
     @Test
-    public void testExpireMessages() throws Exception {
+    public void testMessageExpiryAfterTopicUnload() throws Exception {
+        int numMsgs = 50;
+        final String topicName = "persistent://prop/ns-abc/testttl";
+        final String subscriptionName = "ttl-sub-1";
+        
+        pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(1) // this makes the test easier and predictable
+                .subscribe()
+                .close();
+        
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false) // this makes the test easier and predictable
+                .create();
+       
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            sendFutureList.add(producer.sendAsync(message));
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+        producer.close();
+        
+        // unload a reload the topic
+        // this action created a new ledger
+        // having a managed ledger with more than one
+        // ledger should not impact message expiration
+        admin.topics().unload(topicName);        
+        admin.topics().getStats(topicName);
+       
+        AbstractTopic topic = (AbstractTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000);
+        log.info("***** run message expiry now");
+        this.runMessageExpiryCheck();
+        
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(1) // this makes the test easier and predictable
+                .subscribe();
+        Message<byte[]> msg = consumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertNull(msg);
+        consumer.close();
+    }
+
+    
+    @Test
+    public void testStandardMessageExpiry() throws Exception {
         int numMsgs = 50;
         final String topicName = "persistent://prop/ns-abc/testttl";
         final String subscriptionName = "ttl-sub-1";
@@ -78,29 +127,19 @@ public class MessageTTLTest extends BrokerTestBase {
         
         Message<byte[]> msg = consumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
         assertNotNull(msg);
-        if (msg != null) {
-            log.info("received first message at {}", msg.getMessageId());
-        }
         consumer.acknowledge(msg);
        
         AbstractTopic topic = (AbstractTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000);
-        log.info("***** run message expiry now");
         this.runMessageExpiryCheck();
         
-        Message<byte[]> received = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
-        if (received != null) {
-            // the consumer prefetched a message (or a batch of messages in case of enableBatching(true))
-            log.info("received second message at {}", received.getMessageId());
-            consumer.acknowledge(received);
-        }
+        Message<byte[]> msg2 = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
+        // the consumer prefetched a message (or a batch of messages in case of enableBatching(true))
+        assertNotNull(msg);
+        consumer.acknowledge(msg2);
         // all messages expired, so we expect to see a null here
-        received = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
-        if (received != null) {
-            log.info("received third message at {}", received.getMessageId());
-            consumer.acknowledge(received);
-        }
-        assertNull(received);
+        Message<byte[]> msg3 = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
+        assertNull(msg3);
 
         consumer.close();
     }
