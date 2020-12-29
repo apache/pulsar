@@ -95,7 +95,7 @@ public class MessageTTLTest extends BrokerTestBase {
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe();
-        Message<byte[]> msg = consumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
         assertNull(msg);
         consumer.close();
     }
