@@ -99,7 +99,9 @@ class OpFindNewest implements ReadEntryCallback {
                 PositionImpl lastPosition = ledger.getLastPosition();
                 searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
                 if (lastPosition.compareTo(searchPosition) < 0) {
-                    log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position, searchPosition, lastPosition);
+                    if (log.isDebugEnabled()) {
+                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position, searchPosition, lastPosition);
+                    }
                     searchPosition = lastPosition;
                 }
                 find();
