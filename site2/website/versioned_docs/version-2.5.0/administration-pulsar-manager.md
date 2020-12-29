@@ -7,7 +7,7 @@ original_id: administration-pulsar-manager
 
 Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments.
 
-> Note   
+> **Note**   
 > If you monitor your current stats with [Pulsar dashboard](administration-dashboard.md), you can try to use Pulsar Manager instead. Pulsar dashboard is deprecated.
 
 ## Install
@@ -25,7 +25,7 @@ docker run -it \
 
 * `SPRING_CONFIGURATION_FILE`: Default configuration file for spring.
 
-#### Set administrator account and password
+### Set administrator account and password
 
  ```shell
 CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
@@ -75,11 +75,11 @@ spring.datasource.password=postgres
 
 If you want to turn on JWT authentication, configure the following parameters:
 
-* `backend.jwt.token`:  token for the superuser. You need to configure this parameter during cluster initialization.
-* `jwt.broker.token.mode`:  two modes of generating token, SECRET and PRIVATE.
-* `jwt.broker.public.key`: configure this option if you are using the PRIVATE mode.
-* `jwt.broker.private.key`: configure this option if you are using the PRIVATE mode.
-* `jwt.broker.secret.key`: configure this option if you are using the SECRET mode.
+* `backend.jwt.token`: token for the superuser. You need to configure this parameter during cluster initialization.
+* `jwt.broker.token.mode`: multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET.
+* `jwt.broker.public.key`: configure this option if you use the PUBLIC mode.
+* `jwt.broker.private.key`: configure this option if you use the PRIVATE mode.
+* `jwt.broker.secret.key`: configure this option if you use the SECRET mode.
 
 For more information, see [Token Authentication Admin of Pulsar](http://pulsar.apache.org/docs/en/security-token-admin/).
 
