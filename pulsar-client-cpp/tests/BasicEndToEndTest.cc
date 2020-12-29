@@ -45,6 +45,7 @@
 #include <lib/AckGroupingTrackerEnabled.h>
 #include <lib/AckGroupingTrackerDisabled.h>
 #include <lib/PatternMultiTopicsConsumerImpl.h>
+#include <lib/CryptoKeyReader.h>
 
 #include "HttpHelper.h"
 #include "PulsarFriend.h"
@@ -1323,7 +1324,14 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
+    std::string PUBLIC_CERT_FILE_PATH =
+                "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem";
+
+    std::string PRIVATE_CERT_FILE_PATH =
+                    "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem";
+
+    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader = std::make_shared<pulsar::DefaultCryptoKeyReader>(
+                                        PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.addEncryptionKey("client-rsa.pem");
