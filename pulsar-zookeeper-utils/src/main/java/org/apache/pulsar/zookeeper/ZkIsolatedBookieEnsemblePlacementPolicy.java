@@ -96,7 +96,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
     }
 
-    private String castToString(Object obj) {
+    private static String castToString(Object obj) {
         if (null == obj) {
             return "";
         }
@@ -177,7 +177,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 bookieToReplace, excludeBookies);
     }
 
-    private Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
+    private static Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
         Map<String, byte[]> customMetadata) {
 
         byte[] ensemblePlacementPolicyConfigData = customMetadata.get(
@@ -200,7 +200,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         return isolationGroup;
     }
 
-    private Map<String, List<String>> getIsolationGroup(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+    private static Map<String, List<String>> getIsolationGroup(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
         Map<String, List<String>> groups = new HashMap<>();
         String className = ZkIsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
