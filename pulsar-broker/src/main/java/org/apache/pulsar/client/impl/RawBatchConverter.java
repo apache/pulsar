@@ -60,19 +60,19 @@ public class RawBatchConverter {
 
         List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
 
-        SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+        SingleMessageMetadata smm = new SingleMessageMetadata();
         for (int i = 0; i < batchSize; i++) {
             ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                    singleMessageMetadata,
+                                                                                    smm,
                                                                                     0, batchSize);
             MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
                                                   msg.getMessageIdData().getEntryId(),
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
-            if (!singleMessageMetadata.isCompactedOut()) {
-                idsAndKeysAndSize.add(ImmutableTriple.of(
-                        id, singleMessageMetadata.getPartitionKey(),
-                        singleMessageMetadata.getPayloadSize()));
+            if (!smm.isCompactedOut()) {
+                idsAndKeysAndSize.add(ImmutableTriple.of(id,
+                        smm.hasPartitionKey() ? smm.getPartitionKey() : null,
+                        smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
             }
             singleMessagePayload.release();
         }
