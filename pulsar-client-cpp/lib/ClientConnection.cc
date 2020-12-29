@@ -186,6 +186,8 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
 #else
         boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
 #endif
+        Url serviceUrl;
+        Url::parse(physicalAddress, serviceUrl);
         if (clientConfiguration.isTlsAllowInsecureConnection()) {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_none);
             isTlsAllowInsecureConnection_ = true;
@@ -193,9 +195,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
 
             if (clientConfiguration.isValidateHostName()) {
-                Url service_url;
-                Url::parse(physicalAddress, service_url);
-                LOG_DEBUG("Validating hostname for " << service_url.host() << ":" << service_url.port());
+                LOG_DEBUG("Validating hostname for " << serviceUrl.host() << ":" << serviceUrl.port());
                 ctx.set_verify_callback(boost::asio::ssl::rfc2818_verification(physicalAddress));
             }
 
@@ -242,6 +242,14 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         }
 
         tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
+
+        LOG_DEBUG("TLS SNI Host: " << serviceUrl.host());
+        if (!SSL_set_tlsext_host_name(tlsSocket_->native_handle(), serviceUrl.host().c_str())) {
+            boost::system::error_code ec{static_cast<int>(::ERR_get_error()),
+                                         boost::asio::error::get_ssl_category()};
+            LOG_ERROR(boost::system::system_error{ec}.what() << ": Error while setting TLS SNI");
+            return;
+        }
     }
 }
 

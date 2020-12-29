@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -88,6 +89,7 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -204,6 +206,8 @@ public class PulsarService implements AutoCloseable {
 
     // packages management service
     private PackagesManagement packagesManagement;
+    private PrometheusMetricsServlet metricsServlet;
+    private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
 
     public enum State {
@@ -513,11 +517,16 @@ public class PulsarService implements AutoCloseable {
                     "org.apache.pulsar.broker.admin.v3", true, attributeMap);
             this.webService.addRestResources("/lookup",
                     "org.apache.pulsar.broker.lookup", true, attributeMap);
+            this.metricsServlet = new PrometheusMetricsServlet(
+                    this, config.isExposeTopicLevelMetricsInPrometheus(),
+                    config.isExposeConsumerLevelMetricsInPrometheus());
+            if (pendingMetricsProviders != null) {
+                pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+                this.pendingMetricsProviders = null;
+            }
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(
-                            this, config.isExposeTopicLevelMetricsInPrometheus(),
-                            config.isExposeConsumerLevelMetricsInPrometheus())),
+                    new ServletHolder(metricsServlet),
                     false, attributeMap);
 
             if (config.isWebSocketServiceEnabled()) {
@@ -1233,6 +1242,17 @@ public class PulsarService implements AutoCloseable {
 
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
+    }
+
+    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsServlet == null) {
+            if (pendingMetricsProviders == null) {
+                pendingMetricsProviders = new LinkedList<>();
+            }
+            pendingMetricsProviders.add(metricsProvider);
+        } else {
+            this.metricsServlet.addRawMetricsProvider(metricsProvider);
+        }
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.servlet.AsyncContext;
@@ -40,6 +42,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     private final PulsarService pulsar;
     private final boolean shouldExportTopicMetrics;
     private final boolean shouldExportConsumerMetrics;
+    private List<PrometheusRawMetricsProvider> metricsProviders;
 
     private ExecutorService executor = null;
 
@@ -64,7 +67,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 res.setStatus(HttpStatus.OK_200);
                 res.setContentType("text/plain");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
-                        res.getOutputStream());
+                        res.getOutputStream(), metricsProviders);
                 context.complete();
 
             } catch (IOException e) {
@@ -80,6 +83,13 @@ public class PrometheusMetricsServlet extends HttpServlet {
         if (executor != null) {
             executor.shutdownNow();
         }
+    }
+
+    public void addRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsProviders == null) {
+            metricsProviders = new LinkedList<>();
+        }
+        metricsProviders.add(metricsProvider);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PrometheusMetricsServlet.class);

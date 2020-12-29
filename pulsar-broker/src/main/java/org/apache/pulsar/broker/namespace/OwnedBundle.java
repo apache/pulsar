@@ -132,6 +132,8 @@ public class OwnedBundle {
                     } else {
                         unloadedTopics.set(numUnloadedTopics);
                     }
+                    // clean up topics that failed to unload from the broker ownership cache
+                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
                     return null;
                 })
                 .thenCompose(v -> {

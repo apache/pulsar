@@ -72,6 +72,9 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             // Example:
             // CN=Steve Kille,O=Isode Limited,C=GB
             Certificate[] certs = authData.getTlsCertificates();
+            if (null == certs) {
+                throw new AuthenticationException("Failed to get TLS certificates from client");
+            }
             String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
             for (String keyValueStr : distinguishedName.split(",")) {
                 String[] keyValue = keyValueStr.split("=", 2);
