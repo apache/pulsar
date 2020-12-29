@@ -237,7 +237,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 }
                 for (String group : allBookies) {
                     Set<String> bookiesInGroup = allGroupsBookieMapping.get(group).keySet();
-                    if (primaryIsolationGroup.contains(group)) {
+                    if (!primaryIsolationGroup.contains(group)) {
                         for (String bookieAddress : bookiesInGroup) {
                             blacklistedBookies.add(BookieId.parse(bookieAddress));
                         }
