@@ -21,7 +21,6 @@ The following is a code sample.
 ```java
 class PackageName {
    private final PackageType type;
-   // REST API handlers.
    private final String namespace;
    private final String tenant;
    private final String name;
