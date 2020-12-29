@@ -81,8 +81,8 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 
 3. Use the Pulsar Helm chart to install a Pulsar cluster to Kubernetes.
 
-   > NOTE: Please specify `--set initialize=true` when installing a release at the first time. `initialize=true` will start initialize jobs
-   >       to initialize the cluster metadata for both bookkeeper and pulsar clusters.
+   > **NOTE**  
+   > You need to specify `--set initialize=true` when installing Pulsar the first time. This command installs and starts Apache Pulsar.
 
     ```bash
     helm install \
