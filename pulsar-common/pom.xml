@@ -102,6 +102,16 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-server</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.airlift</groupId>
       <artifactId>aircompressor</artifactId>
     </dependency>

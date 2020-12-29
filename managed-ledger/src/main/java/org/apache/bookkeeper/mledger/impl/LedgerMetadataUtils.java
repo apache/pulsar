@@ -21,11 +21,10 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.collect.ImmutableMap;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 
 /**
  * Utilities for managing BookKeeper Ledgers custom metadata.
