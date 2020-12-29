@@ -190,11 +190,13 @@ public class PulsarSink<T> implements Sink<T> {
                 String errorMsg = null;
                 if (srcRecord instanceof PulsarRecord) {
                     errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]", topic, throwable.getMessage(), ((PulsarRecord) srcRecord).getMessageId());
-                    log.error(errorMsg);
                 } else {
-                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src sequence id [%s]", topic, throwable.getMessage(), record.getRecordSequence().get());
-                    log.error(errorMsg);
+                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s]", topic, throwable.getMessage());
+                    if (record.getRecordSequence().isPresent()) {
+                        errorMsg = String.format(errorMsg + " with src sequence id [%s]", record.getRecordSequence().get());
+                    }
                 }
+                log.error(errorMsg);
                 stats.incrSinkExceptions(new Exception(errorMsg));
                 return null;
             };

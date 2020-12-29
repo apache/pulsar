@@ -91,6 +91,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
+import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,10 +101,10 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     private State state;
 
-    private final ConcurrentLongHashMap<CompletableFuture<? extends Object>> pendingRequests =
+    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     // LookupRequests that waiting in client side.
-    private final Queue<Pair<Long, Pair<ByteBuf, CompletableFuture<LookupDataResult>>>> waitingLookupRequests;
+    private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
@@ -376,7 +377,15 @@ public class ClientCnx extends PulsarHandler {
                     ledgerId, entryId);
         }
 
-        producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+        ProducerImpl<?> producer = producers.get(producerId);
+        if (producer != null) {
+            producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Producer is {} already closed, ignore published message [{}-{}]", producerId, ledgerId,
+                        entryId);
+            }
+        }
     }
 
     @Override
@@ -460,6 +469,19 @@ public class ClientCnx extends PulsarHandler {
                     success.getRequestId(), success.getProducerName());
         }
         long requestId = success.getRequestId();
+        if (!success.getProducerReady()) {
+            // We got a success operation but the producer is not ready. This means that the producer has been queued up
+            // in broker. We need to leave the future pending until we get the final confirmation. We just mark that
+            // we have received a response, in order to avoid the timeout.
+            TimedCompletableFuture<?> requestFuture = (TimedCompletableFuture<?>) pendingRequests.get(requestId);
+            if (requestFuture != null) {
+                log.info("{} Producer {} has been queued up at broker. request: {}", ctx.channel(),
+                        success.getProducerName(), requestId);
+                requestFuture.markAsResponded();
+            }
+            return;
+        }
+
         CompletableFuture<ProducerResponse> requestFuture = (CompletableFuture<ProducerResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
             ProducerResponse pr = new ProducerResponse(success.getProducerName(),
@@ -556,7 +578,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     // caller of this method needs to be protected under pendingLookupRequestSemaphore
-    private void addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
+    private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingRequests.put(requestId, future);
         eventLoopGroup.schedule(() -> {
             if (!future.isDone()) {
@@ -569,13 +591,13 @@ public class ClientCnx extends PulsarHandler {
     private CompletableFuture<LookupDataResult> getAndRemovePendingLookupRequest(long requestId) {
         CompletableFuture<LookupDataResult> result = (CompletableFuture<LookupDataResult>) pendingRequests.remove(requestId);
         if (result != null) {
-            Pair<Long, Pair<ByteBuf, CompletableFuture<LookupDataResult>>> firstOneWaiting = waitingLookupRequests.poll();
+            Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>> firstOneWaiting = waitingLookupRequests.poll();
             if (firstOneWaiting != null) {
                 maxLookupRequestSemaphore.release();
                 // schedule a new lookup in.
                 eventLoopGroup.submit(() -> {
                     long newId = firstOneWaiting.getLeft();
-                    CompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
+                    TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                     addPendingLookupRequests(newId, newFuture);
                     ctx.writeAndFlush(firstOneWaiting.getRight().getLeft()).addListener(writeFuture -> {
                         if (!writeFuture.isSuccess()) {
@@ -672,7 +694,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
-        CompletableFuture<LookupDataResult> future = new CompletableFuture<>();
+        TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             addPendingLookupRequests(requestId, future);
@@ -781,7 +803,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId, RequestType requestType) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
         pendingRequests.put(requestId, future);
         ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
@@ -1056,8 +1078,10 @@ public class ClientCnx extends PulsarHandler {
                 break;
             }
             request = requestTimeoutQueue.poll();
-            CompletableFuture<?> requestFuture = pendingRequests.remove(request.requestId);
-            if (requestFuture != null && !requestFuture.isDone()) {
+            TimedCompletableFuture<?> requestFuture = pendingRequests.remove(request.requestId);
+            if (requestFuture != null
+                    && !requestFuture.isDone()
+                    && !requestFuture.hasGotResponse()) {
                 String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId, request.requestType.getDescription(), operationTimeoutMs);
                 if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
                     log.warn("{} {}", ctx.channel(), timeoutMessage);

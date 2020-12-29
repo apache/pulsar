@@ -572,6 +572,18 @@ public class Consumer {
         stats.chuckedMessageRate = chuckedMessageRate.getRate();
     }
 
+    public void updateStats(ConsumerStats consumerStats) {
+        msgOutCounter.add(consumerStats.msgOutCounter);
+        bytesOutCounter.add(consumerStats.bytesOutCounter);
+        msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
+        lastAckedTimestamp = consumerStats.lastAckedTimestamp;
+        lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
+        unackedMessages = consumerStats.unackedMessages;
+        blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
+        AVG_MESSAGES_PER_ENTRY.set(this, consumerStats.avgMessagesPerEntry);
+    }
+
     public ConsumerStats getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();

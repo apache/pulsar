@@ -91,13 +91,13 @@ class PULSAR_PUBLIC Client {
     void createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                              CreateProducerCallback callback);
 
-    Result subscribe(const std::string& topic, const std::string& consumerName, Consumer& consumer);
-    Result subscribe(const std::string& topic, const std::string& consumerName,
+    Result subscribe(const std::string& topic, const std::string& subscriptionName, Consumer& consumer);
+    Result subscribe(const std::string& topic, const std::string& subscriptionName,
                      const ConsumerConfiguration& conf, Consumer& consumer);
 
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         SubscribeCallback callback);
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
@@ -115,14 +115,14 @@ class PULSAR_PUBLIC Client {
     /**
      * subscribe for multiple topics, which match given regexPattern, under the same namespace.
      */
-    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
                               Consumer& consumer);
-    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
                               const ConsumerConfiguration& conf, Consumer& consumer);
 
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  SubscribeCallback callback);
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
