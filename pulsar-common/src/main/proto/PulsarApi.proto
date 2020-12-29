@@ -183,6 +183,7 @@ message SingleMessageMetadata {
 // metadata added for entry from broker
 message BrokerEntryMetadata {
     optional uint64 broker_timestamp = 1;
+    optional uint64 index = 2;
 }
 
 enum ServerError {
