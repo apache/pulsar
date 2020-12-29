@@ -27,7 +27,7 @@
 namespace pulsar {
 
 void LogUtils::init(const std::string& logfilePath) {
-// If this is called explicitely, we fallback to Log4cxx config, if enabled
+    // If this is called explicitely, we fallback to Log4cxx config, if enabled
 
 #ifdef USE_LOG4CXX
     if (!logfilePath.empty()) {

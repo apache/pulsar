@@ -28,15 +28,22 @@
 extern "C" {
 #endif
 
-typedef enum {
+typedef enum
+{
     pulsar_UseSinglePartition,
     pulsar_RoundRobinDistribution,
     pulsar_CustomPartition
 } pulsar_partitions_routing_mode;
 
-typedef enum { pulsar_Murmur3_32Hash, pulsar_BoostHash, pulsar_JavaStringHash } pulsar_hashing_scheme;
+typedef enum
+{
+    pulsar_Murmur3_32Hash,
+    pulsar_BoostHash,
+    pulsar_JavaStringHash
+} pulsar_hashing_scheme;
 
-typedef enum {
+typedef enum
+{
     pulsar_CompressionNone = 0,
     pulsar_CompressionLZ4 = 1,
     pulsar_CompressionZLib = 2,
@@ -44,7 +51,8 @@ typedef enum {
     pulsar_CompressionSNAPPY = 4
 } pulsar_compression_type;
 
-typedef enum {
+typedef enum
+{
     pulsar_None = 0,
     pulsar_String = 1,
     pulsar_Json = 2,
@@ -63,12 +71,13 @@ typedef enum {
     pulsar_AutoPublish = -4,
 } pulsar_schema_type;
 
-typedef enum {
+typedef enum
+{
     // This is the default option to fail send if crypto operation fails
     pulsar_producerFail,
     // Ignore crypto failure and proceed with sending unencrypted messages
     pulsar_producerSend
-}  pulsar_producer_crypto_failure_action;
+} pulsar_producer_crypto_failure_action;
 
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
 
@@ -177,19 +186,19 @@ PULSAR_PUBLIC unsigned long pulsar_producer_configuration_get_batching_max_publi
 PULSAR_PUBLIC void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf,
                                                               const char *name, const char *value);
 
-PULSAR_PUBLIC int pulsar_producer_is_encryption_enabled(
-    pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC int pulsar_producer_is_encryption_enabled(pulsar_producer_configuration_t *conf);
 
-PULSAR_PUBLIC void pulsar_producer_configuration_set_default_crypto_key_reader(pulsar_producer_configuration_t *conf,
-                                                            const char *public_key_path, const char *private_key_path);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_default_crypto_key_reader(
+    pulsar_producer_configuration_t *conf, const char *public_key_path, const char *private_key_path);
 
-PULSAR_PUBLIC pulsar_producer_crypto_failure_action pulsar_producer_configuration_get_crypto_failure_action(
-                                                            pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC pulsar_producer_crypto_failure_action
+pulsar_producer_configuration_get_crypto_failure_action(pulsar_producer_configuration_t *conf);
 
 PULSAR_PUBLIC void pulsar_producer_configuration_set_crypto_failure_action(
-                                                            pulsar_producer_configuration_t *conf,
-                                                            pulsar_producer_crypto_failure_action cryptoFailureAction);
+    pulsar_producer_configuration_t *conf, pulsar_producer_crypto_failure_action cryptoFailureAction);
 
+PULSAR_PUBLIC void pulsar_producer_configuration_set_encryption_key(pulsar_producer_configuration_t *conf,
+                                                                    const char *key);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader() const;
 // ProducerConfiguration &setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);

@@ -28,24 +28,25 @@ CryptoKeyReader::CryptoKeyReader() {}
 CryptoKeyReader::~CryptoKeyReader() {}
 
 Result CryptoKeyReader::getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                                                          EncryptionKeyInfo& encKeyInfo) const {
+                                     EncryptionKeyInfo& encKeyInfo) const {
     return ResultInvalidConfiguration;
 }
 
-Result CryptoKeyReader::getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                                             EncryptionKeyInfo& encKeyInfo) const {
+Result CryptoKeyReader::getPrivateKey(const std::string& keyName,
+                                      std::map<std::string, std::string>& metadata,
+                                      EncryptionKeyInfo& encKeyInfo) const {
     return ResultInvalidConfiguration;
 }
 
-
-DefaultCryptoKeyReader::DefaultCryptoKeyReader(const std::string& publicKeyPath, const std::string& privateKeyPath) {
+DefaultCryptoKeyReader::DefaultCryptoKeyReader(const std::string& publicKeyPath,
+                                               const std::string& privateKeyPath) {
     publicKeyPath_ = publicKeyPath;
     privateKeyPath_ = privateKeyPath;
 }
 
 DefaultCryptoKeyReader::~DefaultCryptoKeyReader() {}
 
-void DefaultCryptoKeyReader::readFile(std::string fileName, std::string &fileContents) const {
+void DefaultCryptoKeyReader::readFile(std::string fileName, std::string& fileContents) const {
     std::ifstream ifs(fileName);
     std::stringstream fileStream;
     fileStream << ifs.rdbuf();
@@ -53,8 +54,9 @@ void DefaultCryptoKeyReader::readFile(std::string fileName, std::string &fileCon
     fileContents = fileStream.str();
 }
 
-Result DefaultCryptoKeyReader::getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                        EncryptionKeyInfo& encKeyInfo) const {
+Result DefaultCryptoKeyReader::getPublicKey(const std::string& keyName,
+                                            std::map<std::string, std::string>& metadata,
+                                            EncryptionKeyInfo& encKeyInfo) const {
     std::string keyContents;
     readFile(publicKeyPath_, keyContents);
 
@@ -62,8 +64,9 @@ Result DefaultCryptoKeyReader::getPublicKey(const std::string& keyName, std::map
     return ResultOk;
 }
 
-Result DefaultCryptoKeyReader::getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                     EncryptionKeyInfo& encKeyInfo) const {
+Result DefaultCryptoKeyReader::getPrivateKey(const std::string& keyName,
+                                             std::map<std::string, std::string>& metadata,
+                                             EncryptionKeyInfo& encKeyInfo) const {
     std::string keyContents;
     readFile(privateKeyPath_, keyContents);
 

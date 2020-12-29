@@ -1325,13 +1325,13 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     Producer producer;
 
     std::string PUBLIC_CERT_FILE_PATH =
-                "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem";
+        "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem";
 
     std::string PRIVATE_CERT_FILE_PATH =
-                    "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem";
+        "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem";
 
-    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader = std::make_shared<pulsar::DefaultCryptoKeyReader>(
-                                        PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
+    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader =
+        std::make_shared<pulsar::DefaultCryptoKeyReader>(PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.addEncryptionKey("client-rsa.pem");
