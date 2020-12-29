@@ -19,32 +19,23 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.Objects;
-import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Map;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
-    private final Class<? extends EnsemblePlacementPolicy> policyClass;
+    private final Class policyClass;
     private final Map<String, Object> properties;
 
-    // Add a default constructor for decode data from bytes to construct this.
-    private EnsemblePlacementPolicyConfig() {
-        this.policyClass = EnsemblePlacementPolicy.class;
-        this.properties = Collections.emptyMap();
-    }
-
-    public EnsemblePlacementPolicyConfig(Class<? extends EnsemblePlacementPolicy> policyClass,
-                                         Map<String, Object> properties) {
+    public EnsemblePlacementPolicyConfig(Class policyClass, Map<String, Object> properties) {
         super();
         this.policyClass = policyClass;
         this.properties = properties;
     }
 
-    public Class<? extends EnsemblePlacementPolicy> getPolicyClass() {
+    public Class getPolicyClass() {
         return policyClass;
     }
 
