@@ -30,6 +30,7 @@
 #include <pulsar/Client.h>
 #include <pulsar/Consumer.h>
 #include <pulsar/MessageBuilder.h>
+#include <pulsar/CryptoKeyReader.h>
 
 #include <lib/Latch.h>
 #include <lib/Utils.h>
@@ -45,7 +46,6 @@
 #include <lib/AckGroupingTrackerEnabled.h>
 #include <lib/AckGroupingTrackerDisabled.h>
 #include <lib/PatternMultiTopicsConsumerImpl.h>
-#include <lib/CryptoKeyReader.h>
 
 #include "HttpHelper.h"
 #include "PulsarFriend.h"
