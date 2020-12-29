@@ -110,31 +110,48 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
                 }
 
-                int batchSize = msgMetadata.getNumMessagesInBatch();
-                totalMessages += batchSize;
-                totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
-                batchSizes.setBatchSize(i, batchSize);
-                long[] ackSet = null;
-                if (indexesAcks != null && cursor != null) {
-                    ackSet = cursor.getDeletedBatchIndexesAsLongArray(
-                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-                    if (ackSet != null) {
-                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-                    } else {
-                        indexesAcks.setIndexesAcks(i, null);
-                    }
-                }
+                entries.set(i, null);
+                entry.release();
+                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                        Collections.emptyMap());
+                continue;
+            } else if (msgMetadata.hasDeliverAtTime()
+                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                // The message is marked for delayed delivery. Ignore for now.
+                entries.set(i, null);
+                entry.release();
+                continue;
+            } else if (isAfterTxnCommitMarker) {
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
+                entries.set(i, null);
+                entry.release();
+                continue;
+            }
 
-                BrokerInterceptor interceptor = subscription.interceptor();
-                if (null != interceptor) {
-                    interceptor.beforeSendMessage(
-                        subscription,
-                        entry,
-                        ackSet,
-                        msgMetadata
-                    );
+            int batchSize = msgMetadata.getNumMessagesInBatch();
+            totalMessages += batchSize;
+            totalBytes += metadataAndPayload.readableBytes();
+            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
+            batchSizes.setBatchSize(i, batchSize);
+            long[] ackSet = null;
+            if (indexesAcks != null && cursor != null) {
+                ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                        PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                if (ackSet != null) {
+                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                } else {
+                    indexesAcks.setIndexesAcks(i, null);
                 }
+            }
+
+            BrokerInterceptor interceptor = subscription.interceptor();
+            if (null != interceptor) {
+                interceptor.beforeSendMessage(
+                    subscription,
+                    entry,
+                    ackSet,
+                    msgMetadata
+                );
             }
         }
 

@@ -1325,8 +1325,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleAck(CommandAck ack) {
         checkArgument(state == State.Connected);
         CompletableFuture<Consumer> consumerFuture = consumers.get(ack.getConsumerId());
-        final long requestId = ack.getRequestId();
         final boolean hasRequestId = ack.hasRequestId();
+        final long requestId = hasRequestId ? ack.getRequestId() : 0;
         final long consumerId = ack.getConsumerId();
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
