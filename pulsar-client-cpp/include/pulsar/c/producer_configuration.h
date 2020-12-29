@@ -65,9 +65,9 @@ typedef enum {
 
 typedef enum {
     // This is the default option to fail send if crypto operation fails
-    pulsar_producerFail,
+    pulsar_ProducerFail,
     // Ignore crypto failure and proceed with sending unencrypted messages
-    pulsar_producerSend
+    pulsar_ProducerSend
 } pulsar_producer_crypto_failure_action;
 
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
