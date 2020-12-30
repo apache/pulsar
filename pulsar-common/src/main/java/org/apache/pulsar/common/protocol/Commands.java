@@ -976,8 +976,11 @@ public class Commands {
         BaseCommand cmd = localCmd(Type.CONSUMER_STATS_RESPONSE);
         cmd.setConsumerStatsResponse()
                 .setRequestId(requestId)
-                .setErrorMessage(errMsg)
                 .setErrorCode(serverError);
+        if (errMsg != null) {
+            cmd.getConsumerStatsResponse()
+                .setErrorMessage(errMsg);
+        }
         return cmd;
     }
 
