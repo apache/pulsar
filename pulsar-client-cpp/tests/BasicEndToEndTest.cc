@@ -1402,7 +1402,8 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 
         PRIVATE_CERT_FILE_PATH =
             "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem";
-        keyReader = std::make_shared<pulsar::DefaultCryptoKeyReader>(PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
+        keyReader =
+            std::make_shared<pulsar::DefaultCryptoKeyReader>(PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
         prodConf.setBatchingEnabled(false);
