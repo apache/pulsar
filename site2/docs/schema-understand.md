@@ -206,7 +206,7 @@ Currently, Pulsar supports the following complex types:
 
 For `SchemaInfo` of `keyvalue` schema, Pulsar stores the `SchemaInfo` of key schema and the `SchemaInfo` of value schema together.
 
-Pulsar provides two methods to encode a key/value pair in messages：
+Pulsar provides the following methods to encode a key/value pair in messages：
 
 * `INLINE`
 
@@ -301,12 +301,12 @@ This section describes the details of type and usage of the `struct` schema.
 
 |Type|Description|
 ---|---|
-`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br><br>This allows Pulsar:<br>- to use same tools to manage schema definitions<br>- to use different serialization or deserialization methods to handle data|
+`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br><br>This allows Pulsar:<br>- to use the same tools to manage schema definitions<br>- to use different serialization or deserialization methods to handle data|
 `ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br><br>This allows Pulsar:<br>- to use native protobuf-v3 to serialize or deserialize data<br>- to use `AutoConsume` to deserialize data.
 
 ##### Usage
 
-Pulsar provides three methods to use the `struct` schema:
+Pulsar provides the following methods to use the `struct` schema:
 
 * `static`
 
