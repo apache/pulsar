@@ -77,6 +77,7 @@ public class MessageTTLTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
         producer.close();
+        MessageId lastMessageId = sendFutureList.get(sendFutureList.size() - 1).get();
 
         // unload a reload the topic
         // this action created a new ledger
@@ -95,50 +96,11 @@ public class MessageTTLTest extends BrokerTestBase {
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe();
+
+        MessageId lastMessageIdOnConsumer = consumer.getLastMessageId();
+        log.info("lastMessageID written {}, lastMessageIdForConsumer {}", lastMessageId, lastMessageIdOnConsumer);
         Message<byte[]> msg = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
         assertNull(msg);
-        consumer.close();
-    }
-
-
-    @Test
-    public void testStandardMessageExpiryWithPrefetch() throws Exception {
-        int numMsgs = 50;
-        final String topicName = "persistent://prop/ns-abc/testttl";
-        final String subscriptionName = "ttl-sub-2";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(1) // this makes the test predictable
-                .subscribe();
-
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .enableBatching(false) // this makes the test easier and predictable
-                .create();
-
-        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
-        for (int i = 0; i < numMsgs; i++) {
-            byte[] message = ("my-message-" + i).getBytes();
-            sendFutureList.add(producer.sendAsync(message));
-        }
-        FutureUtil.waitForAll(sendFutureList).get();
-        producer.close();
-
-        Message<byte[]> msg = consumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
-        assertNotNull(msg);
-        consumer.acknowledge(msg);
-
-        AbstractTopic topic = (AbstractTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-         // wall clock time, we have to make the message to be considered "expired"
-        Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000);
-        this.runMessageExpiryCheck();
-
-        Message<byte[]> msg2 = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
-        // the consumer prefetched a message
-        assertNotNull(msg);
-        consumer.acknowledge(msg2);
-        // all messages expired, so we expect to see a null here
-        Message<byte[]> msg3 = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
-        assertNull(msg3);
-
         consumer.close();
     }
 
