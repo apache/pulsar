@@ -678,6 +678,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }));
     }
 
+    private static final byte[] emptyArray = new byte[0];
+
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
@@ -704,7 +706,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         try {
-            AuthData clientData = AuthData.of(connect.getAuthData());
+            byte[] authData = connect.hasAuthData() ? connect.getAuthData() : emptyArray;
+            AuthData clientData = AuthData.of(authData);
 
             // init authentication
             if (connect.hasAuthMethodName()) {

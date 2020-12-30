@@ -97,7 +97,7 @@ void AckGroupingTrackerEnabled::close() {
 void AckGroupingTrackerEnabled::flush() {
     auto handler = handlerWeakPtr_.lock();
     if (!handler) {
-        LOG_WARN("Reference to the HandlerBase is not valid.");
+        LOG_DEBUG("Reference to the HandlerBase is not valid.");
         return;
     }
     auto cnx = handler->getCnx().lock();
