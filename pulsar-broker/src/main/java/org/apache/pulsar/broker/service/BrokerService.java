@@ -1105,18 +1105,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
+
             if (isBrokerEntryMetadataEnabled()) {
                 // init managedLedger interceptor
+                Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                    // add individual AppendOffsetMetadataInterceptor for each topic
                     if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                        // add individual AppendOffsetMetadataInterceptor for each topic
-                        brokerEntryMetadataInterceptors.remove(interceptor);
-                        brokerEntryMetadataInterceptors.add(new AppendIndexMetadataInterceptor());
+                        interceptors.add(new AppendIndexMetadataInterceptor());
+                    } else {
+                        interceptors.add(interceptor);
                     }
                 }
-                ManagedLedgerInterceptor mlInterceptor =
-                        new ManagedLedgerInterceptorImpl(brokerEntryMetadataInterceptors);
-                managedLedgerConfig.setManagedLedgerInterceptor(mlInterceptor);
+                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
