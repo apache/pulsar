@@ -149,6 +149,7 @@
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
+      "pulsar-admin",
       "reference-configuration",
       "reference-metrics"
     ]
