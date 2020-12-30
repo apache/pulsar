@@ -65,28 +65,28 @@ void Client::createProducerAsync(const std::string& topic, ProducerConfiguration
     impl_->createProducerAsync(topic, conf, callback);
 }
 
-Result Client::subscribe(const std::string& topic, const std::string& consumerName, Consumer& consumer) {
-    return subscribe(topic, consumerName, ConsumerConfiguration(), consumer);
+Result Client::subscribe(const std::string& topic, const std::string& subscriptionName, Consumer& consumer) {
+    return subscribe(topic, subscriptionName, ConsumerConfiguration(), consumer);
 }
 
-Result Client::subscribe(const std::string& topic, const std::string& consumerName,
+Result Client::subscribe(const std::string& topic, const std::string& subscriptionName,
                          const ConsumerConfiguration& conf, Consumer& consumer) {
     Promise<Result, Consumer> promise;
-    subscribeAsync(topic, consumerName, conf, WaitForCallbackValue<Consumer>(promise));
+    subscribeAsync(topic, subscriptionName, conf, WaitForCallbackValue<Consumer>(promise));
     Future<Result, Consumer> future = promise.getFuture();
 
     return future.get(consumer);
 }
 
-void Client::subscribeAsync(const std::string& topic, const std::string& consumerName,
+void Client::subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                             SubscribeCallback callback) {
-    subscribeAsync(topic, consumerName, ConsumerConfiguration(), callback);
+    subscribeAsync(topic, subscriptionName, ConsumerConfiguration(), callback);
 }
 
-void Client::subscribeAsync(const std::string& topic, const std::string& consumerName,
+void Client::subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                             const ConsumerConfiguration& conf, SubscribeCallback callback) {
     LOG_INFO("Subscribing on Topic :" << topic);
-    impl_->subscribeAsync(topic, consumerName, conf, callback);
+    impl_->subscribeAsync(topic, subscriptionName, conf, callback);
 }
 
 Result Client::subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,

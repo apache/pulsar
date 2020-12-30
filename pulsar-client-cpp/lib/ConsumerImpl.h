@@ -64,7 +64,7 @@ class ConsumerImpl : public ConsumerImplBase,
                      public HandlerBase,
                      public std::enable_shared_from_this<ConsumerImpl> {
    public:
-    ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscription,
+    ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscriptionName,
                  const ConsumerConfiguration&,
                  const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(),
                  const ConsumerTopicType consumerTopicType = NonPartitioned,

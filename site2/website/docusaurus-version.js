@@ -184,6 +184,7 @@ require('@babel/register')({
   );
   // }
   
+
   // update versions.json file
   versions.unshift(version);
   fs.writeFileSync(

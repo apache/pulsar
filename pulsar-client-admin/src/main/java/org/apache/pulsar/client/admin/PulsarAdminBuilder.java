@@ -252,6 +252,13 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit);
 
     /**
+     * This sets auto cert refresh time if Pulsar admin uses tls authentication.
+     *
+     * @param autoCertRefreshTime
+     * @param autoCertRefreshTimeUnit
+     */
+    PulsarAdminBuilder autoCertRefreshTime(int autoCertRefreshTime, TimeUnit autoCertRefreshTimeUnit);
+    /**
      *
      * @return
      */
