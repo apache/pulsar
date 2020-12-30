@@ -786,10 +786,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 }
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
-            return topics.computeIfAbsent(topic, (topicName) -> {
-                    return isPersistentTopic ? this.loadOrCreatePersistentTopic(topicName, createIfMissing)
-                        : createNonPersistentTopic(topicName);
-            });
+            if (isPersistentTopic) {
+                return topics.computeIfAbsent(topic, (topicName) -> {
+                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing);
+                });
+            } else {
+                return topics.computeIfAbsent(topic, (topicName) -> {
+                    if (createIfMissing) {
+                        return createNonPersistentTopic(topicName);
+                    } else {
+                        return CompletableFuture.completedFuture(Optional.empty());
+                    }
+                });
+            }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topic, e);
             return failedFuture(e);

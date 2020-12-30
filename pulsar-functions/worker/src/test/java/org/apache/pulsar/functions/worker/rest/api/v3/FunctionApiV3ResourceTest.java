@@ -29,6 +29,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 
@@ -52,6 +53,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Functions;
@@ -149,6 +151,7 @@ public class FunctionApiV3ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
+    private Packages mockedPackages;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -164,6 +167,7 @@ public class FunctionApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
+        this.mockedPackages = mock(Packages.class);
         this.mockedLeaderService = mock(LeaderService.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
@@ -180,10 +184,12 @@ public class FunctionApiV3ResourceTest {
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
+        when(mockedPulsarAdmin.packages()).thenReturn(mockedPackages);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
         when(mockedLeaderService.isLeader()).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
+        doNothing().when(mockedPackages).download(anyString(), anyString());
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
@@ -558,6 +564,10 @@ public class FunctionApiV3ResourceTest {
     }
 
     private void registerDefaultFunction() {
+        registerDefaultFunctionWithPackageUrl(null);
+    }
+
+    private void registerDefaultFunctionWithPackageUrl(String packageUrl) {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         resource.registerFunction(
             tenant,
@@ -565,7 +575,7 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
+            packageUrl,
             functionConfig,
                 null, null);
     }
@@ -622,6 +632,23 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterFunctionSuccessWithPackageName() {
+        registerDefaultFunctionWithPackageUrl("function://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterFunctionFailedWithWrongPackageName() throws PulsarAdminException {
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultFunctionWithPackageUrl("function://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
@@ -973,6 +1000,10 @@ public class FunctionApiV3ResourceTest {
     }
 
     private void updateDefaultFunction() {
+        updateDefaultFunctionWithPackageUrl(null);
+    }
+
+    private void updateDefaultFunctionWithPackageUrl(String packageUrl) {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -990,7 +1021,7 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
+            packageUrl,
             functionConfig,
                 null, null, null);
     }
@@ -1116,6 +1147,26 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+
+    @Test(timeOut = 20000)
+    public void testUpdateFunctionSuccessWithPackageName() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        updateDefaultFunctionWithPackageUrl("function://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateFunctionFailedWithWrongPackageName() throws PulsarAdminException {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultFunctionWithPackageUrl("function://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 

@@ -123,7 +123,8 @@
       "admin-api-namespaces",
       "admin-api-permissions",
       "admin-api-topics",
-      "admin-api-functions"
+      "admin-api-functions",
+      "admin-api-packages"
     ],
     "Adaptors": [
       "adaptors-kafka",
