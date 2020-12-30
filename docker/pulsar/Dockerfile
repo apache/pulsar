@@ -41,6 +41,11 @@ FROM openjdk:8-jdk-slim
 # Create the pulsar user to ensure the docker image is run as a non root user
 RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
 
+# Make the directory and chown it before any files are in it to ensure proper ownership
+# without unnecessarily increasing the size of the final docker image
+# (This is needed to ensure the pulsar user has permission to create the conf and data directories)
+RUN mkdir /pulsar && chown pulsar:pulsar /pulsar
+
 # Install some utilities
 RUN apt-get update \
      && apt-get install -y netcat dnsutils less procps iputils-ping \
@@ -61,7 +66,7 @@ RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
 RUN apt-get update \
      && apt install -y /pulsar/cpp-client/*.deb \
      && apt-get clean \
-     && chown -R pulsar:pulsar /pulsar/cpp-client/
+     && chown -R pulsar:pulsar /pulsar/cpp-client/ \
      && rm -rf /var/lib/apt/lists/*
 
 # Start using the pulsar user to ensure container defaults to run as non root user
