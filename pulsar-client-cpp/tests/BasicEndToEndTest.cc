@@ -117,42 +117,6 @@ static void sendCallBackWithDelay(Result r, const MessageId &msgId, std::string 
     sendCallBack(r, msgId, prefix, count);
 }
 
-class EncKeyReader : public CryptoKeyReader {
-   private:
-    void readFile(std::string fileName, std::string &fileContents) const {
-        std::ifstream ifs(fileName);
-        std::stringstream fileStream;
-        fileStream << ifs.rdbuf();
-
-        fileContents = fileStream.str();
-    }
-
-   public:
-    EncKeyReader() {}
-
-    Result getPublicKey(const std::string &keyName, std::map<std::string, std::string> &metadata,
-                        EncryptionKeyInfo &encKeyInfo) const {
-        std::string CERT_FILE_PATH =
-            "../../pulsar-broker/src/test/resources/certificate/public-key." + keyName;
-        std::string keyContents;
-        readFile(CERT_FILE_PATH, keyContents);
-
-        encKeyInfo.setKey(keyContents);
-        return ResultOk;
-    }
-
-    Result getPrivateKey(const std::string &keyName, std::map<std::string, std::string> &metadata,
-                         EncryptionKeyInfo &encKeyInfo) const {
-        std::string CERT_FILE_PATH =
-            "../../pulsar-broker/src/test/resources/certificate/private-key." + keyName;
-        std::string keyContents;
-        readFile(CERT_FILE_PATH, keyContents);
-
-        encKeyInfo.setKey(keyContents);
-        return ResultOk;
-    }
-};
-
 TEST(BasicEndToEndTest, testBatchMessages) {
     ClientConfiguration config;
     Client client(lookupUrl);
@@ -1389,7 +1353,14 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
+    std::string PUBLIC_CERT_FILE_PATH =
+        "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa-test.pem";
+
+    std::string PRIVATE_CERT_FILE_PATH =
+        "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa-test.pem";
+
+    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader =
+        std::make_shared<pulsar::DefaultCryptoKeyReader>(PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
 
     ConsumerConfiguration consConfig;
 
@@ -1426,6 +1397,12 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 
     // 2. Add valid key
     {
+        PUBLIC_CERT_FILE_PATH =
+            "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem";
+
+        PRIVATE_CERT_FILE_PATH =
+            "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem";
+        keyReader = std::make_shared<pulsar::DefaultCryptoKeyReader>(PUBLIC_CERT_FILE_PATH, PRIVATE_CERT_FILE_PATH);
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
         prodConf.setBatchingEnabled(false);
