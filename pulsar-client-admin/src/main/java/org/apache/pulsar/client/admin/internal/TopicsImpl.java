@@ -90,9 +90,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
-    private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    private final String MESSAGE_ID = "X-Pulsar-Message-ID";
-    private final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    static private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    static private final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    static private final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -2632,6 +2632,83 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> removeMaxProducersAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxProducers");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
+        try {
+            return getMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Integer>() {
+                    @Override
+                    public void completed(Integer maxSubscriptionsPerTopic) {
+                        future.complete(maxSubscriptionsPerTopic);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setMaxSubscriptionsPerTopic(String topic, int maxSubscriptionsPerTopic) throws PulsarAdminException {
+        try {
+            setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setMaxSubscriptionsPerTopicAsync(String topic, int maxSubscriptionsPerTopic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
+        return asyncPostRequest(path, Entity.entity(maxSubscriptionsPerTopic, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
+        try {
+            removeMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxSubscriptionsPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
         return asyncDeleteRequest(path);
     }
 

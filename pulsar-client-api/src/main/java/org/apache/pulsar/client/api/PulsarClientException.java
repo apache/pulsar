@@ -417,6 +417,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Producer fenced exception thrown by Pulsar client.
+     */
+    public static class ProducerFencedException extends PulsarClientException {
+        /**
+         * Constructs a {@code ProducerFencedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {
@@ -685,6 +701,35 @@ public class PulsarClientException extends IOException {
          *        The sequenceId of the message
          */
         public ProducerQueueIsFullError(String msg, long sequenceId) {
+            super(msg, sequenceId);
+        }
+    }
+
+    /**
+     * Memory buffer full error thrown by Pulsar client.
+     */
+    public static class MemoryBufferIsFullError extends PulsarClientException {
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public MemoryBufferIsFullError(String msg) {
+            super(msg);
+        }
+
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public MemoryBufferIsFullError(String msg, long sequenceId) {
             super(msg, sequenceId);
         }
     }
@@ -972,6 +1017,10 @@ public class PulsarClientException extends IOException {
             return new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
+        } else if (cause instanceof ProducerFencedException) {
+            return new ProducerFencedException(msg);
+        } else if (cause instanceof MemoryBufferIsFullError) {
+            return new MemoryBufferIsFullError(msg);
         } else {
             return new PulsarClientException(t);
         }

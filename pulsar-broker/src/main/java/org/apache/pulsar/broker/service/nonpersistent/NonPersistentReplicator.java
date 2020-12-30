@@ -65,7 +65,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             backOff.reset();
         } else {
             log.info(
-                    "[{}][{} -> {}] Replicator was stopped while creating the producer. Closing it. Replicator state: {}",
+                    "[{}][{} -> {}] Replicator was stopped while creating the producer."
+                            + " Closing it. Replicator state: {}",
                     topicName, localCluster, remoteCluster, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
             closeProducerAsync();
@@ -80,7 +81,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             ByteBuf headersAndPayload = entry.getDataBuffer();
             MessageImpl msg;
             try {
-                msg = MessageImpl.deserialize(headersAndPayload);
+                msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
             } catch (Throwable t) {
                 log.error("[{}][{} -> {}] Failed to deserialize message at {} (buffer size: {}): {}", topicName,
                         localCluster, remoteCluster, entry.getPosition(), length, t.getMessage(), t);

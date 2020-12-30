@@ -134,10 +134,8 @@ public class PackagesManagementImpl implements PackagesManagement {
         return CompletableFuture.allOf(
             checkMetadataExistsAndThrowException(packageName),
             checkPackageExistsAndThrowException(packageName)
-        ).thenCompose(ignore -> CompletableFuture.allOf(
-            writeMeta(packageName, metadata),
-            storage.writeAsync(packagePath(packageName), inputStream))
-        );
+        ).thenCompose(ignore -> writeMeta(packageName, metadata))
+            .thenCompose(ignore -> storage.writeAsync(packagePath(packageName), inputStream));
     }
 
     @Override
@@ -149,8 +147,7 @@ public class PackagesManagementImpl implements PackagesManagement {
 
     @Override
     public CompletableFuture<List<String>> list(PackageName packageName) {
-        return checkPackageNotExistsAndThrowException(packageName)
-            .thenCompose(ignore -> storage.listAsync(packageWithoutVersionPath(packageName)));
+        return storage.listAsync(packageWithoutVersionPath(packageName));
     }
 
     @Override

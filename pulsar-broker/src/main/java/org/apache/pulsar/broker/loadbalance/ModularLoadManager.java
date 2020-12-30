@@ -95,26 +95,33 @@ public interface ModularLoadManager {
     void writeBrokerDataOnZooKeeper();
 
     /**
+     * As any broker, write the local broker data to ZooKeeper, forced or not.
+     */
+    default void writeBrokerDataOnZooKeeper(boolean force) {
+        writeBrokerDataOnZooKeeper();
+    }
+
+    /**
      * As the leader broker, write bundle data aggregated from all brokers to ZooKeeper.
      */
     void writeBundleDataOnZooKeeper();
 
     /**
-     * Return :{@link Deserializer} to deserialize load-manager load report
+     * Return :{@link Deserializer} to deserialize load-manager load report.
      *
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 
     /**
-     * Get available broker list in cluster
+     * Get available broker list in cluster.
      *
      * @return
      */
     Set<String> getAvailableBrokers();
 
     /**
-     * Fetch local-broker data from load-manager broker cache
+     * Fetch local-broker data from load-manager broker cache.
      *
      * @param broker load-balancer zk-path
      * @return

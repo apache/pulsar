@@ -102,7 +102,7 @@ public class MBeanStatsGenerator {
     }
 
     /**
-     * Creates a MBean dimension key for metrics
+     * Creates a MBean dimension key for metrics.
      *
      * @param objectName
      * @return

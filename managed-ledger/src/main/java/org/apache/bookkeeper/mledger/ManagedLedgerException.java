@@ -157,6 +157,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerInterceptException extends ManagedLedgerException {
+        public ManagedLedgerInterceptException(String msg) {
+            super(msg);
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

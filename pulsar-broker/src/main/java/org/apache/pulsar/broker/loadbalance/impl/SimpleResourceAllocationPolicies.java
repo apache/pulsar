@@ -60,8 +60,10 @@ public class SimpleResourceAllocationPolicies {
 
     public boolean areIsolationPoliciesPresent(NamespaceName namespace) {
         try {
-            Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            return policies.filter(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace) != null).isPresent();
+            Optional<NamespaceIsolationPolicies> policies =
+                    getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            return policies.filter(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace) != null)
+                    .isPresent();
         } catch (Exception e) {
             LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies", e);
             return false;
@@ -70,7 +72,8 @@ public class SimpleResourceAllocationPolicies {
 
     private Optional<NamespaceIsolationPolicy> getNamespaceIsolationPolicy(NamespaceName namespace) {
         try {
-            Optional<NamespaceIsolationPolicies> policies =getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            Optional<NamespaceIsolationPolicies> policies =
+                    getIsolationPolicies(pulsar.getConfiguration().getClusterName());
             return policies.map(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace));
 
         } catch (Exception e) {
@@ -91,7 +94,8 @@ public class SimpleResourceAllocationPolicies {
 
     public boolean isSharedBroker(String broker) {
         try {
-            Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            Optional<NamespaceIsolationPolicies> policies =
+                    getIsolationPolicies(pulsar.getConfiguration().getClusterName());
             return policies.map(isolationPolicies -> isolationPolicies.isSharedBroker(broker)).orElse(true);
 
         } catch (Exception e) {

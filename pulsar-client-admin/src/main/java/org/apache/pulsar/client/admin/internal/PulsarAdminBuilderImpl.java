@@ -35,16 +35,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     private int connectTimeout = PulsarAdmin.DEFAULT_CONNECT_TIMEOUT_SECONDS;
     private int readTimeout = PulsarAdmin.DEFAULT_READ_TIMEOUT_SECONDS;
     private int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    private int autoCertRefreshTime = PulsarAdmin.DEFAULT_CERT_REFRESH_SECONDS;
     private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
+    private TimeUnit autoCertRefreshTimeUnit = TimeUnit.SECONDS;
     private ClassLoader clientBuilderClassLoader = null;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdmin(conf.getServiceUrl(),
-                conf, connectTimeout, connectTimeoutUnit, readTimeout, readTimeoutUnit,
-                requestTimeout, requestTimeoutUnit, clientBuilderClassLoader);
+        return new PulsarAdmin(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
+                readTimeoutUnit, requestTimeout, requestTimeoutUnit, autoCertRefreshTime,
+                autoCertRefreshTimeUnit, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -164,6 +166,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
         this.requestTimeout = requestTimeout;
         this.requestTimeoutUnit = requestTimeoutUnit;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder autoCertRefreshTime(int autoCertRefreshTime, TimeUnit autoCertRefreshTimeUnit) {
+        this.autoCertRefreshTime = autoCertRefreshTime;
+        this.autoCertRefreshTimeUnit = autoCertRefreshTimeUnit;
         return this;
     }
 

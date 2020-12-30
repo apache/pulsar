@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -274,6 +276,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long instanceLivenessCheckFreqMs;
     @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "Whether to enable the broker client authentication used by function workers to talk to brokers"
+    )
+    private Boolean brokerClientAuthenticationEnabled = null;
+    public boolean isBrokerClientAuthenticationEnabled() {
+        if (brokerClientAuthenticationEnabled != null) {
+            return brokerClientAuthenticationEnabled;
+        } else {
+            return authenticationEnabled;
+        }
+    }
+    @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )
@@ -394,6 +408,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String brokerClientTrustCertsFilePath;
 
+    public String getBrokerClientTrustCertsFilePath() {
+        // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
+        // otherwise we will use brokerClientTrustCertsFilePath
+        if (StringUtils.isNotBlank(brokerClientTrustCertsFilePath)) {
+            return brokerClientTrustCertsFilePath;
+        } else {
+            return tlsTrustCertsFilePath;
+        }
+    }
 
     /******** Function Runtime configurations **********/
 
@@ -485,20 +508,29 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionAssignmentTopicName);
     }
 
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "The nar package for the function worker service"
+    )
+    private String functionsWorkerServiceNarPackage = "";
+
     public static WorkerConfig load(String yamlFile) throws IOException {
+        if (isBlank(yamlFile)) {
+            return new WorkerConfig();
+        }
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);
     }
 
     public String getWorkerId() {
-        if (StringUtils.isBlank(this.workerId)) {
+        if (isBlank(this.workerId)) {
             this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
         }
         return this.workerId;
     }
 
     public String getWorkerHostname() {
-        if (StringUtils.isBlank(this.workerHostname)) {
+        if (isBlank(this.workerHostname)) {
             this.workerHostname = unsafeLocalhostResolve();
         }
         return this.workerHostname;

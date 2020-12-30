@@ -28,7 +28,7 @@ my-tenant-2
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants}
+{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 
@@ -61,7 +61,7 @@ $ pulsar-admin tenants create my-tenant \
 ```
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v2/functions/{tenant}
+{@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/createTenant?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 
@@ -95,7 +95,7 @@ $ pulsar-admin tenants get my-tenant
 ```
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant}
+{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 
@@ -120,7 +120,7 @@ $ pulsar-admin tenants delete my-tenant
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 
@@ -144,7 +144,7 @@ $ pulsar-admin tenants update my-tenant
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 

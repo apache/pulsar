@@ -36,9 +36,9 @@ public class WRRPlacementStrategy implements PlacementStrategy {
     private final Random rand = new Random();
 
     /**
+     * Function : getByWeightedRoundRobin returns ResourceUnit selected by WRR algorithm
+     *              based on available resource on RU.
      * <code>
-     * Function : getByWeightedRoundRobin
-     *            returns ResourceUnit selected by WRR algorithm based on available resource on RU
      * ^
      * |
      * |

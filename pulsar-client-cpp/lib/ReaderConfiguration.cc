@@ -20,6 +20,8 @@
 
 namespace pulsar {
 
+const static std::string emptyString;
+
 ReaderConfiguration::ReaderConfiguration() : impl_(std::make_shared<ReaderConfigurationImpl>()) {}
 
 ReaderConfiguration::~ReaderConfiguration() {}
@@ -67,4 +69,87 @@ void ReaderConfiguration::setSubscriptionRolePrefix(const std::string& subscript
 bool ReaderConfiguration::isReadCompacted() const { return impl_->readCompacted; }
 
 void ReaderConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+
+void ReaderConfiguration::setInternalSubscriptionName(std::string internalSubscriptionName) {
+    impl_->internalSubscriptionName = internalSubscriptionName;
+}
+
+const std::string& ReaderConfiguration::getInternalSubscriptionName() const {
+    return impl_->internalSubscriptionName;
+}
+
+void ReaderConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds) {
+    impl_->unAckedMessagesTimeoutMs = milliSeconds;
+}
+
+long ReaderConfiguration::getUnAckedMessagesTimeoutMs() const { return impl_->unAckedMessagesTimeoutMs; }
+
+void ReaderConfiguration::setTickDurationInMs(const uint64_t milliSeconds) {
+    impl_->tickDurationInMs = milliSeconds;
+}
+
+long ReaderConfiguration::getTickDurationInMs() const { return impl_->tickDurationInMs; }
+
+void ReaderConfiguration::setAckGroupingTimeMs(long ackGroupingMillis) {
+    impl_->ackGroupingTimeMs = ackGroupingMillis;
+}
+
+long ReaderConfiguration::getAckGroupingTimeMs() const { return impl_->ackGroupingTimeMs; }
+
+void ReaderConfiguration::setAckGroupingMaxSize(long maxGroupingSize) {
+    impl_->ackGroupingMaxSize = maxGroupingSize;
+}
+
+long ReaderConfiguration::getAckGroupingMaxSize() const { return impl_->ackGroupingMaxSize; }
+
+bool ReaderConfiguration::isEncryptionEnabled() const { return impl_->cryptoKeyReader != nullptr; }
+
+const CryptoKeyReaderPtr ReaderConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
+
+ReaderConfiguration& ReaderConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
+    impl_->cryptoKeyReader = cryptoKeyReader;
+    return *this;
+}
+
+ConsumerCryptoFailureAction ReaderConfiguration::getCryptoFailureAction() const {
+    return impl_->cryptoFailureAction;
+}
+
+ReaderConfiguration& ReaderConfiguration::setCryptoFailureAction(ConsumerCryptoFailureAction action) {
+    impl_->cryptoFailureAction = action;
+    return *this;
+}
+
+bool ReaderConfiguration::hasProperty(const std::string& name) const {
+    const auto& properties = impl_->properties;
+    return properties.find(name) != properties.cend();
+}
+
+const std::string& ReaderConfiguration::getProperty(const std::string& name) const {
+    const auto& properties = impl_->properties;
+    const auto it = properties.find(name);
+    return (it != properties.cend()) ? (it->second) : emptyString;
+}
+
+std::map<std::string, std::string>& ReaderConfiguration::getProperties() const { return impl_->properties; }
+
+ReaderConfiguration& ReaderConfiguration::setProperty(const std::string& name, const std::string& value) {
+    auto& properties = impl_->properties;
+    auto it = properties.find(name);
+    if (it != properties.end()) {
+        it->second = value;
+    } else {
+        properties.emplace(name, value);
+    }
+    return *this;
+}
+
+ReaderConfiguration& ReaderConfiguration::setProperties(
+    const std::map<std::string, std::string>& properties) {
+    for (const auto& kv : properties) {
+        setProperty(kv.first, kv.second);
+    }
+    return *this;
+}
+
 }  // namespace pulsar

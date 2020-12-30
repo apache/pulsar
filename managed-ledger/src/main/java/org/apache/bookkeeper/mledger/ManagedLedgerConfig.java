@@ -33,6 +33,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
@@ -75,6 +76,7 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private ManagedLedgerInterceptor managedLedgerInterceptor;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -635,5 +637,13 @@ public class ManagedLedgerConfig {
 
     public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
+    }
+
+    public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
+        return managedLedgerInterceptor;
+    }
+
+    public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
+        this.managedLedgerInterceptor = managedLedgerInterceptor;
     }
 }

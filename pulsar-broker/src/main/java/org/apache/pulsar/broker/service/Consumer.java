@@ -60,7 +60,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Consumer is a consumer currently connected and associated with a Subscription
+ * A Consumer is a consumer currently connected and associated with a Subscription.
  */
 public class Consumer {
     private final Subscription subscription;
@@ -207,8 +207,10 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -240,8 +242,8 @@ public class Consumer {
 
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
-        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
-                    (1 - avgPercent) * totalMessages / entries.size());
+        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent
+                + (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
@@ -311,7 +313,7 @@ public class Consumer {
 
     public CompletableFuture<Void> messageAcked(CommandAck ack) {
         this.lastAckedTimestamp = System.currentTimeMillis();
-        Map<String,Long> properties = Collections.emptyMap();
+        Map<String, Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
                 .collect(Collectors.toMap(PulsarApi.KeyLongValue::getKey,
@@ -324,20 +326,23 @@ public class Consumer {
             }
 
             if (Subscription.isIndividualAckMode(subType)) {
-                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
+                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
+                        subscription, consumerId);
             }
             PositionImpl position = PositionImpl.earliest;
             if (ack.getMessageIdCount() == 1) {
                 MessageIdData msgId = ack.getMessageId(0);
                 if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
+                            SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
             }
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
-                return transactionCumulativeAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked);
+                return transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
+                        ack.getTxnidLeastBits(), positionsAcked);
             } else {
                 List<Position> positionsAcked = Collections.singletonList(position);
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
@@ -353,7 +358,7 @@ public class Consumer {
     }
 
     //this method is for individual ack not carry the transaction
-    private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String,Long> properties) {
+    private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
         List<PositionImpl> checkBatchPositions = null;
         for (int i = 0; i < ack.getMessageIdCount(); i++) {
@@ -567,6 +572,18 @@ public class Consumer {
         stats.chuckedMessageRate = chuckedMessageRate.getRate();
     }
 
+    public void updateStats(ConsumerStats consumerStats) {
+        msgOutCounter.add(consumerStats.msgOutCounter);
+        bytesOutCounter.add(consumerStats.bytesOutCounter);
+        msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
+        lastAckedTimestamp = consumerStats.lastAckedTimestamp;
+        lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
+        unackedMessages = consumerStats.unackedMessages;
+        blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
+        AVG_MESSAGES_PER_ENTRY.set(this, consumerStats.avgMessagesPerEntry);
+    }
+
     public ConsumerStats getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();
@@ -640,7 +657,8 @@ public class Consumer {
         Consumer ackOwnedConsumer = null;
         if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(), position.getEntryId())) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(),
+                        position.getEntryId())) {
                     ackOwnedConsumer = consumer;
                     break;
                 }

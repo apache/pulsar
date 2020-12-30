@@ -31,12 +31,13 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class NamespaceStatsAggregator {
 
-    private static FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats = new FastThreadLocal<AggregatedNamespaceStats>() {
-        @Override
-        protected AggregatedNamespaceStats initialValue() throws Exception {
-            return new AggregatedNamespaceStats();
-        }
-    };
+    private static FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
+            new FastThreadLocal<AggregatedNamespaceStats>() {
+                @Override
+                protected AggregatedNamespaceStats initialValue() throws Exception {
+                    return new AggregatedNamespaceStats();
+                }
+            };
 
     private static FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -45,7 +46,8 @@ public class NamespaceStatsAggregator {
         }
     };
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, SimpleTextOutputStream stream) {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+                                SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats.resetTypes();
@@ -54,14 +56,14 @@ public class NamespaceStatsAggregator {
         printDefaultBrokerStats(stream, cluster);
 
         LongAdder topicsCount = new LongAdder();
-
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats, includeConsumerMetrics, pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
+                    getTopicStats(topic, topicStats, includeConsumerMetrics,
+                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
@@ -82,7 +84,8 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics, boolean getPreciseBacklog) {
+    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
+                                      boolean getPreciseBacklog) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -137,6 +140,9 @@ public class NamespaceStatsAggregator {
                     .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
             subsStats.msgBacklog = subscriptionStats.msgBacklog;
             subsStats.msgDelayed = subscriptionStats.msgDelayed;
+            subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
+            subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
+            subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
             subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
             subscriptionStats.consumers.forEach(cStats -> {
                 stats.consumersCount++;
@@ -266,7 +272,8 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_100", ledgerWritelatencyBuckets[6]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_200", ledgerWritelatencyBuckets[7]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_1000", ledgerWritelatencyBuckets[8]);
-        metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_overflow", ledgerWritelatencyBuckets[9]);
+        metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_overflow",
+                ledgerWritelatencyBuckets[9]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_count",
                 stats.storageLedgerWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_sum",

@@ -71,6 +71,9 @@ public class SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
+    /** Total messages expired on this subscription. */
+    public long totalMsgExpired;
+
     /** Last message expire execution timestamp. */
     public long lastExpireTimestamp;
 
@@ -95,6 +98,12 @@ public class SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
+    /** The number of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRanges;
+
+    /** The serialized size of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRangesSerializedSize;
+
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -110,8 +119,12 @@ public class SubscriptionStats {
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
+        totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         consumers.clear();
+        consumersAfterMarkDeletePosition.clear();
+        nonContiguousDeletedMessagesRanges = 0;
+        nonContiguousDeletedMessagesRangesSerializedSize = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -127,6 +140,7 @@ public class SubscriptionStats {
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
+        this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
         if (this.consumers.size() != stats.consumers.size()) {
@@ -140,6 +154,8 @@ public class SubscriptionStats {
             }
         }
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
+        this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
+        this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         return this;
     }
 }

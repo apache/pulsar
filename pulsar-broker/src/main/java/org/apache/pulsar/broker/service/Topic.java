@@ -90,23 +90,38 @@ public interface Topic {
         default long getOriginalHighestSequenceId() {
             return  -1L;
         }
+
+        default long getNumberOfMessages() {
+            return  1L;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
-    void addProducer(Producer producer) throws BrokerServiceException;
+    /**
+     * Tries to add a producer to the topic. Several validations will be performed.
+     *
+     * @param producer
+     * @param producerQueuedFuture
+     *            a future that will be triggered if the producer is being queued up prior of getting established
+     * @return the "topic epoch" if there is one or empty
+     */
+    CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture);
 
     void removeProducer(Producer producer);
 
     /**
-     * record add-latency
+     * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
+                                          int priorityLevel, String consumerName, boolean isDurable,
+                                          MessageId startMessageId,
+                                          Map<String, String> metadata, boolean readCompacted,
+                                          InitialPosition initialPosition,
+                                          long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
+                                          PulsarApi.KeySharedMeta keySharedMeta);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -236,11 +251,11 @@ public interface Topic {
     CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
 
     /**
-     * Publish Transaction message to this Topic's TransactionBuffer
+     * Publish Transaction message to this Topic's TransactionBuffer.
      *
-     * @param txnID Transaction Id
+     * @param txnID             Transaction Id
      * @param headersAndPayload Message data
-     * @param publishContext Publish context
+     * @param publishContext    Publish context
      */
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 

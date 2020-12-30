@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -131,16 +132,29 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
+                totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
                 batchSizes.setBatchSize(i, batchSize);
+                long[] ackSet = null;
                 if (indexesAcks != null && cursor != null) {
-                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
                         indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                     } else {
-                        indexesAcks.setIndexesAcks(i,null);
+                        indexesAcks.setIndexesAcks(i, null);
                     }
                 }
+
+                BrokerInterceptor interceptor = subscription.interceptor();
+                if (null != interceptor) {
+                    interceptor.beforeSendMessage(
+                        subscription,
+                        entry,
+                        ackSet,
+                        msgMetadata
+                    );
+                }
+
             } finally {
                 msgMetadata.recycle();
             }

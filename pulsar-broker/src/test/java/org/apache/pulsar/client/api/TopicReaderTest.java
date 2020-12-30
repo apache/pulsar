@@ -23,20 +23,22 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -173,7 +175,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
                 .startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg = null;
@@ -647,9 +650,11 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleReaderReachEndOfTopic() throws Exception {
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
                 .startMessageId(MessageId.earliest).create();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
                 .create();
 
         // no data write, should return false
@@ -852,7 +857,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertFalse(reader.hasMessageAvailable());
         }
 
@@ -861,7 +866,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
         }
 
@@ -869,7 +874,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());
@@ -888,7 +893,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub2").subscribe().close();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertFalse(reader.hasMessageAvailable());
         }
 
@@ -897,7 +902,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
         }
 
@@ -911,7 +916,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         });
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());
@@ -980,6 +985,76 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         producer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testHasMessageAvailableWithBatch() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
+        final int numOfMessage = 10;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(2,TimeUnit.SECONDS)
+                .topic(topicName).create();
+
+        //For batch-messages with single message, the type of client messageId should be the same as that of broker
+        MessageId messageId = producer.send("msg".getBytes());
+        assertTrue(messageId instanceof MessageIdImpl);
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
+                .startMessageId(messageId).startMessageIdInclusive().create();
+        MessageId lastMsgId = reader.getConsumer().getLastMessageId();
+        assertTrue(lastMsgId instanceof BatchMessageIdImpl);
+        assertTrue(messageId instanceof BatchMessageIdImpl);
+        assertEquals(lastMsgId, messageId);
+        reader.close();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    Assert.fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+        producer.flush();
+        latch.await();
+        producer.close();
+
+        //For batch-message with multi messages, the type of client messageId should be the same as that of broker
+        for (MessageId id : allIds) {
+            reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                    .startMessageId(id).startMessageIdInclusive().create();
+            if (id instanceof BatchMessageIdImpl) {
+                MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+                assertTrue(lastMessageId instanceof BatchMessageIdImpl);
+                log.info("id {} instance of BatchMessageIdImpl",id);
+            } else {
+                assertTrue(id instanceof MessageIdImpl);
+                MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+                assertTrue(lastMessageId instanceof MessageIdImpl);
+                log.info("id {} instance of MessageIdImpl",id);
+            }
+            reader.close();
+        }
+        //For non-batch message, the type of client messageId should be the same as that of broker
+        producer = pulsarClient.newProducer()
+                .enableBatching(false).topic(topicName).create();
+        messageId = producer.send("non-batch".getBytes());
+        assertFalse(messageId instanceof BatchMessageIdImpl);
+        assertTrue(messageId instanceof MessageIdImpl);
+        reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                .startMessageId(messageId).create();
+        MessageId lastMessageId = reader.getConsumer().getLastMessageId();
+        assertFalse(lastMessageId instanceof BatchMessageIdImpl);
+        assertTrue(lastMessageId instanceof MessageIdImpl);
+        assertEquals(lastMessageId, messageId);
+        producer.close();
+        reader.close();
     }
 
     @Test

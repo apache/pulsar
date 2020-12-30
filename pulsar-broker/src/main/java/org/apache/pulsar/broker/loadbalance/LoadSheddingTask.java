@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * LoadManager load shedding task
+ * LoadManager load shedding task.
  */
 public class LoadSheddingTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadSheddingTask.class);

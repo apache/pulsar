@@ -70,6 +70,12 @@ window.addEventListener('load', function () {
     } else {
         sinkApiVersion = restApiVersions[version][1]['version']
     }
+    let packagesApiVersion = ''
+    if (restApiVersions[version][0]['fileName'].indexOf('swaggerpackages') >= 0) {
+        packagesApiVersion = restApiVersions[version][0]['version']
+    } else {
+        packagesApiVersion = restApiVersions[version][1]['version']
+    }
     // setup rest api menu items in nav bar
     const restapis = document.querySelector("a[href='#restapis']").parentNode;
     const restapisMenu =
@@ -81,6 +87,7 @@ window.addEventListener('load', function () {
         '<li><a href="/functions-rest-api?version=' + version + '&apiversion=' + functionApiVersion + '">Functions </a></li>' +
         '<li><a href="/source-rest-api?version=' + version + '&apiversion=' + sourceApiVersion + '">Sources </a></li>' +
         '<li><a href="/sink-rest-api?version=' + version + '&apiversion=' + sinkApiVersion + '">Sinks </a></li>' +
+        '<li><a href="/packages-rest-api?version=' + version + '&apiversion=' + packagesApiVersion + '">Packages </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -197,7 +204,8 @@ window.addEventListener('load', function () {
     if (pathName.indexOf('/admin-rest-api') >= 0
         || pathName.indexOf('/functions-rest-api') >= 0
         || pathName.indexOf('/source-rest-api') >= 0
-        || pathName.indexOf('/sink-rest-api') >= 0) {
+        || pathName.indexOf('/sink-rest-api') >= 0
+        || pathName.indexOf('/packages-rest-api') >= 0) {
         wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select" id="version_select">
                                     ${apiVersionList.map(v => `<option value="${v.version}">${v.version}</option>`).join("")}
                                 </select>`;

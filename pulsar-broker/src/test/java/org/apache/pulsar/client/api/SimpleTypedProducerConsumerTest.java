@@ -21,11 +21,9 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,10 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -44,6 +39,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -501,9 +497,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Reader<GenericRecord> reader = pulsarClient
-           .newReader(Schema.AUTO_CONSUME())
-           .topic("persistent://my-property/use/my-ns/my-topic1")
-           .startMessageId(MessageId.earliest)
+               .newReader(Schema.AUTO_CONSUME())
+               .topic("persistent://my-property/use/my-ns/my-topic1")
+               .startMessageId(MessageId.earliest)
            .create();
 
        Message<GenericRecord> msg = null;

@@ -909,8 +909,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
+                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
                         Mockito.any());
         doReturn(true).when(nsSvc)
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
@@ -919,7 +919,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle testBundle = nsBundles.getBundles().get(0);
         // make one bundle owned
         LookupOptions optionsHttps = LookupOptions.builder().authoritative(false).requestHttps(true).readOnly(false).build();
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testBundle, optionsHttps);
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc).getWebServiceUrlAsync(testBundle, optionsHttps);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
         doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
@@ -1085,7 +1085,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Verifies that deleteNamespace cleans up policies(global,local), bundle cache and bundle ownership
-     *
+
      * @throws Exception
      */
     @Test
@@ -1112,6 +1112,35 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // returns full bundle if policies not present
         assertEquals("0x00000000_0xffffffff", bundle2.getBundleRange());
 
+    }
+
+    /**
+     * Verifies that force deleteNamespace delete all topics in the namespace
+     * @throws Exception
+     */
+    @Test
+    public void testForceDeleteNamespace() throws Exception {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String topic = namespace + "/topic";
+
+        admin.namespaces().createNamespace(namespace, 100);
+
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        List<String> topicList = admin.topics().getList(namespace);
+        assertFalse(topicList.isEmpty());
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: Cannot delete non empty namespace
+        }
+
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.namespaces().createNamespace(namespace, 100);
+        topicList = admin.topics().getList(namespace);
+        assertTrue(topicList.isEmpty());
     }
 
     @Test

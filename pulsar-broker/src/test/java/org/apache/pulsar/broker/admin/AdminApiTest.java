@@ -29,14 +29,15 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -52,17 +53,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ConfigHelper;
@@ -82,8 +77,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
-import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -120,11 +115,11 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -403,6 +398,35 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             LOG.warn("TEST FAILED [{}]", e.getMessage());
             throw e;
         }
+
+        // validate regex: invlid regex for primary and seconday
+        NamespaceIsolationData nsRegexPolicy = new NamespaceIsolationData();
+        nsRegexPolicy.namespaces = new ArrayList<String>();
+        nsRegexPolicy.namespaces.add("other/use/other.*");
+        nsRegexPolicy.primary = new ArrayList<String>();
+        nsRegexPolicy.primary.add("prod1-broker[45-46].messaging.use.example.com");
+        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyData();
+        nsRegexPolicy.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsRegexPolicy.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsRegexPolicy.auto_failover_policy.parameters.put("min_limit", "1");
+        nsRegexPolicy.auto_failover_policy.parameters.put("usage_threshold", "100");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        }catch (PulsarAdminException e) {
+            //Ok
+        }
+
+        nsRegexPolicy.primary.add("prod1-broker[4-5].messaging.use.example.com");
+        nsRegexPolicy.secondary = new ArrayList<String>();
+        nsRegexPolicy.secondary.add("prod1-broker[45-46].messaging.use.example.com");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        } catch (PulsarAdminException e) {
+            // Ok
+        }
+
     }
 
     @Test

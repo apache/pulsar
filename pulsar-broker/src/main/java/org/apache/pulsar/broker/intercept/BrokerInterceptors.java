@@ -25,10 +25,13 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 
 /**
@@ -51,7 +54,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
      */
     public static BrokerInterceptor load(ServiceConfiguration conf) throws IOException {
         BrokerInterceptorDefinitions definitions =
-                BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
+                BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
+                        conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, BrokerInterceptorWithClassLoader> builder = ImmutableMap.builder();
 
@@ -85,6 +89,20 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata) {
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.beforeSendMessage(
+                subscription,
+                entry,
+                ackSet,
+                msgMetadata);
+        }
+    }
+
+    @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.onPulsarCommand(command, cnx);
@@ -106,7 +124,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.onWebserviceResponse(request, response);
         }

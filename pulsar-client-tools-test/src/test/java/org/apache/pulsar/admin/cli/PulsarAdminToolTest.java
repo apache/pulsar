@@ -27,17 +27,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
@@ -65,9 +62,11 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -77,8 +76,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -354,6 +351,13 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-persistence myprop/clust/ns1"));
         verify(mockNamespaces).getPersistence("myprop/clust/ns1");
+
+        namespaces.run(split("get-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxSubscriptionsPerTopic("myprop/clust/ns1");
+        namespaces.run(split("set-max-subscriptions-per-topic myprop/clust/ns1 -m 300"));
+        verify(mockNamespaces).setMaxSubscriptionsPerTopic("myprop/clust/ns1", 300);
+        namespaces.run(split("remove-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxSubscriptionsPerTopic("myprop/clust/ns1");
 
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
@@ -799,6 +803,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
         verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
+        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -m 100"));
+        verify(mockTopics).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 100);
+        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp

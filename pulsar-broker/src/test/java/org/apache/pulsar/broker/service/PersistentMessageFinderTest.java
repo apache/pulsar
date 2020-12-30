@@ -29,8 +29,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,9 +53,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
+import org.testng.collections.Sets;
 
 /**
  */
@@ -78,6 +84,33 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
         byte[] byteMessage = headersAndPayload.nioBuffer().array();
         headersAndPayload.release();
+        return byteMessage;
+    }
+
+    public static ByteBuf createMessageByteBufWrittenToLedger(String msg) throws Exception {
+        PulsarApi.MessageMetadata.Builder messageMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        messageMetadataBuilder.setPublishTime(System.currentTimeMillis());
+        messageMetadataBuilder.setProducerName("createMessageWrittenToLedger");
+        messageMetadataBuilder.setSequenceId(1);
+        PulsarApi.MessageMetadata messageMetadata = messageMetadataBuilder.build();
+        ByteBuf data = UnpooledByteBufAllocator.DEFAULT.heapBuffer().writeBytes(msg.getBytes());
+
+        int msgMetadataSize = messageMetadata.getSerializedSize();
+        int payloadSize = data.readableBytes();
+        int totalSize = 4 + msgMetadataSize + payloadSize;
+
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.heapBuffer(totalSize, totalSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
+        headers.writeInt(msgMetadataSize);
+        messageMetadata.writeTo(outStream);
+        return ByteBufPair.coalesce(ByteBufPair.get(headers, data));
+    }
+
+    public static byte[] appendBrokerTimestamp(ByteBuf headerAndPayloads) throws Exception {
+        ByteBuf msgWithEntryMeta =
+                Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors(), 1);
+        byte[] byteMessage = msgWithEntryMeta.nioBuffer().array();
+        msgWithEntryMeta.release();
         return byteMessage;
     }
 
@@ -200,6 +233,100 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
+    @Test
+    void testPersistentMessageFinderWithBrokerTimestampForMessage() throws Exception {
+
+        final String ledgerAndCursorName = "publishTime";
+        final String ledgerAndCursorNameForBrokerTimestampMessage = "brokerTimestamp";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        ledger.addEntry(createMessageWrittenToLedger("message1"));
+        // space apart message publish times
+        Thread.sleep(100);
+        ledger.addEntry(createMessageWrittenToLedger("message2"));
+        Thread.sleep(100);
+        Position position = ledger.addEntry(createMessageWrittenToLedger("message3"));
+        Thread.sleep(100);
+        long timestamp = System.currentTimeMillis();
+
+        Result result = new Result();
+
+        CompletableFuture<Void> future = findMessage(result, cursor, timestamp);
+        future.get();
+        assertNull(result.exception);
+        assertNotNull(result.position);
+        assertEquals(result.position, position);
+
+        List<Entry> entryList = cursor.readEntries(3);
+        for (Entry entry : entryList) {
+            // entry has no raw metadata if BrokerTimestampForMessage is disable
+            assertNull(Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer()));
+        }
+
+        result.reset();
+        cursor.close();
+        ledger.close();
+
+        ManagedLedgerConfig configNew = new ManagedLedgerConfig();
+        ManagedLedger ledgerNew = factory.open(ledgerAndCursorNameForBrokerTimestampMessage, configNew);
+        ManagedCursorImpl cursorNew = (ManagedCursorImpl) ledgerNew.openCursor(ledgerAndCursorNameForBrokerTimestampMessage);
+        // build message which has publish time first
+        ByteBuf msg1 = createMessageByteBufWrittenToLedger("message1");
+        ByteBuf msg2 = createMessageByteBufWrittenToLedger("message2");
+        ByteBuf msg3 = createMessageByteBufWrittenToLedger("message3");
+        Thread.sleep(10);
+        long timeAfterPublishTime = System.currentTimeMillis();
+        Thread.sleep(10);
+
+        // append broker timestamp as entry metadata
+
+        ledgerNew.addEntry(appendBrokerTimestamp(msg1));
+        // space apart message publish times
+        Thread.sleep(100);
+        ledgerNew.addEntry(appendBrokerTimestamp(msg2));
+        Thread.sleep(100);
+        Position newPosition = ledgerNew.addEntry(appendBrokerTimestamp(msg3));
+        Thread.sleep(100);
+        long timeAfterBrokerTimestamp = System.currentTimeMillis();
+
+
+        CompletableFuture<Void> publishTimeFuture = findMessage(result, cursorNew, timeAfterPublishTime);
+        publishTimeFuture.get();
+        assertNull(result.exception);
+        // position should be null, since broker timestamp for message is bigger than timeAfterPublishTime
+        assertNull(result.position);
+
+        result.reset();
+
+        CompletableFuture<Void> brokerTimestampFuture = findMessage(result, cursorNew, timeAfterBrokerTimestamp);
+        brokerTimestampFuture.get();
+        assertNull(result.exception);
+        assertNotNull(result.position);
+        assertEquals(result.position, newPosition);
+
+        List<Entry> entryListNew = cursorNew.readEntries(4);
+        for (Entry entry : entryListNew) {
+            // entry should have raw metadata since BrokerTimestampForMessage is enable
+            PulsarApi.BrokerEntryMetadata brokerMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            assertNotNull(brokerMetadata);
+            assertTrue(brokerMetadata.getBrokerTimestamp() > timeAfterPublishTime);
+        }
+
+        result.reset();
+        cursorNew.close();
+        ledgerNew.close();
+        factory.shutdown();
+    }
+
+    public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
+        Set<String> interceptorNames = new HashSet<>();
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
+        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
+                Thread.currentThread().getContextClassLoader());
+    }
     /**
      * It tests that message expiry doesn't get stuck if it can't read deleted ledger's entry.
      *

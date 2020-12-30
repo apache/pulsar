@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.val;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -133,7 +134,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            inputStream.skip(length);
+                            val skipped = inputStream.skip(length);
+                            log.info("Skipped {} bytes.", skipped);
                         }
                     }
 

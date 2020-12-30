@@ -23,7 +23,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.packages.management.core.MockedPackagesStorageConfiguration;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
@@ -43,7 +42,7 @@ public class PackagesManagementImplTest {
     @BeforeClass
     public static void setup() throws IOException {
         PackagesStorageProvider storageProvider = PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
-        MockedPackagesStorageConfiguration packagesStorageConfiguration = new MockedPackagesStorageConfiguration();
+        DefaultPackagesStorageConfiguration packagesStorageConfiguration = new DefaultPackagesStorageConfiguration();
         storage = storageProvider.getStorage(packagesStorageConfiguration);
 
         packagesManagement = new PackagesManagementImpl();

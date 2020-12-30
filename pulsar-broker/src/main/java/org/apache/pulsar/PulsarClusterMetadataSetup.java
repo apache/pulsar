@@ -19,9 +19,9 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
+import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +35,6 @@ import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -115,6 +114,15 @@ public class PulsarClusterMetadataSetup {
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
 
+        // Hide and marked as deprecated this flag because we use the new name '--existing-bk-metadata-service-uri' to
+        // pass the service url. For compatibility of the command, we should keep both to avoid the exceptions.
+        @Deprecated
+        @Parameter(names = {
+            "--bookkeeper-metadata-service-uri"},
+            description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
+            hidden = true)
+        private String bookieMetadataServiceUri;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
     }
@@ -178,19 +186,23 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        if (arguments.existingBkMetadataServiceUri == null) {
+        if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             bkConf.setZkServers(arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
         }
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            String uriStr = arguments.existingBkMetadataServiceUri == null
-                    ? bkConf.getMetadataServiceUri() : arguments.existingBkMetadataServiceUri;
+            String uriStr = bkConf.getMetadataServiceUri();
+            if (arguments.existingBkMetadataServiceUri != null) {
+                uriStr = arguments.existingBkMetadataServiceUri;
+            } else if (arguments.bookieMetadataServiceUri != null) {
+                uriStr = arguments.bookieMetadataServiceUri;
+            }
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
@@ -353,23 +365,6 @@ public class PulsarClusterMetadataSetup {
         }
         ZooKeeper zkConnect = zkfactory.create(connection, SessionType.ReadWrite, sessionTimeout).get();
         return zkConnect;
-    }
-
-    private static BundlesData getBundles(int numBundles) {
-        Long maxVal = ((long) 1) << 32;
-        Long segSize = maxVal / numBundles;
-        List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0L));
-        Long curPartition = segSize;
-        for (int i = 0; i < numBundles; i++) {
-            if (i != numBundles - 1) {
-                partitions.add(String.format("0x%08x", curPartition));
-            } else {
-                partitions.add(String.format("0x%08x", maxVal - 1));
-            }
-            curPartition += segSize;
-        }
-        return new BundlesData(partitions);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);

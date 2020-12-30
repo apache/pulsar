@@ -21,13 +21,16 @@ package org.apache.pulsar.io.docs;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.base.Strings;
-import java.io.FileWriter;
+
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,12 +115,12 @@ public class ConnectorDocGenerator {
 
         for (Class<?> connectorClass : connectorClasses) {
             Connector connectorDef = connectorClass.getDeclaredAnnotation(Connector.class);
-            try (FileWriter fileWriter = new FileWriter(
-                Paths.get(
+            try (FileOutputStream fos = new FileOutputStream(
+                    Paths.get(
                     outputDir,
                     "pulsar-io-" + connectorDef.name()
                         + "-" + connectorDef.type().name().toLowerCase()).toString() + ".yml")) {
-                PrintWriter pw = new PrintWriter(fileWriter);
+                PrintWriter pw = new PrintWriter(new OutputStreamWriter(fos, StandardCharsets.UTF_8));
                 generateConnectorYaml(connectorClass, connectorDef, pw);
                 pw.flush();
             }

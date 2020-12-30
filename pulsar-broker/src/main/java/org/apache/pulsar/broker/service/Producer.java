@@ -31,6 +31,7 @@ import io.netty.util.Recycler.Handle;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -54,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents a currently connected producer
+ * Represents a currently connected producer.
  */
 public class Producer {
     private final Topic topic;
@@ -83,13 +85,18 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isEncrypted;
 
+    private final ProducerAccessMode accessMode;
+    private Optional<Long> topicEpoch;
+
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean userProvidedProducerName) {
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -117,6 +124,7 @@ public class Producer {
         stats.setProducerName(producerName);
         stats.producerId = producerId;
         stats.metadata = this.metadata;
+        stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
@@ -124,6 +132,8 @@ public class Producer {
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
+        this.accessMode = accessMode;
+        this.topicEpoch = topicEpoch;
     }
 
     @Override
@@ -175,7 +185,8 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.execute(() -> {
-                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError,
+                        "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
@@ -206,13 +217,16 @@ public class Producer {
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, sequenceId, msgIn,
+                        headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize, boolean isChunked) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
+                                       long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, lowestSequenceId,
+                        highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
@@ -270,7 +284,8 @@ public class Producer {
     }
 
     /**
-     * Return the sequence id of
+     * Return the sequence id of.
+     *
      * @return the sequence id
      */
     public long getLastSequenceId() {
@@ -351,7 +366,7 @@ public class Producer {
         }
 
         /**
-         * Executed from managed ledger thread when the message is persisted
+         * Executed from managed ledger thread when the message is persisted.
          */
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
@@ -395,7 +410,7 @@ public class Producer {
         }
 
         /**
-         * Executed from I/O thread when sending receipt back to client
+         * Executed from I/O thread when sending receipt back to client.
          */
         @Override
         public void run() {
@@ -446,6 +461,11 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             return callback;
+        }
+
+        @Override
+        public long getNumberOfMessages() {
+            return batchSize;
         }
 
         private final Handle<MessagePublishContext> recyclerHandle;
@@ -566,7 +586,10 @@ public class Producer {
             msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
+    }
 
+    public void updateRates(int numOfMessages, long msgSizeInBytes) {
+        msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {
@@ -633,6 +656,14 @@ public class Producer {
 
     public SchemaVersion getSchemaVersion() {
         return schemaVersion;
+    }
+
+    public ProducerAccessMode getAccessMode() {
+        return accessMode;
+    }
+
+    public Optional<Long> getTopicEpoch() {
+        return topicEpoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
