@@ -22,12 +22,19 @@ import com.google.common.base.Objects;
 import org.apache.bookkeeper.common.util.JsonUtil;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Map;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
     private final Class policyClass;
     private final Map<String, Object> properties;
+
+    // Add a default constructor for decode data from bytes to construct this.
+    private EnsemblePlacementPolicyConfig() {
+        this.policyClass = null;
+        this.properties = Collections.emptyMap();
+    }
 
     public EnsemblePlacementPolicyConfig(Class policyClass, Map<String, Object> properties) {
         super();
