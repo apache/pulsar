@@ -3825,7 +3825,7 @@ class UnAckedMessageTrackerEnabledMock : public UnAckedMessageTrackerEnabled {
     long size() { return UnAckedMessageTrackerEnabled::size(); }
 };  // class UnAckedMessageTrackerEnabledMock
 
-TEST(BasicEndToEndTest, testtUnAckedMessageTrackerDefaultBehavior) {
+TEST(BasicEndToEndTest, testUnAckedMessageTrackerDefaultBehavior) {
     ConsumerConfiguration configConsumer;
     ASSERT_EQ(configConsumer.getUnAckedMessagesTimeoutMs(), 0);
     ASSERT_EQ(configConsumer.getTickDurationInMs(), 1000);
