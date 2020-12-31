@@ -142,6 +142,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZooKeeper).when(properties).globalZk();
         doReturn(configurationCache.propertiesCache()).when(properties).tenantsCache();
         doReturn("test").when(properties).clientAppId();
+        doReturn(null).when(properties).originalPrincipal();
+        doReturn(null).when(properties).clientAuthData();
         doNothing().when(properties).validateSuperUserAccess();
 
         namespaces = spy(new Namespaces());
@@ -420,18 +422,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(3)).validateSuperUserAccess();
 
         assertEquals(properties.getTenantAdmin("test-property"), tenantInfo);
-        verify(properties, times(4)).validateSuperUserAccess();
+        verify(properties, times(3)).validateSuperUserAccess();
 
         TenantInfo newPropertyAdmin = new TenantInfo(Sets.newHashSet("role1", "other-role"), allowedClusters);
         properties.updateTenant("test-property", newPropertyAdmin);
-        verify(properties, times(5)).validateSuperUserAccess();
+        verify(properties, times(4)).validateSuperUserAccess();
 
         // Wait for updateTenant to take effect
         Thread.sleep(100);
 
         assertEquals(properties.getTenantAdmin("test-property"), newPropertyAdmin);
         assertNotSame(properties.getTenantAdmin("test-property"), tenantInfo);
-        verify(properties, times(7)).validateSuperUserAccess();
+        verify(properties, times(4)).validateSuperUserAccess();
 
         // Check creating existing property
         try {
