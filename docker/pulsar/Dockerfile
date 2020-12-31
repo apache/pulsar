@@ -43,7 +43,6 @@ RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
 
 # Make the directory and chown it before any files are in it to ensure proper ownership
 # without unnecessarily increasing the size of the final docker image
-# (This is needed to ensure the pulsar user has permission to create the conf and data directories)
 RUN mkdir /pulsar && chown pulsar:pulsar /pulsar
 
 # Install some utilities
@@ -69,11 +68,9 @@ RUN apt-get update \
      && chown -R pulsar:pulsar /pulsar/cpp-client/ \
      && rm -rf /var/lib/apt/lists/*
 
-# Start using the pulsar user to ensure container defaults to run as non root user
-USER pulsar
-
-# Directories will have correct permission because we switched to the pulsar user
-RUN mkdir /pulsar/conf /pulsar/data
+# Make and chown conf and data directories to ensure the volumes have the correct permissions
+# (only specifically chown these empty directories to minimize docker image size)
+RUN mkdir /pulsar/conf /pulsar/data && chown pulsar:pulsar /pulsar/conf /pulsar/data
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
@@ -81,4 +78,9 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 COPY --from=pulsar --chown=pulsar:pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
+# This script is intentionally run as the root user to make the dependencies
+# available to the root user and the pulsar user
 RUN /pulsar/bin/install-pulsar-client-37.sh
+
+# Switch to the pulsar user to ensure container defaults to run as a non root user
+USER pulsar
