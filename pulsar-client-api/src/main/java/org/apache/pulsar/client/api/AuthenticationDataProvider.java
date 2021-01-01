@@ -58,10 +58,25 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
+     * @return a client certificate file path
+     */
+    default String getTlsCerificateFilePath() {
+        return null;
+    }
+
+    /**
      *
      * @return a private key for the client certificate, or null if the data are not available
      */
     default PrivateKey getTlsPrivateKey() {
+        return null;
+    }
+
+    /**
+     *
+     * @return a private key file path
+     */
+    default String getTlsPrivateKeyFilePath() {
         return null;
     }
 

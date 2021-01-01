@@ -27,6 +27,7 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
@@ -242,7 +243,6 @@ public class LookupProxyHandler {
             log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
                     topicName.getPartitionedTopicName(), clientRequestId);
         }
-
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
@@ -252,7 +252,7 @@ public class LookupProxyHandler {
                 if (t != null) {
                     log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
                         t.getMessage(), t);
-                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(getServerError(t),
                         t.getMessage(), clientRequestId));
                 } else {
                     proxyConnection.ctx().writeAndFlush(
@@ -436,6 +436,18 @@ public class LookupProxyHandler {
             return null;
         }
         return InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
+    }
+
+    private ServerError getServerError(Throwable error) {
+        ServerError responseError;
+        if (error instanceof PulsarClientException.AuthorizationException) {
+            responseError = ServerError.AuthorizationError;
+        } else if (error instanceof PulsarClientException.AuthenticationException) {
+            responseError = ServerError.AuthenticationError;
+        } else {
+            responseError = ServerError.ServiceNotReady;
+        }
+        return responseError;
     }
 
     private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);

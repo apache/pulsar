@@ -129,5 +129,15 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         return trustStoreStreamProvider != null ? trustStoreStreamProvider.get() : null;
     }
 
+    @Override
+    public String getTlsCerificateFilePath() {
+        return certFile != null ? certFile.getFileName() : null;
+    }
+
+    @Override
+    public String getTlsPrivateKeyFilePath() {
+        return keyFile != null ? keyFile.getFileName() : null;
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);
 }
