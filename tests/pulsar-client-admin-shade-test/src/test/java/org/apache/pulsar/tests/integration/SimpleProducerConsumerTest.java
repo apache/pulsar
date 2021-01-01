@@ -545,12 +545,15 @@ public class SimpleProducerConsumerTest {
         MessageCrypto crypto = new MessageCryptoBc("test", false);
         MessageMetadata msgMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
-                .setEncryptionAlgo(encAlgo)
                 .setProducerName("test")
                 .setSequenceId(123)
                 .setPublishTime(12333453454L)
                 .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
                 .setUncompressedSize(uncompressedSize);
+
+        if (encAlgo != null) {
+            msgMetadata.setEncryptionAlgo(encAlgo);
+        }
 
         msgMetadata.addEncryptionKey()
             .setKey(encryptionKeyName)
