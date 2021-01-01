@@ -38,7 +38,7 @@
 <tr><td><code>database.history</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history class name.</td></tr>
 <tr><td><code>database.history.pulsar.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history topic where the connector will write and recover DDL statements. This topic is for internal use only and should not be used by consumers.</td></tr>
 <tr><td><code>database.history.pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service url for history topic.</td></tr>
-<tr><td><code>pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service url.</td></tr>
+<tr><td><code>pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service URL for the offset topic used in Debezium. You can use the <code>bin/pulsar-admin --admin-url http://pulsar:8080 sources localrun --source-config-file configs/pg-pulsar-config.yaml</code> command to point to the target Pulsar cluster.</td></tr>
 <tr><td><code>offset.storage.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>Record the last committed offsets that the connector successfully completed.</td></tr>
 </tbody>
 </table>
@@ -68,7 +68,7 @@
         <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
         <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
     },
-    <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
+    <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.1-SNAPSHOT.nar"</span>
 }
 </code></pre>
 <p>You could also find the yaml example in this <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml">file</a>, which has similar content below:</p>
@@ -76,7 +76,7 @@
 <span class="hljs-attribute">namespace</span>: <span class="hljs-string">"default"</span>
 <span class="hljs-attribute">name</span>: <span class="hljs-string">"debezium-kafka-source"</span>
 <span class="hljs-attribute">topicName</span>: <span class="hljs-string">"kafka-connect-topic"</span>
-<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
+<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.1-SNAPSHOT.nar"</span>
 
 ##<span class="hljs-attribute">autoAck</span>: true
 <span class="hljs-attribute">parallelism</span>: <span class="hljs-number">1</span>
@@ -118,7 +118,7 @@
 <pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar </span>standalone
 </code></pre>
 <ul>
-<li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar</code>.</li>
+<li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-kafka-connect-adaptor-2.3.1-SNAPSHOT.nar</code>.</li>
 </ul>
 <pre><code class="hljs css language-$bash"> bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --sourceConfigFile debezium-mysql-<span class="hljs-keyword">source</span>-config.yaml
 </code></pre>
