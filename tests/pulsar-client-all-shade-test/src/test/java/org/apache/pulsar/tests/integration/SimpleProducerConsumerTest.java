@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.tests.integration;
 
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -35,6 +33,8 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -541,12 +541,15 @@ public class SimpleProducerConsumerTest {
 
         MessageMetadata msgMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
-                .setEncryptionAlgo(encAlgo)
                 .setProducerName("test")
                 .setSequenceId(123)
                 .setPublishTime(12333453454L)
                 .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
                 .setUncompressedSize(uncompressedSize);
+
+        if (encAlgo != null) {
+            msgMetadata.setEncryptionAlgo(encAlgo);
+        }
 
         msgMetadata.addEncryptionKey()
                 .setKey(encryptionKeyName)
