@@ -1759,11 +1759,18 @@ Options
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 ## `topics`
-Operations for managing Pulsar topics (both persistent and non persistent)
+Operations for managing Pulsar topics (both persistent and non-persistent). 
 
 Usage
 ```bash
 $ pulsar-admin topics subcommand
+```
+
+From Pulsar 2.7.0, you can set topic-level policies. To enable topic level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+
+```shell
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
 ```
 
 Subcommands
