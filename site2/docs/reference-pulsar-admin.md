@@ -1766,7 +1766,7 @@ Usage
 $ pulsar-admin topics subcommand
 ```
 
-From Pulsar 2.7.0, you can set topic-level policies. To enable topic level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+From Pulsar 2.7.0, the namespace level policies are available on topic  level. To enable topic level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
 
 ```shell
 systemTopicEnabled=true
