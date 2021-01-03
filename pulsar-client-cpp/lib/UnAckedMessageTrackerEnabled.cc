@@ -113,6 +113,7 @@ bool UnAckedMessageTrackerEnabled::remove(const MessageId& m) {
     std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(m);
     if (exist != messageIdPartitionMap.end()) {
         removed = exist->second.erase(m);
+        messageIdPartitionMap.erase(exist);
     }
     return removed;
 }
@@ -124,13 +125,13 @@ long UnAckedMessageTrackerEnabled::size() {
 
 void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
     std::lock_guard<std::mutex> acquire(lock_);
-    for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end(); it++) {
+    for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end();) {
         MessageId msgIdInMap = it->first;
-        if (msgIdInMap < msgId) {
-            std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(msgId);
-            if (exist != messageIdPartitionMap.end()) {
-                exist->second.erase(msgId);
-            }
+        if (msgIdInMap <= msgId) {
+            it->second.erase(msgIdInMap);
+            messageIdPartitionMap.erase(it++);
+        } else {
+            it++;
         }
     }
 }
@@ -138,14 +139,13 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
 // this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's message.
 void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) {
     std::lock_guard<std::mutex> acquire(lock_);
-    for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end(); it++) {
+    for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end();) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap.getTopicName().compare(topic) == 0) {
-            std::map<MessageId, std::set<MessageId>&>::iterator exist =
-                messageIdPartitionMap.find(msgIdInMap);
-            if (exist != messageIdPartitionMap.end()) {
-                exist->second.erase(msgIdInMap);
-            }
+            it->second.erase(msgIdInMap);
+            messageIdPartitionMap.erase(it++);
+        } else {
+            it++;
         }
     }
 }
