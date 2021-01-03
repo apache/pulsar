@@ -140,6 +140,27 @@ int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consu
     return consumer_configuration->consumerConfiguration.isEncryptionEnabled();
 }
 
+void pulsar_consumer_configuration_set_default_crypto_key_reader(
+    pulsar_consumer_configuration_t *consumer_configuration, const char *public_key_path,
+    const char *private_key_path) {
+    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader =
+        std::make_shared<pulsar::DefaultCryptoKeyReader>(public_key_path, private_key_path);
+    consumer_configuration->consumerConfiguration.setCryptoKeyReader(keyReader);
+}
+
+pulsar_consumer_crypto_failure_action pulsar_consumer_configuration_get_crypto_failure_action(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return (pulsar_consumer_crypto_failure_action)
+        consumer_configuration->consumerConfiguration.getCryptoFailureAction();
+}
+
+void pulsar_consumer_configuration_set_crypto_failure_action(
+    pulsar_consumer_configuration_t *consumer_configuration,
+    pulsar_consumer_crypto_failure_action cryptoFailureAction) {
+    consumer_configuration->consumerConfiguration.setCryptoFailureAction(
+        (pulsar::ConsumerCryptoFailureAction)cryptoFailureAction);
+}
+
 int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isReadCompacted();
 }

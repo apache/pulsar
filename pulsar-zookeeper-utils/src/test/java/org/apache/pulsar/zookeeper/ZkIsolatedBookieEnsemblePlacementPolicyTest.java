@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.HashedWheelTimer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +46,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -448,5 +450,68 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         }
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
+    }
+
+    /**
+     * test case for auto-recovery.
+     * When the auto-recovery trigger from bookkeeper, we need to make sure the placement policy can read from
+     * custom metadata and apply it when choosing the new bookie.
+     */
+    @Test
+    public void testTheIsolationPolicyUsingCustomMetadata() throws Exception {
+        // We configure two groups for the isolation policy, one is the 'primary' group, and the another is
+        // 'secondary' group.
+        // We put bookie1, bookie2, bookie3 into the 'primary' group, and put bookie4 into the 'secondary' group.
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> primaryIsolationBookieGroups = new HashMap<>();
+        String primaryGroupName = "primary";
+        String secondaryGroupName = "secondary";
+        primaryIsolationBookieGroups.put(BOOKIE1, new BookieInfo("rack0", null));
+        primaryIsolationBookieGroups.put(BOOKIE2, new BookieInfo("rack0", null));
+        primaryIsolationBookieGroups.put(BOOKIE3, new BookieInfo("rack1", null));
+
+        Map<String, BookieInfo> secondaryIsolationBookieGroups = new HashMap<>();
+        secondaryIsolationBookieGroups.put(BOOKIE4, new BookieInfo("rack0", null));
+        bookieMapping.put(primaryGroupName, primaryIsolationBookieGroups);
+        bookieMapping.put(secondaryGroupName, secondaryIsolationBookieGroups);
+
+        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+            jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        Thread.sleep(100);
+
+        // prepare a custom placement policy and put it into the custom metadata. The isolation policy should decode
+        // from the custom metadata and apply it to the get black list method.
+        Map<String, Object> placementPolicyProperties = new HashMap<>();
+        placementPolicyProperties.put(
+            ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
+        placementPolicyProperties.put(
+            ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryGroupName);
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+            ZkIsolatedBookieEnsemblePlacementPolicy.class,
+            placementPolicyProperties
+        );
+        Map<String, byte[]> customMetadata = new HashMap<>();
+        customMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        // do the test logic
+        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
+        });
+        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+            NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        // we assume we have an ensemble list which is consist with bookie1 and bookie3, and bookie3 is broken.
+        // we want to get a replace bookie from the 'primary' group and that should be bookie2. Because we only have
+        // bookie1, bookie2, and bookie3 in the 'primary' group.
+        BookieId bookie1Id = new BookieSocketAddress(BOOKIE1).toBookieId();
+        BookieId bookie2Id = new BookieSocketAddress(BOOKIE2).toBookieId();
+        BookieId bookie3Id = new BookieSocketAddress(BOOKIE3).toBookieId();
+        BookieId bookieId = isolationPolicy.replaceBookie(2, 1, 1, customMetadata,
+            Arrays.asList(bookie1Id, bookie3Id), bookie3Id, null).getResult();
+        assertEquals(bookieId, bookie2Id);
     }
 }
