@@ -420,6 +420,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 break;
+            default:
+                break;
             }
         } finally {
             buffer.release();

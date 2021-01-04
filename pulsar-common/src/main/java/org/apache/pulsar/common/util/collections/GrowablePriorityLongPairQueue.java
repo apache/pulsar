@@ -85,7 +85,7 @@ public class GrowablePriorityLongPairQueue {
             loc = parent(loc);
         }
 
-        this.size++;
+        SIZE_UPDATER.incrementAndGet(this);
 
     }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -69,6 +70,7 @@ import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
@@ -2789,6 +2791,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         } catch (ManagedLedgerNotFoundException e) {
             // Expected
         }
+    }
+
+    private abstract class MockedPlacementPolicy implements EnsemblePlacementPolicy{}
+
+    @Test(timeOut = 10000)
+    public void testManagedLedgerWithPlacementPolicyInCustomMetadata() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(MockedPlacementPolicy.class);
+        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(Collections.singletonMap("key", "value"));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", managedLedgerConfig);
+        assertFalse(ledger.createdLedgerCustomMetadata.isEmpty());
+        byte[] configData = ledger.createdLedgerCustomMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
+        EnsemblePlacementPolicyConfig config = EnsemblePlacementPolicyConfig.decode(configData);
+        assertEquals(config.getPolicyClass().getName(), MockedPlacementPolicy.class.getName());
+        assertEquals(config.getProperties().size(), 1);
+        assertTrue(config.getProperties().containsKey("key"));
+        assertEquals(config.getProperties().get("key"), "value");
     }
 
     private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

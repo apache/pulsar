@@ -40,21 +40,21 @@ public class ConcurrentBitSetRecyclableTest {
     public void testGenerateByBitSet() {
         BitSet bitSet = new BitSet();
         ConcurrentBitSetRecyclable bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.set(0, 10);
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.clear(5);
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.clear();
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
     }
 }
