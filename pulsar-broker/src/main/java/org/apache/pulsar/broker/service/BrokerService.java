@@ -83,7 +83,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1105,18 +1104,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
+
             if (isBrokerEntryMetadataEnabled()) {
                 // init managedLedger interceptor
+                Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                    // add individual AppendOffsetMetadataInterceptor for each topic
                     if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                        // add individual AppendOffsetMetadataInterceptor for each topic
-                        brokerEntryMetadataInterceptors.remove(interceptor);
-                        brokerEntryMetadataInterceptors.add(new AppendIndexMetadataInterceptor());
+                        interceptors.add(new AppendIndexMetadataInterceptor());
+                    } else {
+                        interceptors.add(interceptor);
                     }
                 }
-                ManagedLedgerInterceptor mlInterceptor =
-                        new ManagedLedgerInterceptorImpl(brokerEntryMetadataInterceptors);
-                managedLedgerConfig.setManagedLedgerInterceptor(mlInterceptor);
+                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
@@ -1623,19 +1623,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             synchronized (multiLayerTopicsMap) {
                 ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
                         .get(namespaceName);
-                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                bundleMap.remove(topic);
-                if (bundleMap.isEmpty()) {
-                    namespaceMap.remove(bundleName);
-                }
+                if (namespaceMap != null) {
+                    ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                    bundleMap.remove(topic);
+                    if (bundleMap.isEmpty()) {
+                        namespaceMap.remove(bundleName);
+                    }
 
-                if (namespaceMap.isEmpty()) {
-                    multiLayerTopicsMap.remove(namespaceName);
-                    final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
-                            .getClusterReplicationMetrics();
-                    replicationClients.forEach((cluster, client) -> {
-                        clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName, cluster));
-                    });
+                    if (namespaceMap.isEmpty()) {
+                        multiLayerTopicsMap.remove(namespaceName);
+                        final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
+                                .getClusterReplicationMetrics();
+                        replicationClients.forEach((cluster, client) -> {
+                            clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
+                                    cluster));
+                        });
+                    }
                 }
             }
         } catch (Exception e) {
