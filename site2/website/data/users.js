@@ -247,7 +247,7 @@ module.exports = [
     {
         name: 'Zhihu',
         url: 'https://www.zhihu.com/',
-        logo: https://pic4.zhimg.com/80/v2-a47051e92cf74930bedd7469978e6c08_hd.png',
+        logo: 'https://pic4.zhimg.com/80/v2-a47051e92cf74930bedd7469978e6c08_hd.png',
     },
     {
         name: 'Newland',
