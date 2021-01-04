@@ -247,12 +247,17 @@ module.exports = [
     {
         name: 'Zhihu',
         url: 'https://www.zhihu.com/',
-        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQEoQxITTypd9g/company-logo_200_200/0?e=1608768000&v=beta&t=AbpUaraLUWyqUQcBiF3qYel_T0k-5W1JSEUw5qAqGj8',
+        logo: 'https://pic4.zhimg.com/80/v2-a47051e92cf74930bedd7469978e6c08_hd.png',
     },
     {
         name: 'Newland',
         url: 'http://www.nlsoft.com.cn/',
         logo: 'http://www.nlsoft.com.cn/images/common/logo.png',
+    },
+    {
+        name: 'PalFish',
+        url: 'https://www.ipalfish.com/',
+        logo: 'https://s04.cdn.ipalfish.com/kid/img/logo.ad4731cb.png',
     },
     {
         name: 'Appen',

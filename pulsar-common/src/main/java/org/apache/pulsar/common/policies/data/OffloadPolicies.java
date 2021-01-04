@@ -60,7 +60,7 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static String[] DRIVER_NAMES = {
+    final static String[] DRIVER_NAMES = {
             "S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss"
     };
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
