@@ -47,11 +47,6 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:

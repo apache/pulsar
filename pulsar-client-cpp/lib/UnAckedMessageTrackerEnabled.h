@@ -36,7 +36,7 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
 
     void clear();
 
-   private:
+   protected:
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();

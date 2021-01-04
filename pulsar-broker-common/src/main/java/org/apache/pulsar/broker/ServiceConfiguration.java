@@ -171,6 +171,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean haProxyProtocolEnabled;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for Netty Acceptor."
+                    + " Default is set to `1`"
+    )
+    private int numAcceptorThreads = 1;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."
             + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
@@ -881,6 +888,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
 
     /***** --- TLS --- ****/
     @FieldContext(

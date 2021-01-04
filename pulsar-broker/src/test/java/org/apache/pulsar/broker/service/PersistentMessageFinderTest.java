@@ -108,7 +108,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] appendBrokerTimestamp(ByteBuf headerAndPayloads) throws Exception {
         ByteBuf msgWithEntryMeta =
-                Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors());
+                Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors(), 1);
         byte[] byteMessage = msgWithEntryMeta.nioBuffer().array();
         msgWithEntryMeta.release();
         return byteMessage;
@@ -321,9 +321,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     }
 
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
-
-        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(
-                Sets.newHashSet("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor"),
+        Set<String> interceptorNames = new HashSet<>();
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
+        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
                 Thread.currentThread().getContextClassLoader());
     }
     /**

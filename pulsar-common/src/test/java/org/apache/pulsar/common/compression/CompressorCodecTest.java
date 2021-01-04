@@ -84,6 +84,37 @@ public class CompressorCodecTest {
     }
 
     @Test(dataProvider = "codec")
+    void testDecompressReadonlyByteBuf(CompressionType type, String compressedText) throws IOException {
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
+        byte[] data = text.getBytes();
+        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
+        raw.writeBytes(data);
+
+        ByteBuf compressed = codec.encode(raw);
+        assertEquals(raw.readableBytes(), data.length);
+
+        int compressedSize = compressed.readableBytes();
+        // Readonly ByteBuffers are not supported by AirLift
+        // https://github.com/apache/pulsar/issues/8974
+        ByteBuf compressedComplexByteBuf = compressed.asReadOnly();
+        ByteBuf uncompressed = codec.decode(compressedComplexByteBuf, data.length);
+
+        assertEquals(compressed.readableBytes(), compressedSize);
+
+        assertEquals(uncompressed.readableBytes(), data.length);
+        assertEquals(uncompressed, raw);
+
+        raw.release();
+        compressed.release();
+        uncompressed.release();
+
+        // Verify compression codecs have the same behavior with buffers ref counting
+        assertEquals(raw.refCnt(), 0);
+        assertEquals(compressed.refCnt(), 0);
+        assertEquals(compressed.refCnt(), 0);
+    }
+
+    @Test(dataProvider = "codec")
     void testEmptyInput(CompressionType type, String compressedText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
 

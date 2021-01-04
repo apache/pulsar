@@ -284,7 +284,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");
         policyData.auto_failover_policy.parameters.put("usage_threshold", "90");
-        clusters.setNamespaceIsolationPolicy("use", "policy1", policyData);
+        AsyncResponse response = mock(AsyncResponse.class);
+        clusters.setNamespaceIsolationPolicy(response,"use", "policy1", policyData);
         clusters.getNamespaceIsolationPolicies("use");
 
         try {

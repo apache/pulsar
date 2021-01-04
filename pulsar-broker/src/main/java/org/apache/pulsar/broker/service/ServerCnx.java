@@ -1152,17 +1152,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             });
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
+                                CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                                         getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
                                         userProvidedProducerName, producerAccessMode, topicEpoch);
 
-                                topic.addProducer(producer).thenAccept(newTopicEpoch -> {
+                                topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
                                     if (isActive()) {
                                         if (producerFuture.complete(producer)) {
                                             log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                             commandSender.sendProducerSuccessResponse(requestId, producerName,
                                                     producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                    newTopicEpoch);
+                                                    newTopicEpoch, true /* producer is ready now */);
                                             return;
                                         } else {
                                             // The producer's future was completed before by
@@ -1191,6 +1192,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
                                     }
                                     return null;
+                                });
+
+                                producerQueuedFuture.thenRun(() -> {
+                                    // If the producer is queued waiting, we will get an immediate notification
+                                    // that we need to pass to client
+                                    if (isActive()) {
+                                        log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
+                                        commandSender.sendProducerSuccessResponse(requestId, producerName,
+                                                producer.getLastSequenceId(), producer.getSchemaVersion(),
+                                                Optional.empty(), false/* producer is not ready now */);
+                                    }
                                 });
                             });
                         }).exceptionally(exception -> {

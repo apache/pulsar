@@ -504,8 +504,7 @@ public abstract class PulsarWebResource {
         try {
             return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
         } catch (Exception e) {
-            log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(),
-                    fqnn.toString(), bundleRange, e);
+            log.error("Failed to check whether namespace bundle is owned {}/{}", fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
     }

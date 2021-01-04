@@ -398,6 +398,35 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             LOG.warn("TEST FAILED [{}]", e.getMessage());
             throw e;
         }
+
+        // validate regex: invlid regex for primary and seconday
+        NamespaceIsolationData nsRegexPolicy = new NamespaceIsolationData();
+        nsRegexPolicy.namespaces = new ArrayList<String>();
+        nsRegexPolicy.namespaces.add("other/use/other.*");
+        nsRegexPolicy.primary = new ArrayList<String>();
+        nsRegexPolicy.primary.add("prod1-broker[45-46].messaging.use.example.com");
+        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyData();
+        nsRegexPolicy.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsRegexPolicy.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsRegexPolicy.auto_failover_policy.parameters.put("min_limit", "1");
+        nsRegexPolicy.auto_failover_policy.parameters.put("usage_threshold", "100");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        }catch (PulsarAdminException e) {
+            //Ok
+        }
+
+        nsRegexPolicy.primary.add("prod1-broker[4-5].messaging.use.example.com");
+        nsRegexPolicy.secondary = new ArrayList<String>();
+        nsRegexPolicy.secondary.add("prod1-broker[45-46].messaging.use.example.com");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        } catch (PulsarAdminException e) {
+            // Ok
+        }
+
     }
 
     @Test

@@ -32,7 +32,7 @@ The Configuration is mostly related to Debezium task config, besides this we sho
 | `database.history` | `true` | `null` | The name of the database history class name. |
 | `database.history.pulsar.topic` | `true` | `null` | The name of the database history topic where the connector will write and recover DDL statements. This topic is for internal use only and should not be used by consumers. |
 | `database.history.pulsar.service.url` | `true` | `null` | Pulsar cluster service url for history topic. |
-| `pulsar.service.url` | `true` | `null` | Pulsar cluster service url. |
+| `pulsar.service.url` | `true` | `null` | Pulsar cluster service URL for the offset topic used in Debezium. You can use the `bin/pulsar-admin --admin-url http://pulsar:8080 sources localrun --source-config-file configs/pg-pulsar-config.yaml` command to point to the target Pulsar cluster. |
 | `offset.storage.topic` | `true` | `null` | Record the last committed offsets that the connector successfully completed. |
 
 ### Configuration Example

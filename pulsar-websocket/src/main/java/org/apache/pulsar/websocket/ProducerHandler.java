@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -47,9 +46,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -113,26 +109,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
             }
-        }
-    }
-
-    private static int getErrorCode(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return HttpServletResponse.SC_BAD_REQUEST;
-        } else if (e instanceof ProducerBusyException) {
-            return HttpServletResponse.SC_CONFLICT;
-        } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException) {
-            return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
-        } else {
-            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-        }
-    }
-
-    private static String getErrorMessage(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return "Invalid query params: " + e.getMessage();
-        } else {
-            return "Failed to create producer: " + e.getMessage();
         }
     }
 

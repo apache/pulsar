@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -63,11 +64,13 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
     public void testDisableDelayedDelivery() throws Exception {
         admin.namespaces().createNamespace("delayed-delivery-messages/default-ns");
         String namespace = "delayed-delivery-messages/default-ns";
-        assertTrue(admin.namespaces().getDelayedDelivery(namespace).isActive());
+        assertNull(admin.namespaces().getDelayedDelivery(namespace));
 
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
         admin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
-
+        //zk update takes time
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() ->
+                admin.namespaces().getDelayedDelivery(namespace) != null);
         assertFalse(admin.namespaces().getDelayedDelivery(namespace).isActive());
         assertEquals(2000, admin.namespaces().getDelayedDelivery(namespace).getTickTime());
     }
@@ -77,7 +80,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("delayed-delivery-messages/default-enable-service-conf");
         String namespace = "delayed-delivery-messages/default-enable-service-conf";
         String topicName = "persistent://delayed-delivery-messages/default-enable-service-conf/test";
-        assertTrue(admin.namespaces().getDelayedDelivery(namespace).isActive());
+        assertNull(admin.namespaces().getDelayedDelivery(namespace));
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

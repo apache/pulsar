@@ -2193,14 +2193,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.delayed_delivery_policies == null) {
-            return new DelayedDeliveryPolicies(config().getDelayedDeliveryTickTimeMillis(),
-                    config().isDelayedDeliveryEnabled());
-        } else {
-            return policies.delayed_delivery_policies;
-        }
+        return getNamespacePolicies(namespaceName).delayed_delivery_policies;
     }
 
     protected InactiveTopicPolicies internalGetInactiveTopic() {
@@ -3182,5 +3175,26 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.offload_policies;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+    protected int internalGetMaxTopicsPerNamespace() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).max_topics_per_namespace;
+    }
+
+   protected void internalRemoveMaxTopicsPerNamespace() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        internalSetMaxTopicsPerNamespace(null);
+   }
+
+   protected void internalSetMaxTopicsPerNamespace(Integer maxTopicsPerNamespace) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        if (maxTopicsPerNamespace != null && maxTopicsPerNamespace < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxTopicsPerNamespace must be 0 or more");
+        }
+        internalSetPolicies("max_topics_per_namespace", maxTopicsPerNamespace);
+   }
+
+   private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

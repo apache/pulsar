@@ -100,6 +100,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setEnableNamespaceIsolationUpdateOnTime(true);
         super.internalSetup();
 
         // create otherbroker to test redirect on calls that need
@@ -908,6 +909,62 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertFalse(isolationData.isPrimary);
     }
 
+    // create 1 namespace:
+    //  0. without isolation policy configured, lookup will success.
+    //  1. with matched isolation broker configured and matched, lookup will success.
+    //  2. update isolation policy, without broker matched, lookup will fail.
+    @Test
+    public void brokerNamespaceIsolationPoliciesUpdateOnTime() throws Exception {
+        String brokerName = pulsar.getAdvertisedAddress();
+        String ns1Name = "prop-xyz/test_ns1_iso_" + System.currentTimeMillis();
+        admin.namespaces().createNamespace(ns1Name, Sets.newHashSet("test"));
+
+        //  0. without isolation policy configured, lookup will success.
+        String brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic1");
+        assertTrue(brokerUrl.contains(brokerName));
+        log.info("0 get lookup url {}", brokerUrl);
+
+        // create
+        String policyName1 = "policy-1";
+        String cluster = pulsar.getConfiguration().getClusterName();
+        String namespaceRegex = ns1Name;
+        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        nsPolicyData1.namespaces = new ArrayList<String>();
+        nsPolicyData1.namespaces.add(ns1Name);
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + ".*");
+        nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
+        nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
+        admin.clusters().createNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
+
+        //  1. with matched isolation broker configured and matched, lookup will success.
+        brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic2");
+        assertTrue(brokerUrl.contains(brokerName));
+        log.info(" 1 get lookup url {}", brokerUrl);
+
+        //  2. update isolation policy, without broker matched, lookup will fail.
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + "not_match");
+        admin.clusters().updateNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
+
+        try {
+            admin.lookups().lookupTopic(ns1Name + "/topic3");
+        } catch (Exception e) {
+            // expected lookup fail, because no brokers matched the policy.
+            log.info(" 2 expected fail lookup");
+        }
+
+        try {
+            admin.lookups().lookupTopic(ns1Name + "/topic1");
+        } catch (Exception e) {
+            // expected lookup fail, because no brokers matched the policy.
+            log.info(" 22 expected fail lookup");
+        }
+    }
+
     @Test
     public void clustersList() throws PulsarAdminException {
         final String cluster = pulsar.getConfiguration().getClusterName();
@@ -1383,11 +1440,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1402,11 +1459,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
