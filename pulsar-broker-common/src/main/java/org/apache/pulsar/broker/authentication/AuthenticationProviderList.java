@@ -136,6 +136,10 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         this.providers = providers;
     }
 
+    public List<AuthenticationProvider> getProviders() {
+        return providers;
+    }
+
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         for (AuthenticationProvider ap : providers) {
