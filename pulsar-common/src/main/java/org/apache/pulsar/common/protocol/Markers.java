@@ -99,10 +99,8 @@ public class Markers {
     public static ReplicatedSubscriptionsSnapshotRequest parseReplicatedSubscriptionsSnapshotRequest(ByteBuf payload)
             throws IOException {
         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshotRequest.Builder builder = null;
-
+        ReplicatedSubscriptionsSnapshotRequest.Builder builder = ReplicatedSubscriptionsSnapshotRequest.newBuilder();
         try {
-            builder = ReplicatedSubscriptionsSnapshotRequest.newBuilder();
             return builder.mergeFrom(inStream, null).build();
         } finally {
             builder.recycle();
@@ -148,10 +146,8 @@ public class Markers {
     public static ReplicatedSubscriptionsSnapshotResponse parseReplicatedSubscriptionsSnapshotResponse(ByteBuf payload)
             throws IOException {
         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshotResponse.Builder builder = null;
-
+        ReplicatedSubscriptionsSnapshotResponse.Builder builder = ReplicatedSubscriptionsSnapshotResponse.newBuilder();
         try {
-            builder = ReplicatedSubscriptionsSnapshotResponse.newBuilder();
             return builder.mergeFrom(inStream, null).build();
         } finally {
             builder.recycle();
@@ -198,10 +194,8 @@ public class Markers {
     public static ReplicatedSubscriptionsSnapshot parseReplicatedSubscriptionsSnapshot(ByteBuf payload)
             throws IOException {
         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshot.Builder builder = null;
-
+        ReplicatedSubscriptionsSnapshot.Builder builder = ReplicatedSubscriptionsSnapshot.newBuilder();
         try {
-            builder = ReplicatedSubscriptionsSnapshot.newBuilder();
             return builder.mergeFrom(inStream, null).build();
         } finally {
             builder.recycle();
@@ -243,10 +237,8 @@ public class Markers {
     public static ReplicatedSubscriptionsUpdate parseReplicatedSubscriptionsUpdate(ByteBuf payload)
             throws IOException {
         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsUpdate.Builder builder = null;
-
+        ReplicatedSubscriptionsUpdate.Builder builder = ReplicatedSubscriptionsUpdate.newBuilder();
         try {
-            builder = ReplicatedSubscriptionsUpdate.newBuilder();
             return builder.mergeFrom(inStream, null).build();
         } finally {
             builder.recycle();
@@ -280,11 +272,8 @@ public class Markers {
 
     public static PulsarMarkers.TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-
-        PulsarMarkers.TxnCommitMarker.Builder builder = null;
-
+        PulsarMarkers.TxnCommitMarker.Builder builder = PulsarMarkers.TxnCommitMarker.newBuilder();
         try {
-            builder = PulsarMarkers.TxnCommitMarker.newBuilder();
             return builder.mergeFrom(inStream, null).build();
         } finally {
             builder.recycle();

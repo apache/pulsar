@@ -83,9 +83,9 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     public void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
         try {
             for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                if (interceptor instanceof AppendIndexMetadataInterceptor) {
+                if (interceptor instanceof AppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
                     LedgerEntries ledgerEntries =
-                            lh.read(lh.getLastAddConfirmed() - 1, lh.getLastAddConfirmed());
+                            lh.read(lh.getLastAddConfirmed(), lh.getLastAddConfirmed());
                     for (LedgerEntry entry : ledgerEntries) {
                         PulsarApi.BrokerEntryMetadata brokerEntryMetadata =
                                 Commands.parseBrokerEntryMetadataIfExist(entry.getEntryBuffer());

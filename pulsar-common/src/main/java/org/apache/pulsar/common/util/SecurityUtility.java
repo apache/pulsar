@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -341,7 +342,7 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
                 inStream.reset();
             }
@@ -349,7 +350,7 @@ public class SecurityUtility {
             String currentLine = null;
 
             // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
-            while (!reader.readLine().startsWith("-----BEGIN")) {
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
                 reader.readLine();
             }
 
