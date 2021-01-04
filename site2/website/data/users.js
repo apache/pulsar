@@ -255,6 +255,11 @@ module.exports = [
         logo: 'http://www.nlsoft.com.cn/images/common/logo.png',
     },
     {
+        name: 'PalFish',
+        url: 'https://www.ipalfish.com/',
+        logo: 'https://s04.cdn.ipalfish.com/kid/img/logo.ad4731cb.png',
+    },
+    {
         name: 'Appen',
         url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
