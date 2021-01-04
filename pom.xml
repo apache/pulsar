@@ -182,7 +182,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.14.3</testcontainers.version>
+    <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.0.0</mockito.version>
