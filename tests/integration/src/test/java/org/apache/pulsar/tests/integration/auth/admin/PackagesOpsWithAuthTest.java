@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -40,10 +41,13 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -190,15 +194,17 @@ public class PackagesOpsWithAuthTest {
 
         // do some operation without grant any permissions
         try {
-            List<String> packagesName = clientAdmin.packages().listPackages("function", "public/default");
+            clientAdmin.packages().listPackages("function", "public/default");
             fail("list package operation should fail because the client hasn't permission to do");
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 401);
         }
 
         // grant package permission to the role
-        superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-            REGULAR_USER_ROLE, Set.of(AuthAction.packages));
+        TenantInfo tenantInfo = new TenantInfo();
+        tenantInfo.setAdminRoles(new HashSet<>(Arrays.asList(SUPER_USER_ROLE, PROXY_ROLE, REGULAR_USER_ROLE)));
+        tenantInfo.setAllowedClusters(new HashSet<>(superUserAdmin.clusters().getClusters()));
+        superUserAdmin.tenants().updateTenant("public", tenantInfo);
 
         // then do some package operations again, it should success
         List<String> packagesName = clientAdmin.packages().listPackages("function", "public/default");
