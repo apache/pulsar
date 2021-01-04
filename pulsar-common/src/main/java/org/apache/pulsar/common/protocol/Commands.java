@@ -1962,6 +1962,37 @@ public class Commands {
         return compositeByteBuf;
     }
 
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
+                                                 int numberOfMessages) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+            interceptor.interceptWithNumberOfMessages(brokerMetadataBuilder, numberOfMessages);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
+        try {
+            brokerEntryMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
+        return compositeByteBuf;
+    }
+
     public static ByteBuf skipBrokerEntryMetadataIfExist(ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
         int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
         if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
@@ -1997,6 +2028,15 @@ public class Commands {
             headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
             return null;
         }
+    }
+
+    public static PulsarApi.BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        final int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        PulsarApi.BrokerEntryMetadata entryMetadata =
+                parseBrokerEntryMetadataIfExist(headerAndPayloadWithBrokerEntryMetadata);
+        headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+        return entryMetadata;
     }
 
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,

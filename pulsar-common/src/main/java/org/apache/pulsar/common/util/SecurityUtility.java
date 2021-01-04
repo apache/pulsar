@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -49,6 +50,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
+
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -72,6 +75,7 @@ public class SecurityUtility {
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
     public static final String BC = "BC";
+    private static final String SSLCONTEXT_ALGORITHM = "TLSv1.2";
 
     public static boolean isBCFIPS() {
         return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);
@@ -146,6 +150,37 @@ public class SecurityUtility {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
+    }
+
+    /**
+     * Creates {@link SslContext} with capability to do auto-cert refresh.
+     * @param allowInsecureConnection
+     * @param trustCertsFilePath
+     * @param certFilePath
+     * @param keyFilePath
+     * @param sslContextAlgorithm
+     * @param refreshDurationSec
+     * @param executor
+     * @return
+     * @throws GeneralSecurityException
+     * @throws SSLException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public static SslContext createAutoRefreshSslContextForClient(boolean allowInsecureConnection,
+            String trustCertsFilePath, String certFilePath, String keyFilePath, String sslContextAlgorithm,
+            int refreshDurationSec, ScheduledExecutorService executor)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
+        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient();
+        sslContexBuilder.keyManager(keyManager);
+        if (allowInsecureConnection) {
+            sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else {
+            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+            sslContexBuilder.trustManager(trustManager);
+        }
+        return sslContexBuilder.build();
     }
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
@@ -307,7 +342,7 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
                 inStream.reset();
             }
@@ -315,7 +350,7 @@ public class SecurityUtility {
             String currentLine = null;
 
             // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
-            while (!reader.readLine().startsWith("-----BEGIN")) {
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
                 reader.readLine();
             }
 
