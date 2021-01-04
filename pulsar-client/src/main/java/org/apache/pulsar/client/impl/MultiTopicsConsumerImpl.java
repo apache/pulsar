@@ -383,17 +383,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getNewMessagesImpl();
-                Message<T> msgPeeked = incomingMessages.peek();
-                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll();
-                    if (msg != null) {
-                        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
-                    }
-                    msgPeeked = incomingMessages.peek();
-                }
+                MessagesImpl<T> messages = batchFetchMessages();
                 result.complete(messages);
             } else {
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);

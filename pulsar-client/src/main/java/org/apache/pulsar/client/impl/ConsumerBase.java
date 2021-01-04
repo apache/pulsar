@@ -773,6 +773,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+        MessagesImpl<T> messages = batchFetchMessages();
+        completePendingBatchReceive(opBatchReceive.future, messages);
+    }
+
+    protected final MessagesImpl<T> batchFetchMessages() {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
@@ -784,7 +789,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             msgPeeked = incomingMessages.peek();
         }
-        completePendingBatchReceive(opBatchReceive.future, messages);
+        return messages;
     }
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
@@ -809,29 +814,30 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (getState() == State.Closing || getState() == State.Closed) {
                 return;
             }
-            if (pendingBatchReceives == null) {
-                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
-            }
-            OpBatchReceive<T> firstOpBatchReceive = peekNextBatchReceive();
+
             timeToWaitMs = batchReceivePolicy.getTimeoutMs();
 
-            while (firstOpBatchReceive != null) {
-                // If there is at least one batch receive, calculate the diff between the batch receive timeout
-                // and the elapsed time since the operation was created.
-                long diff = batchReceivePolicy.getTimeoutMs()
-                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstOpBatchReceive.createdAt);
-                if (diff <= 0) {
-                    // The diff is less than or equal to zero, meaning that the batch receive has been timed out.
-                    // complete the OpBatchReceive and continue to check the next OpBatchReceive in pendingBatchReceives.
-                    OpBatchReceive<T> op = pollNextBatchReceive();
-                    if (op != null) {
-                        completeOpBatchReceive(op);
+            if (pendingBatchReceives != null) {
+                OpBatchReceive<T> firstOpBatchReceive = peekNextBatchReceive();
+
+                while (firstOpBatchReceive != null) {
+                    // If there is at least one batch receive, calculate the diff between the batch receive timeout
+                    // and the elapsed time since the operation was created.
+                    long diff = batchReceivePolicy.getTimeoutMs()
+                            - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstOpBatchReceive.createdAt);
+                    if (diff <= 0) {
+                        // The diff is less than or equal to zero, meaning that the batch receive has been timed out.
+                        // complete the OpBatchReceive and continue to check the next OpBatchReceive in pendingBatchReceives.
+                        OpBatchReceive<T> op = pollNextBatchReceive();
+                        if (op != null) {
+                            completeOpBatchReceive(op);
+                        }
+                        firstOpBatchReceive = peekNextBatchReceive();
+                    } else {
+                        // The diff is greater than zero, set the timeout to the diff value
+                        timeToWaitMs = diff;
+                        break;
                     }
-                    firstOpBatchReceive = peekNextBatchReceive();
-                } else {
-                    // The diff is greater than zero, set the timeout to the diff value
-                    timeToWaitMs = diff;
-                    break;
                 }
             }
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, timeToWaitMs, TimeUnit.MILLISECONDS);

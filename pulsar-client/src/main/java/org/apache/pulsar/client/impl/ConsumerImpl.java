@@ -482,17 +482,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getNewMessagesImpl();
-                Message<T> msgPeeked = incomingMessages.peek();
-                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll();
-                    if (msg != null) {
-                        messageProcessed(msg);
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
-                    }
-                    msgPeeked = incomingMessages.peek();
-                }
+                MessagesImpl<T> messages = batchFetchMessages();
                 result.complete(messages);
             } else {
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
