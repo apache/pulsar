@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -59,7 +60,8 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
 
         // testing upload api
         String packageName = "function://public/default/test@v1";
-        PackageMetadata originalMetadata = PackageMetadata.builder().description("test").build();
+        PackageMetadata originalMetadata = PackageMetadata.builder()
+            .language("golang").functionClassname("Test").description("test").build();
         admin.packages().upload(originalMetadata, packageName, file.getPath());
 
         // testing download api
@@ -89,19 +91,57 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         assertNull(metadata.getProperties());
 
         // testing update package metadata api
-        PackageMetadata updatedMetadata = originalMetadata;
-        updatedMetadata.setContact("test@apache.org");
-        updatedMetadata.setProperties(Collections.singletonMap("key", "value"));
+        PackageMetadata updatedMetadata = PackageMetadata.builder()
+            .contact("test@apache.org")
+            .properties(Collections.singletonMap("key", "value")).build();
         admin.packages().updateMetadata(packageName, updatedMetadata);
 
         PackageMetadata getUpdatedMetadata = admin.packages().getMetadata(packageName);
         assertEquals(getUpdatedMetadata.getDescription(), updatedMetadata.getDescription());
         assertEquals(getUpdatedMetadata.getContact(), updatedMetadata.getContact());
         assertEquals(getUpdatedMetadata.getProperties(), updatedMetadata.getProperties());
+
+        // update the package language or function classname
+        PackageMetadata wrongMetadata = PackageMetadata.builder()
+            .language("python").build();
+        try {
+            admin.packages().updateMetadata(packageName, wrongMetadata);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(400, e.getStatusCode());
+        }
     }
 
     @Test(timeOut = 60000)
-    public void testPackagesOperationsFailed() {
+    public void testPackagesOperationsFailed() throws IOException{
+        // Upload a package without specify the package language or classname
+        File file = File.createTempFile("package-api-test", ".package");
+        try {
+            PackageMetadata metadata = PackageMetadata.builder()
+                .description("Invalid package")
+                .language("java").build();
+            admin.packages().upload(metadata, "function://public/default/test@v1", file.getPath());
+        } catch (PulsarAdminException e) {
+            assertEquals(412, e.getStatusCode());
+        }
+
+        try {
+            PackageMetadata metadata = PackageMetadata.builder()
+                .description("Invalid package")
+                .functionClassname("Test").build();
+            admin.packages().upload(metadata, "function://public/default/test@v1", file.getPath());
+        } catch (PulsarAdminException e) {
+            assertEquals(412, e.getStatusCode());
+        }
+
+        try {
+            PackageMetadata metadata = PackageMetadata.builder()
+                .description("Invalid package").build();
+            admin.packages().upload(metadata, "function://public/default/test@v1", file.getPath());
+        } catch (PulsarAdminException e) {
+            assertEquals(412, e.getStatusCode());
+        }
+
         // download a non-existent package should return not found exception
         String unknownPackageName = "function://public/default/unknown@v1";
         try {

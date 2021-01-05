@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import com.google.common.base.Strings;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -96,6 +97,12 @@ public class Packages extends PackagesBase {
         @Suspended AsyncResponse asyncResponse
     ) {
         if (metadata != null) {
+            if (!Strings.isNullOrEmpty(metadata.getLanguage())
+                || !Strings.isNullOrEmpty(metadata.getFunctionClassname())) {
+                asyncResponse.resume(new RestException(Response.Status.BAD_REQUEST, "The package language and " +
+                    "the function classname is not allow to change after uploading"));
+                return;
+            }
             metadata.setModificationTime(System.currentTimeMillis());
             internalUpdateMetadata(type, tenant, namespace, packageName, version, metadata, asyncResponse);
         } else {

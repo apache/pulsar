@@ -42,6 +42,8 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 public class PackageMetadata implements Serializable {
     String description;
     String contact;
+    String language;
+    String functionClassname;
     long createTime;
     long modificationTime;
     Map<String, String> properties;

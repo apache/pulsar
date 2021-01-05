@@ -20,11 +20,14 @@ package org.apache.pulsar.tests.integration.cli;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
+import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -132,6 +135,20 @@ public class PackagesCliTest {
         result = runPackagesCommand("list-versions", "function://public/default/test");
         assertEquals(result.getExitCode(), 0);
         assertTrue(result.getStdout().isEmpty());
+    }
+
+    @Test
+    public void testValidatePackageWhenUploading() throws Exception {
+        String testPackageName = "function://public/default/test@v1";
+        ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
+            "--language", "java", "--classname", PulsarFunctionsTestBase.EXCEPTION_JAVA_CLASS,
+            "--path", CommandGenerator.JAVAJAR, testPackageName);
+        assertEquals(result.getExitCode(), 0);
+
+        ContainerExecResult wrongResult = runPackagesCommand("upload", "--description", "a invalid package",
+            "--language", "java", "--classname", PulsarFunctionsTestBase.EXCEPTION_JAVA_CLASS,
+            "--path", PulsarCluster.ADMIN_SCRIPT);
+        assertNotEquals(wrongResult.getExitCode(), 0);
     }
 
     private ContainerExecResult runPackagesCommand(String... commands) throws Exception {

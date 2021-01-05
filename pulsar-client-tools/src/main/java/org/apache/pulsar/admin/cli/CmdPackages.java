@@ -87,8 +87,14 @@ class CmdPackages extends CmdBase {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = "--description", description=  "descriptions of a package", required = true)
+        @Parameter(names = "--description", description = "descriptions of a package", required = true)
         private String description;
+
+        @Parameter(names = "--language", description = "The language used to written the package", required = true)
+        private String language;
+
+        @Parameter(names = "--classname", description = "The main classname of the package", required = true)
+        private String functionClassname;
 
         @Parameter(names = "--contact", description = "contact information of a package")
         private String contact;
@@ -104,6 +110,8 @@ class CmdPackages extends CmdBase {
             PackageMetadata metadata = PackageMetadata.builder()
                 .description(description)
                 .contact(contact)
+                .language(language)
+                .functionClassname(functionClassname)
                 .properties(properties).build();
             packages.upload(metadata, packageName, path);
             print(String.format("The package '%s' uploaded from path '%s' successfully", packageName, path));
