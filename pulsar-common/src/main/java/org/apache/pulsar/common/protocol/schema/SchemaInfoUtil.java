@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.TreeMap;
 import lombok.experimental.UtilityClass;
@@ -61,7 +62,7 @@ public class SchemaInfoUtil {
     public static SchemaInfo newSchemaInfo(String name, GetSchemaResponse schema) {
         SchemaInfo si = new SchemaInfo();
         si.setName(name);
-        si.setSchema(schema.getData().getBytes());
+        si.setSchema(schema.getData().getBytes(StandardCharsets.UTF_8));
         si.setType(schema.getType());
         si.setProperties(schema.getProperties());
         return si;

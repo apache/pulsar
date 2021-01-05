@@ -1440,11 +1440,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1459,11 +1459,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);

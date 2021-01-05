@@ -1,17 +1,9 @@
 ---
-id: version-2.2.1-io-cdc
-title: CDC Connector
-sidebar_label: CDC Connector
-original_id: io-cdc
+id: version-2.3.2-io-cdc-debezium
+title: CDC Debezium Connector
+sidebar_label: CDC Debezium Connector
+original_id: io-cdc-debezium
 ---
-
-## Source
-
-The CDC Source connector is used to capture change log of existing databases like MySQL, MongoDB, PostgreSQL into Pulsar.
-
-The CDC Source connector is built on top of [Debezium](https://debezium.io/). This connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
-This CDC Source are tested by using MySQL, and you could get more information regarding how it works at [this link](https://debezium.io/docs/connectors/mysql/).
-Regarding how Debezium works, please reference to [Debezium tutorial](https://debezium.io/docs/tutorial/). It is recommended that you go through this tutorial first.
 
 ### Source Configuration Options
 
@@ -64,7 +56,7 @@ Here is a configuration Json example:
         "pulsar.service.url": "pulsar://127.0.0.1:6650",
         "offset.storage.topic": "offset-topic"
     },
-    "archive": "connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"
+    "archive": "connectors/pulsar-io-kafka-connect-adaptor-2.3.2-SNAPSHOT.nar"
 }
 ```
 
@@ -75,7 +67,7 @@ tenant: "public"
 namespace: "default"
 name: "debezium-kafka-source"
 topicName: "kafka-connect-topic"
-archive: "connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"
+archive: "connectors/pulsar-io-kafka-connect-adaptor-2.3.2-SNAPSHOT.nar"
 
 ##autoAck: true
 parallelism: 1
@@ -119,7 +111,7 @@ Here is a simple example to store MySQL change data using above example config.
  bin/pulsar standalone
 ```
 
-- Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar`.
+- Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-kafka-connect-adaptor-2.3.2-SNAPSHOT.nar`.
 ```$bash
  bin/pulsar-admin source localrun  --sourceConfigFile debezium-mysql-source-config.yaml
 ```
@@ -145,3 +137,46 @@ mysql> UPDATE products SET name='1111111111' WHERE id=107;
 ```
 
 - In above subscribe topic terminal tab, we could find that 2 changes has been kept into products topic.
+
+## FAQ
+ 
+### Debezium postgres connector will hang when create snap
+
+```$xslt
+#18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
+    java.lang.Thread.State: WAITING (parking)
+     at sun.misc.Unsafe.park(Native Method)
+     - parking to wait for  <0x00000007ab025a58> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+     at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+     at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+     at java.util.concurrent.LinkedBlockingDeque.putLast(LinkedBlockingDeque.java:396)
+     at java.util.concurrent.LinkedBlockingDeque.put(LinkedBlockingDeque.java:649)
+     at io.debezium.connector.base.ChangeEventQueue.enqueue(ChangeEventQueue.java:132)
+     at io.debezium.connector.postgresql.PostgresConnectorTask$$Lambda$203/385424085.accept(Unknown Source)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.sendCurrentRecord(RecordsSnapshotProducer.java:402)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.readTable(RecordsSnapshotProducer.java:321)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$takeSnapshot$6(RecordsSnapshotProducer.java:226)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$240/1347039967.accept(Unknown Source)
+     at io.debezium.jdbc.JdbcConnection.queryWithBlockingConsumer(JdbcConnection.java:535)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.takeSnapshot(RecordsSnapshotProducer.java:224)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$start$0(RecordsSnapshotProducer.java:87)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$206/589332928.run(Unknown Source)
+     at java.util.concurrent.CompletableFuture.uniRun(CompletableFuture.java:705)
+     at java.util.concurrent.CompletableFuture.uniRunStage(CompletableFuture.java:717)
+     at java.util.concurrent.CompletableFuture.thenRun(CompletableFuture.java:2010)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.start(RecordsSnapshotProducer.java:87)
+     at io.debezium.connector.postgresql.PostgresConnectorTask.start(PostgresConnectorTask.java:126)
+     at io.debezium.connector.common.BaseSourceTask.start(BaseSourceTask.java:47)
+     at org.apache.pulsar.io.kafka.connect.KafkaConnectSource.open(KafkaConnectSource.java:127)
+     at org.apache.pulsar.io.debezium.DebeziumSource.open(DebeziumSource.java:100)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.setupInput(JavaInstanceRunnable.java:690)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.setupJavaInstance(JavaInstanceRunnable.java:200)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.run(JavaInstanceRunnable.java:230)
+     at java.lang.Thread.run(Thread.java:748)
+``` 
+
+If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
+
+```$xslt
+max.queue.size=
+```
