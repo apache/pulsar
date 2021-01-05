@@ -4012,6 +4012,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     for (auto count = numMsg / 2 + 1; count < numMsg; ++count) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msg.getMessageId()));
     }
     Message msg;
     auto ret = consumer.receive(msg, 1000);
