@@ -194,7 +194,7 @@ class ConsumerImpl : public ConsumerImplBase,
     bool messageListenerRunning_;
     std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
-    UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
     NegativeAcksTracker negativeAcksTracker_;
@@ -220,6 +220,9 @@ class ConsumerImpl : public ConsumerImplBase,
     // these two declared friend to access setNegativeAcknowledgeEnabledForTesting
     friend class MultiTopicsConsumerImpl;
     friend class PartitionedConsumerImpl;
+
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
 };
 
 } /* namespace pulsar */

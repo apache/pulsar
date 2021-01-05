@@ -181,7 +181,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     if (numPartitions == 0) {
         // We don't have to add partition-n suffix
         consumer = std::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
-                                                  internalListenerExecutor, false, NonPartitioned);
+                                                  internalListenerExecutor, true, NonPartitioned);
         consumer->getConsumerCreatedFuture().addListener(std::bind(
             &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1,
             std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
