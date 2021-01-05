@@ -35,11 +35,9 @@
 static const std::string lookupUrl = "pulsar://localhost:6650";
 static const std::string adminUrl = "http://localhost:8080/";
 
-
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
-
 
 TEST(ConsumerTest, consumerNotInitialized) {
     Consumer consumer;
@@ -189,7 +187,8 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     ConsumerConfiguration consumerConfig;
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
-    PartitionedConsumerImplPtr partitionedConsumerImplPtr = PulsarFriend::getPartitionedConsumerImplPtr(consumer); 
+    PartitionedConsumerImplPtr partitionedConsumerImplPtr =
+        PulsarFriend::getPartitionedConsumerImplPtr(consumer);
     ASSERT_EQ(numPartitions, partitionedConsumerImplPtr->consumers_.size());
 
     // send messages
@@ -208,7 +207,7 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     producer.close();
 
     // receive message and don't acknowledge
-    std::set<MessageId> messageIds[numPartitions]; 
+    std::set<MessageId> messageIds[numPartitions];
     for (auto i = 0; i < numOfMessages; ++i) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
@@ -224,7 +223,7 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     ASSERT_EQ(numOfMessages, partitionedTracker->size());
     ASSERT_FALSE(partitionedTracker->isEmpty());
     for (auto i = 0; i < numPartitions; i++) {
-        ASSERT_EQ(numOfMessages/numPartitions, messageIds[i].size());
+        ASSERT_EQ(numOfMessages / numPartitions, messageIds[i].size());
         auto subConsumerPtr = partitionedConsumerImplPtr->consumers_[i];
         auto tracker =
             static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
