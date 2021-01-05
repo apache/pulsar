@@ -34,6 +34,7 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
@@ -232,6 +233,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     @Override
     public CompletableFuture<Void> createSinkAsync(SinkConfig sinkConfig, String fileName) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
+        if (StringUtils.isBlank(sinkConfig.getName())) {
+            future.completeExceptionally(new PulsarAdminException("sink name is required"));
+            return future;
+        }
         try {
             RequestBuilder builder =
                     post(sink.path(sinkConfig.getTenant())
