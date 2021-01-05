@@ -1822,6 +1822,45 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set max topics per namespace")
+    private class SetMaxTopicsPerNamespace extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-topics-per-namespace", "-t"}, description = "max topics per namespace", required = true)
+        private int maxTopicsPerNamespace;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxTopicsPerNamespace(namespace, maxTopicsPerNamespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max topics per namespace")
+    private class GetMaxTopicsPerNamespace extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxTopicsPerNamespace(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max topics per namespace")
+    private class RemoveMaxTopicsPerNamespace extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -1956,5 +1995,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
         jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
         jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
+
+        jcommander.addCommand("set-max-topics-per-namespace", new SetMaxTopicsPerNamespace());
+        jcommander.addCommand("get-max-topics-per-namespace", new GetMaxTopicsPerNamespace());
+        jcommander.addCommand("remove-max-topics-per-namespace", new RemoveMaxTopicsPerNamespace());
     }
 }
