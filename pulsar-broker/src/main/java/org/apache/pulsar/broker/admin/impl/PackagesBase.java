@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,8 +28,6 @@ import java.util.concurrent.ExecutionException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -148,7 +147,8 @@ public class PackagesBase extends AdminResource {
     private static CompletableFuture<Void> validatePackages(PackageMetadata metadata, InputStream inputStream) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         if (Strings.isNullOrEmpty(metadata.getLanguage()) || Strings.isNullOrEmpty(metadata.getFunctionClassname())) {
-            future.completeExceptionally(new IllegalArgumentException("The package is not specified the language or the function class name."));
+            future.completeExceptionally(
+                new IllegalArgumentException("The package is not specified the language or the function class name."));
             return future;
         }
         if ("java".equals(metadata.getLanguage().toLowerCase())) {

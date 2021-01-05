@@ -99,8 +99,8 @@ public class Packages extends PackagesBase {
         if (metadata != null) {
             if (!Strings.isNullOrEmpty(metadata.getLanguage())
                 || !Strings.isNullOrEmpty(metadata.getFunctionClassname())) {
-                asyncResponse.resume(new RestException(Response.Status.BAD_REQUEST, "The package language and " +
-                    "the function classname is not allow to change after uploading"));
+                asyncResponse.resume(new RestException(Response.Status.BAD_REQUEST, "The package language and "
+                    + "the function classname is not allow to change after uploading"));
                 return;
             }
             metadata.setModificationTime(System.currentTimeMillis());
