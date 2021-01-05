@@ -176,7 +176,8 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     std::string subName = "sub-partition-consumer-un-acked-msg-redelivery";
     constexpr int numPartitions = 3;
     constexpr int numOfMessages = 15;
-    constexpr int unAckedMessagesTimeoutMs = 11000;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
 
     int res =
         makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
@@ -186,6 +187,7 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     Consumer consumer;
     ConsumerConfiguration consumerConfig;
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
     PartitionedConsumerImplPtr partitionedConsumerImplPtr =
         PulsarFriend::getPartitionedConsumerImplPtr(consumer);
@@ -232,7 +234,7 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     }
 
     // timeout and send redeliver message
-    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + 1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
     ASSERT_EQ(0, partitionedTracker->size());
     ASSERT_TRUE(partitionedTracker->isEmpty());
 
@@ -265,7 +267,8 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
     std::string subName = "sub-multi-topics-consumer-un-acked-msg-redelivery";
     constexpr int numPartitions = 3;
     constexpr int numOfMessages = 15;
-    constexpr int unAckedMessagesTimeoutMs = 11000;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
 
     int res = makePutRequest(
         adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic1 + "/partitions", "1");
@@ -277,6 +280,7 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
     Consumer consumer;
     ConsumerConfiguration consumerConfig;
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
     const std::vector<std::string> topics = {nonPartitionedTopic, partitionedTopic1, partitionedTopic2};
     ASSERT_EQ(ResultOk, client.subscribe(topics, subName, consumerConfig, consumer));
     MultiTopicsConsumerImplPtr multiTopicsConsumerImplPtr =
@@ -319,7 +323,7 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
     }
 
     // timeout and send redeliver message
-    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + 1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
     ASSERT_EQ(0, multiTopicsTracker->size());
     ASSERT_TRUE(multiTopicsTracker->isEmpty());
 

@@ -4002,7 +4002,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     ASSERT_EQ(numMsg - (numMsg / 2 + 1), tracker->size());
     ASSERT_FALSE(tracker->isEmpty());
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
     ASSERT_EQ(0, tracker->size());
     ASSERT_TRUE(tracker->isEmpty());
     consumer.close();
