@@ -35,8 +35,9 @@ RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY conf/nginx-app.conf /etc/nginx/sites-available/default
 COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
 
-# Setup non-root user
-RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+# Create the pulsar group and user to make docker container run as a non root user by default
+RUN groupadd -g 10001 pulsar
+RUN adduser -u 10000  --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
 
 # Copy web-app sources
 RUN mkdir /pulsar

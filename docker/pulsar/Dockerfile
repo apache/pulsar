@@ -38,8 +38,9 @@ COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
 FROM openjdk:8-jdk-slim
 
-# Create the pulsar user to ensure the docker image is run as a non root user
-RUN adduser -u 1000 --disabled-login --disabled-password --gecos '' pulsar
+# Create the pulsar group and user to make docker container run as a non root user by default
+RUN groupadd -g 10001 pulsar
+RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
 
 # Make the directory and chown it before any files are in it to ensure proper ownership
 # without unnecessarily increasing the size of the final docker image
