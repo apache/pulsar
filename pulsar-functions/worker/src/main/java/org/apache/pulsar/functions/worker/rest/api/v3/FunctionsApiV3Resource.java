@@ -52,6 +52,8 @@ import java.util.List;
 
 @Slf4j
 @Path("/functions")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class FunctionsApiV3Resource extends FunctionApiResource {
 
     Functions<? extends WorkerService> functions() {
@@ -110,7 +112,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}")
-    public List<String> listSources(final @PathParam("tenant") String tenant,
+    public List<String> listFunctions(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace) {
         return functions().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
