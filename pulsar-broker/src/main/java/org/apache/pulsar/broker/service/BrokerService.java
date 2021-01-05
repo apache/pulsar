@@ -1597,12 +1597,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
-        topics.forEach((name, topicFuture) -> {
-            TopicName topicName = TopicName.get(name);
+        for (String topic : topics.keys()) {
+            TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName)) {
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
             }
-        });
+        }
     }
 
     public AuthorizationService getAuthorizationService() {
