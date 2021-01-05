@@ -232,7 +232,7 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     }
 
     // timeout and send redeliver message
-    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs));
+    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + 1000));
     ASSERT_EQ(0, partitionedTracker->size());
     ASSERT_TRUE(partitionedTracker->isEmpty());
 
