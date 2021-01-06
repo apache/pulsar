@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -112,9 +113,8 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static String[] DRIVER_NAMES = {
-            "S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss"
-    };
+    public final static ImmutableList<String> DRIVER_NAMES = ImmutableList
+            .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
@@ -206,7 +206,7 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
         offloadPolicies.setManagedLedgerOffloadedReadPriority(readPriority);
 
-        if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
+        if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
             if (credentialId != null) {
                 offloadPolicies.setS3ManagedLedgerOffloadRole(credentialId);
             }
@@ -218,7 +218,7 @@ public class OffloadPolicies implements Serializable {
             offloadPolicies.setS3ManagedLedgerOffloadServiceEndpoint(endpoint);
             offloadPolicies.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
             offloadPolicies.setS3ManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
-        } else if (driver.equalsIgnoreCase(DRIVER_NAMES[2])) {
+        } else if (driver.equalsIgnoreCase(DRIVER_NAMES.get(2))) {
             offloadPolicies.setGcsManagedLedgerOffloadRegion(region);
             offloadPolicies.setGcsManagedLedgerOffloadBucket(bucket);
             offloadPolicies.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
@@ -261,7 +261,7 @@ public class OffloadPolicies implements Serializable {
     }
 
     public boolean driverSupported() {
-        return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(this.managedLedgerOffloadDriver));
+        return DRIVER_NAMES.stream().anyMatch(d -> d.equalsIgnoreCase(this.managedLedgerOffloadDriver));
     }
 
     public static String getSupportedDriverNames() {
@@ -272,22 +272,22 @@ public class OffloadPolicies implements Serializable {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[0])
-                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(0))
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(1));
     }
 
     public boolean isGcsDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[2]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(2));
     }
 
     public boolean isFileSystemDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[3]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(3));
     }
 
     public boolean bucketValid() {
