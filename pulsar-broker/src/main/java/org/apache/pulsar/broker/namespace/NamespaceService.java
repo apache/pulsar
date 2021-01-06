@@ -237,7 +237,7 @@ public class NamespaceService {
     /**
      * Return the URL of the broker who's owning a particular service unit in asynchronous way.
      *
-     * If the service unit is not owned, return a CompletableFuture with empty optional
+     * If the service unit is not owned, return a CompletableFuture with empty optional.
      */
     public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options)
             throws Exception {
