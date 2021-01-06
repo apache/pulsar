@@ -92,9 +92,6 @@ flexible messaging model and an intuitive client API.</description>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
 
-    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
-    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
-
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
@@ -121,7 +118,6 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
@@ -226,7 +222,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone.version>2.4.0</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
-
+    <lightproto-maven-plugin.version>0.2</lightproto-maven-plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1246,10 +1242,6 @@ flexible messaging model and an intuitive client API.</description>
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/TestApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
@@ -1266,10 +1258,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-
-            <!-- These files are BSD licensed files -->
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
 
             <!-- Imported from Netty - Apache License v2 -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
@@ -1871,4 +1859,3 @@ flexible messaging model and an intuitive client API.</description>
   </repositories>
 
 </project>
-

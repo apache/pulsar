@@ -48,7 +48,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -957,7 +957,7 @@ public abstract class AdminResource extends PulsarWebResource {
      */
     protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
         return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
-                PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                CommandGetTopicsOfNamespace.Mode.ALL)
                 .thenCompose(topics -> {
                     boolean exists = false;
                     for (String topic : topics) {
