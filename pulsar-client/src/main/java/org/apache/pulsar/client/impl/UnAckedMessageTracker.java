@@ -113,8 +113,8 @@ public class UnAckedMessageTracker implements Closeable {
         this.messageIdPartitionMap = new ConcurrentHashMap<>();
         this.timePartitions = new ArrayDeque<>();
 
-        int blankPartitions = (int)Math.ceil((double)this.ackTimeoutMillis / this.tickDurationInMs);
-        for (int i = 0; i < blankPartitions + 1; i++) {
+        long blankPartitions = (this.ackTimeoutMillis / this.tickDurationInMs) + ((this.ackTimeoutMillis % this.tickDurationInMs == 0) ? 0 : 1);
+        for (int i = 0; i < blankPartitions; i++) {
             timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
         }
 

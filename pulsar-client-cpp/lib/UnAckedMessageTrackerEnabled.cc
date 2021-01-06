@@ -81,8 +81,8 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long 
     tickDurationInMs_ = (timeoutMs >= tickDurationInMs) ? tickDurationInMs : timeoutMs;
     client_ = client;
 
-    int blankPartitions = (int)std::ceil((double)timeoutMs_ / tickDurationInMs_);
-    for (int i = 0; i < blankPartitions + 1; i++) {
+    int blankPartitions = (timeoutMs_ / tickDurationInMs_) + ((timeoutMs_ % tickDurationInMs_ == 0) ? 0 : 1);
+    for (int i = 0; i < blankPartitions; i++) {
         std::set<MessageId> msgIds;
         timePartitions.push_back(msgIds);
     }
