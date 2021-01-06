@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -39,6 +40,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 /**
  * Token based authentication provider.
  */
+@EqualsAndHashCode
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
 
     private static final long serialVersionUID = 1L;
