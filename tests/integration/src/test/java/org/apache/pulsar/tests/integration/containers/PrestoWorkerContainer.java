@@ -43,10 +43,10 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
-                    containerId,
+                    getContainerId(),
                     "/pulsar/lib/presto/var/log"
             );
         }

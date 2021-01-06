@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -94,13 +94,13 @@ public class FunctionAssignmentTailerTest {
                 .build();
 
         ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
@@ -209,13 +209,13 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
@@ -332,13 +332,13 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);

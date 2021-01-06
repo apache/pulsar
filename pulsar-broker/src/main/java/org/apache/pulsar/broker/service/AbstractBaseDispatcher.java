@@ -32,11 +32,11 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.TxnCommitMarker;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -89,74 +89,69 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
-            try {
-                if (!isReplayRead && msgMetadata != null
-                        && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
-                    if (Markers.isTxnCommitMarker(msgMetadata)) {
-                        handleTxnCommitMarker(entry);
-                        if (!isAfterTxnCommitMarker) {
-                            isAfterTxnCommitMarker = true;
-                        }
-                    } else if (Markers.isTxnAbortMarker(msgMetadata)) {
-                        handleTxnAbortMarker(entry);
+            if (!isReplayRead && msgMetadata != null
+                    && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                if (Markers.isTxnCommitMarker(msgMetadata)) {
+                    handleTxnCommitMarker(entry);
+                    if (!isAfterTxnCommitMarker) {
+                        isAfterTxnCommitMarker = true;
                     }
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
-                    PositionImpl pos = (PositionImpl) entry.getPosition();
-                    // Message metadata was corrupted or the messages was a server-only marker
+                } else if (Markers.isTxnAbortMarker(msgMetadata)) {
+                    handleTxnAbortMarker(entry);
+                }
+                entries.set(i, null);
+                entry.release();
+                continue;
+            } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+                PositionImpl pos = (PositionImpl) entry.getPosition();
+                // Message metadata was corrupted or the messages was a server-only marker
 
-                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
-                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
-                    }
-
-                    entries.set(i, null);
-                    entry.release();
-                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                            Collections.emptyMap());
-                    continue;
-                } else if (msgMetadata.hasDeliverAtTime()
-                        && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
-                    // The message is marked for delayed delivery. Ignore for now.
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                } else if (isAfterTxnCommitMarker) {
-                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
+                if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
                 }
 
-                int batchSize = msgMetadata.getNumMessagesInBatch();
-                totalMessages += batchSize;
-                totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
-                batchSizes.setBatchSize(i, batchSize);
-                long[] ackSet = null;
-                if (indexesAcks != null && cursor != null) {
-                    ackSet = cursor.getDeletedBatchIndexesAsLongArray(
-                            PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-                    if (ackSet != null) {
-                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-                    } else {
-                        indexesAcks.setIndexesAcks(i, null);
-                    }
-                }
+                entries.set(i, null);
+                entry.release();
+                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                        Collections.emptyMap());
+                continue;
+            } else if (msgMetadata.hasDeliverAtTime()
+                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                // The message is marked for delayed delivery. Ignore for now.
+                entries.set(i, null);
+                entry.release();
+                continue;
+            } else if (isAfterTxnCommitMarker) {
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
+                entries.set(i, null);
+                entry.release();
+                continue;
+            }
 
-                BrokerInterceptor interceptor = subscription.interceptor();
-                if (null != interceptor) {
-                    interceptor.beforeSendMessage(
-                        subscription,
-                        entry,
-                        ackSet,
-                        msgMetadata
-                    );
+            int batchSize = msgMetadata.getNumMessagesInBatch();
+            totalMessages += batchSize;
+            totalBytes += metadataAndPayload.readableBytes();
+            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
+            batchSizes.setBatchSize(i, batchSize);
+            long[] ackSet = null;
+            if (indexesAcks != null && cursor != null) {
+                ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                        PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                if (ackSet != null) {
+                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                } else {
+                    indexesAcks.setIndexesAcks(i, null);
                 }
+            }
 
-            } finally {
-                msgMetadata.recycle();
+            BrokerInterceptor interceptor = subscription.interceptor();
+            if (null != interceptor) {
+                interceptor.beforeSendMessage(
+                    subscription,
+                    entry,
+                    ackSet,
+                    msgMetadata
+                );
             }
         }
 
@@ -186,15 +181,14 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         metadataAndPayload.markReaderIndex();
-        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
         metadataAndPayload.resetReaderIndex();
         byte[] key = NONE_KEY.getBytes();
         if (metadata.hasOrderingKey()) {
-            return metadata.getOrderingKey().toByteArray();
+            return metadata.getOrderingKey();
         } else if (metadata.hasPartitionKey()) {
             return metadata.getPartitionKey().getBytes();
         }
-        metadata.recycle();
         return key;
     }
 
@@ -206,9 +200,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         ByteBuf byteBuf = entry.getDataBuffer();
         Commands.skipMessageMetadata(byteBuf);
         try {
-            PulsarMarkers.TxnCommitMarker commitMarker = Markers.parseCommitMarker(byteBuf);
-            for (PulsarMarkers.MessageIdData messageIdData : commitMarker.getMessageIdList()) {
-                addMessageToReplay(messageIdData.getLedgerId(), messageIdData.getEntryId());
+            TxnCommitMarker commitMarker = Markers.parseCommitMarker(byteBuf);
+            for (int i = 0; i < commitMarker.getMessageIdsCount(); i++) {
+                MarkersMessageIdData mid = commitMarker.getMessageIdAt(i);
+                addMessageToReplay(mid.getLedgerId(), mid.getEntryId());
             }
         } catch (IOException e) {
             log.error("Failed to parse commit marker.", e);
@@ -221,12 +216,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             Commands.skipMessageMetadata(byteBuf);
             try {
                 List<Position> positionList = new ArrayList<>();
-                PulsarMarkers.TxnCommitMarker abortMarker = Markers.parseCommitMarker(byteBuf);
-                for (PulsarMarkers.MessageIdData messageIdData : abortMarker.getMessageIdList()) {
+                TxnCommitMarker abortMarker = Markers.parseCommitMarker(byteBuf);
+                for (MarkersMessageIdData messageIdData : abortMarker.getMessageIdsList()) {
                     positionList.add(PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()));
                 }
                 subscription.acknowledgeMessage(
-                        positionList, PulsarApi.CommandAck.AckType.Individual, Collections.emptyMap());
+                        positionList, AckType.Individual, Collections.emptyMap());
             } catch (IOException e) {
                 log.error("Failed to parse abort marker.", e);
             }

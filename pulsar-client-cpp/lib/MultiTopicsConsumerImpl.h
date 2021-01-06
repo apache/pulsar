@@ -18,6 +18,7 @@
  */
 #ifndef PULSAR_MULTI_TOPICS_CONSUMER_HEADER
 #define PULSAR_MULTI_TOPICS_CONSUMER_HEADER
+#include "gtest/gtest_prod.h"
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include "BlockingQueue.h"
@@ -103,7 +104,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
     Promise<Result, ConsumerImplBaseWeakPtr> multiTopicsConsumerCreatedPromise_;
-    UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     const std::vector<std::string>& topics_;
     std::queue<ReceiveCallback> pendingReceives_;
 
@@ -137,7 +138,10 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
 
    private:
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+
+    FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
 };
 
+typedef std::shared_ptr<MultiTopicsConsumerImpl> MultiTopicsConsumerImplPtr;
 }  // namespace pulsar
 #endif  // PULSAR_MULTI_TOPICS_CONSUMER_HEADER

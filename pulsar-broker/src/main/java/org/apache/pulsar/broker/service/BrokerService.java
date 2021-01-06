@@ -83,7 +83,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1105,18 +1104,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
+
             if (isBrokerEntryMetadataEnabled()) {
                 // init managedLedger interceptor
+                Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                    // add individual AppendOffsetMetadataInterceptor for each topic
                     if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                        // add individual AppendOffsetMetadataInterceptor for each topic
-                        brokerEntryMetadataInterceptors.remove(interceptor);
-                        brokerEntryMetadataInterceptors.add(new AppendIndexMetadataInterceptor());
+                        interceptors.add(new AppendIndexMetadataInterceptor());
+                    } else {
+                        interceptors.add(interceptor);
                     }
                 }
-                ManagedLedgerInterceptor mlInterceptor =
-                        new ManagedLedgerInterceptorImpl(brokerEntryMetadataInterceptors);
-                managedLedgerConfig.setManagedLedgerInterceptor(mlInterceptor);
+                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
@@ -1597,12 +1597,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
-        topics.forEach((name, topicFuture) -> {
-            TopicName topicName = TopicName.get(name);
+        for (String topic : topics.keys()) {
+            TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName)) {
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
             }
-        });
+        }
     }
 
     public AuthorizationService getAuthorizationService() {
@@ -1623,19 +1623,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             synchronized (multiLayerTopicsMap) {
                 ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
                         .get(namespaceName);
-                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                bundleMap.remove(topic);
-                if (bundleMap.isEmpty()) {
-                    namespaceMap.remove(bundleName);
-                }
+                if (namespaceMap != null) {
+                    ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                    bundleMap.remove(topic);
+                    if (bundleMap.isEmpty()) {
+                        namespaceMap.remove(bundleName);
+                    }
 
-                if (namespaceMap.isEmpty()) {
-                    multiLayerTopicsMap.remove(namespaceName);
-                    final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
-                            .getClusterReplicationMetrics();
-                    replicationClients.forEach((cluster, client) -> {
-                        clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName, cluster));
-                    });
+                    if (namespaceMap.isEmpty()) {
+                        multiLayerTopicsMap.remove(namespaceName);
+                        final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
+                                .getClusterReplicationMetrics();
+                        replicationClients.forEach((cluster, client) -> {
+                            clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
+                                    cluster));
+                        });
+                    }
                 }
             }
         } catch (Exception e) {
@@ -2553,9 +2556,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
                                             CompletableFuture<T> topicFuture) {
-        final int maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
-        if (maxTopicsPerNamespace > 0) {
-            try {
+        Integer maxTopicsPerNamespace;
+        try {
+            maxTopicsPerNamespace = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()))
+                    .map(p -> p.max_topics_per_namespace)
+                    .orElse(null);
+
+            if (maxTopicsPerNamespace == null) {
+                maxTopicsPerNamespace = pulsar.getConfig().getMaxTopicsPerNamespace();
+            }
+
+            if (maxTopicsPerNamespace > 0) {
                 String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
                         topicName.getNamespace(), topicName.getDomain().value());
                 List<String> topics = pulsar().getGlobalZkCache().getZooKeeper()
@@ -2567,13 +2579,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             "Exceed maximum number of topics in namespace."));
                     return false;
                 }
-            } catch (KeeperException.NoNodeException e) {
-                // NoNode means there are no partitioned topics in this domain for this namespace
-            } catch (Exception e) {
-                log.error("Failed to create partitioned topic {}", topicName, e);
+            }
+        } catch (KeeperException.NoNodeException e) {
+            // NoNode means there are no partitioned topics in this domain for this namespace
+        } catch (Exception e) {
+            log.error("Failed to create partitioned topic {}", topicName, e);
                 topicFuture.completeExceptionally(new RestException(e));
                 return false;
-            }
         }
 
         return true;

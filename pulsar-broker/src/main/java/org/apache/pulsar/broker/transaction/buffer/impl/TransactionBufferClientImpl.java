@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.TxnAction;
 
 /**
  * The implementation of {@link TransactionBufferClient}.
@@ -49,14 +49,14 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     @Override
     public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                      List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT,
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.COMMIT,
                 messageIdList);
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                     List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT,
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.ABORT,
                 messageIdList);
     }
 
@@ -64,14 +64,14 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
                                                             long txnIdLeastBits) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                PulsarApi.TxnAction.COMMIT);
+                TxnAction.COMMIT);
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription,
                                                            long txnIdMostBits, long txnIdLeastBits) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                PulsarApi.TxnAction.ABORT);
+                TxnAction.ABORT);
     }
 
     @Override

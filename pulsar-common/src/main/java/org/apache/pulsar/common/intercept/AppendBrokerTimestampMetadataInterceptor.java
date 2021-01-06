@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.intercept;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 
 /**
  * A plugin interface that allows you to intercept the client requests to
@@ -27,13 +27,13 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMetadataInterceptor {
 
     @Override
-    public PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata) {
+    public BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata) {
         return brokerMetadata.setBrokerTimestamp(System.currentTimeMillis());
     }
 
     @Override
-    public PulsarApi.BrokerEntryMetadata.Builder interceptWithNumberOfMessages(
-            PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
+    public BrokerEntryMetadata interceptWithNumberOfMessages(
+            BrokerEntryMetadata brokerMetadata,
             int numberOfMessages) {
         // do nothing, just return brokerMetadata
         return brokerMetadata;

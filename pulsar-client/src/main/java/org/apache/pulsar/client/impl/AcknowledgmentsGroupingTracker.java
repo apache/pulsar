@@ -23,7 +23,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
  * Acknowledgments grouping tracker.

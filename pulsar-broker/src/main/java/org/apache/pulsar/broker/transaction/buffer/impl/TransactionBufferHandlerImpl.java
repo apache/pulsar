@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
@@ -45,7 +44,11 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -76,19 +79,18 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
     @Override
     public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
-                                                  PulsarApi.TxnAction action, List<MessageId> messageIdList) {
+                                                  TxnAction action, List<MessageId> messageIdList) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
-        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        List<MessageIdData> messageIdDataList = new ArrayList<>();
         for (MessageId messageId : messageIdList) {
-            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+            messageIdDataList.add(new MessageIdData()
                     .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
                     .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
-                    .build());
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex()));
         }
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, messageIdDataList);
@@ -115,7 +117,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
     @Override
     public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                         long txnIdLeastBits, PulsarApi.TxnAction action) {
+                                                         long txnIdLeastBits, TxnAction action) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -145,7 +147,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void handleEndTxnOnTopicResponse(long requestId, PulsarApi.CommandEndTxnOnPartitionResponse response) {
+    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -171,7 +173,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
     @Override
     public void handleEndTxnOnSubscriptionResponse(long requestId,
-                                                   PulsarApi.CommandEndTxnOnSubscriptionResponse response) {
+                                                   CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -226,7 +228,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 });
     }
 
-    private TransactionBufferClientException getException(PulsarApi.ServerError serverError, String msg) {
+    private TransactionBufferClientException getException(ServerError serverError, String msg) {
         return new TransactionBufferClientException(msg);
     }
 

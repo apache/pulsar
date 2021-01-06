@@ -47,6 +47,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
@@ -121,6 +122,7 @@ public class SourceApiV3ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
     private LeaderService mockedLeaderService;
+    private Packages mockedPackages;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -137,6 +139,7 @@ public class SourceApiV3ResourceTest {
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
         this.mockedLeaderService = mock(LeaderService.class);
+        this.mockedPackages = mock(Packages.class);
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(PulsarWorkerService.class);
@@ -151,9 +154,11 @@ public class SourceApiV3ResourceTest {
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
+        when(mockedPulsarAdmin.packages()).thenReturn(mockedPackages);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
         when(mockedLeaderService.isLeader()).thenReturn(true);
+        doNothing().when(mockedPackages).download(anyString(), anyString());
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
@@ -446,6 +451,10 @@ public class SourceApiV3ResourceTest {
     }
 
     private void registerDefaultSource() throws IOException {
+        registerDefaultSourceWithPackageUrl(null);
+    }
+
+    private void registerDefaultSourceWithPackageUrl(String packageUrl) throws IOException {
         SourceConfig sourceConfig = createDefaultSourceConfig();
         resource.registerSource(
             tenant,
@@ -453,7 +462,7 @@ public class SourceApiV3ResourceTest {
                 source,
             new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
+            packageUrl,
             sourceConfig,
                 null, null);
     }
@@ -507,6 +516,23 @@ public class SourceApiV3ResourceTest {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
         registerDefaultSource();
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterSourceSuccessWithPackageName() throws IOException {
+        registerDefaultSourceWithPackageUrl("source://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterSourceFailedWithWrongPackageName() throws PulsarAdminException, IOException {
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultSourceWithPackageUrl("source://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+        }
     }
 
     @Test
@@ -878,6 +904,10 @@ public class SourceApiV3ResourceTest {
     }
 
     private void updateDefaultSource() throws Exception {
+        updateDefaultSourceWithPackageUrl(null);
+    }
+
+    private void updateDefaultSourceWithPackageUrl(String packageUrl) throws Exception {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -913,7 +943,7 @@ public class SourceApiV3ResourceTest {
                 source,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
+            packageUrl,
             sourceConfig,
                 null, null, null);
     }
@@ -1058,6 +1088,25 @@ public class SourceApiV3ResourceTest {
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateSourceSuccessWithPackageName() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        updateDefaultSourceWithPackageUrl("source://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateSourceFailedWithWrongPackageName() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            updateDefaultSourceWithPackageUrl("source://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
