@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -52,7 +52,7 @@ public class StreamingStats {
     }
 
 
-    public static void writeConsumerStats(StatsOutputStream statsStream, PulsarApi.CommandSubscribe.SubType subType,
+    public static void writeConsumerStats(StatsOutputStream statsStream, CommandSubscribe.SubType subType,
         ConsumerStats stats) {
         // Populate consumer specific stats here
         statsStream.startObject();

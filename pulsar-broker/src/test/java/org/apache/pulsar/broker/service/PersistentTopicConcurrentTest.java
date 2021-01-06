@@ -46,8 +46,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -118,12 +118,15 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
-                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setRequestId(1)
+                .setSubType(CommandSubscribe.SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
@@ -177,12 +180,15 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
-                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setRequestId(1)
+                .setSubType(CommandSubscribe.SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
@@ -242,12 +248,15 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
-                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setRequestId(1)
+                .setSubType(CommandSubscribe.SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
@@ -301,12 +310,15 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
-                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setRequestId(1)
+                .setSubType(CommandSubscribe.SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 

@@ -46,8 +46,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -301,7 +300,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     /**
      * Validate that chunking is not supported with batching and non-persistent topic
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -343,9 +342,9 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
-        Builder metadataBuilder = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
-        MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
-                .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100).build();
+        MessageMetadata msgMetadata = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
+        msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
+                .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100);
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
@@ -356,17 +355,17 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             return consumer.chunkedMessagesMap.size() > 0;
         }, 5, 500);
         assertEquals(consumer.chunkedMessagesMap.size(), 1);
-        
+
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 1;
         Thread.sleep(10);
         consumer.removeExpireIncompleteChunkedMessages();
         assertEquals(consumer.chunkedMessagesMap.size(), 0);
-       
+
         producer.close();
         consumer.close();
         producer = null; // clean reference of mocked producer
     }
-    
+
     private String createMessagePayload(int size) {
         StringBuilder str = new StringBuilder();
         Random rand = new Random();
