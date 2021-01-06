@@ -655,9 +655,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         // there is no guarantee when a messages is acknowledged when consumer.acknowledge is called.
         // consumer.acknowledge only guarantees that an ack request is sent to the wire. so we can
         // only check all unackMsgs will be redelivered.
-        for (String s : receivedMsgs) System.out.println(s);
-        System.out.println("&&&&&&&&&&&&&&&");
-        for (String s : unackMsgs) System.out.println(s);
         unackMsgs.forEach(msg -> assertTrue(receivedMsgs.contains(msg)));
     }
 

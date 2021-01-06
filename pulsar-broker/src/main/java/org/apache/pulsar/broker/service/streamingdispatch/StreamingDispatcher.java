@@ -45,4 +45,9 @@ public interface StreamingDispatcher extends Dispatcher {
      * Notify dispatcher to inform consumers reached end of topic.
      */
     void notifyConsumersEndOfTopic();
+
+    /**
+     * @return Name of the dispatcher.
+     */
+    String getName();
 }

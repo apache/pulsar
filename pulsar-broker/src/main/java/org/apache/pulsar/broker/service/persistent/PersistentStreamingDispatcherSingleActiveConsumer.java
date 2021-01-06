@@ -100,12 +100,17 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         }
     }
 
+    @Override
+    public String getName() {
+        return name;
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void readEntryComplete(Entry entry, PendingReadEntryRequest ctx) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(name, safeRun(() -> {
             internalReadEntryComplete(entry, ctx);
         }));
     }

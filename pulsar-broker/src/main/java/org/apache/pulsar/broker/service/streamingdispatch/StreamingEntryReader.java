@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service.streamingdispatch;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -72,8 +70,8 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
 
     private volatile int maxReadSizeByte;
 
-    private final Backoff readFailureBackoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
+    private final Backoff readFailureBackoff = new Backoff(10, TimeUnit.MILLISECONDS,
+            1, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
 
     /**
      * Read entries in streaming way, that said instead reading with micro batch and send entries to consumer after all
@@ -148,12 +146,12 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     @Override
     public void readEntryComplete(Entry entry, Object ctx) {
         // Don't block caller thread, complete read entry with dispatcher dedicated thread.
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(), SafeRun.safeRun(() -> {
             internalReadEntryComplete(entry, ctx);
         }));
     }
 
-    private synchronized void internalReadEntryComplete(Entry entry, Object ctx) {
+    private void internalReadEntryComplete(Entry entry, Object ctx) {
         PendingReadEntryRequest pendingReadEntryRequest = (PendingReadEntryRequest) ctx;
         pendingReadEntryRequest.entry = entry;
         readFailureBackoff.reduceToHalf();
@@ -176,11 +174,6 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
                         firstPendingReadEntryRequest.isLast = true;
                         STATE_UPDATER.set(this, State.Completed);
                     }
-                    ByteBuf cp = entry != null && entry.getDataBuffer() != null
-                            ? entry.getDataBuffer().copy() : Unpooled.buffer();
-                    byte[] array = new byte[cp.readableBytes()];
-                    cp.getBytes(cp.readerIndex(), array);
-                    System.out.println("Dispatching msg: " +  new String(array));
                     dispatcher.readEntryComplete(readEntry, firstPendingReadEntryRequest);
                 }
             }
@@ -194,12 +187,12 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     @Override
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
         // Don't block caller thread, complete read entry fail with dispatcher dedicated thread.
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(), SafeRun.safeRun(() -> {
             internalReadEntryFailed(exception, ctx);
         }));
     }
 
-    private synchronized void internalReadEntryFailed(ManagedLedgerException exception, Object ctx) {
+    private void internalReadEntryFailed(ManagedLedgerException exception, Object ctx) {
         PendingReadEntryRequest pendingReadEntryRequest = (PendingReadEntryRequest) ctx;
         PositionImpl readPosition = pendingReadEntryRequest.position;
         pendingReadEntryRequest.retry++;
@@ -277,7 +270,8 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     private void retryReadRequest(PendingReadEntryRequest pendingReadEntryRequest, long delay) {
         topic.getBrokerService().executor().schedule(() -> {
             // Jump again into dispatcher dedicated thread
-            topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+            topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(),
+                    SafeRun.safeRun(() -> {
                 ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
                 managedLedger.asyncReadEntry(pendingReadEntryRequest.position, this, pendingReadEntryRequest);
             }));
@@ -286,7 +280,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
 
     @Override
     public void entriesAvailable() {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(), SafeRun.safeRun(() -> {
             internalEntriesAvailable();
         }));
     }
