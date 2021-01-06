@@ -3825,7 +3825,7 @@ class UnAckedMessageTrackerEnabledMock : public UnAckedMessageTrackerEnabled {
     long size() { return UnAckedMessageTrackerEnabled::size(); }
 };  // class UnAckedMessageTrackerEnabledMock
 
-TEST(BasicEndToEndTest, testtUnAckedMessageTrackerDefaultBehavior) {
+TEST(BasicEndToEndTest, testUnAckedMessageTrackerDefaultBehavior) {
     ConsumerConfiguration configConsumer;
     ASSERT_EQ(configConsumer.getUnAckedMessagesTimeoutMs(), 0);
     ASSERT_EQ(configConsumer.getTickDurationInMs(), 1000);
@@ -4002,7 +4002,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     ASSERT_EQ(numMsg - (numMsg / 2 + 1), tracker->size());
     ASSERT_FALSE(tracker->isEmpty());
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
     ASSERT_EQ(0, tracker->size());
     ASSERT_TRUE(tracker->isEmpty());
     consumer.close();
@@ -4012,6 +4012,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     for (auto count = numMsg / 2 + 1; count < numMsg; ++count) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msg.getMessageId()));
     }
     Message msg;
     auto ret = consumer.receive(msg, 1000);
