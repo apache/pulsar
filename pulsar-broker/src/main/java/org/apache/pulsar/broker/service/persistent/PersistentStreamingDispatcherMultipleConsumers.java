@@ -43,7 +43,7 @@ import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers
     implements StreamingDispatcher {
 
-    private StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
+    private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
 
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,

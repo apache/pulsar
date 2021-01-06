@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.service.streamingdispatch;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A {@link Dispatcher} that'll use {@link StreamingEntryReader} to read entries from {@link ManagedLedger}.
  */
+@InterfaceStability.Unstable
 public interface StreamingDispatcher extends Dispatcher {
 
     /**

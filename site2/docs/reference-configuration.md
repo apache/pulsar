@@ -501,6 +501,7 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |dispatcherMinReadBatchSize|The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.|1|
 |dispatcherMaxRoundRobinBatchSize|The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.|20|
 | preciseDispatcherFlowControl | Precise dispathcer flow control according to history message number of each entry. | false |
+| streamingDispatch | Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release. | false |
 | maxConcurrentLookupRequest | Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic. | 50000 |
 | maxConcurrentTopicLoadRequest | Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations. | 5000 |
 | maxConcurrentNonPersistentMessagePerConnection | Maximum number of concurrent non-persistent message that can be processed per connection. | 1000 |

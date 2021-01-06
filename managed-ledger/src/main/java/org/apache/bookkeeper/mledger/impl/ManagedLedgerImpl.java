@@ -2068,7 +2068,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void notifyWaitingEntryCallBack() {
+    void notifyWaitingEntryCallBacks() {
         while (true) {
             final WaitingEntryCallBack cb = waitingEntryCallBacks.poll();
             if (cb == null) {
