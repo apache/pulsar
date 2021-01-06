@@ -268,7 +268,7 @@ By default, once messages were offloaded to long term storage, brokers will read
 messages exists in both bookkeeper and long term storage, if they are preferred to read from bookkeeper, you can use command to change this configuration.
 
 ```bash
-# default value for -orp is offloaded-first
+# default value for -orp is tiered-storage-first
 $ bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
 $ bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
 ```     

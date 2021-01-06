@@ -58,7 +58,7 @@ public class OffloadPolicies implements Serializable {
          * For offloaded messages, readers will try to read from offloaded storage first,
          * even they are still exist in bookkeeper.
          */
-        TIERED_STORAGE_FIRST("offloaded-first");
+        TIERED_STORAGE_FIRST("tiered-storage-first");
 
         private final String value;
 
