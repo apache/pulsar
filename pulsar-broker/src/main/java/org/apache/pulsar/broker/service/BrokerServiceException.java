@@ -72,6 +72,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class AddEntryMetadataException extends BrokerServiceException {
+        public AddEntryMetadataException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class PersistenceException extends BrokerServiceException {
         public PersistenceException(Throwable t) {
             super(t);
@@ -194,6 +200,8 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof PersistenceException) {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
+            return PulsarApi.ServerError.ConsumerBusy;
+        } else if (t instanceof SubscriptionBusyException) {
             return PulsarApi.ServerError.ConsumerBusy;
         } else if (t instanceof ProducerBusyException) {
             return PulsarApi.ServerError.ProducerBusy;

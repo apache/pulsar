@@ -98,9 +98,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                            SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
+                                            SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+                                            boolean isProducerReady) {
         PulsarApi.BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, lastSequenceId,
-                schemaVersion, topicEpoch);
+                schemaVersion, topicEpoch, isProducerReady);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         command.getProducerSuccess().recycle();
@@ -281,6 +282,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // increment ref-count of data and release at the end of process:
                 // so, we can get chance to call entry.release
                 metadataAndPayload.retain();
+                // skip raw message metadata since broker timestamp only used in broker side
+                Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     Commands.skipChecksumIfPresent(metadataAndPayload);

@@ -90,6 +90,7 @@ public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
+    private static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
     protected ZooKeeper globalZk() {
         return pulsar().getGlobalZkCache().getZooKeeper();
@@ -787,7 +788,63 @@ public abstract class AdminResource extends PulsarWebResource {
         return partitionedTopics;
     }
 
+    protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
+        List<String> topicPartitions = Lists.newArrayList();
+
+        try {
+            String topicPartitionPath = joinPath(MANAGED_LEDGER_PATH_ZNODE,
+                    namespaceName.toString(), topicDomain.value());
+            List<String> topics = globalZk().getChildren(topicPartitionPath, false);
+            topicPartitions = topics.stream()
+                    .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
+                    .collect(Collectors.toList());
+        } catch (KeeperException.NoNodeException e) {
+            // NoNode means there are no topics in this domain for this namespace
+        } catch (Exception e) {
+            log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
+                    namespaceName.toString(), e);
+            throw new RestException(e);
+        }
+
+        topicPartitions.sort(null);
+        return topicPartitions;
+    }
+
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
+        Integer maxTopicsPerNamespace = null;
+
+        try {
+            Policies policies = getNamespacePolicies(namespaceName);
+            maxTopicsPerNamespace = policies.max_topics_per_namespace;
+        } catch (RestException e) {
+            if (e.getResponse().getStatus() != Status.NOT_FOUND.getStatusCode()) {
+                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+
+        try {
+            if (maxTopicsPerNamespace == null) {
+                maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
+            }
+
+            if (maxTopicsPerNamespace > 0) {
+                List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
+                if (partitionedTopics.size() + numPartitions > maxTopicsPerNamespace) {
+                    log.error("[{}] Failed to create partitioned topic {}, "
+                            + "exceed maximum number of topics in namespace", clientAppId(), topicName);
+                    resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.PRECONDITION_FAILED,
+                            "Exceed maximum number of topics in namespace."));
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
             validateAdminAccessForTenant(topicName.getTenant());

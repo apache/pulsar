@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -134,6 +135,11 @@ public class PersistentSubscription implements Subscription {
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+    }
+
+    @Override
+    public BrokerInterceptor interceptor() {
+        return topic.getBrokerService().getInterceptor();
     }
 
     @Override
@@ -943,6 +949,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+        subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
@@ -954,6 +961,9 @@ public class PersistentSubscription implements Subscription {
                 });
             }
         }
+        subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
+        subStats.nonContiguousDeletedMessagesRangesSerializedSize =
+                cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
         return subStats;
     }
 

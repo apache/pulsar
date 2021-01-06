@@ -180,6 +180,12 @@ message SingleMessageMetadata {
     optional bool null_partition_key = 10 [ default = false];
 }
 
+// metadata added for entry from broker
+message BrokerEntryMetadata {
+    optional uint64 broker_timestamp = 1;
+    optional uint64 index = 2;
+}
+
 enum ServerError {
     UnknownError        = 0;
     MetadataError       = 1; // Error with ZK/metadata
@@ -248,6 +254,7 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
+    v16 = 16; // Add support for raw message metadata
 }
 
 message CommandConnect {
@@ -278,6 +285,7 @@ message CommandConnect {
 
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
+  optional bool supports_broker_entry_metadata = 2 [default = false];
 }
 
 message CommandConnected {
@@ -615,6 +623,11 @@ message CommandProducerSuccess {
     // The topic epoch assigned by the broker. This field will only be set if we
     // were requiring exclusive access when creating the producer.
     optional uint64 topic_epoch = 5;
+
+    // If producer is not "ready", the client will avoid to timeout the request
+    // for creating the producer. Instead it will wait indefinitely until it gets 
+    // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
+    optional bool producer_ready = 6 [default = true];
 }
 
 message CommandError {

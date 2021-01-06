@@ -20,11 +20,14 @@ package org.apache.pulsar.common.util.collections;
 
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import lombok.EqualsAndHashCode;
+
 import java.util.BitSet;
 
 /**
  * Safe multithreaded version of {@code BitSet} and leverage netty recycler.
  */
+@EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSetRecyclable extends ConcurrentBitSet {
 
     private final Handle<ConcurrentBitSetRecyclable> recyclerHandle;

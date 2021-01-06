@@ -25,12 +25,14 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -114,6 +116,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -136,6 +139,8 @@ public class Commands {
 
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
+    @SuppressWarnings("checkstyle:ConstantName")
+    public static final short magicBrokerEntryMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
@@ -157,6 +162,7 @@ public class Commands {
     public static FeatureFlags getFeatureFlags() {
         FeatureFlags.Builder flags = FeatureFlags.newBuilder();
         flags.setSupportsAuthRefresh(true);
+        flags.setSupportsBrokerEntryMetadata(true);
         return flags.build();
     }
 
@@ -358,20 +364,22 @@ public class Commands {
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName,
             SchemaVersion schemaVersion) {
-        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty());
+        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
-        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty());
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName, long lastSequenceId,
-                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
+                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+                                                 boolean isProducerReady) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        producerSuccessBuilder.setProducerReady(isProducerReady);
         topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         BaseCommand.Builder builder = BaseCommand.newBuilder();
@@ -382,12 +390,14 @@ public class Commands {
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
-        SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
+        SchemaVersion schemaVersion, Optional<Long> topicEpoch,
+        boolean isProducerReady) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        producerSuccessBuilder.setProducerReady(isProducerReady);
         topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
@@ -515,6 +525,8 @@ public class Commands {
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
+            // first, skip raw metadata if exist
+            skipBrokerEntryMetadataIfExist(buffer);
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
             // to parse metadata
             skipChecksumIfPresent(buffer);
@@ -537,6 +549,7 @@ public class Commands {
     public static void skipMessageMetadata(ByteBuf buffer) {
         // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
         // metadata
+        skipBrokerEntryMetadataIfExist(buffer);
         skipChecksumIfPresent(buffer);
         int metadataSize = (int) buffer.readUnsignedInt();
         buffer.skipBytes(metadataSize);
@@ -1920,6 +1933,112 @@ public class Commands {
         return command;
     }
 
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> interceptors) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : interceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
+        try {
+            brokerEntryMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
+        return compositeByteBuf;
+    }
+
+    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
+                                                 Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
+                                                 int numberOfMessages) {
+        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
+        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
+
+        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
+            interceptor.intercept(brokerMetadataBuilder);
+            interceptor.interceptWithNumberOfMessages(brokerMetadataBuilder, numberOfMessages);
+        }
+        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        ByteBuf brokerMeta =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+        brokerMeta.writeInt(brokerMetaSize);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
+        try {
+            brokerEntryMetadata.writeTo(outStream);
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+        outStream.recycle();
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
+        return compositeByteBuf;
+    }
+
+    public static ByteBuf skipBrokerEntryMetadataIfExist(ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
+            int brokerEntryMetadataSize = headerAndPayloadWithBrokerEntryMetadata.readInt();
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(headerAndPayloadWithBrokerEntryMetadata.readerIndex()
+                    + brokerEntryMetadataSize);
+        } else {
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+        }
+        return headerAndPayloadWithBrokerEntryMetadata;
+    }
+
+    public static PulsarApi.BrokerEntryMetadata parseBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
+            int brokerEntryMetadataSize = headerAndPayloadWithBrokerEntryMetadata.readInt();
+            int writerIndex = headerAndPayloadWithBrokerEntryMetadata.writerIndex();
+            headerAndPayloadWithBrokerEntryMetadata.writerIndex(headerAndPayloadWithBrokerEntryMetadata.readerIndex()
+                    + brokerEntryMetadataSize);
+            ByteBufCodedInputStream brokerEntryMetadataInputStream =
+                    ByteBufCodedInputStream.get(headerAndPayloadWithBrokerEntryMetadata);
+            PulsarApi.BrokerEntryMetadata.Builder builder =  PulsarApi.BrokerEntryMetadata.newBuilder();
+            try {
+                builder.mergeFrom(brokerEntryMetadataInputStream, null).build();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            headerAndPayloadWithBrokerEntryMetadata.writerIndex(writerIndex);
+            brokerEntryMetadataInputStream.recycle();
+            return builder.build();
+        } else {
+            headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+            return null;
+        }
+    }
+
+    public static PulsarApi.BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
+            ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
+        final int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
+        PulsarApi.BrokerEntryMetadata entryMetadata =
+                parseBrokerEntryMetadataIfExist(headerAndPayloadWithBrokerEntryMetadata);
+        headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
+        return entryMetadata;
+    }
+
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
                                                       MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format
@@ -2176,8 +2295,8 @@ public class Commands {
             return PulsarApi.ProducerAccessMode.Exclusive;
         case Shared:
             return PulsarApi.ProducerAccessMode.Shared;
-//        case WaitForExclusive:
-//            return PulsarApi.ProducerAccessMode.WaitForExclusive;
+        case WaitForExclusive:
+            return PulsarApi.ProducerAccessMode.WaitForExclusive;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
@@ -2189,10 +2308,14 @@ public class Commands {
             return ProducerAccessMode.Exclusive;
         case Shared:
             return ProducerAccessMode.Shared;
-//        case WaitForExclusive:
-//            return ProducerAccessMode.WaitForExclusive;
+        case WaitForExclusive:
+            return ProducerAccessMode.WaitForExclusive;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
+    }
+
+    public static boolean peerSupportsBrokerMetadata(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v16.getNumber();
     }
 }

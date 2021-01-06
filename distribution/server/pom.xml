@@ -95,8 +95,8 @@
     </dependency>
 
     <dependency>
-      <artifactId>log4j</artifactId>
-      <groupId>log4j</groupId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-1.2-api</artifactId>
     </dependency>
 
     <dependency>

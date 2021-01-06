@@ -25,8 +25,10 @@ import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -97,6 +100,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile int maxUnackedMessagesOnConsumer = -1;
 
+    protected volatile Integer maxSubscriptionsPerTopic = null;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
@@ -109,6 +114,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
+    private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers =
+            new ConcurrentLinkedQueue<>();
 
     private static final AtomicLongFieldUpdater<AbstractTopic> USAGE_COUNT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
@@ -335,14 +342,15 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Optional<Long>> addProducer(Producer producer) {
+    public CompletableFuture<Optional<Long>> addProducer(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
         CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
 
-        incrementTopicEpochIfNeeded(producer)
-                .thenAccept(epoch -> {
-                    lock.readLock().lock();
+        incrementTopicEpochIfNeeded(producer, producerQueuedFuture)
+                .thenAccept(producerEpoch -> {
+                    lock.writeLock().lock();
                     try {
                         brokerService.checkTopicNsOwnership(getName());
                         checkTopicFenced();
@@ -358,11 +366,11 @@ public abstract class AbstractTopic implements Topic {
                                     USAGE_COUNT_UPDATER.get(this));
                         }
 
-                        future.complete(epoch);
+                        future.complete(producerEpoch);
                     } catch (Throwable e) {
                         future.completeExceptionally(e);
                     } finally {
-                        lock.readLock().unlock();
+                        lock.writeLock().unlock();
                     }
                 }).exceptionally(ex -> {
                     future.completeExceptionally(ex);
@@ -372,12 +380,13 @@ public abstract class AbstractTopic implements Topic {
         return future;
     }
 
-    protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer) {
+    protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
         lock.writeLock().lock();
         try {
             switch (producer.getAccessMode()) {
             case Shared:
-                if (hasExclusiveProducer) {
+                if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerBusyException(
                             "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
                 } else {
@@ -386,7 +395,7 @@ public abstract class AbstractTopic implements Topic {
                 }
 
             case Exclusive:
-                if (hasExclusiveProducer) {
+                if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException(
                             "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
                 } else if (!producers.isEmpty()) {
@@ -408,17 +417,52 @@ public abstract class AbstractTopic implements Topic {
                     } else {
                         future = incrementTopicEpoch(topicEpoch);
                     }
-                    return future.thenApply(epoch -> {
-                        topicEpoch = Optional.of(epoch);
-                        return topicEpoch;
-                    }).exceptionally(ex -> {
+                    future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
                         return null;
                     });
+
+                    return future.thenApply(epoch -> {
+                        topicEpoch = Optional.of(epoch);
+                        return topicEpoch;
+                    });
                 }
 
-                // case WaitForExclusive:
-                // TODO: Implementation
+            case WaitForExclusive: {
+                if (hasExclusiveProducer || !producers.isEmpty()) {
+                    CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
+                    log.info("[{}] Queuing producer {} since there's already a producer", topic, producer);
+                    waitingExclusiveProducers.add(Pair.of(producer, future));
+                    producerQueuedFuture.complete(null);
+                    return future;
+                } else if (producer.getTopicEpoch().isPresent()
+                        && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
+                    // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
+                    // to be fenced, because a new producer had been present in between.
+                    return FutureUtil.failedFuture(new ProducerFencedException(
+                            String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
+                                    topicEpoch.get(), producer.getTopicEpoch().get())));
+                } else {
+                    // There are currently no existing producers
+                    hasExclusiveProducer = true;
+
+                    CompletableFuture<Long> future;
+                    if (producer.getTopicEpoch().isPresent()) {
+                        future = setTopicEpoch(producer.getTopicEpoch().get());
+                    } else {
+                        future = incrementTopicEpoch(topicEpoch);
+                    }
+                    future.exceptionally(ex -> {
+                        hasExclusiveProducer = false;
+                        return null;
+                    });
+
+                    return future.thenApply(epoch -> {
+                        topicEpoch = Optional.of(epoch);
+                        return topicEpoch;
+                    });
+                }
+            }
 
             default:
                 return FutureUtil.failedFuture(
@@ -582,7 +626,35 @@ public abstract class AbstractTopic implements Topic {
         // decrement usage only if this was a valid producer close
         long newCount = USAGE_COUNT_UPDATER.decrementAndGet(this);
         if (newCount == 0) {
-            hasExclusiveProducer = false;
+            lock.writeLock().lock();
+            try {
+                hasExclusiveProducer = false;
+                Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer =
+                        waitingExclusiveProducers.poll();
+                if (nextWaitingProducer != null) {
+                    Producer nextProducer = nextWaitingProducer.getKey();
+                    CompletableFuture<Optional<Long>> producerFuture = nextWaitingProducer.getValue();
+                    hasExclusiveProducer = true;
+
+                    CompletableFuture<Long> future;
+                    if (nextProducer.getTopicEpoch().isPresent()) {
+                        future = setTopicEpoch(nextProducer.getTopicEpoch().get());
+                    } else {
+                        future = incrementTopicEpoch(topicEpoch);
+                    }
+
+                    future.thenAccept(epoch -> {
+                        topicEpoch = Optional.of(epoch);
+                        producerFuture.complete(topicEpoch);
+                    }).exceptionally(ex -> {
+                        hasExclusiveProducer = false;
+                        producerFuture.completeExceptionally(ex);
+                        return null;
+                    });
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
@@ -729,6 +801,10 @@ public abstract class AbstractTopic implements Topic {
                     + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
+    }
+
+    protected int getWaitingProducersCount() {
+        return waitingExclusiveProducers.size();
     }
 
     protected boolean isExceedMaximumMessageSize(int size) {

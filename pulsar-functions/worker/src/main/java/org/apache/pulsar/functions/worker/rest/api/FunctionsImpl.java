@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -38,9 +39,10 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.functions.worker.service.api.Functions;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -50,7 +52,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -64,12 +68,13 @@ import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuilt
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class FunctionsImpl extends ComponentImpl {
+public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
 
-    public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public FunctionsImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
     }
 
+    @Override
     public void registerFunction(final String tenant,
                                  final String namespace,
                                  final String functionName,
@@ -149,14 +154,18 @@ public class FunctionsImpl extends ComponentImpl {
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
+                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(functionPkgUrl);
+                    } else {
+                        if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+                            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
+                        }
+                        try {
 
-                    if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
-                        throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
-                    }
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             functionConfig, componentPackageFile);
@@ -236,6 +245,7 @@ public class FunctionsImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public void updateFunction(final String tenant,
                                final String namespace,
                                final String functionName,
@@ -313,10 +323,14 @@ public class FunctionsImpl extends ComponentImpl {
             // validate parameters
             try {
                 if (isNotBlank(functionPkgUrl)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(functionName);
+                    } else {
+                        try {
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             mergedConfig, componentPackageFile);
@@ -591,6 +605,7 @@ public class FunctionsImpl extends ComponentImpl {
      * @param instanceId the function instance id
      * @return the function status
      */
+    @Override
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
                                                                                                       final String namespace,
                                                                                                       final String componentName,
@@ -624,6 +639,7 @@ public class FunctionsImpl extends ComponentImpl {
      * @return a list of function statuses
      * @throws PulsarAdminException
      */
+    @Override
     public FunctionStatus getFunctionStatus(final String tenant,
                                             final String namespace,
                                             final String componentName,
@@ -647,6 +663,7 @@ public class FunctionsImpl extends ComponentImpl {
         return functionStatus;
     }
 
+    @Override
     public void updateFunctionOnWorkerLeader(final String tenant,
                                final String namespace,
                                final String functionName,
@@ -739,5 +756,15 @@ public class FunctionsImpl extends ComponentImpl {
         }
         return FunctionConfigUtils.convert(functionConfig, clsLoader);
 
+    }
+
+    private static boolean hasPackageTypePrefix(String destPkgUrl) {
+        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
+    }
+
+    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
+        File file = Files.createTempFile("function", ".tmp").toFile();
+        worker().getBrokerAdmin().packages().download(packageName, file.toString());
+        return file;
     }
 }

@@ -102,6 +102,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.airlift</groupId>
       <artifactId>aircompressor</artifactId>
     </dependency>
@@ -219,25 +224,22 @@
         </execution>
       </executions>
     </plugin>
-
     <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-checkstyle-plugin</artifactId>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-maven-plugin</artifactId>
+      <version>${spotbugs-maven-plugin.version}</version>
       <executions>
         <execution>
-          <id>check-style</id>
+          <id>spotbugs</id>
           <phase>verify</phase>
-          <configuration>
-            <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-            <encoding>UTF-8</encoding>
-            <excludes>**/proto/*</excludes>
-          </configuration>
           <goals>
             <goal>check</goal>
           </goals>
         </execution>
       </executions>
+      <configuration>
+        <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+      </configuration>
     </plugin>
   </plugins>
   </build>

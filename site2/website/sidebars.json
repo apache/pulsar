@@ -54,7 +54,8 @@
      "tiered-storage-overview",
      "tiered-storage-aws",
      "tiered-storage-gcs",
-     "tiered-storage-filesystem"
+     "tiered-storage-filesystem",
+     "tiered-storage-azure"
   ],
   "Transactions": [
     "transactions",
@@ -122,7 +123,8 @@
       "admin-api-namespaces",
       "admin-api-permissions",
       "admin-api-topics",
-      "admin-api-functions"
+      "admin-api-functions",
+      "admin-api-packages"
     ],
     "Adaptors": [
       "adaptors-kafka",
@@ -142,12 +144,12 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager",
-      "develop-cpp"
+      "develop-load-manager"
     ],
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
+      "pulsar-admin",
       "reference-configuration",
       "reference-metrics"
     ]

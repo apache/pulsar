@@ -357,7 +357,7 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                asyncAddEntry(headersAndPayload, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -368,6 +368,15 @@ public class PersistentTopic extends AbstractTopic
                 publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
+        }
+    }
+
+    private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (brokerService.isBrokerEntryMetadataEnabled()) {
+            ledger.asyncAddEntry(headersAndPayload,
+                    (int) publishContext.getNumberOfMessages(), this, publishContext);
+        } else {
+            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
         }
     }
 
@@ -475,13 +484,14 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Optional<Long>> addProducer(Producer producer) {
-        return super.addProducer(producer).thenApply(epoch -> {
+    public CompletableFuture<Optional<Long>> addProducer(Producer producer,
+            CompletableFuture<Void> producerQueuedFuture) {
+        return super.addProducer(producer, producerQueuedFuture).thenApply(topicEpoch -> {
             messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
             startReplProducers();
-            return epoch;
+            return topicEpoch;
         });
     }
 
@@ -1210,8 +1220,8 @@ public class PersistentTopic extends AbstractTopic
             int messageTtlInSeconds = getMessageTTL();
 
             if (messageTtlInSeconds != 0) {
-                subscriptions.forEach((subName, sub) -> sub.expireMessages(messageTtlInSeconds));
-                replicators.forEach((region, replicator)
+                subscriptions.values().forEach((sub) -> sub.expireMessages(messageTtlInSeconds));
+                replicators.values().forEach((replicator)
                         -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
             }
         } catch (Exception e) {
@@ -1516,7 +1526,7 @@ public class PersistentTopic extends AbstractTopic
 
                 // Populate subscription specific stats here
                 topicStatsStream.writePair("msgBacklog",
-                        subscription.getNumberOfEntriesInBacklog(false));
+                        subscription.getNumberOfEntriesInBacklog(true));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -1621,6 +1631,7 @@ public class PersistentTopic extends AbstractTopic
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
         stats.msgChunkPublished = this.msgChunkPublished;
+        stats.waitingPublishers = getWaitingProducersCount();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
@@ -1630,6 +1641,9 @@ public class PersistentTopic extends AbstractTopic
             stats.bytesOutCounter += subStats.bytesOutCounter;
             stats.msgOutCounter += subStats.msgOutCounter;
             stats.subscriptions.put(name, subStats);
+            stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
+            stats.nonContiguousDeletedMessagesRangesSerializedSize +=
+                    subStats.nonContiguousDeletedMessagesRangesSerializedSize;
         });
 
         replicators.forEach((cluster, replicator) -> {
@@ -2006,6 +2020,7 @@ public class PersistentTopic extends AbstractTopic
 
         maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
         maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
+        maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -2144,16 +2159,17 @@ public class PersistentTopic extends AbstractTopic
         return future;
     }
 
-    public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
-        MessageImpl msg = null;
+    public boolean isOldestMessageExpired(ManagedCursor cursor, int messageTTLInSeconds) {
+        MessageImpl<byte[]> msg = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                msg = MessageImpl.deserialize(entry.getDataBuffer());
-                isOldestMessageExpired = messageTTLInSeconds != 0 && System.currentTimeMillis() > (msg.getPublishTime()
-                        + TimeUnit.SECONDS.toMillis((long) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD)));
+                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                if (messageTTLInSeconds != 0) {
+                    isOldestMessageExpired = msg.isExpired((int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD));
+                }
             }
         } catch (Exception e) {
             log.warn("[{}] Error while getting the oldest message", topic, e);
@@ -2621,13 +2637,7 @@ public class PersistentTopic extends AbstractTopic
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
-            if (policies.isSubscriptionDispatchRateSet()) {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate(policies.getSubscriptionDispatchRate()));
-            } else {
-                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
-                        rateLimiter.updateDispatchRate());
-            }
+            dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
         });
 
         if (policies.getPublishRate() != null) {
@@ -2700,9 +2710,20 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed() {
-        final int maxSubscriptionsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
-        if (maxSubscriptionsPerTopic > 0) {
-            if (subscriptions != null && subscriptions.size() >= maxSubscriptionsPerTopic) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        Integer maxSubsPerTopic = null;
+        if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
+            maxSubsPerTopic = topicPolicies.getMaxSubscriptionsPerTopic();
+        }
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = maxSubscriptionsPerTopic;
+        }
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
+        }
+
+        if (maxSubsPerTopic > 0) {
+            if (subscriptions != null && subscriptions.size() >= maxSubsPerTopic) {
                 return true;
             }
         }
