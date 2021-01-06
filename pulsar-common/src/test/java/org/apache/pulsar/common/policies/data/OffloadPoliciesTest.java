@@ -61,7 +61,7 @@ public class OffloadPoliciesTest {
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
                 offloadDeletionLagInMillis,
-                OffloadedReadPriority.OFFLOADED_FIRST
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
         );
 
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
@@ -88,7 +88,7 @@ public class OffloadPoliciesTest {
         final Integer readBufferSizeInBytes = 2 * M;
         final Long offloadThresholdInBytes = 0L;
         final Long offloadDeletionLagInMillis = 5 * MIN;
-        final OffloadedReadPriority readPriority = OffloadedReadPriority.OFFLOADED_FIRST;
+        final OffloadedReadPriority readPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create(
                 driver,

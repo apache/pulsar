@@ -162,7 +162,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String endpoint = "test-endpoint";
         long offloadThresholdInBytes = 0;
         long offloadDeletionLagInMillis = 100L;
-        OffloadPolicies.OffloadedReadPriority priority = OffloadPolicies.OffloadedReadPriority.OFFLOADED_FIRST;
+        OffloadPolicies.OffloadedReadPriority priority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
         OffloadPolicies offload1 = OffloadPolicies.create(
                 driver, region, bucket, endpoint, null, null,

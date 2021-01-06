@@ -1460,7 +1460,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
-    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.OFFLOADED_FIRST.getValue();
+    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
+            .getValue();
 
     /*** --- Load balancer --- ****/
     @FieldContext(

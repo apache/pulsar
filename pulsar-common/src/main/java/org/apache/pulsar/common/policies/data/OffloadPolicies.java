@@ -58,7 +58,7 @@ public class OffloadPolicies implements Serializable {
          * For offloaded messages, readers will try to read from offloaded storage first,
          * even they are still exist in bookkeeper.
          */
-        OFFLOADED_FIRST("offloaded-first");
+        TIERED_STORAGE_FIRST("offloaded-first");
 
         private final String value;
 
@@ -122,7 +122,7 @@ public class OffloadPolicies implements Serializable {
     public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
-    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.OFFLOADED_FIRST;
+    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
     // common config
     @Configuration
