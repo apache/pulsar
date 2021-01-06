@@ -121,6 +121,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io-jdbc-postgres</artifactId>
       <version>${project.version}</version>
