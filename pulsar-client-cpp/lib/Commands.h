@@ -76,7 +76,8 @@ class Commands {
 
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
-    static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);
+    static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                  const std::string& listenerName);
 
     static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd, uint64_t producerId,
                                     uint64_t sequenceId, ChecksumType checksumType, const Message& msg);

@@ -126,4 +126,11 @@ ClientConfiguration& ClientConfiguration::setPartititionsUpdateInterval(unsigned
 unsigned int ClientConfiguration::getPartitionsUpdateInterval() const {
     return impl_->partitionsUpdateInterval;
 }
+
+ClientConfiguration& ClientConfiguration::setListenerName(const std::string& listenerName) {
+    impl_->listenerName = listenerName;
+    return *this;
+}
+
+const std::string& ClientConfiguration::getListenerName() const { return impl_->listenerName; }
 }  // namespace pulsar

@@ -24,7 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
@@ -53,7 +54,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public void addConsumer(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
         validateKeySharedMeta(consumer);
-        for (PulsarApi.IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
+        for (IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
@@ -108,11 +109,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         if (consumer.getKeySharedMeta() == null) {
             throw new BrokerServiceException.ConsumerAssignException("Must specify key shared meta for consumer.");
         }
-        List<PulsarApi.IntRange> ranges = consumer.getKeySharedMeta().getHashRangesList();
+        List<IntRange> ranges = consumer.getKeySharedMeta().getHashRangesList();
         if (ranges.isEmpty()) {
             throw new BrokerServiceException.ConsumerAssignException("Ranges for KeyShared policy must not be empty.");
         }
-        for (PulsarApi.IntRange intRange : ranges) {
+        for (IntRange intRange : ranges) {
 
             if (intRange.getStart() > intRange.getEnd()) {
                 throw new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end");
@@ -132,8 +133,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             }
 
             if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
-                PulsarApi.KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
-                for (PulsarApi.IntRange range : keySharedMeta.getHashRangesList()) {
+                KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
+                for (IntRange range : keySharedMeta.getHashRangesList()) {
                     int start = Math.max(intRange.getStart(), range.getStart());
                     int end = Math.min(intRange.getEnd(), range.getEnd());
                     if (end >= start) {

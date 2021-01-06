@@ -116,7 +116,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
                                                 std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(std::ref(pool_), std::ref(serviceUrl));
+        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(
+            std::ref(pool_), std::ref(serviceUrl), std::cref(clientConfiguration_.getListenerName()));
     }
 }
 

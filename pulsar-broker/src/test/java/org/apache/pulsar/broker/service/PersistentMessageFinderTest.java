@@ -52,12 +52,12 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
@@ -66,11 +66,10 @@ import org.testng.collections.Sets;
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) throws Exception {
-        PulsarApi.MessageMetadata.Builder messageMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-        messageMetadataBuilder.setPublishTime(System.currentTimeMillis());
-        messageMetadataBuilder.setProducerName("createMessageWrittenToLedger");
-        messageMetadataBuilder.setSequenceId(1);
-        PulsarApi.MessageMetadata messageMetadata = messageMetadataBuilder.build();
+        MessageMetadata messageMetadata = new MessageMetadata()
+                    .setPublishTime(System.currentTimeMillis())
+                    .setProducerName("createMessageWrittenToLedger")
+                    .setSequenceId(1);
         ByteBuf data = UnpooledByteBufAllocator.DEFAULT.heapBuffer().writeBytes(msg.getBytes());
 
         int msgMetadataSize = messageMetadata.getSerializedSize();
@@ -78,9 +77,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         int totalSize = 4 + msgMetadataSize + payloadSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.heapBuffer(totalSize, totalSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
-        messageMetadata.writeTo(outStream);
+        messageMetadata.writeTo(headers);
         ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
         byte[] byteMessage = headersAndPayload.nioBuffer().array();
         headersAndPayload.release();
@@ -88,11 +86,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     }
 
     public static ByteBuf createMessageByteBufWrittenToLedger(String msg) throws Exception {
-        PulsarApi.MessageMetadata.Builder messageMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-        messageMetadataBuilder.setPublishTime(System.currentTimeMillis());
-        messageMetadataBuilder.setProducerName("createMessageWrittenToLedger");
-        messageMetadataBuilder.setSequenceId(1);
-        PulsarApi.MessageMetadata messageMetadata = messageMetadataBuilder.build();
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("createMessageWrittenToLedger")
+                .setSequenceId(1);
         ByteBuf data = UnpooledByteBufAllocator.DEFAULT.heapBuffer().writeBytes(msg.getBytes());
 
         int msgMetadataSize = messageMetadata.getSerializedSize();
@@ -100,9 +97,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         int totalSize = 4 + msgMetadataSize + payloadSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.heapBuffer(totalSize, totalSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
-        messageMetadata.writeTo(outStream);
+        messageMetadata.writeTo(headers);
         return ByteBufPair.coalesce(ByteBufPair.get(headers, data));
     }
 
@@ -309,7 +305,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         List<Entry> entryListNew = cursorNew.readEntries(4);
         for (Entry entry : entryListNew) {
             // entry should have raw metadata since BrokerTimestampForMessage is enable
-            PulsarApi.BrokerEntryMetadata brokerMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            BrokerEntryMetadata brokerMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
             assertNotNull(brokerMetadata);
             assertTrue(brokerMetadata.getBrokerTimestamp() > timeAfterPublishTime);
         }

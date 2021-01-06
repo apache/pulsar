@@ -20,7 +20,9 @@ package org.apache.pulsar.client.impl.transaction;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.TxnAction;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -39,7 +41,7 @@ public interface TransactionBufferHandler {
      * @return TxnId
      */
     CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
-                                           PulsarApi.TxnAction action, List<MessageId> messageIdList);
+                                           TxnAction action, List<MessageId> messageIdList);
 
     /**
      * End transaction on subscription.
@@ -51,21 +53,21 @@ public interface TransactionBufferHandler {
      * @return TxnId
      */
     CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-        long txnIdLeastBits, PulsarApi.TxnAction action);
+        long txnIdLeastBits, TxnAction action);
 
     /**
      * Handle response of end transaction on topic.
      * @param requestId request ID
      * @param response response
      */
-    void handleEndTxnOnTopicResponse(long requestId, PulsarApi.CommandEndTxnOnPartitionResponse response);
+    void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response);
 
     /**
      * Handle response of tend transaction on subscription
      * @param requestId request ID
      * @param response response
      */
-    void handleEndTxnOnSubscriptionResponse(long requestId, PulsarApi.CommandEndTxnOnSubscriptionResponse response);
+    void handleEndTxnOnSubscriptionResponse(long requestId, CommandEndTxnOnSubscriptionResponse response);
 
     /**
      * Release resources.

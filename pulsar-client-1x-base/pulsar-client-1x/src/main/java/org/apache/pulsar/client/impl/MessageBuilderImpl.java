@@ -29,13 +29,13 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @SuppressWarnings("deprecation")
 public class MessageBuilderImpl implements MessageBuilder {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
-    private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
+    private final MessageMetadata msgMetadataBuilder = new MessageMetadata();
     private ByteBuffer content = EMPTY_CONTENT;
 
     @Override
@@ -64,8 +64,9 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setProperties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
-            msgMetadataBuilder
-                    .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
+            msgMetadataBuilder.addProperty()
+                    .setKey(entry.getKey())
+                    .setValue(entry.getValue());
         }
 
         return this;
@@ -73,7 +74,9 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public MessageBuilder setProperty(String name, String value) {
-        msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
+        msgMetadataBuilder.addProperty()
+                .setKey(name)
+                .setValue(value);
         return this;
     }
 
@@ -101,7 +104,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     public MessageBuilder setReplicationClusters(List<String> clusters) {
         Preconditions.checkNotNull(clusters);
         msgMetadataBuilder.clearReplicateTo();
-        msgMetadataBuilder.addAllReplicateTo(clusters);
+        msgMetadataBuilder.addAllReplicateTos(clusters);
         return this;
     }
 
