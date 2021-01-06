@@ -47,6 +47,14 @@ public class AggregatedSubscriptionStats {
 
     long lastExpireTimestamp;
 
+    long lastConsumedFlowTimestamp;
+
+    long lastConsumedTimestamp;
+
+    long lastAckedTimestamp;
+
+    long lastMarkDeleteAdvancedTimestamp;
+
     double msgRateExpired;
 
     long totalMsgExpired;
