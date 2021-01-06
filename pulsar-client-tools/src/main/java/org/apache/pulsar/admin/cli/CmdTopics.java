@@ -1354,7 +1354,6 @@ public class CmdTopics extends CmdBase {
             if (this.offloadReadPriorityStr != null) {
                 try {
                     offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
-                    System.out.println("offloadedReadPriority = " + offloadedReadPriority);
                 } catch (Exception e) {
                     throw new ParameterException("--offloadedReadPriority parameter must be one of " +
                             Arrays.stream(OffloadedReadPriority.values())
