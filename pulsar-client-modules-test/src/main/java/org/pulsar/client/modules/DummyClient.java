@@ -16,8 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.pulsar.client.modules;
 
-/**
- * Helper class to access AirCompressor package private classes.
- */
-package io.airlift.compress.zstd;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+
+public class DummyClient {
+
+    public static void main(String[] args) throws Exception {
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl("http://localhost");
+        PulsarClient client = clientBuilder.build();
+        System.out.println("Loaded PulsarClient using modules");
+        client.shutdown();
+    }
+}

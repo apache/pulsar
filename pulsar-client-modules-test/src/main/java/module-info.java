@@ -16,11 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.airlift.compress.zstd;
-
-/**
- * Exposes ZstdFrameDecompressor which is package protected.
- */
-public class ZStdRawDecompressor extends ZstdFrameDecompressor {
-
+module pulsar.client.modules.main {
+    requires pulsar.client;
 }

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.compression;
 
-import io.airlift.compress.zstd.ZStdRawCompressor;
-import io.airlift.compress.zstd.ZStdRawDecompressor;
 import io.airlift.compress.zstd.ZstdCompressor;
 import io.airlift.compress.zstd.ZstdDecompressor;
 import io.netty.buffer.ByteBuf;

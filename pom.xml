@@ -77,6 +77,8 @@ flexible messaging model and an intuitive client API.</description>
   </issueManagement>
 
   <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
     <!--config keys to congiure test selection -->
     <include>*</include>
     <exclude/>
@@ -1119,8 +1121,6 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
           <encoding>UTF-8</encoding>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
