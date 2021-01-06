@@ -19,12 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
-import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Queues;
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -82,16 +82,16 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
@@ -828,15 +828,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             startMessageIdData = null;
         } else if (startMessageId != null) {
             // For non-durable we are going to restart from the next entry
-            MessageIdData.Builder builder = MessageIdData.newBuilder();
-            builder.setLedgerId(startMessageId.getLedgerId());
-            builder.setEntryId(startMessageId.getEntryId());
-            if (startMessageId instanceof BatchMessageIdImpl) {
-                builder.setBatchIndex(startMessageId.getBatchIndex());
-            }
-
-            startMessageIdData = builder.build();
-            builder.recycle();
+            startMessageIdData = new MessageIdData()
+                    .setLedgerId(startMessageId.getLedgerId())
+                    .setEntryId(startMessageId.getEntryId())
+                    .setBatchIndex(startMessageId.getBatchIndex());
         }
 
         SchemaInfo si = schema.getSchemaInfo();
@@ -851,9 +846,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
         startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy());
-        if (startMessageIdData != null) {
-            startMessageIdData.recycle();
-        }
 
         cnx.sendRequestWithId(request, requestId).thenRun(() -> {
             synchronized (ConsumerImpl.this) {
@@ -935,7 +927,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private BatchMessageIdImpl clearReceiverQueue() {
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
-        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        resetIncomingMessageSize();
 
         if (duringSeek.compareAndSet(true, false)) {
             return seekMessageId;
@@ -1126,7 +1118,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         final int numMessages = msgMetadata.getNumMessagesInBatch();
-        final boolean isChunkedMessage = msgMetadata.getNumChunksFromMsg() > 1 && conf.getSubscriptionType() != SubscriptionType.Shared;
+        final int numChunks = msgMetadata.hasNumChunksFromMsg() ? msgMetadata.getNumChunksFromMsg() : 0;
+        final boolean isChunkedMessage = numChunks > 1 && conf.getSubscriptionType() != SubscriptionType.Shared;
 
         MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
         if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
@@ -1165,7 +1158,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
-                    msgMetadata.recycle();
                     return;
                 }
             }
@@ -1178,14 +1170,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 uncompressedPayload.release();
-                msgMetadata.recycle();
                 return;
             }
 
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
-            msgMetadata.recycle();
 
             lock.readLock().lock();
             try {
@@ -1210,7 +1200,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
 
             uncompressedPayload.release();
-            msgMetadata.recycle();
         }
 
         if (listener != null) {
@@ -1402,16 +1391,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
         }
 
+        SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         int skippedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
-                PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                        .newBuilder();
+
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        singleMessageMetadataBuilder, i, batchSize);
+                        singleMessageMetadata, i, batchSize);
 
                 if (isSameEntry(messageId) && isPriorBatchIndex(i)) {
                     // If we are receiving a batch message, we need to discard messages that were prior
@@ -1421,16 +1410,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 consumerName, startMessageId);
                     }
                     singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
 
                     ++skippedMessages;
                     continue;
                 }
 
-                if (singleMessageMetadataBuilder.getCompactedOut()) {
+                if (singleMessageMetadata.isCompactedOut()) {
                     // message has been compacted out, so don't send to the user
                     singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
 
                     ++skippedMessages;
                     continue;
@@ -1438,7 +1425,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 if (ackBitSet != null && !ackBitSet.get(i)) {
                     singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
                     ++skippedMessages;
                     continue;
                 }
@@ -1446,7 +1432,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
-                        msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
+                        msgMetadata, singleMessageMetadata, singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
@@ -1464,7 +1450,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     lock.readLock().unlock();
                 }
                 singleMessagePayload.release();
-                singleMessageMetadataBuilder.recycle();
             }
             if (ackBitSet != null) {
                 ackBitSet.recycle();
@@ -1522,7 +1507,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.updateNumMsgsReceived(msg);
 
         trackMessage(msg);
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, msg.getData() == null ? 0 : -msg.getData().length);
+        updateIncomingMessageSize(msg);
     }
 
     protected void trackMessage(Message<?> msg) {
@@ -1671,8 +1656,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private boolean verifyChecksum(ByteBuf headersAndPayload, MessageIdData messageId) {
 
         if (hasChecksum(headersAndPayload)) {
-            int checksum = readChecksum(headersAndPayload);
-            int computedChecksum = computeChecksum(headersAndPayload);
+            int checksum = Commands.readChecksum(headersAndPayload);
+            int computedChecksum = Crc32cIntChecksum.computeChecksum(headersAndPayload);
             if (checksum != computedChecksum) {
                 log.error(
                         "[{}][{}] Checksum mismatch for message at {}:{}. Received checksum: 0x{}, Computed checksum: 0x{}",
@@ -1727,12 +1712,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public void redeliverUnacknowledgedMessages() {
         ClientCnx cnx = cnx();
-        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
             int currentSize = 0;
             synchronized (this) {
                 currentSize = incomingMessages.size();
                 incomingMessages.clear();
-                INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+                resetIncomingMessageSize();
                 unAckedMessageTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
@@ -1756,7 +1741,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public int clearIncomingMessagesAndGetMessageNumber() {
         int messagesNumber = incomingMessages.size();
         incomingMessages.clear();
-        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        resetIncomingMessageSize();
         unAckedMessageTracker.clear();
         return messagesNumber;
     }
@@ -1776,32 +1761,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         ClientCnx cnx = cnx();
-        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
             int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
             Iterable<List<MessageIdImpl>> batches = Iterables.partition(
                 messageIds.stream()
                     .map(messageId -> (MessageIdImpl)messageId)
                     .collect(Collectors.toSet()), MAX_REDELIVER_UNACKNOWLEDGED);
-            MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream()
-                    .filter(messageId -> !processPossibleToDLQ(messageId))
-                    .map(messageId -> {
-                            builder.setPartition(messageId.getPartitionIndex());
-                            builder.setLedgerId(messageId.getLedgerId());
-                            builder.setEntryId(messageId.getEntryId());
-                            return builder.build();
+                        .filter(messageId -> !processPossibleToDLQ(messageId))
+                        .map(messageId -> {
+                            return new MessageIdData()
+                                    .setPartition(messageId.getPartitionIndex())
+                                    .setLedgerId(messageId.getLedgerId())
+                                    .setEntryId(messageId.getEntryId());
                         }).collect(Collectors.toList());
                 if (!messageIdDatas.isEmpty()) {
                     ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdDatas);
                     cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-                    messageIdDatas.forEach(MessageIdData::recycle);
                 }
             });
             if (messagesFromQueue > 0) {
                 increaseAvailablePermits(cnx, messagesFromQueue);
             }
-            builder.recycle();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Redeliver unacked messages and increase {} permits", subscription, topic,
                         consumerName, messagesFromQueue);
@@ -1910,7 +1892,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
-            INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+            resetIncomingMessageSize();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -1971,7 +1953,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
-            INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+            resetIncomingMessageSize();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -2183,18 +2165,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             Map<String, EncryptionKey> keys = msgMetadata.getEncryptionKeysList().stream()
                     .collect(
                             Collectors.toMap(EncryptionKeys::getKey,
-                                    e -> new EncryptionKey(e.getValue().toByteArray(),
-                                            e.getMetadataList() != null
-                                                    ? e.getMetadataList().stream().collect(
-                                                            Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
-                                                    : null)));
-            byte[] encParam = new byte[MessageCrypto.IV_LEN];
-            msgMetadata.getEncryptionParam().copyTo(encParam, 0);
+                                    e -> new EncryptionKey(e.getValue(),
+                                            e.getMetadatasList().stream().collect(
+                                                    Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))));
+            byte[] encParam = msgMetadata.getEncryptionParam();
             Optional<Integer> batchSize = Optional
                     .ofNullable(msgMetadata.hasNumMessagesInBatch() ? msgMetadata.getNumMessagesInBatch() : null);
             encryptionCtx.setKeys(keys);
             encryptionCtx.setParam(encParam);
-            encryptionCtx.setAlgorithm(msgMetadata.getEncryptionAlgo());
+            if (msgMetadata.hasEncryptionAlgo()) {
+                encryptionCtx.setAlgorithm(msgMetadata.getEncryptionAlgo());
+            }
             encryptionCtx
                     .setCompressionType(CompressionCodecProvider.convertFromWireProtocol(msgMetadata.getCompression()));
             encryptionCtx.setUncompressedMessageSize(msgMetadata.getUncompressedSize());
@@ -2216,7 +2197,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // try not to remove elements that are added while we remove
             Message<T> message = incomingMessages.poll();
             while (message != null) {
-                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.getData().length);
+                updateIncomingMessageSize(message);
                 messagesFromQueue++;
                 MessageIdImpl id = getMessageIdImpl(message);
                 if (!messageIds.contains(id)) {

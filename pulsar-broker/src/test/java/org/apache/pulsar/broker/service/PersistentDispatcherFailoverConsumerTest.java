@@ -71,15 +71,14 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -148,19 +147,13 @@ public class PersistentDispatcherFailoverConsumerTest {
             try {
                 int cmdSize = (int) cmdBuf.readUnsignedInt();
                 int writerIndex = cmdBuf.writerIndex();
-                cmdBuf.writerIndex(cmdBuf.readerIndex() + cmdSize);
-                ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(cmdBuf);
 
-                BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
-                BaseCommand cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
-                cmdBuilder.recycle();
-                cmdBuf.writerIndex(writerIndex);
-                cmdInputStream.recycle();
+                BaseCommand cmd = new BaseCommand();
+                cmd.parseFrom(cmdBuf, cmdSize);
 
                 if (cmd.hasActiveConsumerChange()) {
                     consumerChanges.put(cmd.getActiveConsumerChange());
                 }
-                cmd.recycle();
             } finally {
                 cmdBuf.release();
             }
@@ -172,7 +165,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
-        when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getNumber());
+        when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(channelCtx);
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
@@ -183,7 +176,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new InetSocketAddress("localhost", 1234))
             .when(serverCnxWithOldVersion).clientAddress();
         when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
-            .thenReturn(ProtocolVersion.v11.getNumber());
+            .thenReturn(ProtocolVersion.v11.getValue());
         when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
         doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
                 .when(serverCnxWithOldVersion).getCommandSender();
@@ -197,7 +190,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         setupMLAsyncCallbackMocks();
 
     }
-    
+
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
         if (brokerService != null) {
@@ -281,8 +274,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                                             long consumerId,
                                             boolean isActive) {
         assertEquals(consumerId, change.getConsumerId());
-        assertEquals(isActive, change.getIsActive());
-        change.recycle();
+        assertEquals(isActive, change.isIsActive());
     }
 
     @Test

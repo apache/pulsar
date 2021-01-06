@@ -42,9 +42,9 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -198,7 +198,6 @@ public class Producer {
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
             int encryptionKeysCount = msgMetadata.getEncryptionKeysCount();
-            msgMetadata.recycle();
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());

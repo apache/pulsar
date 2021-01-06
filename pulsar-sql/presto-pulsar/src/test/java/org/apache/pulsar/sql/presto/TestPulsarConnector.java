@@ -51,7 +51,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -629,9 +629,9 @@ public abstract class TestPulsarConnector {
             LocalDate epoch = LocalDate.ofEpochDay(0);
             foo.date = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
 
-            PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+            MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
-                    .setPublishTime(currentTimeMs + i).build();
+                    .setPublishTime(currentTimeMs + i);
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -865,9 +865,9 @@ public abstract class TestPulsarConnector {
                                     foo.bar = bar;
                                     foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
 
-                                    PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+                                    MessageMetadata messageMetadata = new MessageMetadata()
                                             .setProducerName("test-producer").setSequenceId(positions.get(topic))
-                                            .setPublishTime(System.currentTimeMillis()).build();
+                                            .setPublishTime(System.currentTimeMillis());
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 

@@ -23,6 +23,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 /**
  * Helper methods wrt Classloading.
@@ -37,7 +39,8 @@ public class ClassLoaderUtils {
      */
     public static ClassLoader loadJar(File jar) throws MalformedURLException {
         java.net.URL url = jar.toURI().toURL();
-        return new URLClassLoader(new URL[]{url});
+        return AccessController.doPrivileged(
+            (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[]{url}));
     }
 
     public static ClassLoader extractClassLoader(Path archivePath, File packageFile) throws Exception {

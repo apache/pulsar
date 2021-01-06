@@ -27,7 +27,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**

@@ -20,24 +20,21 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RawMessageImpl implements RawMessage {
     private static final Logger log = LoggerFactory.getLogger(RawMessageImpl.class);
 
-    private final MessageIdData id;
+    private final MessageIdData id = new MessageIdData();
     private ByteBuf headersAndPayload;
 
     public RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
-        this.id = id;
+        this.id.copyFrom(id);
         this.headersAndPayload = headersAndPayload.retainedSlice();
     }
 
@@ -74,41 +71,20 @@ public class RawMessageImpl implements RawMessage {
 
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(totalSize);
         buf.writeInt(idSize);
-        try {
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
-            id.writeTo(outStream);
-            outStream.recycle();
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            log.error("IO exception serializing to ByteBuf (this shouldn't happen as operation is in-memory)", e);
-            throw new RuntimeException(e);
-        }
+        id.writeTo(buf);
         buf.writeInt(headersAndPayload.readableBytes());
         buf.writeBytes(headersAndPayload);
-
         return buf;
     }
 
     static public RawMessage deserializeFrom(ByteBuf buffer) {
-        try {
-            int idSize = buffer.readInt();
+        int idSize = buffer.readInt();
 
-            int writerIndex = buffer.writerIndex();
-            buffer.writerIndex(buffer.readerIndex() + idSize);
-            ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
-            MessageIdData.Builder builder = MessageIdData.newBuilder();
-            MessageIdData id = builder.mergeFrom(stream, null).build();
-            buffer.writerIndex(writerIndex);
-            builder.recycle();
+        MessageIdData id = new MessageIdData();
+        id.parseFrom(buffer, idSize);
+        int payloadAndMetadataSize = buffer.readInt();
+        ByteBuf metadataAndPayload = buffer.slice(buffer.readerIndex(), payloadAndMetadataSize);
 
-            int payloadAndMetadataSize = buffer.readInt();
-            ByteBuf metadataAndPayload = buffer.slice(buffer.readerIndex(), payloadAndMetadataSize);
-
-            return new RawMessageImpl(id, metadataAndPayload);
-        } catch (IOException e) {
-            // This is in-memory deserialization, should not fail
-            log.error("IO exception deserializing ByteBuf (this shouldn't happen as operation is in-memory)", e);
-            throw new RuntimeException(e);
-        }
+        return new RawMessageImpl(id, metadataAndPayload);
     }
 }

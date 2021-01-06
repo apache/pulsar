@@ -97,6 +97,8 @@ public class Policies {
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_topics_per_namespace = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
@@ -240,15 +242,14 @@ public class Policies {
                 .add("offload_policies", offload_policies).toString();
     }
 
-
     private static final long MAX_BUNDLES = ((long) 1) << 32;
 
     public static BundlesData getBundles(int numBundles) {
-        if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
+        if (numBundles <= 0) {
             throw new RestException(Status.BAD_REQUEST,
-                    "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+                "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
         }
-        Long maxVal = ((long) 1) << 32;
+        Long maxVal = MAX_BUNDLES;
         Long segSize = maxVal / numBundles;
         List<String> partitions = Lists.newArrayList();
         partitions.add(String.format("0x%08x", 0L));

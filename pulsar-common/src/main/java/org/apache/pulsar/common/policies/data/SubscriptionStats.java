@@ -23,7 +23,7 @@ import com.google.common.collect.Lists;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * Statistics about subscription.

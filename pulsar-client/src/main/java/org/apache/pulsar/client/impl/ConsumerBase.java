@@ -49,8 +49,8 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -74,7 +74,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConsumerInterceptors<T> interceptors;
     protected final BatchReceivePolicy batchReceivePolicy;
     protected ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
-    protected static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
+    private static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
@@ -845,6 +845,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean hasPendingBatchReceive() {
         return pendingBatchReceives != null && peekNextBatchReceive() != null;
+    }
+
+    protected void resetIncomingMessageSize() {
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+    }
+
+    protected void updateIncomingMessageSize(final Message<?> message) {
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this,
+                (message.getData() != null) ? message.getData().length : 0);
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

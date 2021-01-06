@@ -87,15 +87,12 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -2966,31 +2963,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
-        Builder metadataBuilder = MessageMetadata.newBuilder();
-        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();
-        encKeyBuilder.setKey(encryptionKeyName);
-        ByteString keyValue = ByteString.copyFrom(dataKey);
-        encKeyBuilder.setValue(keyValue);
-        EncryptionKeys encKey = encKeyBuilder.build();
-        metadataBuilder.setEncryptionParam(ByteString.copyFrom(encrParam));
-        metadataBuilder.setEncryptionAlgo(encAlgo);
-        metadataBuilder.setProducerName("test");
-        metadataBuilder.setSequenceId(123);
-        metadataBuilder.setPublishTime(12333453454L);
-        metadataBuilder.addEncryptionKeys(encKey);
-        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
-        metadataBuilder.setUncompressedSize(uncompressedSize);
-        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
+
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setEncryptionParam(encrParam)
+                .setProducerName("test")
+                .setSequenceId(123)
+                .setPublishTime(12333453454L)
+                .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
+                .setUncompressedSize(uncompressedSize);
+        messageMetadata.addEncryptionKey()
+                .setKey(encryptionKeyName)
+                .setValue(dataKey);
+        if (encAlgo != null) {
+            messageMetadata.setEncryptionAlgo(encAlgo);
+        }
+
+        ByteBuf decryptedPayload = crypto.decrypt(() -> messageMetadata, payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
 
         if (batchSize > 0) {
-            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                    .newBuilder();
+            SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                    singleMessageMetadataBuilder, 0, batchSize);
+                    singleMessageMetadata, 0, batchSize);
         }
 
         byte[] data = new byte[uncompressedPayload.readableBytes()];

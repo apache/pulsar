@@ -89,9 +89,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
@@ -2409,9 +2409,9 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
         }
         if (metadata.hasNullValue()) {
-            responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
+            responseBuilder.header("X-Pulsar-null-value", metadata.isNullValue());
         }
-        if (metadata.getNumChunksFromMsg() > 0) {
+        if (metadata.hasNumChunksFromMsg()) {
             responseBuilder.header("X-Pulsar-PROPERTY-TOTAL-CHUNKS", Integer.toString(metadata.getNumChunksFromMsg()));
             responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
         }

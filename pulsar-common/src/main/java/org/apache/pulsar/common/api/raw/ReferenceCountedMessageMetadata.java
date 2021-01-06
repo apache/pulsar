@@ -19,26 +19,38 @@
 package org.apache.pulsar.common.api.raw;
 
 import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.Recycler;
 import io.netty.util.ReferenceCounted;
-import java.util.function.Consumer;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * Class representing a reference-counted object that requires explicit deallocation.
- *
- * @param <T> type of the object that requires explicit deallocation.
  */
-public class ReferenceCountedObject<T> extends AbstractReferenceCounted {
+public class ReferenceCountedMessageMetadata extends AbstractReferenceCounted {
 
-    private final T object;
-    private final Consumer<T> destructor;
+    private static final Recycler<ReferenceCountedMessageMetadata> RECYCLER = //
+            new Recycler<ReferenceCountedMessageMetadata>() {
+                @Override
+                protected ReferenceCountedMessageMetadata newObject(Handle<ReferenceCountedMessageMetadata> handle) {
+                    return new ReferenceCountedMessageMetadata(handle);
+                }
+            };
 
-    public ReferenceCountedObject(T object, Consumer<T> destructor) {
-        this.object = object;
-        this.destructor = destructor;
+    private final MessageMetadata metadata = new MessageMetadata();
+    private final Recycler.Handle<ReferenceCountedMessageMetadata> handle;
+
+    private ReferenceCountedMessageMetadata(Recycler.Handle<ReferenceCountedMessageMetadata> handle) {
+        this.handle = handle;
     }
 
-    public T get() {
-        return object;
+    public static ReferenceCountedMessageMetadata get() {
+        ReferenceCountedMessageMetadata ref = RECYCLER.get();
+        ref.setRefCnt(1);
+        return ref;
+    }
+
+    public MessageMetadata getMetadata() {
+        return metadata;
     }
 
     @Override
@@ -48,6 +60,7 @@ public class ReferenceCountedObject<T> extends AbstractReferenceCounted {
 
     @Override
     protected void deallocate() {
-        destructor.accept(object);
+        metadata.clear();
+        handle.recycle(this);
     }
 }
