@@ -204,7 +204,7 @@ public class NamespaceService {
     /**
      * Return the URL of the broker who's owning a particular service unit.
      *
-     * If the service unit is not owned, return an empty optional
+     * If the service unit is not owned, return a CompletableFuture with empty optional.
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
         if (suName instanceof TopicName) {

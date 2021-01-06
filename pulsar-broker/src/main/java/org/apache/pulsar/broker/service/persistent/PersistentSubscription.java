@@ -92,6 +92,7 @@ public class PersistentSubscription implements Subscription {
 
     private long lastExpireTimestamp = 0L;
     private long lastConsumedFlowTimestamp = 0L;
+    private long lastMarkDeleteAdvancedTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
@@ -151,6 +152,11 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
+    }
+
+    public void updateLastMarkDeleteAdvancedTimestamp() {
+        this.lastMarkDeleteAdvancedTimestamp =
+            Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
     }
 
     @Override
@@ -374,6 +380,8 @@ public class PersistentSubscription implements Subscription {
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -990,6 +998,7 @@ public class PersistentSubscription implements Subscription {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
+        subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {

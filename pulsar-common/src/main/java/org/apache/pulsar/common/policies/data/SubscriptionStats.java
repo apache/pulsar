@@ -89,6 +89,9 @@ public class SubscriptionStats {
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
 
+    /** Last MarkDelete position advanced timesetamp. */
+    public long lastMarkDeleteAdvancedTimestamp;
+
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStats> consumers;
 
@@ -124,6 +127,7 @@ public class SubscriptionStats {
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
+        lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
