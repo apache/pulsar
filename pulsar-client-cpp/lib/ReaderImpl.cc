@@ -76,7 +76,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     }
 
     consumer_ = std::make_shared<ConsumerImpl>(
-        client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
+        client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), false, NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
     consumer_->setPartitionIndex(TopicName::getPartitionIndex(topic_));
     consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
