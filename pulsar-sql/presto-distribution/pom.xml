@@ -35,7 +35,7 @@
 
     <properties>
         <jersey.version>2.31</jersey.version>
-        <presto.version>332</presto.version>
+        <presto.version>334</presto.version>
         <jersey.version>2.31</jersey.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
@@ -128,6 +128,12 @@
                     <artifactId>activation</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-server-main</artifactId>
+            <version>${presto.version}</version>
         </dependency>
 
         <dependency>

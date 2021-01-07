@@ -50,9 +50,7 @@ public class PulsarConnectorFactory implements ConnectorFactory {
     @Override
     public Connector create(String connectorId, Map<String, String> config, ConnectorContext context) {
         requireNonNull(config, "requiredConfig is null");
-        if (log.isDebugEnabled()) {
-            log.debug("Creating Pulsar connector with configs: %s", config);
-        }
+        log.info("Creating Pulsar connector with configs: %s", config);
         try {
             // A plugin is not required to use Guice; it is just very convenient
             Bootstrap app = new Bootstrap(
