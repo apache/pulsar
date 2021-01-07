@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 @SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
+    private Throwable cause = null;
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
@@ -56,6 +57,16 @@ public class RestException extends WebApplicationException {
 
     public RestException(Throwable t) {
         super(getResponse(t));
+    }
+
+    public RestException(Response.Status status, Throwable t) {
+        this(status.getStatusCode(), t.getMessage());
+        this.cause = t;
+    }
+
+    @Override
+    public Throwable getCause() {
+        return cause;
     }
 
     public RestException(PulsarAdminException cae) {

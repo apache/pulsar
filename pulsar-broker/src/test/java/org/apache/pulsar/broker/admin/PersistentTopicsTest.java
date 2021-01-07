@@ -267,6 +267,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(persistentTopics
                         .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, false).partitions,
                 0);
+
+        Assert.assertEquals(persistentTopics
+                        .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, true).partitions,
+                0);
     }
 
     @Test
@@ -276,6 +280,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, false);
         Assert.assertEquals(pMetadata.partitions, 0);
+
+        PartitionedTopicMetadata metadata = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName, true, true);
+        Assert.assertEquals(metadata.partitions, 0);
     }
 
     @Test(expectedExceptions = RestException.class)
