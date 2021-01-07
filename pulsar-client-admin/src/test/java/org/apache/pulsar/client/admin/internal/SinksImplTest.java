@@ -27,7 +27,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.ws.rs.client.WebTarget;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.testng.annotations.Test;
 
@@ -35,38 +37,178 @@ import org.testng.annotations.Test;
  * Unit tests
  */
 public class SinksImplTest {
-    
-    
+
     @Test
-    public void testCreateSinkWithoutName() throws Exception {
-        SinkConfig sinkConfig = new SinkConfig();
-        sinkConfig.setName(null);
-        testBadConfig(sinkConfig, err  -> {
-             assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+    public void testBadName() throws Exception {
+        testBadConfig("tenant", "ns", "", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
             assertThat(err.getCause().getMessage(), equalTo("sink name is required"));
-        });              
+        });
+        testBadConfig("tenant", "ns", "     ", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("sink name is required"));
+        });
+        testBadConfig("tenant", "ns", null, err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("sink name is required"));
+        });
     }
-    
+
     @Test
-    public void testCreateSinkWithEmptyName() throws Exception {
-        SinkConfig sinkConfig = new SinkConfig();
-        sinkConfig.setName(null);
-        testBadConfig(sinkConfig, err  -> {
-             assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
-            assertThat(err.getCause().getMessage(), equalTo("sink name is required"));
-        });              
+    public void testBadTenant() throws Exception {
+        testBadConfig("", "ns", "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("tenant is required"));
+        });
+        testBadConfig("    ", "ns", "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("tenant is required"));
+        });
+        testBadConfig(null, "ns", "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("tenant is required"));
+        });
     }
-    
-    private void testBadConfig(SinkConfig sinkConfig, Consumer<ExecutionException> handler) throws Exception {
+
+    @Test
+    public void testBadNamespace() throws Exception {
+        testBadConfig("tenant", "", "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("namespace is required"));
+        });
+        testBadConfig("tenant", "    ", "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("namespace is required"));
+        });
+        testBadConfig("tenant", null, "sink", err -> {
+            assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
+            assertThat(err.getCause().getMessage(), equalTo("namespace is required"));
+        });
+    }
+
+    private void testBadConfig(String tenant, String namespace, String sinkname,
+            Consumer<ExecutionException> handler) throws Exception {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setName(sinkname);
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
         WebTarget web = mock(WebTarget.class);
-    
+
         SinksImpl instance = new SinksImpl(web, null, null, 0);
-        CompletableFuture<Void> result = instance.createSinkAsync(sinkConfig, "");
         try {
-            result.get();
+            instance.createSinkAsync(sinkConfig, "").get();
             fail();
         } catch (ExecutionException err) {
-           handler.accept(err);
+            handler.accept(err);
         }
+
+        try {
+            instance.getSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.deleteSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.createSinkAsync(sinkConfig, "file.nar").get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.createSinkWithUrlAsync(sinkConfig, "http://localhost").get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.updateSinkAsync(sinkConfig, "file.nar", new UpdateOptions()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.updateSinkWithUrlAsync(sinkConfig, "http://localhost", new UpdateOptions()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        try {
+            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            fail();
+        } catch (ExecutionException err) {
+            handler.accept(err);
+        }
+
+        // this function is only about namespace and tenant
+        if (!StringUtils.isBlank(sinkname)) {
+            try {
+                instance.listSinksAsync(sinkConfig.getTenant(), sinkConfig.getNamespace()).get();
+                fail();
+            } catch (ExecutionException err) {
+                handler.accept(err);
+            }
+        }
+
     }
 }
