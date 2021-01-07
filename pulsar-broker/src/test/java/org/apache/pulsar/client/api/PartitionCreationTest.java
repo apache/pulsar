@@ -83,7 +83,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 // passed non persistent topic here since we can not avoid auto creation on non persistent topic now.
                 Assert.assertNotNull(consumer);
             }
-        } catch (PulsarClientException.TopicDoesNotExistException e) {
+        } catch (PulsarClientException.TopicDoesNotExistException | PulsarClientException.NotFoundException e) {
             //ok
         }
     }

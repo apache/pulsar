@@ -20,8 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
@@ -188,39 +187,39 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
+    public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
 
-    private static PulsarApi.ServerError getClientErrorCode(Throwable t, boolean checkCauseIfUnknown) {
+    private static ServerError getClientErrorCode(Throwable t, boolean checkCauseIfUnknown) {
         if (t instanceof ServerMetadataException) {
-            return PulsarApi.ServerError.MetadataError;
+            return ServerError.MetadataError;
         } else if (t instanceof NamingException) {
-            return PulsarApi.ServerError.ProducerBusy;
+            return ServerError.ProducerBusy;
         } else if (t instanceof PersistenceException) {
-            return PulsarApi.ServerError.PersistenceError;
+            return ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
-            return PulsarApi.ServerError.ConsumerBusy;
+            return ServerError.ConsumerBusy;
         } else if (t instanceof SubscriptionBusyException) {
-            return PulsarApi.ServerError.ConsumerBusy;
+            return ServerError.ConsumerBusy;
         } else if (t instanceof ProducerBusyException) {
-            return PulsarApi.ServerError.ProducerBusy;
+            return ServerError.ProducerBusy;
         } else if (t instanceof UnsupportedVersionException) {
-            return PulsarApi.ServerError.UnsupportedVersionError;
+            return ServerError.UnsupportedVersionError;
         } else if (t instanceof TooManyRequestsException) {
-            return PulsarApi.ServerError.TooManyRequests;
+            return ServerError.TooManyRequests;
         } else if (t instanceof TopicTerminatedException) {
-            return PulsarApi.ServerError.TopicTerminatedError;
+            return ServerError.TopicTerminatedError;
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
-            return PulsarApi.ServerError.ServiceNotReady;
+            return ServerError.ServiceNotReady;
         } else if (t instanceof TopicNotFoundException) {
-            return PulsarApi.ServerError.TopicNotFound;
+            return ServerError.TopicNotFound;
         } else if (t instanceof IncompatibleSchemaException
             || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data
             // is treated as "incompatible schema".
-            return PulsarApi.ServerError.IncompatibleSchema;
+            return ServerError.IncompatibleSchema;
         } else if (t instanceof ConsumerAssignException) {
             return ServerError.ConsumerAssignError;
         } else if (t instanceof CoordinatorException.CoordinatorNotFoundException) {
@@ -239,7 +238,7 @@ public class BrokerServiceException extends Exception {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);
             } else {
-                return PulsarApi.ServerError.UnknownError;
+                return ServerError.UnknownError;
             }
         }
     }

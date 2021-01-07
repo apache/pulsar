@@ -58,7 +58,7 @@ message ReplicatedSubscriptionsSnapshotResponse {
 // clusters
 message ReplicatedSubscriptionsSnapshot {
     required string snapshot_id = 1;
-    optional MessageIdData local_message_id = 2;
+    optional MarkersMessageIdData local_message_id = 2;
     repeated ClusterMessageId clusters = 3;
 }
 
@@ -74,10 +74,10 @@ message ReplicatedSubscriptionsUpdate {
 // The message id is local to that particular cluster
 message ClusterMessageId {
     required string cluster = 1;
-    required MessageIdData message_id = 2;
+    required MarkersMessageIdData message_id = 2;
 }
 
-message MessageIdData {
+message MarkersMessageIdData {
 	required uint64 ledger_id = 1;
 	required uint64 entry_id  = 2;
 }
@@ -85,5 +85,5 @@ message MessageIdData {
 
 /// --- Transaction marker ---
 message TxnCommitMarker {
-    repeated MessageIdData message_id = 1;
+    repeated MarkersMessageIdData message_id = 1;
 }

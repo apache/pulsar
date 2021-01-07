@@ -36,15 +36,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.api.proto.ClusterMessageId;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
 import org.apache.pulsar.common.protocol.Markers;
 
 /**
@@ -76,6 +76,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
+        MarkerType m = null;
+
         try {
             switch (markerType) {
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
@@ -108,9 +110,9 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                             .collect(Collectors.toList()));
         }
 
-        Map<String, MessageIdData> clusterIds = new TreeMap<>();
+        Map<String, MarkersMessageIdData> clusterIds = new TreeMap<>();
         for (int i = 0, size = snapshot.getClustersCount(); i < size; i++) {
-            ClusterMessageId cmid = snapshot.getClusters(i);
+            ClusterMessageId cmid = snapshot.getClusterAt(i);
             clusterIds.put(cmid.getCluster(), cmid.getMessageId());
         }
 
@@ -151,9 +153,9 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void receiveSubscriptionUpdated(ReplicatedSubscriptionsUpdate update) {
-        MessageIdData updatedMessageId = null;
+        MarkersMessageIdData updatedMessageId = null;
         for (int i = 0, size = update.getClustersCount(); i < size; i++) {
-            ClusterMessageId cmid = update.getClusters(i);
+            ClusterMessageId cmid = update.getClusterAt(i);
             if (localCluster.equals(cmid.getCluster())) {
                 updatedMessageId = cmid.getMessageId();
             }
