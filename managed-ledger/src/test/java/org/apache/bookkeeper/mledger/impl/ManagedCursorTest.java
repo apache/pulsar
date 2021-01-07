@@ -85,6 +85,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -2138,6 +2139,43 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
+    }
+
+    @Test(timeOut = 20000)
+    void testFindNewestMatchingAfterLedgerRollover() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ledger.addEntry("first-expired".getBytes(Encoding));
+        ledger.addEntry("second".getBytes(Encoding));
+        ledger.addEntry("third".getBytes(Encoding));
+        ledger.addEntry("fourth".getBytes(Encoding));
+        Position last = ledger.addEntry("last-expired".getBytes(Encoding));
+
+        // roll a new ledger
+        int numLedgersBefore = ledger.getLedgersInfo().size();
+        ledger.getConfig().setMaxEntriesPerLedger(1);
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS)
+                .until(() -> ledger.getLedgersInfo().size() > numLedgersBefore);
+
+        // the algorithm looks for "expired" messages
+        // starting from the first, then it moves to the last message
+        // if the condition evaluates to true on the last message
+        // then we are done
+        // there was a bug (https://github.com/apache/pulsar/issues/9082)
+        // in which if the last message was in a different ledger
+        // the jump from the first message to the last message went
+        // to an invalid position and so the search stopped at the first message
+
+        // we want to assert here that the algorithm returns the position of the
+        // last message
+        assertEquals(last,
+                c1.findNewestMatching(entry -> {
+                    byte[] data = entry.getDataAndRelease();
+                    return Arrays.equals(data, "first-expired".getBytes(Encoding))
+                            || Arrays.equals(data, "last-expired".getBytes(Encoding));
+                }));
+
     }
 
     public static byte[] getEntryPublishTime(String msg) throws Exception {
