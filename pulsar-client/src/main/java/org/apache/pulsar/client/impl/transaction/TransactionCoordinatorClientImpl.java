@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.util.MathUtils;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -211,10 +211,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
         }
-        PulsarApi.Subscription sub = PulsarApi.Subscription.newBuilder()
+        Subscription sub = new Subscription()
                 .setTopic(topic)
-                .setSubscription(subscription)
-                .build();
+                .setSubscription(subscription);
         return handler.addSubscriptionToTxn(txnID, Collections.singletonList(sub));
     }
 

@@ -59,12 +59,12 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -91,6 +91,7 @@ public class PersistentSubscription implements Subscription {
 
     private long lastExpireTimestamp = 0L;
     private long lastConsumedFlowTimestamp = 0L;
+    private long lastMarkDeleteAdvancedTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
@@ -135,6 +136,11 @@ public class PersistentSubscription implements Subscription {
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+    }
+
+    public void updateLastMarkDeleteAdvancedTimestamp() {
+        this.lastMarkDeleteAdvancedTimestamp =
+            Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
     }
 
     @Override
@@ -207,8 +213,7 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
-                            : KeySharedMeta.getDefaultInstance();
+                    KeySharedMeta ksm = consumer.getKeySharedMeta();
                     dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                             topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                 }
@@ -334,6 +339,8 @@ public class PersistentSubscription implements Subscription {
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -375,7 +382,6 @@ public class PersistentSubscription implements Subscription {
                     isDeleteTransactionMarkerInProcess = false;
                     if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
                         lastMarkDeleteForTransactionMarker = position;
-                        messageMetadata.recycle();
                         acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
                     }
                 }
@@ -901,6 +907,7 @@ public class PersistentSubscription implements Subscription {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
+        subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
@@ -1035,9 +1042,9 @@ public class PersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-        if (TxnAction.COMMIT.getNumber() == txnAction) {
+        if (TxnAction.COMMIT.getValue() == txnAction) {
             return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
-        } else if (TxnAction.ABORT.getNumber() == txnAction) {
+        } else if (TxnAction.ABORT.getValue() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)

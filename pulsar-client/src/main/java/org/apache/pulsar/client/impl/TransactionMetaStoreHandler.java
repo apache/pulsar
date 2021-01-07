@@ -27,7 +27,15 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 
@@ -132,7 +140,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse response) {
+    void handleNewTxnResponse(CommandNewTxnResponse response) {
         OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -175,7 +183,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    void handleAddPublishPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse response) {
+    void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
         OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -197,7 +205,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<PulsarApi.Subscription> subscriptionList) {
+    public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
         }
@@ -213,7 +221,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return completableFuture;
     }
 
-    public void handleAddSubscriptionToTxnResponse(PulsarApi.CommandAddSubscriptionToTxnResponse response) {
+    public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
         OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -244,21 +252,20 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                TxnAction.COMMIT);
         for (MessageId messageId : sendMessageIdList) {
-            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+            cmd.getEndTxn().addMessageId()
                     .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
                     .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
-                    .build());
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex());
         }
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                PulsarApi.TxnAction.COMMIT, messageIdDataList);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        ByteBuf buf = Commands.serializeWithSize(cmd);
+        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        buf.retain();
+        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
         return callback;
     }
 
@@ -273,25 +280,24 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
         long requestId = client.newRequestId();
 
-        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                TxnAction.ABORT);
         for (MessageId messageId : sendMessageIdList) {
-            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
+            cmd.getEndTxn().addMessageId()
                     .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
                     .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
-                    .build());
+                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex());
         }
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                PulsarApi.TxnAction.ABORT, messageIdDataList);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        ByteBuf buf = Commands.serializeWithSize(cmd);
+        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        buf.retain();
+        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
         return callback;
     }
 
-    void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse response) {
+    void handleEndTxnResponse(CommandEndTxnResponse response) {
         OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -373,7 +379,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         };
     }
 
-    private TransactionCoordinatorClientException getExceptionByServerError(PulsarApi.ServerError serverError, String msg) {
+    private TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
         switch (serverError) {
             case TransactionCoordinatorNotFound:
                 return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);

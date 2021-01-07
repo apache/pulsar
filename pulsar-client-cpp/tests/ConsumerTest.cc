@@ -16,20 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/Client.h>
-#include <gtest/gtest.h>
+#include <chrono>
+#include <thread>
 #include <time.h>
 #include <set>
 
-#include "../lib/Future.h"
-#include "../lib/Utils.h"
+#include "gtest/gtest.h"
 
+#include "pulsar/Client.h"
+#include "PulsarFriend.h"
+#include "lib/Future.h"
+#include "lib/Utils.h"
+#include "lib/LogUtils.h"
+#include "lib/PartitionedConsumerImpl.h"
+#include "lib/MultiTopicsConsumerImpl.h"
 #include "HttpHelper.h"
-
-using namespace pulsar;
 
 static const std::string lookupUrl = "pulsar://localhost:6650";
 static const std::string adminUrl = "http://localhost:8080/";
+
+DECLARE_LOG_OBJECT()
+
+namespace pulsar {
 
 TEST(ConsumerTest, consumerNotInitialized) {
     Consumer consumer;
@@ -160,3 +168,181 @@ TEST(ConsumerTest, testPartitionIndex) {
 
     client.close();
 }
+
+TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
+    Client client(lookupUrl);
+    const std::string partitionedTopic =
+        "testPartitionedConsumerUnAckedMessageRedelivery" + std::to_string(time(nullptr));
+    std::string subName = "sub-partition-consumer-un-acked-msg-redelivery";
+    constexpr int numPartitions = 3;
+    constexpr int numOfMessages = 15;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
+    PartitionedConsumerImplPtr partitionedConsumerImplPtr =
+        PulsarFriend::getPartitionedConsumerImplPtr(consumer);
+    ASSERT_EQ(numPartitions, partitionedConsumerImplPtr->consumers_.size());
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setBlockIfQueueFull(true);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    std::string prefix = "message-";
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder().setContent(messageContent).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+    producer.close();
+
+    // receive message and don't acknowledge
+    std::set<MessageId> messageIds[numPartitions];
+    for (auto i = 0; i < numOfMessages; ++i) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+
+        MessageId msgId = msg.getMessageId();
+        int32_t partitionIndex = msgId.partition();
+        ASSERT_TRUE(partitionIndex < numPartitions);
+        messageIds[msgId.partition()].emplace(msgId);
+    }
+
+    auto partitionedTracker = static_cast<UnAckedMessageTrackerEnabled*>(
+        partitionedConsumerImplPtr->unAckedMessageTrackerPtr_.get());
+    ASSERT_EQ(numOfMessages, partitionedTracker->size());
+    ASSERT_FALSE(partitionedTracker->isEmpty());
+    for (auto i = 0; i < numPartitions; i++) {
+        ASSERT_EQ(numOfMessages / numPartitions, messageIds[i].size());
+        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_[i];
+        auto tracker =
+            static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
+        ASSERT_EQ(0, tracker->size());
+        ASSERT_TRUE(tracker->isEmpty());
+    }
+
+    // timeout and send redeliver message
+    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
+    ASSERT_EQ(0, partitionedTracker->size());
+    ASSERT_TRUE(partitionedTracker->isEmpty());
+
+    for (auto i = 0; i < numOfMessages; ++i) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(1, partitionedTracker->size());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msg.getMessageId()));
+        ASSERT_EQ(0, partitionedTracker->size());
+    }
+    ASSERT_EQ(0, partitionedTracker->size());
+    ASSERT_TRUE(partitionedTracker->isEmpty());
+    partitionedTracker = NULL;
+
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
+    consumer.close();
+    client.close();
+}
+
+TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
+    Client client(lookupUrl);
+    const std::string nonPartitionedTopic =
+        "testMultiTopicsConsumerUnAckedMessageRedelivery-topic-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic1 =
+        "testMultiTopicsConsumerUnAckedMessageRedelivery-par-topic1-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic2 =
+        "testMultiTopicsConsumerUnAckedMessageRedelivery-par-topic2-" + std::to_string(time(nullptr));
+    std::string subName = "sub-multi-topics-consumer-un-acked-msg-redelivery";
+    constexpr int numPartitions = 3;
+    constexpr int numOfMessages = 15;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic1 + "/partitions", "1");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+    res = makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic2 + "/partitions",
+                         std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
+    const std::vector<std::string> topics = {nonPartitionedTopic, partitionedTopic1, partitionedTopic2};
+    ASSERT_EQ(ResultOk, client.subscribe(topics, subName, consumerConfig, consumer));
+    MultiTopicsConsumerImplPtr multiTopicsConsumerImplPtr =
+        PulsarFriend::getMultiTopicsConsumerImplPtr(consumer);
+    ASSERT_EQ(numPartitions + 2 /* nonPartitionedTopic + partitionedTopic1 */,
+              multiTopicsConsumerImplPtr->consumers_.size());
+
+    // send messages
+    auto sendMessageToTopic = [&client](const std::string& topic) {
+        Producer producer;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+
+        Message msg = MessageBuilder().setContent("hello").build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    };
+    for (int i = 0; i < numOfMessages; i++) {
+        sendMessageToTopic(nonPartitionedTopic);
+        sendMessageToTopic(partitionedTopic1);
+        sendMessageToTopic(partitionedTopic2);
+    }
+
+    // receive message and don't acknowledge
+    for (auto i = 0; i < numOfMessages * 3; ++i) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        MessageId msgId = msg.getMessageId();
+    }
+
+    auto multiTopicsTracker = static_cast<UnAckedMessageTrackerEnabled*>(
+        multiTopicsConsumerImplPtr->unAckedMessageTrackerPtr_.get());
+    ASSERT_EQ(numOfMessages * 3, multiTopicsTracker->size());
+    ASSERT_FALSE(multiTopicsTracker->isEmpty());
+    for (auto iter = multiTopicsConsumerImplPtr->consumers_.begin();
+         iter != multiTopicsConsumerImplPtr->consumers_.end(); ++iter) {
+        auto subConsumerPtr = iter->second;
+        auto tracker =
+            static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
+        ASSERT_EQ(0, tracker->size());
+        ASSERT_TRUE(tracker->isEmpty());
+    }
+
+    // timeout and send redeliver message
+    std::this_thread::sleep_for(std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
+    ASSERT_EQ(0, multiTopicsTracker->size());
+    ASSERT_TRUE(multiTopicsTracker->isEmpty());
+
+    for (auto i = 0; i < numOfMessages * 3; ++i) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(1, multiTopicsTracker->size());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msg.getMessageId()));
+        ASSERT_EQ(0, multiTopicsTracker->size());
+    }
+    ASSERT_EQ(0, multiTopicsTracker->size());
+    ASSERT_TRUE(multiTopicsTracker->isEmpty());
+    multiTopicsTracker = NULL;
+
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
+    consumer.close();
+    client.close();
+}
+
+}  // namespace pulsar

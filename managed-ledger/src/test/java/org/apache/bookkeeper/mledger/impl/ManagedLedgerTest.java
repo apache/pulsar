@@ -107,7 +107,7 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
@@ -2824,5 +2824,38 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
             Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
+    }
+
+    @Test
+    public void testManagedLedgerRollOverIfFull() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(500, TimeUnit.MILLISECONDS);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("test_managedLedger_rollOver", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        int msgNum = 10;
+
+        for (int i = 0; i < msgNum; i++) {
+            ledger.addEntry(new byte[1024 * 1024]);
+        }
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), msgNum / 2);
+        List<Entry> entries = cursor.readEntries(msgNum);
+        Assert.assertEquals(msgNum, entries.size());
+
+        for (Entry entry : entries) {
+            cursor.markDelete(entry.getPosition());
+        }
+        entries.forEach(e -> e.release());
+
+        // all the messages have benn acknowledged
+        // and all the ledgers have been removed except the last ledger
+        Thread.sleep(1000);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        Assert.assertEquals(ledger.getCurrentLedgerSize(), 0);
     }
 }

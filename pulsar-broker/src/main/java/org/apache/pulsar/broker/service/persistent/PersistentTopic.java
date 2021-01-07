@@ -102,10 +102,12 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -578,7 +580,7 @@ public class PersistentTopic extends AbstractTopic
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionState,
-                                                 PulsarApi.KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -2266,7 +2268,7 @@ public class PersistentTopic extends AbstractTopic
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                 if (metadata.hasNumMessagesInBatch()) {
                     completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
                             partitionIndex, metadata.getNumMessagesInBatch() - 1));
@@ -2558,9 +2560,9 @@ public class PersistentTopic extends AbstractTopic
         getTransactionBuffer(false).thenAccept(tb -> {
 
             CompletableFuture<Void> future = new CompletableFuture<>();
-            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+            if (TxnAction.COMMIT_VALUE == txnAction) {
                 future = tb.commitTxn(txnID, sendMessageList);
-            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+            } else if (TxnAction.ABORT_VALUE == txnAction) {
                 future = tb.abortTxn(txnID, sendMessageList);
             } else {
                 future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
