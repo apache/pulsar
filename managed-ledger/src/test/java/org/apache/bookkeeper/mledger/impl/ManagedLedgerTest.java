@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -2854,8 +2855,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
-        Thread.sleep(5000);
-        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+        Thread.sleep(1000);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
         Assert.assertEquals(ledger.getCurrentLedgerSize(), 0);
     }
 }
