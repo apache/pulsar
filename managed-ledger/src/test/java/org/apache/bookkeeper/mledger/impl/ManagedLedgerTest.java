@@ -2854,7 +2854,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
-        Thread.sleep(2000);
+        Thread.sleep(5000);
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(ledger.getCurrentLedgerSize(), 0);
     }
