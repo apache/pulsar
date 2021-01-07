@@ -23,15 +23,17 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -77,8 +79,6 @@ public class MessageTTLTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
         producer.close();
-        MessageId lastMessageId = sendFutureList.get(sendFutureList.size() - 1).get();
-
         // unload a reload the topic
         // this action created a new ledger
         // having a managed ledger with more than one
@@ -86,22 +86,22 @@ public class MessageTTLTest extends BrokerTestBase {
         admin.topics().unload(topicName);
         admin.topics().getStats(topicName);
 
-        AbstractTopic topic = (AbstractTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
+        CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
+        log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
+        assertEquals(statsBeforeExpire.markDeletePosition, PositionImpl.get(3, -1).toString());
+
         // wall clock time, we have to make the message to be considered "expired"
         Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000);
         log.info("***** run message expiry now");
         this.runMessageExpiryCheck();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .subscribe();
+        // verify that the markDeletePosition was moved forward, and exacly to the last message
+        PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
+        CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
+        log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
+        assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(3, numMsgs - 1 ).toString());
 
-        MessageId lastMessageIdOnConsumer = consumer.getLastMessageId();
-        log.info("lastMessageID written {}, lastMessageIdForConsumer {}", lastMessageId, lastMessageIdOnConsumer);
-        Message<byte[]> msg = consumer.receive(1, java.util.concurrent.TimeUnit.SECONDS);
-        assertNull(msg);
-        consumer.close();
     }
 
 }
