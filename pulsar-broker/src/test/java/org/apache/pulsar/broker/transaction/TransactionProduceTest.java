@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,8 +31,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
@@ -49,8 +52,8 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -157,8 +160,6 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         checkMessageId(futureList, true);
 
-        PulsarApi.MessageMetadata messageMetadata;
-
         // the target topic hasn't the commit marker before commit
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(topic, i);
@@ -169,7 +170,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             List<Entry> entries = originTopicCursor.readEntries(messageCnt);
             // check the messages
             for (int j = 0; j < messageCntPerPartition; j++) {
-                messageMetadata = Commands.parseMessageMetadata(entries.get(j).getDataBuffer());
+                MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(j).getDataBuffer());
                 Assert.assertEquals(messageMetadata.getTxnidMostBits(), txnIdMostBits);
                 Assert.assertEquals(messageMetadata.getTxnidLeastBits(), txnIdLeastBits);
 
@@ -193,11 +194,11 @@ public class TransactionProduceTest extends TransactionTestBase {
             List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
             Assert.assertEquals(messageCntPerPartition + 1, entries.size());
 
-            messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
+            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
             if (endAction) {
-                Assert.assertEquals(PulsarMarkers.MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
+                Assert.assertEquals(MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
             } else {
-                Assert.assertEquals(PulsarMarkers.MarkerType.TXN_ABORT_VALUE, messageMetadata.getMarkerType());
+                Assert.assertEquals(MarkerType.TXN_ABORT_VALUE, messageMetadata.getMarkerType());
             }
         }
 

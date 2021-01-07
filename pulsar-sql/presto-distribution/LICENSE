@@ -464,7 +464,6 @@ The Apache Software License, Version 2.0
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-shaded-2.1.0-incubating.jar
    - protobuf-java-3.11.4.jar
    - protobuf-java-util-3.11.4.jar
 

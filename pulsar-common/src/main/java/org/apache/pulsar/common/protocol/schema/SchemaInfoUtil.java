@@ -22,8 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.TreeMap;
 import lombok.experimental.UtilityClass;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
+
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -45,14 +46,14 @@ public class SchemaInfoUtil {
     public static SchemaInfo newSchemaInfo(Schema schema) {
         SchemaInfo si = new SchemaInfo();
         si.setName(schema.getName());
-        si.setSchema(schema.getSchemaData().toByteArray());
+        si.setSchema(schema.getSchemaData());
         si.setType(Commands.getSchemaType(schema.getType()));
         if (schema.getPropertiesCount() == 0) {
             si.setProperties(Collections.emptyMap());
         } else {
             si.setProperties(new TreeMap<>());
             for (int i = 0; i < schema.getPropertiesCount(); i++) {
-                PulsarApi.KeyValue kv = schema.getProperties(i);
+                KeyValue kv = schema.getPropertyAt(i);
                 si.getProperties().put(kv.getKey(), kv.getValue());
             }
         }

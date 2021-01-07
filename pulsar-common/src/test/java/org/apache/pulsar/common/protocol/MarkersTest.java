@@ -19,8 +19,6 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import io.netty.buffer.ByteBuf;
 
@@ -31,24 +29,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.api.proto.TxnCommitMarker;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class MarkersTest {
     @Test
     public void testSnapshotRequest() throws Exception {
         ByteBuf buf = Markers.newReplicatedSubscriptionsSnapshotRequest("sid", "us-west");
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
-        assertEquals(msgMetadata.getReplicateToCount(), 0);
+        assertEquals(msgMetadata.getReplicateTosCount(), 0);
 
         ReplicatedSubscriptionsSnapshotRequest request = Markers.parseReplicatedSubscriptionsSnapshotRequest(buf);
 
@@ -61,8 +58,8 @@ public class MarkersTest {
         ByteBuf buf = Markers.newReplicatedSubscriptionsSnapshotResponse("sid", "us-west", "us-east", 5, 7);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
-        assertEquals(msgMetadata.getReplicateToCount(), 1);
-        assertEquals(msgMetadata.getReplicateTo(0), "us-west");
+        assertEquals(msgMetadata.getReplicateTosCount(), 1);
+        assertEquals(msgMetadata.getReplicateToAt(0), "us-west");
 
         ReplicatedSubscriptionsSnapshotResponse response = Markers.parseReplicatedSubscriptionsSnapshotResponse(buf);
 
@@ -74,15 +71,15 @@ public class MarkersTest {
 
     @Test
     public void testSnapshot() throws Exception {
-        Map<String, MessageIdData> clusters = new TreeMap<>();
-        clusters.put("us-east", MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build());
-        clusters.put("us-cent", MessageIdData.newBuilder().setLedgerId(20).setEntryId(21).build());
+        Map<String, MarkersMessageIdData> clusters = new TreeMap<>();
+        clusters.put("us-east", new MarkersMessageIdData().setLedgerId(10).setEntryId(11));
+        clusters.put("us-cent", new MarkersMessageIdData().setLedgerId(20).setEntryId(21));
 
         ByteBuf buf = Markers.newReplicatedSubscriptionsSnapshot("sid", "us-west", 5, 7, clusters);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
-        assertEquals(msgMetadata.getReplicateToCount(), 1);
-        assertEquals(msgMetadata.getReplicateTo(0), "us-west");
+        assertEquals(msgMetadata.getReplicateTosCount(), 1);
+        assertEquals(msgMetadata.getReplicateToAt(0), "us-west");
 
         ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(buf);
 
@@ -92,36 +89,36 @@ public class MarkersTest {
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 7);
 
         assertEquals(snapshot.getClustersCount(), 2);
-        assertEquals(snapshot.getClusters(0).getCluster(), "us-cent");
-        assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 20);
-        assertEquals(snapshot.getClusters(0).getMessageId().getEntryId(), 21);
-        assertEquals(snapshot.getClusters(1).getCluster(), "us-east");
-        assertEquals(snapshot.getClusters(1).getMessageId().getLedgerId(), 10);
-        assertEquals(snapshot.getClusters(1).getMessageId().getEntryId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getCluster(), "us-cent");
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 20);
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getEntryId(), 21);
+        assertEquals(snapshot.getClusterAt(1).getCluster(), "us-east");
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 10);
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
     }
 
     @Test
     public void testUpdate() throws Exception {
-        Map<String, MessageIdData> clusters = new TreeMap<>();
-        clusters.put("us-east", MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build());
-        clusters.put("us-cent", MessageIdData.newBuilder().setLedgerId(20).setEntryId(21).build());
+        Map<String, MarkersMessageIdData> clusters = new TreeMap<>();
+        clusters.put("us-east", new MarkersMessageIdData().setLedgerId(10).setEntryId(11));
+        clusters.put("us-cent", new MarkersMessageIdData().setLedgerId(20).setEntryId(21));
 
         ByteBuf buf = Markers.newReplicatedSubscriptionsUpdate("sub-1", clusters);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
-        assertEquals(msgMetadata.getReplicateToCount(), 0);
+        assertEquals(msgMetadata.getReplicateTosCount(), 0);
 
         ReplicatedSubscriptionsUpdate snapshot = Markers.parseReplicatedSubscriptionsUpdate(buf);
 
         assertEquals(snapshot.getSubscriptionName(), "sub-1");
 
         assertEquals(snapshot.getClustersCount(), 2);
-        assertEquals(snapshot.getClusters(0).getCluster(), "us-cent");
-        assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 20);
-        assertEquals(snapshot.getClusters(0).getMessageId().getEntryId(), 21);
-        assertEquals(snapshot.getClusters(1).getCluster(), "us-east");
-        assertEquals(snapshot.getClusters(1).getMessageId().getLedgerId(), 10);
-        assertEquals(snapshot.getClusters(1).getMessageId().getEntryId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getCluster(), "us-cent");
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 20);
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getEntryId(), 21);
+        assertEquals(snapshot.getClusterAt(1).getCluster(), "us-east");
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 10);
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
     }
 
     @Test
@@ -131,33 +128,25 @@ public class MarkersTest {
         long leastBits = 2345L;
 
         List<String> messageIdInfoList = new ArrayList<>();
-        List<MessageIdData> messageIdDataList = new ArrayList<>();
+        List<MarkersMessageIdData> messageIdDataList = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             long entryId = i + 1;
             messageIdInfoList.add(i + ":" + entryId);
-            messageIdDataList.add(MessageIdData.newBuilder().setLedgerId(i).setEntryId(entryId).build());
+            messageIdDataList.add(new MarkersMessageIdData().setLedgerId(i).setEntryId(entryId));
         }
 
         ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
-        for (MessageIdData messageIdData : messageIdDataList) {
-            try {
-                messageIdData.recycle();
-                fail("message id data should be recycled after create the marker bytebuf.");
-            } catch (Exception e) {
-                assertTrue(e instanceof java.lang.IllegalStateException);
-            }
-        }
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
-        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
+        assertEquals(msgMetadata.getMarkerType(), MarkerType.TXN_COMMIT_VALUE);
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
 
-        PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
-        assertEquals(marker.getMessageIdList().size(), messageIdInfoList.size());
-        for (int i = 0; i < marker.getMessageIdCount(); i++) {
-            MessageIdData messageIdData = marker.getMessageIdList().get(i);
+        TxnCommitMarker marker = Markers.parseCommitMarker(buf);
+        assertEquals(marker.getMessageIdsList().size(), messageIdInfoList.size());
+        for (int i = 0; i < marker.getMessageIdsCount(); i++) {
+            MarkersMessageIdData messageIdData = marker.getMessageIdAt(i);
             assertEquals(messageIdData.getLedgerId() + ":" + messageIdData.getEntryId(), messageIdInfoList.get(i));
         }
     }
@@ -172,7 +161,7 @@ public class MarkersTest {
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
-        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_ABORT_VALUE);
+        assertEquals(msgMetadata.getMarkerType(), MarkerType.TXN_ABORT_VALUE);
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
