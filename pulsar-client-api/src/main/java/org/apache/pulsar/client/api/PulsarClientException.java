@@ -908,6 +908,8 @@ public class PulsarClientException extends IOException {
             return new ConsumerAssignException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
+        } else if (cause instanceof NotFoundException) {
+            return new NotFoundException(msg);
         } else {
             return new PulsarClientException(t);
         }

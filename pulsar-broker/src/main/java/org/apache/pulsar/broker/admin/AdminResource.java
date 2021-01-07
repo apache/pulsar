@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -367,6 +368,26 @@ public abstract class AdminResource extends PulsarWebResource {
                 throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
             }
         } catch ( InterruptedException  | ExecutionException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
+        }
+    }
+
+    protected void validateTopicExistedAndCheckAllowAutoCreation(String tenant, String namespace,
+                                                                 String encodedTopic, boolean checkAllowAutoCreation) {
+        try {
+            PartitionedTopicMetadata partitionedTopicMetadata =
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
+            if (partitionedTopicMetadata.partitions < 1) {
+                if (!pulsar().getNamespaceService().checkTopicExists(topicName).get()
+                        && checkAllowAutoCreation
+                        && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
+                    throw new RestException(Status.NOT_FOUND,
+                            new PulsarClientException.NotFoundException("Topic not exist"));
+                }
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Failed to validate topic existed {}://{}/{}/{}",
+                    domain(), tenant, namespace, topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
     }
