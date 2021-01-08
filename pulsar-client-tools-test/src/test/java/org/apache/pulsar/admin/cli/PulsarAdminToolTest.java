@@ -216,6 +216,18 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("get-peer-clusters my-cluster"));
         verify(mockClusters).getPeerClusterNames("my-cluster");
+
+        // test create cluster without --url
+        clusters = new CmdClusters(admin);
+
+        clusters.run(split("create my-secure-cluster --url-secure https://my-service.url:4443"));
+        verify(mockClusters).createCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+
+        clusters.run(split("update my-secure-cluster --url-secure https://my-service.url:4443"));
+        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+
+        clusters.run(split("delete my-secure-cluster"));
+        verify(mockClusters).deleteCluster("my-secure-cluster");
     }
 
     @Test

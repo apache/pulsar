@@ -58,7 +58,7 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--url", description = "service-url", required = true)
+        @Parameter(names = "--url", description = "service-url", required = false)
         private String serviceUrl;
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
@@ -89,7 +89,7 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name\n", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--url", description = "service-url", required = true)
+        @Parameter(names = "--url", description = "service-url", required = false)
         private String serviceUrl;
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
