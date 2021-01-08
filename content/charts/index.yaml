@@ -19,9 +19,9 @@ entries:
     version: 2.7.0
   - apiVersion: v1
     appVersion: 2.7.0
-    created: "2021-01-08T05:25:18.373617343Z"
+    created: "2021-01-08T05:27:15.548211942Z"
     description: Apache Pulsar Helm chart for Kubernetes
-    digest: 26fb406c44e5c29fe209505718d2819df860df9306e1d8306f14518caa5fb90d
+    digest: bdbb841e75b5ed1fc9e65986def399690270c00c9282e0d616ddfa66faf2c558
     home: https://pulsar.apache.org
     icon: http://pulsar.apache.org/img/pulsar.svg
     maintainers:
