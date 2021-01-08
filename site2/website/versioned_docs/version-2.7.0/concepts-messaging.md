@@ -244,10 +244,7 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve both effects simultaneously, combine exclusive subscription mode with other subscription modes for consumers.
 
 ### Consumerless Subscriptions and Their Corresponding Modes
-If, at any point in time, there are no consumers for a given subscription, a subscription has no specified mode. This
-includes new subscriptions and existing subscriptions that no longer have any consumers. As a consequence, there is no
-option to specify the subscription mode when creating a subscription. The mode is established when the consumer makes its
-connection, and the mode can be "changed" by restarting all consumers with a different configuration.
+When a subscription has no consumers, its subscription mode is undefined. A subscription's mode is defined when a consumer connects to the subscription, and the mode can be changed by restarting all consumers with a different configuration.
 
 ### Exclusive
 
