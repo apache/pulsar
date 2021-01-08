@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -34,12 +33,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBufAllocator;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
@@ -64,8 +61,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -108,6 +103,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
@@ -2883,7 +2879,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
         Thread.sleep(1000);
-        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
-        Assert.assertEquals(ledger.getCurrentLedgerSize(), 0);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+        Assert.assertEquals(ledger.getTotalSize(), 0);
     }
 }
