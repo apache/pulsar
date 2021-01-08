@@ -101,6 +101,14 @@
 <span class="hljs-attr">webServicePort</span>=<span class="hljs-string">8080</span>
 <span class="hljs-attr">clusterName</span>=<span class="hljs-string">my-cluster</span>
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="security-settings"></a><a href="#security-settings" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security settings</h3>
+<p>To enable TLS encryption on WebSocket service:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">tlsEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsAllowInsecureConnection</span>=<span class="hljs-string">false</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/client-websocket.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/client-websocket.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="starting-the-broker"></a><a href="#starting-the-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the broker</h3>
 <p>When the configuration is set, you can start the service using the <a href="/docs/ko/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> tool:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start websocket</span>
@@ -334,7 +342,13 @@
 <p>Here's an example Python producer that sends a simple message to a Pulsar <a href="/docs/ko/next/reference-terminology#topic">topic</a>:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
 
-TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'</span>
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
+
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'</span>
 
 ws = websocket.create_connection(TOPIC)
 
@@ -359,7 +373,13 @@ ws.close()
 <p>Here's an example Python consumer that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
 
-TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'</span>
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
+
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'</span>
 
 ws = websocket.create_connection(TOPIC)
 
@@ -378,8 +398,13 @@ ws.close()
 <p>Here's an example Python reader that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
 
-TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'</span>
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
 
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'</span>
 ws = websocket.create_connection(TOPIC)
 
 <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
@@ -399,9 +424,12 @@ ws.close()
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="nodejs-producer"></a><a href="#nodejs-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js producer</h4>
 <p>Here's an example Node.js producer that sends a simple message to a Pulsar topic:</p>
-<pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>),
-    topic = <span class="hljs-string">"ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic"</span>,
-    ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/producer/persistent/public/default/my-topic`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
 
 <span class="hljs-keyword">var</span> message = {
   <span class="hljs-string">"payload"</span> : <span class="hljs-keyword">new</span> Buffer(<span class="hljs-string">"Hello World"</span>).toString(<span class="hljs-string">'base64'</span>),
@@ -423,9 +451,12 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="nodejs-consumer"></a><a href="#nodejs-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js consumer</h4>
 <p>Here's an example Node.js consumer that listens on the same topic used by the producer above:</p>
-<pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>),
-    topic = <span class="hljs-string">"ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub"</span>,
-    ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
 
 ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">message</span>) </span>{
     <span class="hljs-keyword">var</span> receiveMsg = <span class="hljs-built_in">JSON</span>.parse(message);
@@ -435,9 +466,12 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
 });
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="nodejs-reader"></a><a href="#nodejs-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NodeJS reader</h4>
-<pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>),
-    topic = <span class="hljs-string">"ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic"</span>,
-    ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/reader/persistent/public/default/my-topic`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
 
 ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">message</span>) </span>{
     <span class="hljs-keyword">var</span> receiveMsg = <span class="hljs-built_in">JSON</span>.parse(message);
@@ -446,7 +480,7 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
     ws.send(<span class="hljs-built_in">JSON</span>.stringify(ackMsg));
 });
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/client-libraries-node"><span class="arrow-prev">← </span><span>Node.js</span></a><a class="docs-next button" href="/docs/ko/next/client-libraries-dotnet"><span>C#</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#running-the-websocket-service">Running the WebSocket service</a><ul class="toc-headings"><li><a href="#embedded-with-a-pulsar-broker">Embedded with a Pulsar broker</a></li><li><a href="#as-a-separate-component">As a separate component</a></li><li><a href="#starting-the-broker">Starting the broker</a></li></ul></li><li><a href="#api-reference">API Reference</a><ul class="toc-headings"><li><a href="#producer-endpoint">Producer endpoint</a></li><li><a href="#consumer-endpoint">Consumer endpoint</a></li><li><a href="#reader-endpoint">Reader endpoint</a></li><li><a href="#error-codes">Error codes</a></li></ul></li><li><a href="#client-examples">Client examples</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/client-libraries-node"><span class="arrow-prev">← </span><span>Node.js</span></a><a class="docs-next button" href="/docs/ko/next/client-libraries-dotnet"><span>C#</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#running-the-websocket-service">Running the WebSocket service</a><ul class="toc-headings"><li><a href="#embedded-with-a-pulsar-broker">Embedded with a Pulsar broker</a></li><li><a href="#as-a-separate-component">As a separate component</a></li><li><a href="#security-settings">Security settings</a></li><li><a href="#starting-the-broker">Starting the broker</a></li></ul></li><li><a href="#api-reference">API Reference</a><ul class="toc-headings"><li><a href="#producer-endpoint">Producer endpoint</a></li><li><a href="#consumer-endpoint">Consumer endpoint</a></li><li><a href="#reader-endpoint">Reader endpoint</a></li><li><a href="#error-codes">Error codes</a></li></ul></li><li><a href="#client-examples">Client examples</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

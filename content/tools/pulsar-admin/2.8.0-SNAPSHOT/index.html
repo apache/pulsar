@@ -3768,7 +3768,7 @@
 </tr>
 <tr>
 <td><code>--driver, -d</code></td>
-<td>Driver to use to offload old data to long term storage, (Possible values: S3, aws-s3, google-cloud-storage)</td>
+<td>Driver to use to offload old data to long term storage, (Possible values: S3, aws-s3, google-cloud-storage, filesystem, azureblob)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -3789,6 +3789,11 @@
 <tr>
 <td><code>--offloadAfterElapsed, -oae</code></td>
 <td>Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--offloadedReadPriority, -orp</code></td>
+<td>read priority for offloaded messages</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6832,6 +6837,11 @@
 <tr>
 <td><code>-r, --region</code></td>
 <td>ManagedLedger offload region, s3 and google-cloud-storage requires this parameter</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--offloadedReadPriority, -orp</code></td>
+<td>read priority for offloaded messages</td>
 <td>null</td>
 </tr>
 <tr>
