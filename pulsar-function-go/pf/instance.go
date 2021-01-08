@@ -221,6 +221,17 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 		gi.context.instanceConf.funcDetails.Namespace,
 		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
+	batchBuilderType := pulsar.DefaultBatchBuilder
+
+	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
+		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
+		if batchBuilder != "" {
+			if batchBuilder == "KEY_BASED" {
+				batchBuilderType = pulsar.KeyBasedBatchBuilder
+			}
+		}
+	}
+
 	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
 		Topic:                   topicName,
 		Properties:              properties,
