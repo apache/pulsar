@@ -286,8 +286,9 @@ In *Key_Shared* mode, multiple consumers can attach to the same subscription. Me
 
 > #### Limitations of Key_Shared mode
 > When you use Key_Shared mode, be aware that:
-> * You need to specify a key or orderingKey for messages
+> * You need to specify a key or orderingKey for messages.
 > * You cannot use cumulative acknowledgment with Key_Shared mode.
+> * Your producers should disable batching or use a key-based batch builder.
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
