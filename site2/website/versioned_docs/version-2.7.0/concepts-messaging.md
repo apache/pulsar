@@ -243,6 +243,9 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
 > * If you want to achieve both effects simultaneously, combine exclusive subscription mode with other subscription modes for consumers.
 
+### Consumerless Subscriptions and Their Corresponding Modes
+When a subscription has no consumers, its subscription mode is undefined. A subscription's mode is defined when a consumer connects to the subscription, and the mode can be changed by restarting all consumers with a different configuration.
+
 ### Exclusive
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
