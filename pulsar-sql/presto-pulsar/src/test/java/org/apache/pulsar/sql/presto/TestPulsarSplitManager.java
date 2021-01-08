@@ -423,7 +423,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 5000,
                 2000,
                 1000L,
-                5000L
+                5000L,
+                OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
         );
 
         SchemaInfo schemaInfo = JSONSchema.of(Foo.class).getSchemaInfo();

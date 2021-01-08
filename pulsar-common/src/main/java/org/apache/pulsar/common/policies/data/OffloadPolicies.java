@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.util.FieldParser.value;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -33,9 +34,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Definition of the offload policies.
@@ -44,9 +48,58 @@ import org.apache.commons.lang3.StringUtils;
 @Data
 public class OffloadPolicies implements Serializable {
 
+    @InterfaceAudience.Public
+    @InterfaceStability.Stable
+    public enum OffloadedReadPriority {
+        /**
+         * For offloaded messages, readers will try to read from bookkeeper at first,
+         * if messages not exist at bookkeeper then read from offloaded storage.
+         */
+        BOOKKEEPER_FIRST("bookkeeper-first"),
+        /**
+         * For offloaded messages, readers will try to read from offloaded storage first,
+         * even they are still exist in bookkeeper.
+         */
+        TIERED_STORAGE_FIRST("tiered-storage-first");
+
+        private final String value;
+
+        OffloadedReadPriority(String value) {
+            this.value = value;
+        }
+
+        public boolean equalsName(String otherName) {
+            return value.equals(otherName);
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        public static OffloadedReadPriority fromString(String str) {
+            for (OffloadedReadPriority value : OffloadedReadPriority.values()) {
+                if (value.value.equals(str)) {
+                    return value;
+                }
+            }
+
+            throw new IllegalArgumentException("--offloadedReadPriority parameter must be one of "
+                    + Arrays.stream(OffloadedReadPriority.values())
+                    .map(OffloadedReadPriority::toString)
+                    .collect(Collectors.joining(","))
+                    + " but got: " + str);
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+
     private final static long serialVersionUID = 0L;
 
     private final static List<Field> CONFIGURATION_FIELDS;
+
     static {
         CONFIGURATION_FIELDS = new ArrayList<>();
         Class<OffloadPolicies> clazz = OffloadPolicies.class;
@@ -62,7 +115,8 @@ public class OffloadPolicies implements Serializable {
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob"};
+    public final static ImmutableList<String> DRIVER_NAMES = ImmutableList
+            .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob");
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
@@ -70,6 +124,8 @@ public class OffloadPolicies implements Serializable {
     public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
+    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
+            OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
     // common config
     @Configuration
@@ -90,6 +146,9 @@ public class OffloadPolicies implements Serializable {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
     // s3 config, set by service configuration or cli
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
@@ -161,7 +220,8 @@ public class OffloadPolicies implements Serializable {
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
                                          String credentialId, String credentialSecret,
                                          Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
-                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
+                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
+                                         OffloadedReadPriority readPriority) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
@@ -172,8 +232,9 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadServiceEndpoint(endpoint);
         offloadPolicies.setManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
         offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
+        offloadPolicies.setManagedLedgerOffloadedReadPriority(readPriority);
 
-        if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
+        if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
             if (credentialId != null) {
                 offloadPolicies.setS3ManagedLedgerOffloadRole(credentialId);
             }
@@ -185,7 +246,7 @@ public class OffloadPolicies implements Serializable {
             offloadPolicies.setS3ManagedLedgerOffloadServiceEndpoint(endpoint);
             offloadPolicies.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
             offloadPolicies.setS3ManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
-        } else if (driver.equalsIgnoreCase(DRIVER_NAMES[2])) {
+        } else if (driver.equalsIgnoreCase(DRIVER_NAMES.get(2))) {
             offloadPolicies.setGcsManagedLedgerOffloadRegion(region);
             offloadPolicies.setGcsManagedLedgerOffloadBucket(bucket);
             offloadPolicies.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes);
@@ -228,7 +289,7 @@ public class OffloadPolicies implements Serializable {
     }
 
     public boolean driverSupported() {
-        return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(this.managedLedgerOffloadDriver));
+        return DRIVER_NAMES.stream().anyMatch(d -> d.equalsIgnoreCase(this.managedLedgerOffloadDriver));
     }
 
     public static String getSupportedDriverNames() {
@@ -239,22 +300,22 @@ public class OffloadPolicies implements Serializable {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[0])
-                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(0))
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(1));
     }
 
     public boolean isGcsDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[2]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(2));
     }
 
     public boolean isFileSystemDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[3]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(3));
     }
 
     public boolean bucketValid() {
@@ -277,6 +338,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(
+                managedLedgerOffloadedReadPriority,
                 managedLedgerOffloadDriver,
                 managedLedgerOffloadMaxThreads,
                 managedLedgerOffloadPrefetchRounds,
@@ -312,17 +374,18 @@ public class OffloadPolicies implements Serializable {
             return false;
         }
         OffloadPolicies other = (OffloadPolicies) obj;
-        return Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
+        return Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
+                && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
                 && Objects.equals(managedLedgerOffloadPrefetchRounds, other.getManagedLedgerOffloadPrefetchRounds())
                 && Objects.equals(managedLedgerOffloadThresholdInBytes,
-                    other.getManagedLedgerOffloadThresholdInBytes())
+                other.getManagedLedgerOffloadThresholdInBytes())
                 && Objects.equals(managedLedgerOffloadDeletionLagInMillis,
-                    other.getManagedLedgerOffloadDeletionLagInMillis())
+                other.getManagedLedgerOffloadDeletionLagInMillis())
                 && Objects.equals(s3ManagedLedgerOffloadRegion, other.getS3ManagedLedgerOffloadRegion())
                 && Objects.equals(s3ManagedLedgerOffloadBucket, other.getS3ManagedLedgerOffloadBucket())
                 && Objects.equals(s3ManagedLedgerOffloadServiceEndpoint,
-                    other.getS3ManagedLedgerOffloadServiceEndpoint())
+                other.getS3ManagedLedgerOffloadServiceEndpoint())
                 && Objects.equals(s3ManagedLedgerOffloadMaxBlockSizeInBytes,
                     other.getS3ManagedLedgerOffloadMaxBlockSizeInBytes())
                 && Objects.equals(s3ManagedLedgerOffloadReadBufferSizeInBytes,
@@ -352,6 +415,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                .add("managedLedgerOffloadedReadPriority", managedLedgerOffloadedReadPriority)
                 .add("managedLedgerOffloadDriver", managedLedgerOffloadDriver)
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
                 .add("managedLedgerOffloadPrefetchRounds", managedLedgerOffloadPrefetchRounds)
@@ -382,7 +446,7 @@ public class OffloadPolicies implements Serializable {
 
     public Properties toProperties() {
         Properties properties = new Properties();
-
+        setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
         setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
         setProperty(properties, "managedLedgerOffloadMaxThreads",
