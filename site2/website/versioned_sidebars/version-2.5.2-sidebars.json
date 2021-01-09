@@ -106,7 +106,6 @@
       "version-2.5.2-admin-api-non-persistent-topics",
       "version-2.5.2-admin-api-partitioned-topics",
       "version-2.5.2-admin-api-non-partitioned-topics",
-      "version-2.5.2-admin-api-schemas",
       "version-2.5.2-admin-api-functions"
     ],
     "Adaptors": [
@@ -135,6 +134,7 @@
     "Reference": [
       "version-2.5.2-reference-terminology",
       "version-2.5.2-reference-cli-tools",
+      "version-2.5.2-pulsar-admin",
       "version-2.5.2-reference-configuration",
       "version-2.5.2-reference-metrics"
     ]

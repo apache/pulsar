@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.Properties;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,8 @@ import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
 import org.jclouds.providers.AnonymousProviderMetadata;
 import org.jclouds.providers.ProviderMetadata;
+import org.jclouds.s3.S3ApiMetadata;
+import org.jclouds.s3.reference.S3Constants;
 
 /**
  * Enumeration of the supported JCloud Blob Store Providers.
@@ -131,7 +134,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            return BLOB_STORE_BUILDER.getBlobStore(config);
+            ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+            contextBuilder.overrides(config.getOverrides());
+
+            if (config.getProviderCredentials() != null) {
+                Credentials credentials = config.getProviderCredentials().get();
+                return contextBuilder
+                        .credentials(credentials.identity, credentials.credential)
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            } else {
+                log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+                return contextBuilder
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            }
         }
 
         @Override
@@ -145,6 +162,28 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                 throw new IllegalArgumentException("Couldn't get the azure storage access key.");
             }
             config.setProviderCredentials(() -> new Credentials(accountName, accountKey));
+        }
+    },
+
+
+    /**
+     * Aliyun OSS is compatible with the S3 API
+     * https://www.alibabacloud.com/help/doc-detail/64919.htm
+     */
+    ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            ALIYUN_OSS_VALIDATION.validate(config);
+        }
+
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+            return ALIYUN_OSS_BLOB_STORE_BUILDER.getBlobStore(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            ALIYUN_OSS_CREDENTIAL_BUILDER.buildCredentials(config);
         }
     },
 
@@ -163,7 +202,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             ContextBuilder builder =  ContextBuilder.newBuilder("transient");
             BlobStoreContext ctx = builder
                     .buildView(BlobStoreContext.class);
-            
+
             BlobStore bs = ctx.getBlobStore();
 
             if (!bs.containerExists(config.getBucket())) {
@@ -254,11 +293,12 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         .credentialsSupplier(config.getCredentials())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
-            } else {
-                return contextBuilder
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            }
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        }
 
     };
 
@@ -297,4 +337,58 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             }
         }
     };
+
+    static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        Properties overrides = config.getOverrides();
+        // For security reasons, OSS supports only virtual hosted style access.
+        overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        contextBuilder.overrides(overrides);
+        contextBuilder.endpoint(config.getServiceEndpoint());
+
+        if (config.getProviderCredentials() != null) {
+            return contextBuilder
+                    .credentialsSupplier(config.getCredentials())
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        }
+    };
+
+    static final ConfigValidation ALIYUN_OSS_VALIDATION = (TieredStorageConfiguration config) -> {
+        if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
+            throw new IllegalArgumentException(
+                    "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+        }
+
+        if (Strings.isNullOrEmpty(config.getBucket())) {
+            throw new IllegalArgumentException(
+                    "Bucket cannot be empty for " + config.getDriver() + " offload");
+        }
+
+        if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
+            throw new IllegalArgumentException(
+                    "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                            + config.getDriver() + " offload");
+        }
+    };
+
+    static final CredentialBuilder ALIYUN_OSS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        String accountName = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
+        if (StringUtils.isEmpty(accountName)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key id.");
+        }
+        String accountKey = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
+        if (StringUtils.isEmpty(accountKey)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key secret.");
+        }
+        Credentials credentials = new Credentials(
+                accountName, accountKey);
+        config.setProviderCredentials(() -> credentials);
+    };
+
 }

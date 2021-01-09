@@ -27,6 +27,8 @@ import io.netty.util.Recycler.Handle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -42,10 +44,11 @@ import org.slf4j.LoggerFactory;
  * Handles the life-cycle of an addEntry() operation.
  *
  */
-class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
+public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
+    private int numberOfMessages;
 
     @SuppressWarnings("unused")
     private static final AtomicReferenceFieldUpdater<OpAddEntry, AddEntryCallback> callbackUpdater =
@@ -74,6 +77,23 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+        op.numberOfMessages = numberOfMessages;
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    private static OpAddEntry createOpAddEntry(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -87,9 +107,6 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
         ml.mbean.addAddEntrySample(op.dataLength);
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
         return op;
     }
 
@@ -103,6 +120,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
+
             ByteBuf duplicateBuffer = data.retainedDuplicate();
 
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
@@ -117,7 +135,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            data.release();
+            ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
         }
@@ -176,7 +194,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
 
         // We are done using the byte buffer
-        data.release();
+        ReferenceCountUtil.release(data);
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
@@ -269,7 +287,23 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public State getState() {
         return state;
     }
-    
+
+    public ByteBuf getData() {
+        return data;
+    }
+
+    public int getNumberOfMessages() {
+        return numberOfMessages;
+    }
+
+    public void setNumberOfMessages(int numberOfMessages) {
+        this.numberOfMessages = numberOfMessages;
+    }
+
+    public void setData(ByteBuf data) {
+        this.data = data;
+    }
+
     private final Handle<OpAddEntry> recyclerHandle;
 
     private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
@@ -287,6 +321,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml = null;
         ledger = null;
         data = null;
+        numberOfMessages = 0;
         dataLength = -1;
         callback = null;
         ctx = null;

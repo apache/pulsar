@@ -63,7 +63,7 @@ $ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
 
 #### REST API
 
-{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
 
 #### Java
 

@@ -558,7 +558,7 @@ $ pulsar-admin topics lookup \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/}
+{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -583,7 +583,7 @@ $ pulsar-admin topics bundle-range \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -632,7 +632,7 @@ $ pulsar-admin topics unsubscribe \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
 
 #### Java
 

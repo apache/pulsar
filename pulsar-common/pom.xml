@@ -57,18 +57,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>protobuf-shaded</artifactId>
-      <version>${pulsar.protobuf.shaded.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -102,6 +90,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.airlift</groupId>
       <artifactId>aircompressor</artifactId>
     </dependency>
@@ -125,6 +118,11 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-codec-haproxy</artifactId>
     </dependency>
 
     <dependency>
@@ -177,6 +175,19 @@
 
   <build>
   <plugins>
+	<plugin>
+		<groupId>com.github.splunk.lightproto</groupId>
+		<artifactId>lightproto-maven-plugin</artifactId>
+		<version>${lightproto-maven-plugin.version}</version>
+		<executions>
+			<execution>
+				<goals>
+					<goal>generate</goal>
+				</goals>
+			</execution>
+		</executions>
+	</plugin>
+
     <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
@@ -200,7 +211,7 @@
           </gitDescribe>
         </configuration>
     </plugin>
-      
+
     <plugin>
       <groupId>org.codehaus.mojo</groupId>
       <artifactId>templating-maven-plugin</artifactId>
@@ -214,25 +225,22 @@
         </execution>
       </executions>
     </plugin>
-
     <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-checkstyle-plugin</artifactId>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-maven-plugin</artifactId>
+      <version>${spotbugs-maven-plugin.version}</version>
       <executions>
         <execution>
-          <id>check-style</id>
+          <id>spotbugs</id>
           <phase>verify</phase>
-          <configuration>
-            <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-            <encoding>UTF-8</encoding>
-            <excludes>**/proto/*</excludes>
-          </configuration>
           <goals>
             <goal>check</goal>
           </goals>
         </execution>
       </executions>
+      <configuration>
+        <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+      </configuration>
     </plugin>
   </plugins>
   </build>

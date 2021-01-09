@@ -118,7 +118,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |bookieAuthProviderFactoryClass|The factory class name of the bookie authentication provider. If this is null, then there is no authentication.|null|
 |statsProviderClass||org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider|
 |prometheusStatsHttpPort||8000|
-|dbStorage_writeCacheMaxSizeMb|Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log. For good performance, it should be big enough to hold a substantial amount of entries in the flush interval. By default, it is allocated to 25% of the available direct memory.|N/A
+|dbStorage_writeCacheMaxSizeMb|Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log. For good performance, it should be big enough to hold a substantial amount of entries in the flush interval.|25% of direct memory|
 |dbStorage_readAheadCacheMaxSizeMb|Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens. By default, it is allocated to 25% of the available direct memory.|N/A|
 |dbStorage_readAheadCacheBatchSize|How many entries to pre-fill in cache after a read cache miss|1000|
 |dbStorage_rocksDB_blockCacheSize|Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases. By default, it uses 10% of direct memory.|N/A|
@@ -444,6 +444,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
+| numAcceptorThreads | Number of threads to use for Netty Acceptor | 1 |
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
 | numHttpServerThreads | Number of threads to use for HTTP requests processing | 2 * Runtime.getRuntime().availableProcessors()|
 |isRunningStandalone|This flag controls features that are meant to be used when running in standalone mode.|N/A|

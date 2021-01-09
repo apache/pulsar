@@ -24,11 +24,9 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
@@ -39,6 +37,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.PackagesImpl;
 import org.apache.pulsar.client.admin.internal.ProxyStatsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -74,6 +73,7 @@ public class PulsarAdmin implements Closeable {
     public static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 60;
     public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
     public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
+    public static final int DEFAULT_CERT_REFRESH_SECONDS = 300;
 
     private final Clusters clusters;
     private final Brokers brokers;
@@ -96,6 +96,7 @@ public class PulsarAdmin implements Closeable {
     private final Sinks sinks;
     private final Worker worker;
     private final Schemas schemas;
+    private final Packages packages;
     protected final WebTarget root;
     protected final Authentication auth;
     private final int connectTimeout;
@@ -133,9 +134,8 @@ public class PulsarAdmin implements Closeable {
 
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
-                DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS,
-                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS, null);
-
+                DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS,
+                DEFAULT_CERT_REFRESH_SECONDS, TimeUnit.SECONDS, null);
     }
 
     public PulsarAdmin(String serviceUrl,
@@ -146,6 +146,8 @@ public class PulsarAdmin implements Closeable {
                        TimeUnit readTimeoutUnit,
                        int requestTimeout,
                        TimeUnit requestTimeoutUnit,
+                       int autoCertRefreshTime,
+                       TimeUnit autoCertRefreshTimeUnit,
                        ClassLoader clientBuilderClassLoader) throws PulsarClientException {
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
@@ -166,7 +168,8 @@ public class PulsarAdmin implements Closeable {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
-        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
+        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
+                (int) autoCertRefreshTimeUnit.toSeconds(autoCertRefreshTime));
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
@@ -200,7 +203,8 @@ public class PulsarAdmin implements Closeable {
         this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
                 Math.toIntExact(readTimeoutUnit.toMillis(this.readTimeout)),
-                Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout)));
+                Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout)),
+                (int) autoCertRefreshTimeUnit.toSeconds(autoCertRefreshTime));
 
         long readTimeoutMs = readTimeoutUnit.toMillis(this.readTimeout);
         this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
@@ -220,6 +224,7 @@ public class PulsarAdmin implements Closeable {
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
+        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -434,6 +439,13 @@ public class PulsarAdmin implements Closeable {
      */
     public Schemas schemas() {
         return schemas;
+    }
+
+    /**
+     * @return the packages management object
+     */
+    public Packages packages() {
+        return packages;
     }
 
     /**

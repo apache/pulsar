@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -252,6 +251,13 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit);
 
+    /**
+     * This sets auto cert refresh time if Pulsar admin uses tls authentication.
+     *
+     * @param autoCertRefreshTime
+     * @param autoCertRefreshTimeUnit
+     */
+    PulsarAdminBuilder autoCertRefreshTime(int autoCertRefreshTime, TimeUnit autoCertRefreshTimeUnit);
     /**
      *
      * @return

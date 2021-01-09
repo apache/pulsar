@@ -44,6 +44,9 @@ public class ReaderImpl<T> implements Reader<T> {
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
             subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
         }
+        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
+            subscription = readerConfiguration.getSubscriptionName();
+        }
 
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());

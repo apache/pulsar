@@ -2457,6 +2457,110 @@ public interface Topics {
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
 
     /**
+     * Get the max number of subscriptions for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of subscriptions for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic);
+
+
+    /**
+     * Set the max number of subscriptions for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxSubscriptionsPerTopic Max number of subscriptions
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxSubscriptionsPerTopic(String topic, int maxSubscriptionsPerTopic) throws PulsarAdminException;
+
+    /**
+     * Set the max number of subscriptions for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxSubscriptionsPerTopic Max number of subscriptions
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxSubscriptionsPerTopicAsync(String topic, int maxSubscriptionsPerTopic);
+
+    /**
+     * Remove the max number of subscriptions for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of subscriptions for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxSubscriptionsPerTopicAsync(String topic);
+
+    /**
+     * Get the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxMessageSize(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max message size for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxMessageSizeAsync(String topic);
+
+
+    /**
+     * Set the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxMessageSize Max message size of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxMessageSize(String topic, int maxMessageSize) throws PulsarAdminException;
+
+    /**
+     * Set the max message size for specified topic asynchronously.0 disables.
+     *
+     * @param topic Topic name
+     * @param maxMessageSize Max message size of topic
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxMessageSize);
+
+    /**
+     * Remove the max message size for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxMessageSize(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max message size for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxMessageSizeAsync(String topic);
+
+    /**
      * Get the max number of consumer for specified topic.
      *
      * @param topic Topic name

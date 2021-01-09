@@ -21,10 +21,9 @@ package org.apache.pulsar.broker;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.util.internal.PlatformDependent;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -34,14 +33,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
@@ -91,6 +91,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
+    @Category
+    private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -162,6 +164,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean haProxyProtocolEnabled;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for Netty Acceptor."
+                    + " Default is set to `1`"
+    )
+    private int numAcceptorThreads = 1;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -460,6 +473,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The maximum number of namespaces that each tenant can create."
             + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
     private int maxNamespacesPerTenant = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Max number of topics allowed to be created in the namespace. "
+                + "When the topics reach the max topics of the namespace, the broker should reject "
+                + "the new topic request(include topic auto-created by the producer or consumer) until "
+                + "the number of connected consumers decrease. "
+                + " Using a value of 0, is disabling maxTopicsPerNamespace-limit check."
+    )
+    private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -858,6 +882,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
                 "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for entry metadata.")
+    private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable namespaceIsolation policy update take effect ontime or not," +
+            " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
+    )
+    private boolean enableNamespaceIsolationUpdateOnTime = false;
 
     /***** --- TLS --- ****/
     @FieldContext(
@@ -1422,17 +1458,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Of course, this may degrade consumption throughput. Default is 10ms.")
     private int managedLedgerNewEntriesCheckDelayInMillis = 10;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
+    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
+            .getValue();
+
     /*** --- Load balancer --- ****/
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        doc = "Enable load balancer"
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Enable load balancer"
     )
     private boolean loadBalancerEnabled = true;
     @Deprecated
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        deprecated = true,
-        doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
+            category = CATEGORY_LOAD_BALANCER,
+            deprecated = true,
+            doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
     )
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
 
@@ -1792,6 +1833,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean functionsWorkerEnabled = false;
 
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The nar package for the function worker service"
+    )
+    private String functionsWorkerServiceNarPackage = "";
+
     /**** --- Broker Web Stats --- ****/
     @FieldContext(
         category = CATEGORY_METRICS,
@@ -1856,7 +1903,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Class name for transaction metadata store provider"
     )
     private String transactionMetadataStoreProviderClassName =
-            "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
+            "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -1960,6 +2007,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+
+    /* packages management service configurations (begin) */
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "Enable the packages management service or not"
+    )
+    private boolean enablePackagesManagement = false;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The packages management service storage service provider"
+    )
+    private String packagesManagementStorageProvider = "org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider";
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "When the packages storage provider is bookkeeper, you can use this configuration to\n"
+            + "control the number of replicas for storing the package"
+    )
+    private int packagesReplicas = 1;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "The bookkeeper ledger root path"
+    )
+    private String packagesManagementLedgerRootPath = "/ledgers";
+
+    /* packages management service configurations (end) */
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

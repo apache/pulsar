@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.keystoretls;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
@@ -142,7 +141,9 @@ public class KeyStoreSSLContext {
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(kmfAlgorithm);
             KeyStore keyStore = KeyStore.getInstance(keyStoreTypeString);
             char[] passwordChars = keyStorePassword.toCharArray();
-            keyStore.load(new FileInputStream(keyStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(keyStorePath)) {
+                keyStore.load(inputStream, passwordChars);
+            }
             keyManagerFactory.init(keyStore, passwordChars);
             keyManagers = keyManagerFactory.getKeyManagers();
         }
@@ -155,7 +156,9 @@ public class KeyStoreSSLContext {
             trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
-            trustStore.load(new FileInputStream(trustStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
+                trustStore.load(inputStream, passwordChars);
+            }
             trustManagerFactory.init(trustStore);
         }
 

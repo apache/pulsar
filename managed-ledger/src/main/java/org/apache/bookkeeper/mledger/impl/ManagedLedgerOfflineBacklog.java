@@ -22,7 +22,6 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;

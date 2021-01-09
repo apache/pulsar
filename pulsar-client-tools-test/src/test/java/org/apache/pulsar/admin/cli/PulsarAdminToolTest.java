@@ -27,17 +27,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
@@ -65,9 +62,11 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -77,8 +76,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -219,6 +216,18 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("get-peer-clusters my-cluster"));
         verify(mockClusters).getPeerClusterNames("my-cluster");
+
+        // test create cluster without --url
+        clusters = new CmdClusters(admin);
+
+        clusters.run(split("create my-secure-cluster --url-secure https://my-service.url:4443"));
+        verify(mockClusters).createCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+
+        clusters.run(split("update my-secure-cluster --url-secure https://my-service.url:4443"));
+        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+
+        clusters.run(split("delete my-secure-cluster"));
+        verify(mockClusters).deleteCluster("my-secure-cluster");
     }
 
     @Test
@@ -354,6 +363,13 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-persistence myprop/clust/ns1"));
         verify(mockNamespaces).getPersistence("myprop/clust/ns1");
+
+        namespaces.run(split("get-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxSubscriptionsPerTopic("myprop/clust/ns1");
+        namespaces.run(split("set-max-subscriptions-per-topic myprop/clust/ns1 -m 300"));
+        verify(mockNamespaces).setMaxSubscriptionsPerTopic("myprop/clust/ns1", 300);
+        namespaces.run(split("remove-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxSubscriptionsPerTopic("myprop/clust/ns1");
 
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
@@ -540,11 +556,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("clear-offload-deletion-lag myprop/clust/ns1"));
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
-        namespaces.run(split("set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s"));
+        namespaces.run(split(
+                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 10000L));
+                        10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
@@ -759,9 +776,10 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10"));
+        cmdTopics.run(split(
+                "set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
         OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
-                , "endpoint", null, null, 8, 9, 10L, null);
+                , "endpoint", null, null, 8, 9, 10L, null, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
@@ -778,6 +796,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
 
+        cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-max-message-size persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxMessageSize("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-message-size persistent://myprop/clust/ns1/ds1 -m 99"));
+        verify(mockTopics).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 99);
+
         cmdTopics.run(split("get-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
@@ -792,6 +817,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
         verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
+        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -m 100"));
+        verify(mockTopics).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 100);
+        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp

@@ -19,14 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
-import lombok.extern.slf4j.Slf4j;
-import lombok.Getter;
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Request;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -35,6 +27,19 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
  * FunctionMetaDataManager maintains a global state of all function metadata.
@@ -98,7 +103,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public synchronized void initialize() {
         try (Reader reader = FunctionMetaDataTopicTailer.createReader(
-          workerConfig, pulsarClient.newReader(), MessageId.earliest)){
+                workerConfig, pulsarClient.newReader(), MessageId.earliest)) {
             // read all existing messages
             while (reader.hasMessageAvailable()) {
                 processMetaDataTopicMessage(reader.readNext());

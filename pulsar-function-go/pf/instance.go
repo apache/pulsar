@@ -221,11 +221,24 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 		gi.context.instanceConf.funcDetails.Namespace,
 		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
+	batchBuilderType := pulsar.DefaultBatchBuilder
+
+	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
+		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
+		if batchBuilder != "" {
+			if batchBuilder == "KEY_BASED" {
+				batchBuilderType = pulsar.KeyBasedBatchBuilder
+			}
+		}
+	}
+
 	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
 		Topic:                   topicName,
 		Properties:              properties,
 		CompressionType:         pulsar.LZ4,
 		BatchingMaxPublishDelay: time.Millisecond * 10,
+		BatcherBuilderType:      batchBuilderType,
+		SendTimeout:             0,
 		// Set send timeout to be infinity to prevent potential deadlock with consumer
 		// that might happen when consumer is blocked due to unacked messages
 	})
@@ -255,16 +268,22 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	channel := make(chan pulsar.ConsumerMessage)
 
 	var (
-		consumer pulsar.Consumer
-		err      error
+		consumer  pulsar.Consumer
+		topicName *TopicName
+		err       error
 	)
 
 	for topic, consumerConf := range funcDetails.Source.InputSpecs {
-		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topic, subscriptionName)
+		topicName, err = ParseTopicName(topic)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topicName.Name, subscriptionName)
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topic,
+					TopicsPattern:     topicName.Name,
 					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
@@ -273,7 +292,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topic,
+					Topic:             topicName.Name,
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
 					Type:              subscriptionType,
@@ -284,7 +303,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topic,
+					TopicsPattern:    topicName.Name,
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -292,7 +311,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topic,
+					Topic:            topicName.Name,
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -307,7 +326,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 			gi.stats.incrTotalSysExceptions(err)
 			return nil, err
 		}
-		gi.consumers[topic] = consumer
+		gi.consumers[topicName.Name] = consumer
 	}
 	return channel, nil
 }
@@ -358,6 +377,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
+	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
 	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
 

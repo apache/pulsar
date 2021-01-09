@@ -54,7 +54,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -328,8 +328,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
         }
     }
@@ -533,8 +532,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
             message = consumer.receive(1, TimeUnit.SECONDS);
@@ -572,6 +570,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void txnMetadataHandlerRecoverTest() throws Exception {
         String topic = NAMESPACE1 + "/tc-metadata-handler-recover";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
@@ -594,6 +593,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         pulsarClient.close();
+        @Cleanup
         PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -605,6 +605,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             tcClient.commit(entry.getKey(), entry.getValue());
         }
 
+        @Cleanup
         Consumer<byte[]> consumer = recoverPulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
@@ -614,6 +615,42 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < txnCnt * messageCnt; i++) {
             Message<byte[]> message = consumer.receive();
             Assert.assertNotNull(message);
+        }
+    }
+
+    @Test
+    public void produceTxnMessageOrderTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-produce-order";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .producerName("txn-publish-order")
+                .create();
+
+        for (int ti = 0; ti < 10; ti++) {
+            Transaction txn = pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(2, TimeUnit.SECONDS)
+                    .build().get();
+
+            for (int i = 0; i < 1000; i++) {
+                producer.newMessage(txn).value(("" + i).getBytes()).sendAsync();
+            }
+            txn.commit().get();
+
+            for (int i = 0; i < 1000; i++) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                Assert.assertEquals(Integer.valueOf(new String(message.getData())), new Integer(i));
+            }
         }
     }
 

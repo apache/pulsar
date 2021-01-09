@@ -19,12 +19,10 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * A store for storing all the transaction metadata.

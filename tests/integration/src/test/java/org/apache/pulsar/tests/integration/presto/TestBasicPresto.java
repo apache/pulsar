@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.presto;
 
+import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
@@ -28,10 +30,10 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import java.sql.Connection;
@@ -78,7 +80,6 @@ public class TestBasicPresto extends PulsarTestSuite {
     }
     
     public void testSimpleSQLQuery(boolean isBatched) throws Exception {
-
         // wait until presto worker started
         ContainerExecResult result;
         do {
@@ -124,23 +125,35 @@ public class TestBasicPresto extends PulsarTestSuite {
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains("public/default");
 
-        result = execQuery("show tables in pulsar.\"public/default\";");
-        assertThat(result.getExitCode()).isEqualTo(0);
-        assertThat(result.getStdout()).contains("stocks");
+        pulsarCluster.getBroker(0)
+            .execCmd(
+                "/bin/bash",
+                "-c", "bin/pulsar-admin namespaces unload public/default");
 
-        ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
-        assertThat(containerExecResult.getExitCode()).isEqualTo(0);
-        log.info("select sql query output \n{}", containerExecResult.getStdout());
-        String[] split = containerExecResult.getStdout().split("\n");
-        assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+            () -> {
+                ContainerExecResult r = execQuery("show tables in pulsar.\"public/default\";");
+                assertThat(r.getExitCode()).isEqualTo(0);
+                assertThat(r.getStdout()).contains("stocks");
+            }
+        );
 
-        String[] split2 = containerExecResult.getStdout().split("\n|,");
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+            () -> {
+                ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
+                assertThat(containerExecResult.getExitCode()).isEqualTo(0);
+                log.info("select sql query output \n{}", containerExecResult.getStdout());
+                String[] split = containerExecResult.getStdout().split("\n");
+                assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
+                String[] split2 = containerExecResult.getStdout().split("\n|,");
+                for (int i = 0; i < NUM_OF_STOCKS; ++i) {
+                    assertThat(split2).contains("\"" + i + "\"");
+                    assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
+                    assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
+                }
+            }
+        );
 
-        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
-            assertThat(split2).contains("\"" + i + "\"");
-            assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
-            assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
-        }
 
         // test predicate pushdown
 
@@ -216,6 +229,13 @@ public class TestBasicPresto extends PulsarTestSuite {
 
         containerExecResult = pulsarCluster.getPrestoWorkerContainer()
                 .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+
+        Stopwatch sw = Stopwatch.createStarted();
+        while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
+            TimeUnit.MILLISECONDS.sleep(500);
+            containerExecResult = pulsarCluster.getPrestoWorkerContainer()
+                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+        }
 
         return containerExecResult;
 

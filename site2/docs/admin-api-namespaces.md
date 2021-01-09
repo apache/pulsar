@@ -14,7 +14,7 @@ Namespaces can be managed via:
 
 ## Namespaces resources
 
-### Create
+### Create namespaces
 
 You can create new namespaces under a given [tenant](reference-terminology.md#tenant).
 
@@ -29,7 +29,7 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 <!--REST API-->
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace?version=[[pulsar:version_number]]}
 
 <!--Java-->
 
@@ -74,7 +74,7 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies?version=[[pulsar:version_number]]}
 
 <!--Java-->
 
@@ -83,7 +83,7 @@ admin.namespaces().getPolicies(namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### List namespaces within a tenant
+### List namespaces
 
 You can list all namespaces within a given Pulsar [tenant](reference-terminology.md#tenant).
 
@@ -100,7 +100,7 @@ test-tenant/ns2
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces?version=[[pulsar:version_number]]}
 
 <!--Java-->
 
@@ -109,7 +109,7 @@ admin.namespaces().getNamespaces(tenant);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Delete
+### Delete namespaces
 
 You can delete existing namespaces from a tenant.
 
@@ -124,7 +124,7 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace?version=[[pulsar:version_number]]}
 
 <!--Java-->
 
@@ -132,6 +132,8 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 admin.namespaces().deleteNamespace(namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure replication clusters
 
 #### Set replication cluster
 
@@ -148,7 +150,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -176,7 +178,7 @@ cl2
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/replication|operation/getNamespaceReplicationClusters}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replication|operation/getNamespaceReplicationClusters?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -185,6 +187,8 @@ cl2
 admin.namespaces().getNamespaceReplicationClusters(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure backlog quota policies
 
 #### Set backlog quota policies
 
@@ -212,7 +216,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/setBacklogQuota}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/setBacklogQuota?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -245,7 +249,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap|operation/getBacklogQuotaMap}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -273,7 +277,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|DELETE|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/removeBacklogQuota}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -282,6 +286,8 @@ N/A
 admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure persistence policies
 
 #### Set persistence policies
 
@@ -309,7 +315,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/setPersistence}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -342,7 +348,7 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/getPersistence}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -352,7 +358,9 @@ admin.namespaces().getPersistence(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Unload namespace bundle
+### Configure namespace bundles
+
+#### Unload namespace bundles
 
 The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload a bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
 
@@ -370,7 +378,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/unload|operation/unloadNamespaceBundle}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/unload|operation/unloadNamespaceBundle?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -379,6 +387,37 @@ N/A
 admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Split namespace bundles
+
+Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
+If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+```
+$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
+```
+
+```
+N/A
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/split|operation/splitNamespaceBundle?version=[[pulsar:version_number]]}
+```
+
+<!--Java-->
+
+```java
+admin.namespaces().splitNamespaceBundle(namespace, bundle)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure message TTL
 
 #### Set message-ttl
 
@@ -398,7 +437,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/setNamespaceMessageTTL}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -426,7 +465,7 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/getNamespaceMessageTTL}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -436,36 +475,38 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Split bundle
+#### Remove message-ttl
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
-If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
+Remove a message TTL of the configured namespace.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
 ```
-$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
+$ pulsar-admin namespaces remove-message-ttl test-tenant/ns1
 ```
 
 ```
-N/A
+100
 ```
 
 <!--REST API-->
 
 ```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split|operation/splitNamespaceBundle}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
 
 ```java
-admin.namespaces().splitNamespaceBundle(namespace, bundle)
+admin.namespaces().removeNamespaceMessageTTL(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Clear backlog
+
+### Clear backlog
+
+#### Clear namespace backlog
 
 It clears all message backlog for all the topics that belong to a specific namespace. You can also clear backlog for a specific subscription as well.
 
@@ -483,7 +524,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/clearBacklog|operation/clearNamespaceBacklogForSubscription}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/clearBacklog|operation/clearNamespaceBacklogForSubscription?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -511,7 +552,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog|operation?version=[[pulsar:version_number]]/clearNamespaceBundleBacklogForSubscription}
 ```
 
 <!--Java-->
@@ -520,6 +561,8 @@ N/A
 admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, subscription)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure retention
 
 #### Set retention
 
@@ -539,7 +582,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/setRetention}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -570,7 +613,7 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/getRetention}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -580,7 +623,9 @@ admin.namespaces().getRetention(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Set dispatch throttling
+### Configure dispatch throttling for topics
+
+#### Set dispatch throttling for topics
 
 It sets message dispatch rate for all the topics under a given namespace. 
 The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
@@ -607,7 +652,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/setDispatchRate}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/setDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -617,7 +662,7 @@ admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for topics
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -639,7 +684,7 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/getDispatchRate}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/getDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -648,6 +693,8 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 admin.namespaces().getDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure dispatch throttling for subscription
 
 #### Set dispatch throttling for subscription
 
@@ -669,7 +716,7 @@ $ pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/subscriptionDispatchRate|operation/setDispatchRate}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/setDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -679,7 +726,7 @@ admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000,
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for subscription
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -701,7 +748,7 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/subscriptionDispatchRate|operation/getDispatchRate}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/getDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -710,6 +757,8 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 admin.namespaces().getSubscriptionDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure dispatch throttling for replicator
 
 #### Set dispatch throttling for replicator
 
@@ -731,7 +780,7 @@ $ pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/replicatorDispatchRate|operation/setDispatchRate}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/setDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -741,7 +790,7 @@ admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-#### Get configured message-rate
+#### Get configured message-rate for replicator
 
 It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
@@ -763,7 +812,7 @@ $ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/replicatorDispatchRate|operation/getDispatchRate}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/getDispatchRate?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -772,6 +821,8 @@ $ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
 admin.namespaces().getReplicatorDispatchRate(namespace)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Configure deduplication snapshot interval
 
 #### Get deduplication snapshot interval
 
@@ -787,7 +838,7 @@ $ pulsar-admin namespaces get-deduplication-snapshot-interval test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -812,7 +863,7 @@ $ pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/ns1 --
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
 ```
 
 ```json
@@ -842,7 +893,7 @@ $ pulsar-admin namespaces remove-deduplication-snapshot-interval test-tenant/ns1
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/deduplicationSnapshotInterval}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->
@@ -856,7 +907,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 Coming soon.
 
-### Unloading from a broker
+### Unload namespaces from a broker
 
 You can unload a namespace, or a [namespace bundle](reference-terminology.md#namespace-bundle), from the Pulsar [broker](reference-terminology.md#broker) that is currently responsible for it.
 
@@ -874,7 +925,7 @@ $ pulsar-admin namespaces unload my-tenant/my-ns
 <!--REST-->
 
 ```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/unload|operation/unloadNamespace}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/unload|operation/unloadNamespace?version=[[pulsar:version_number]]}
 ```
 
 <!--Java-->

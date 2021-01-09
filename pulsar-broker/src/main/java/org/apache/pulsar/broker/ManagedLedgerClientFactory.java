@@ -18,30 +18,28 @@
  */
 package org.apache.pulsar.broker;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 
 public class ManagedLedgerClientFactory implements Closeable {
 
@@ -49,20 +47,23 @@ public class ManagedLedgerClientFactory implements Closeable {
 
     private final ManagedLedgerFactory managedLedgerFactory;
     private final BookKeeper defaultBkClient;
-    private final Map<EnsemblePlacementPolicyConfig, BookKeeper> bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
+    private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
+            bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory(ServiceConfiguration conf, ZooKeeper zkClient,
-            BookKeeperClientFactory bookkeeperProvider) throws Exception {
+                                      BookKeeperClientFactory bookkeeperProvider) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
         managedLedgerFactoryConfig.setNumManagedLedgerWorkerThreads(conf.getManagedLedgerNumWorkerThreads());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(conf.getManagedLedgerNumSchedulerThreads());
         managedLedgerFactoryConfig.setCacheEvictionFrequency(conf.getManagedLedgerCacheEvictionFrequency());
-        managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
+                conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
-        managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+        managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
+                conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
         managedLedgerFactoryConfig.setCursorPositionFlushSeconds(conf.getManagedLedgerCursorPositionFlushSeconds());
 
@@ -100,7 +101,8 @@ public class ManagedLedgerClientFactory implements Closeable {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
+        this.managedLedgerFactory =
+                new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

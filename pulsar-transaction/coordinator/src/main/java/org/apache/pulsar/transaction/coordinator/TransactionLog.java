@@ -19,9 +19,8 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry;
+import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 
 /**
  * A log interface for transaction to read and write transaction operation.

@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-
 import java.util.Set;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
@@ -33,40 +31,42 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
-     * Add a message to the tracker
+     * Add a message to the tracker.
      *
-     * @param ledgerId
-     *            the ledgerId
-     * @param entryId
-     *            the entryId
-     * @param deliveryAt
-     *            the absolute timestamp at which the message should be tracked
+     * @param ledgerId   the ledgerId
+     * @param entryId    the entryId
+     * @param deliveryAt the absolute timestamp at which the message should be tracked
      * @return true if the message was added to the tracker or false if it should be delivered immediately
      */
     boolean addMessage(long ledgerId, long entryId, long deliveryAt);
 
     /**
-     * Return true if there's at least a message that is scheduled to be delivered already
+     * Return true if there's at least a message that is scheduled to be delivered already.
      */
     boolean hasMessageAvailable();
 
     /**
-     * @return the number of delayed messages being tracked
+     * @return the number of delayed messages being tracked.
      */
     long getNumberOfDelayedMessages();
 
     /**
-     * Get a set of position of messages that have already reached the delivery time
+     * Get a set of position of messages that have already reached the delivery time.
      */
     Set<PositionImpl> getScheduledMessages(int maxMessages);
 
 
     /**
-     *  Reset tick time use zk policies cache
+     *  Reset tick time use zk policies cache.
      * @param tickTime
      *          The tick time for when retrying on delayed delivery messages
      */
     void resetTickTime(long tickTime);
+
+    /**
+     * Clear all delayed messages from the tracker.
+     */
+    void clear();
 
     /**
      * Close the subscription tracker and release all resources.

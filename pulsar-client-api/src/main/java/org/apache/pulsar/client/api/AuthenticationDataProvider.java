@@ -19,16 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.InputStream;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
 import java.util.Set;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -61,10 +58,25 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
+     * @return a client certificate file path
+     */
+    default String getTlsCerificateFilePath() {
+        return null;
+    }
+
+    /**
      *
      * @return a private key for the client certificate, or null if the data are not available
      */
     default PrivateKey getTlsPrivateKey() {
+        return null;
+    }
+
+    /**
+     *
+     * @return a private key file path
+     */
+    default String getTlsPrivateKeyFilePath() {
         return null;
     }
 

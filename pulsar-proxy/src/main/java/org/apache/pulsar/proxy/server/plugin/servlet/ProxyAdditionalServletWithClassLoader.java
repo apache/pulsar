@@ -22,7 +22,6 @@ import java.io.IOException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;

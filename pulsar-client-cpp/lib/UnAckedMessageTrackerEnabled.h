@@ -18,6 +18,7 @@
  */
 #ifndef LIB_UNACKEDMESSAGETRACKERENABLED_H_
 #define LIB_UNACKEDMESSAGETRACKERENABLED_H_
+#include "gtest/gtest_prod.h"
 #include "lib/UnAckedMessageTrackerInterface.h"
 
 #include <mutex>
@@ -36,7 +37,7 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
 
     void clear();
 
-   private:
+   protected:
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();
@@ -48,6 +49,9 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     ClientImplPtr client_;
     long timeoutMs_;
     long tickDurationInMs_;
+
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
 };
 }  // namespace pulsar
 

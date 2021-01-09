@@ -48,8 +48,8 @@ message ManagedLedgerInfo {
     	optional int64 timestamp = 4;
         optional OffloadContext offloadContext = 5;
     }
-    
-    repeated LedgerInfo ledgerInfo = 1;
+
+  repeated LedgerInfo ledgerInfo = 1;
 
     // If present, it signals the managed ledger has been
     // terminated and this was the position of the last

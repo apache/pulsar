@@ -19,11 +19,9 @@
 package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -62,6 +60,7 @@ public class SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
+    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
 
     public String getSchemaDefinition() {
