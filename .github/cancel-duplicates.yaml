@@ -20,7 +20,6 @@ on:
       - 'CI - Integration - Transaction'
       - 'CI - Misc'
       - 'CI - Pulsar Website build'
-      - 'Pulsar Bot'
       - 'CI - Shade - Test'
       - 'CI - Unit - Brokers - Broker Group 1'
       - 'CI - Unit - Brokers - Broker Group 2'
