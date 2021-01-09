@@ -1198,50 +1198,57 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testAsyncUpdateProperties() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(3);
+
         ManagedLedger ledger = factory.open("my_test_ledger");
         Map<String, String> prop = new HashMap<>();
         prop.put("key1", "value1");
         prop.put("key2", "value2");
         prop.put("key3", "value3");
+
+        final CountDownLatch latch1 = new CountDownLatch(1);
         ledger.asyncSetProperties(prop, new AsyncCallbacks.UpdatePropertiesCallback() {
             @Override
             public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
                 assertEquals(prop, properties);
-                latch.countDown();
+                latch1.countDown();
             }
 
             @Override
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
             }
         }, null);
+        assertTrue(latch1.await(5, TimeUnit.SECONDS));
 
+        final CountDownLatch latch2 = new CountDownLatch(1);
         ledger.asyncSetProperty("key4", "value4", new AsyncCallbacks.UpdatePropertiesCallback() {
             @Override
             public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
                 assertNotNull(properties.get("key4"));
                 assertEquals("value4", properties.get("key4"));
-                latch.countDown();
+                latch2.countDown();
             }
 
             @Override
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
             }
         }, null);
+        assertTrue(latch2.await(5, TimeUnit.SECONDS));
 
         prop.remove("key1");
+
+        final CountDownLatch latch3 = new CountDownLatch(1);
         ledger.asyncDeleteProperty("key1", new AsyncCallbacks.UpdatePropertiesCallback() {
             @Override
             public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
                 assertNull(properties.get("key1"));
-                latch.countDown();
+                latch3.countDown();
             }
 
             @Override
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
             }
         }, null);
-        assertTrue(latch.await(60, TimeUnit.SECONDS));
+        assertTrue(latch3.await(5, TimeUnit.SECONDS));
     }
 
     @Test
