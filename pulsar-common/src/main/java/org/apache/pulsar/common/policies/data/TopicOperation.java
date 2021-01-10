@@ -47,4 +47,6 @@ public enum TopicOperation {
     SUBSCRIBE,
     GET_SUBSCRIPTIONS,
     UNSUBSCRIBE,
+
+    PACKAGES,
 }
