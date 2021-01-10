@@ -33,12 +33,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBufAllocator;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
@@ -63,8 +61,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -1825,6 +1821,34 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertTrue(ml.getLedgersInfoAsList().size() <= 1);
         assertTrue(ml.getTotalSize() <= "shortmessage".getBytes().length);
+        ml.close();
+    }
+
+    @Test
+    public void testDeletionAfterLedgerClosedAndRetention() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("deletion_after_retention_test_ledger", config);
+        ManagedCursor c1 = ml.openCursor("testCursor1");
+        ManagedCursor c2 = ml.openCursor("testCursor2");
+        ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes());
+        c1.skipEntries(1, IndividualDeletedEntries.Exclude);
+        c2.skipEntries(1, IndividualDeletedEntries.Exclude);
+        // let current ledger close
+        ml.rollCurrentLedgerIfFull();
+        // let retention expire
+        Thread.sleep(1500);
+        // delete the expired ledger
+        ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
+
+        // the closed and expired ledger should be deleted
+        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
+        assertEquals(ml.getTotalSize(), 0);
         ml.close();
     }
 
