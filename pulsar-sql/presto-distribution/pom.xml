@@ -31,7 +31,7 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-presto-distribution</artifactId>
     <name>Pulsar SQL :: Pulsar Presto Distribution</name>
-    <version>2.6.2</version>
+    <version>2.6.3</version>
 
     <properties>
         <presto.version>332</presto.version>
