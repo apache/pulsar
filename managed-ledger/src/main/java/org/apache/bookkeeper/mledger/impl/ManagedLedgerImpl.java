@@ -1273,6 +1273,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             ledgers.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
+            final long previousEntries = currentLedgerEntries;
+            final long previousLedgerId = currentLedger.getId();
             currentLedger = lh;
             currentLedgerEntries = 0;
             currentLedgerSize = 0;
@@ -1289,6 +1291,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     synchronized (ManagedLedgerImpl.this) {
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis() - lastLedgerCreationInitiationTimestamp,
                                 TimeUnit.MILLISECONDS);
+                    }
+                    // Move cursor read point to new ledger
+                    for (ManagedCursor cursor : cursors) {
+                        PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
+                        if (markDeletedPosition.getLedgerId() == previousLedgerId && markDeletedPosition.getEntryId() + 1 >= previousEntries) {
+                            // All entries in last ledger are marked delete, move read point to the new ledger
+                            updateCursor((ManagedCursorImpl) cursor, PositionImpl.get(currentLedger.getId(), -1));
+                        }
                     }
                 }
 
