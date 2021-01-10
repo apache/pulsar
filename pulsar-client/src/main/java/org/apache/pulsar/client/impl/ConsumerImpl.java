@@ -703,7 +703,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
-               if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
+                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
                    processPossibleToDLQ((MessageIdImpl)messageId);
                     if (deadLetterProducer == null) {
                         try {
@@ -1386,6 +1387,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
         List<MessageImpl<T>> possibleToDeadLetter = null;
+        // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
         if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount() && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
             possibleToDeadLetter = new ArrayList<>();
         }
