@@ -2230,20 +2230,28 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
-### `get-deduplication`
-Get a deduplication policy for a topic.
+### `enable-deduplication`
+Enable a deduplication policy for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics get-deduplication tenant/namespace/topic
+$ pulsar-admin topics enable-deduplication tenant/namespace/topic
 ```
 
-### `set-deduplication`
-Enable or disable message deduplication on a topic.
+### `disable-deduplication`
+Disable a deduplication policy for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-deduplication tenant/namespace/topic
+$ pulsar-admin topics disable-deduplication tenant/namespace/topic
+```
+
+### `get-deduplication-enabled`
+Get a deduplication policy for a topic enabled.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication-enabled tenant/namespace/topic
 ```
 
 Options
@@ -2251,14 +2259,6 @@ Options
 |----|---|---|
 |`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
 |`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
-
-### `remove-deduplication`
-Remove a deduplication policy from a topic.
-
-Usage
-```bash
-$ pulsar-admin topics remove-deduplication tenant/namespace/topic
-```
 
 ### `get-backlog-quotas`
 Get the backlog quota policies for a topic.
@@ -2341,10 +2341,10 @@ Remove the message TTL for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
-
-Options  
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic 
 ```
+
+Options 
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
@@ -2375,7 +2375,7 @@ $ pulsar-admin topics remove-retention tenant/namespace/topic
 ```
 
 ### `get-dispatch-rate`
-Get message-dispatch-rate for a topic.
+Get the message dispatch rate for a topic.
 
 Usage
 ```bash
@@ -2383,7 +2383,7 @@ $ pulsar-admin topics set-dispatch-rate tenant/namespace/topic
 ```
 
 ### `set-dispatch-rate`
-Set message-dispatch-rate for a topic.
+Set the message dispatch rate for a topic.
 
 Usage
 ```bash
@@ -2391,7 +2391,7 @@ $ pulsar-admin topics set-dispatch-rate tenant/namespace/topic
 ```
 
 ### `remove-dispatch-rate`
-Remove message-dispatch-rate for a topic.
+Remove the message dispatch rate for a topic.
 
 Usage
 ```bash
@@ -2423,7 +2423,7 @@ $ pulsar-admin topics remove-delayed-delivery tenant/namespace/topic
 ```
 
 ### `get-max-producers`
-Get max-Producers for a topic.
+Get the maximum number of Producers for a topic.
 
 Usage
 ```bash
@@ -2431,15 +2431,15 @@ $ pulsar-admin topics get-max-producers tenant/namespace/topic
 ```
 
 ### `set-max-producers`
-Set max-Producers for a topic.
+Set the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-producers tenant/namespace/topic
+$ pulsar-admin topics set-max-producers tenant/namespace/topic options
 ```
 
 ### `remove-max-producers`
-Remove max-Producers for a topic.
+Remove the maximum number of Producers for a topic.
 
 Usage
 ```bash
@@ -2447,7 +2447,7 @@ $ pulsar-admin topics remove-max-producers tenant/namespace/topic
 ```
 
 ### `get-max-consumers`
-Get max-Consumers for a topic.
+Get the maximum number of Consumers for a topic.
 
 Usage
 ```bash
@@ -2455,63 +2455,63 @@ $ pulsar-admin topics get-max-consumers tenant/namespace/topic
 ```
 
 ### `set-max-consumers`
-Set max-Consumers for a topic.
+Set the maximum number of Consumers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-consumers tenant/namespace/topic
+$ pulsar-admin topics set-max-consumers tenant/namespace/topic options
 ```
 
 ### `remove-max-consumers`
-Remove max-Consumers for a topic.
+Remove the maximum number of Consumers for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics remove-max-consumers tenant/namespace/topic
 ```
 
-### `get-max-unacked-messages-per-subscription`
-Get maxUnackedMessagesPerSubscription for a topic.
+### `get-max-unacked-messages-on-subscription`
+Get the maximum number of unacked messages per subscription for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics get-max-unacked-messages-per-subscription tenant/namespace/topic
 ```
 
-### `set-max-unacked-messages-per-subscription`
-Set maxUnackedMessagesPerSubscription for a topic.
+### `set-max-unacked-messages-on-subscription`
+Set the maximum number of unacked messages per subscription for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-unacked-messages-per-subscription tenant/namespace/topic
+$ pulsar-admin topics set-max-unacked-messages-per-subscription tenant/namespace/topic options
 ```
 
-### `remove-max-unacked-messages-per-subscription`
-Remove maxUnackedMessagesPerSubscription for a topic.
+### `remove-max-unacked-messages-on-subscription`
+Remove the maximum number of unacked messages per subscription for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics remove-max-unacked-messages-per-subscription tenant/namespace/topic
 ```
 
-### `get-max-unacked-messages-per-consumer`
-Get maxUnackedMessagesPerConsumer for a topic.
+### `get-max-unacked-messages-on-consumer`
+Get the maximum number of unacked messages on consumer for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics get-max-unacked-messages-per-consumer tenant/namespace/topic
 ```
 
-### `set-max-unacked-messages-per-consumer`
-Set maxUnackedMessagesPerConsumer for a topic.
+### `set-max-unacked-messages-on-consumer`
+Set the maximum number of unacked messages on consumer for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-unacked-messages-per-consumer tenant/namespace/topic
+$ pulsar-admin topics set-max-unacked-messages-per-consumer tenant/namespace/topic options
 ```
 
-### `remove-max-unacked-messages-per-consumer`
-Remove maxUnackedMessagesPerConsumer for a topic.
+### `remove-max-unacked-messages-on-consumer`
+Remove the maximum number of unacked messages on consumer for a topic.
 
 Usage
 ```bash
@@ -2519,7 +2519,7 @@ $ pulsar-admin topics remove-max-unacked-messages-per-consumer tenant/namespace/
 ```
 
 ### `get-compaction-threshold`
-Get compactionThreshold for a topic.
+Get compaction threshold for a topic.
 
 Usage
 ```bash
@@ -2527,15 +2527,15 @@ $ pulsar-admin topics get-compaction-threshold tenant/namespace/topic
 ```
 
 ### `set-compaction-threshold`
-Set compactionThreshold for a topic.
+Set compaction threshold for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-compaction-threshold tenant/namespace/topic
+$ pulsar-admin topics set-compaction-threshold tenant/namespace/topic options 
 ```
 
 ### `remove-compaction-threshold`
-Remove compactionThreshold for a topic.
+Remove compaction threshold for a topic.
 
 Usage
 ```bash
@@ -2543,7 +2543,7 @@ $ pulsar-admin topics remove-compaction-threshold tenant/namespace/topic
 ```
 
 ### `get-offload-policies`
-Get the offload policy for a topic.
+Get the offload policies for a topic.
 
 Usage
 ```bash
@@ -2551,7 +2551,7 @@ $ pulsar-admin topics get-offload-policies tenant/namespace/topic
 ```
 
 ### `set-offload-policies`
-Set the offload policy for a topic.
+Set the offload policies for a topic.
 
 Usage
 ```bash
@@ -2559,7 +2559,7 @@ $ pulsar-admin topics set-offload-policies tenant/namespace/topic
 ```
 
 ### `remove-offload-policies`
-Remove the offload policy for a topic.
+Remove the offload policies for a topic.
 
 Usage
 ```bash
@@ -2567,7 +2567,7 @@ $ pulsar-admin topics remove-offload-policies tenant/namespace/topic
 ```
 
 ### `get-inactive-topic-policies`
-Get the inactive policy for a topic.
+Get the inactive policies for a topic.
 
 Usage
 ```bash
@@ -2575,7 +2575,7 @@ $ pulsar-admin topics get-inactive-topic-policies tenant/namespace/topic
 ```
 
 ### `set-inactive-topic-policies`
-Set the inactive policy for a topic.
+Set the inactive policies for a topic.
 
 Usage
 ```bash
@@ -2583,7 +2583,7 @@ $ pulsar-admin topics set-inactive-topic-policies tenant/namespace/topic
 ```
 
 ### `remove-inactive-topic-policies`
-Remove the inactive policy for a topic.
+Remove the inactive policies for a topic.
 
 Usage
 ```bash
