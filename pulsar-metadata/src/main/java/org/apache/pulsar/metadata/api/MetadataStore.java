@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.metadata.api;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.cache.MetadataCache;
 
 /**
  * Metadata store client interface.
@@ -56,7 +59,7 @@ public interface MetadataStore extends AutoCloseable {
      * If the path itself does not exist, it will return an empty list.
      *
      * @param path
-     *            webSocketProxyEnabled
+     *            the path of the key to get from the store
      * @return a future to track the async request
      */
     CompletableFuture<List<String>> getChildren(String path);
@@ -109,4 +112,32 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * @param listener
+     *            a consumer of notifications
+     */
+    void registerListener(Consumer<Notification> listener);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param clazz
+     *            the class type to be used for serialization/deserialization
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(Class<T> clazz);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param typeRef
+     *            the type ref description to be used for serialization/deserialization
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef);
 }

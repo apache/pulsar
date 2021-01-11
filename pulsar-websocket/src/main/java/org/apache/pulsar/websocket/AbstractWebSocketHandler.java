@@ -22,6 +22,19 @@ import com.google.common.base.Splitter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.api.PulsarClientException.AuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientException.AuthorizationException;
+import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
+import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
+import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
+import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
+import org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException;
+import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
+import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
@@ -31,7 +44,6 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.Closeable;
@@ -70,7 +82,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), authRole, topic);
 
-            } catch (AuthenticationException e) {
+            } catch (javax.naming.AuthenticationException e) {
                 log.warn("[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
                         request.getRemotePort(), authRole, topic, e.getMessage());
                 try {
@@ -105,6 +117,38 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             }
         }
         return true;
+    }
+
+    protected static int getErrorCode(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return HttpServletResponse.SC_BAD_REQUEST;
+        } else if (e instanceof AuthenticationException) {
+            return HttpServletResponse.SC_UNAUTHORIZED;
+        } else if (e instanceof AuthorizationException) {
+            return HttpServletResponse.SC_FORBIDDEN;
+        } else if (e instanceof NotFoundException || e instanceof TopicDoesNotExistException) {
+            return HttpServletResponse.SC_NOT_FOUND;
+        } else if (e instanceof ProducerBusyException || e instanceof ConsumerBusyException
+                || e instanceof ProducerFencedException || e instanceof IncompatibleSchemaException) {
+            return HttpServletResponse.SC_CONFLICT;
+        } else if (e instanceof TooManyRequestsException) {
+            return 429; // Too Many Requests
+        } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException
+                || e instanceof TopicTerminatedException) {
+            return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+        } else if (e instanceof TimeoutException) {
+            return HttpServletResponse.SC_GATEWAY_TIMEOUT;
+        } else {
+            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    protected static String getErrorMessage(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return "Invalid query params: " + e.getMessage();
+        } else {
+            return "Failed to create producer/consumer: " + e.getMessage();
+        }
     }
 
     @Override

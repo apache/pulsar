@@ -247,7 +247,7 @@ ConsumerImplPtr PartitionedConsumerImpl::newInternalConsumer(unsigned int partit
 
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
     auto consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                   internalListenerExecutor_, Partitioned);
+                                                   internalListenerExecutor_, true, Partitioned);
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
     consumer->getConsumerCreatedFuture().addListener(std::bind(

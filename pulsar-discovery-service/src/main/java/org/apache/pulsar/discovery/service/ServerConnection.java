@@ -19,8 +19,9 @@
 package org.apache.pulsar.discovery.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType.Redirect;
+import static org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType.Redirect;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
@@ -31,10 +32,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
@@ -83,7 +84,7 @@ public class ServerConnection extends PulsarHandler {
                     // Legacy client is passing enum
                     authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
                 }
-                String authData = connect.getAuthData().toStringUtf8();
+                String authData = new String(connect.getAuthData(), StandardCharsets.UTF_8);
                 ChannelHandler sslHandler = ctx.channel().pipeline().get(TLS_HANDLER);
                 SSLSession sslSession = null;
                 if (sslHandler != null) {

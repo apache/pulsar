@@ -27,7 +27,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -311,9 +311,10 @@ public class MessageDuplicationTest {
     }
 
     public ByteBuf getMessage(String producerName, long seqId) {
-        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
-                .setProducerName(producerName).setSequenceId(seqId)
-                .setPublishTime(System.currentTimeMillis()).build();
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setProducerName(producerName)
+                .setSequenceId(seqId)
+                .setPublishTime(System.currentTimeMillis());
 
         ByteBuf byteBuf = serializeMetadataAndPayload(
                 Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));

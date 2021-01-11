@@ -53,6 +53,8 @@ spoutConf.setMessageToValuesMapper(messageToValuesMapper);
 PulsarSpout spout = new PulsarSpout(spoutConf);
 ```
 
+For a complete example, click [here](https://github.com/apache/pulsar-adapters/blob/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/PulsarSpoutTest.java).
+
 ## Pulsar Bolt
 
 The Pulsar bolt allows data in a Storm topology to be published on a topic. It publishes messages based on the Storm tuple received and the `TupleToMessageMapper` provided by the client.
@@ -85,7 +87,3 @@ boltConf.setTupleToMessageMapper(tupleToMessageMapper);
 // Create a Pulsar Bolt
 PulsarBolt bolt = new PulsarBolt(boltConf);
 ```
-
-## Example
-
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).

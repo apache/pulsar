@@ -19,7 +19,7 @@
 
 -->
 <configuration scan="true">
-<!-- 
+<!--
 	<logger name="org.apache" level="IN" />
 	<logger name="org.apache.bookkeeper.mledger" level="ERROR" />
  -->

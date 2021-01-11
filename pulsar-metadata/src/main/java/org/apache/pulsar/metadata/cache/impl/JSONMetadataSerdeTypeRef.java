@@ -16,38 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.api.raw;
+package org.apache.pulsar.metadata.cache.impl;
 
-import io.netty.util.AbstractReferenceCounted;
-import io.netty.util.ReferenceCounted;
-import java.util.function.Consumer;
+import com.fasterxml.jackson.core.type.TypeReference;
 
-/**
- * Class representing a reference-counted object that requires explicit deallocation.
- *
- * @param <T> type of the object that requires explicit deallocation.
- */
-public class ReferenceCountedObject<T> extends AbstractReferenceCounted {
+import java.io.IOException;
 
-    private final T object;
-    private final Consumer<T> destructor;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-    public ReferenceCountedObject(T object, Consumer<T> destructor) {
-        this.object = object;
-        this.destructor = destructor;
-    }
+public class JSONMetadataSerdeTypeRef<T> implements MetadataSerde<T> {
 
-    public T get() {
-        return object;
+    private final TypeReference<T> typeRef;
+
+    public JSONMetadataSerdeTypeRef(TypeReference<T> typeRef) {
+        this.typeRef = typeRef;
     }
 
     @Override
-    public ReferenceCounted touch(Object hint) {
-        return this;
+    public byte[] serialize(T value) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
     }
 
     @Override
-    protected void deallocate() {
-        destructor.accept(object);
+    public T deserialize(byte[] content) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().readValue(content, typeRef);
     }
 }

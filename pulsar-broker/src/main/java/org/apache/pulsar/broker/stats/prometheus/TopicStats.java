@@ -186,6 +186,14 @@ class TopicStats {
                     subsStats.msgOutCounter);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_expire_timestamp",
                     subsStats.lastExpireTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_acked_timestamp",
+                subsStats.lastAckedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_flow_timestamp",
+                subsStats.lastConsumedFlowTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_timestamp",
+                subsStats.lastConsumedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_mark_delete_advanced_timestamp",
+                subsStats.lastMarkDeleteAdvancedTimestamp);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_expired",
                     subsStats.msgRateExpired);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_total_msg_expired",

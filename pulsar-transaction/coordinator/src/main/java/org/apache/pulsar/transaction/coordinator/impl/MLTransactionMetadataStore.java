@@ -29,7 +29,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
+import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -40,9 +40,9 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TransactionMetadataEntry.TransactionMetadataOp;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
+import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry.TransactionMetadataOp;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,15 +178,13 @@ public class MLTransactionMetadataStore
         long leastSigBits = sequenceId.incrementAndGet();
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         long currentTimeMillis = System.currentTimeMillis();
-        TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                .newBuilder()
+        TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                 .setTxnidMostBits(mostSigBits)
                 .setTxnidLeastBits(leastSigBits)
                 .setStartTime(currentTimeMillis)
                 .setTimeoutMs(timeOut)
                 .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
-                .setLastModificationTime(currentTimeMillis)
-                .build();
+                .setLastModificationTime(currentTimeMillis);
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(position -> {
                     TxnMeta txn = TxnMetaImpl.create(txnID);
@@ -194,7 +192,6 @@ public class MLTransactionMetadataStore
                     positions.add(position);
                     Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
                     txnMetaMap.put(txnID, pair);
-                    transactionMetadataEntry.recycle();
                     return CompletableFuture.completedFuture(txnID);
                 });
     }
@@ -207,14 +204,12 @@ public class MLTransactionMetadataStore
                             State.Ready, getState(), "add produced partition"));
         }
         return getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
+            TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
-                    .setLastModificationTime(System.currentTimeMillis())
-                    .build();
+                    .setLastModificationTime(System.currentTimeMillis());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -228,8 +223,6 @@ public class MLTransactionMetadataStore
                                     + " add produced partition error with TxnStatus : "
                                     + txnMetaListPair.getLeft().status().name(), e);
                             return FutureUtil.failedFuture(e);
-                        } finally {
-                            transactionMetadataEntry.recycle();
                         }
                     });
         });
@@ -244,14 +237,12 @@ public class MLTransactionMetadataStore
                             State.Ready, getState(), "add acked partition"));
         }
         return getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
+            TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
-                    .setLastModificationTime(System.currentTimeMillis())
-                    .build();
+                    .setLastModificationTime(System.currentTimeMillis());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -265,8 +256,6 @@ public class MLTransactionMetadataStore
                                     + " add acked subscription error with TxnStatus : "
                                     + txnMetaListPair.getLeft().status().name(), e);
                             return FutureUtil.failedFuture(e);
-                        } finally {
-                            transactionMetadataEntry.recycle();
                         }
                     });
         });
@@ -281,15 +270,13 @@ public class MLTransactionMetadataStore
         }
         return getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
 
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
+            TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setExpectedStatus(expectedStatus)
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setNewStatus(newStatus)
-                    .build();
+                    .setNewStatus(newStatus);
 
             return transactionLog.append(transactionMetadataEntry).thenCompose(position -> {
                 try {
@@ -309,8 +296,6 @@ public class MLTransactionMetadataStore
                             + " add update txn status error with TxnStatus : "
                             + txnMetaListPair.getLeft().status().name(), e);
                     return FutureUtil.failedFuture(e);
-                } finally {
-                    transactionMetadataEntry.recycle();
                 }
             });
         });
@@ -347,12 +332,10 @@ public class MLTransactionMetadataStore
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
         List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
         for (TransactionSubscription transactionSubscription : tnxSubscriptions) {
-            Subscription.Builder subscriptionBuilder = Subscription.newBuilder();
-            Subscription subscription = subscriptionBuilder
+            Subscription subscription = new Subscription()
                     .setSubscription(transactionSubscription.getSubscription())
-                    .setTopic(transactionSubscription.getTopic()).build();
+                    .setTopic(transactionSubscription.getTopic());
             subscriptions.add(subscription);
-            subscriptionBuilder.recycle();
         }
         return subscriptions;
     }
@@ -367,7 +350,6 @@ public class MLTransactionMetadataStore
             transactionSubscriptionBuilder.topic(subscription.getTopic());
             transactionSubscriptions
                     .add(transactionSubscriptionBuilder.build());
-            subscription.recycle();
         }
         return transactionSubscriptions;
     }

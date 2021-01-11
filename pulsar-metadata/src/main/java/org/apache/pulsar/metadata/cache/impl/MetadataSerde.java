@@ -16,7 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Classes to encode and decode in the Protocol Buffer format.
- */
-package org.apache.pulsar.common.util.protobuf;
+package org.apache.pulsar.metadata.cache.impl;
+
+import java.io.IOException;
+
+public interface MetadataSerde<T> {
+
+    byte[] serialize(T value) throws IOException;
+
+    T deserialize(byte[] content) throws IOException;
+}

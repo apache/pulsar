@@ -43,7 +43,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -947,7 +947,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxProducersPerTopic(@PathParam("tenant") String tenant,
+    public Integer getMaxProducersPerTopic(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxProducersPerTopic();
@@ -964,6 +964,18 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Number of maximum producers per topic", required = true) int maxProducersPerTopic) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxProducersPerTopic(maxProducersPerTopic);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxProducersPerTopic")
+    @ApiOperation(value = "Remove maxProducersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeMaxProducersPerTopic(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxProducersPerTopic(null);
     }
 
     @GET
@@ -1488,5 +1500,39 @@ public class Namespaces extends NamespacesBase {
         return internalGetOffloadPolicies();
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/maxTopicsPerNamespace")
+    @ApiOperation(value = "Get maxTopicsPerNamespace config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace does not exist") })
+    public Integer getMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetMaxTopicsPerNamespace();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/maxTopicsPerNamespace")
+    @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace,
+                                         @ApiParam(value = "Number of maximum topics for specific namespace",
+                                                 required = true) int maxTopicsPerNamespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxTopicsPerNamespace(maxTopicsPerNamespace);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxTopicsPerNamespace")
+    @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveMaxTopicsPerNamespace();
+    }
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }
