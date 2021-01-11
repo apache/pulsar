@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageName;
@@ -168,6 +167,7 @@ public class PackagesBase extends AdminResource {
         CompletableFuture<Void> future = new CompletableFuture<>();
         if (config().isAuthenticationEnabled()) {
             String role = clientAppId();
+            AuthenticationDataSource authenticationData = clientAuthData();
             NamespaceName namespaceName;
             try {
                 namespaceName = NamespaceName.get(tenant, namespace);
@@ -175,8 +175,7 @@ public class PackagesBase extends AdminResource {
                 future.completeExceptionally(e);
                 return future;
             }
-            getAuthorizationService().allowNamespaceOperationAsync(namespaceName, NamespaceOperation.PACKAGES,
-                    originalPrincipal(), role, clientAuthData())
+            getAuthorizationService().canDoPackageOpsAsync(namespaceName, role, authenticationData)
                 .whenComplete((hasPermission, throwable) -> {
                     if (throwable != null) {
                         future.completeExceptionally(throwable);

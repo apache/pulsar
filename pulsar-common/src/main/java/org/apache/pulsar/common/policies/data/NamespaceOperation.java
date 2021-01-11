@@ -38,6 +38,4 @@ public enum NamespaceOperation {
 
     CLEAR_BACKLOG,
     UNSUBSCRIBE,
-
-    PACKAGES,
 }
