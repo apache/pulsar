@@ -2422,28 +2422,28 @@ Usage
 $ pulsar-admin topics remove-delayed-delivery tenant/namespace/topic
 ```
 
-### `get-max-producers`
+### `get-maxProducers`
 Get the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics get-max-producers tenant/namespace/topic
+$ pulsar-admin topics get-maxProducers tenant/namespace/topic
 ```
 
-### `set-max-producers`
+### `set-maxProducers`
 Set the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-producers tenant/namespace/topic options
+$ pulsar-admin topics set-maxProducers tenant/namespace/topic options
 ```
 
-### `remove-max-producers`
+### `remove-maxProducers`
 Remove the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-max-producers tenant/namespace/topic
+$ pulsar-admin topics remove-maxProducers tenant/namespace/topic
 ```
 
 ### `get-max-consumers`
