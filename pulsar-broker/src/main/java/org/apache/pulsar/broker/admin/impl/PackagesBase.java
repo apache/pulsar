@@ -166,6 +166,7 @@ public class PackagesBase extends AdminResource {
     private CompletableFuture<Void> checkPermissions(String tenant, String namespace) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         if (config().isAuthenticationEnabled()) {
+            String role = clientAppId();
             NamespaceName namespaceName;
             try {
                 namespaceName = NamespaceName.get(tenant, namespace);
@@ -173,9 +174,8 @@ public class PackagesBase extends AdminResource {
                 future.completeExceptionally(e);
                 return future;
             }
-            getAuthorizationService()
-                .allowNamespaceOperationAsync(namespaceName, NamespaceOperation.PACKAGES,
-                    originalPrincipal(), clientAppId(), clientAuthData())
+            getAuthorizationService().allowNamespaceOperationAsync(namespaceName, NamespaceOperation.PACKAGES,
+                    originalPrincipal(), role, clientAuthData())
                 .whenComplete((hasPermission, throwable) -> {
                     if (throwable != null) {
                         future.completeExceptionally(throwable);
@@ -184,8 +184,8 @@ public class PackagesBase extends AdminResource {
                     if (hasPermission) {
                         future.complete(null);
                     } else {
-                        future.completeExceptionally(new RestException(Response.Status.FORBIDDEN, String.format(
-                            "Role %s has not the 'package' permission to do the packages operations.", clientAppId())));
+                        future.completeExceptionally(new RestException(Response.Status.UNAUTHORIZED, String.format(
+                            "Role %s has not the 'package' permission to do the packages operations.", role)));
                     }
                 });
         } else {

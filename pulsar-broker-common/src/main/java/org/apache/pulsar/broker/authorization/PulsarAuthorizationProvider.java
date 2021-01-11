@@ -538,22 +538,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        configCache.policiesCache().getAsync(POLICY_ROOT + namespaceName.toString())
-            .thenAccept(policies -> {
-                if (!policies.isPresent()) {
-                    future.complete(false);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
-                    }
-                } else {
-                    Set<AuthAction> namespacesActions = policies.get().auth_policies.namespace_auth.get(role);
-                    future.complete(namespacesActions.stream().anyMatch(authAction ->
-                        authAction.toString().equals(operation.toString().toLowerCase())));
-                }
-            });
-        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData)
-            .thenCombine(future, (isTenantAdmin, hasPermission) -> isTenantAdmin || hasPermission);
+        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
     }
 
     @Override

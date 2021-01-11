@@ -197,12 +197,14 @@ public class PackagesOpsWithAuthTest {
             clientAdmin.packages().listPackages("function", "public/default");
             fail("list package operation should fail because the client hasn't permission to do");
         } catch (PulsarAdminException e) {
-            assertEquals(e.getStatusCode(), 403);
+            assertEquals(e.getStatusCode(), 401);
         }
 
         // grant package permission to the role
-        superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-            REGULAR_USER_ROLE, Set.of(AuthAction.packages));
+        TenantInfo tenantInfo = new TenantInfo();
+        tenantInfo.setAdminRoles(new HashSet<>(Arrays.asList(SUPER_USER_ROLE, PROXY_ROLE, REGULAR_USER_ROLE)));
+        tenantInfo.setAllowedClusters(new HashSet<>(superUserAdmin.clusters().getClusters()));
+        superUserAdmin.tenants().updateTenant("public", tenantInfo);
 
         // then do some package operations again, it should success
         List<String> packagesName = clientAdmin.packages().listPackages("function", "public/default");
