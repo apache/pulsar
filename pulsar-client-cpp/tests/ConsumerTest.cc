@@ -349,8 +349,7 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
 
 TEST(ConsumerTest, testBatchUnAckedMessageTracker) {
     Client client(lookupUrl);
-    const std::string topic =
-        "testBatchUnAckedMessageTracker" + std::to_string(time(nullptr));
+    const std::string topic = "testBatchUnAckedMessageTracker" + std::to_string(time(nullptr));
     std::string subName = "sub-batch-un-acked-msg-tracker";
     constexpr int numOfMessages = 50;
     constexpr int batchSize = 5;
@@ -394,7 +393,7 @@ TEST(ConsumerTest, testBatchUnAckedMessageTracker) {
 
     ASSERT_EQ(batchCount, msgIdInBatchMap.size());
     ASSERT_EQ(batchCount, tracker->size());
-    for (const auto& iter: msgIdInBatchMap) {
+    for (const auto& iter : msgIdInBatchMap) {
         ASSERT_EQ(iter.second.size(), batchSize);
     }
 
