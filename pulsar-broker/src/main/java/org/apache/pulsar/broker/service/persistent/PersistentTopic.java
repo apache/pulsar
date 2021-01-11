@@ -497,11 +497,13 @@ public class PersistentTopic extends AbstractTopic
         });
     }
 
+    @Override
     protected CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch) {
         long newEpoch = currentEpoch.orElse(-1L) + 1;
         return setTopicEpoch(newEpoch);
     }
 
+    @Override
     protected CompletableFuture<Long> setTopicEpoch(long newEpoch) {
         CompletableFuture<Long> future = new CompletableFuture<>();
         ledger.asyncSetProperty(TOPIC_EPOCH_PROPERTY_NAME, String.valueOf(newEpoch), new UpdatePropertiesCallback() {
@@ -2059,7 +2061,7 @@ public class PersistentTopic extends AbstractTopic
             }
         });
         replicators.forEach((name, replicator) ->
-            replicator.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data))
+                replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate)
         );
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
@@ -2662,10 +2664,12 @@ public class PersistentTopic extends AbstractTopic
         }
 
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
-        if (this.subscribeRateLimiter.isPresent() && policies != null) {
+        if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                 subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
         }
+        replicators.forEach((name, replicator) -> replicator.getRateLimiter()
+                .ifPresent(DispatchRateLimiter::updateDispatchRate));
     }
 
     private Optional<Policies> getNamespacePolicies() {
