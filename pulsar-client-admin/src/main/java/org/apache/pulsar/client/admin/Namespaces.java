@@ -2522,7 +2522,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxProducersPerTopic(String namespace) throws PulsarAdminException;
+    Integer getMaxProducersPerTopic(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxProducersPerTopic for a namespace asynchronously.
@@ -2576,6 +2576,26 @@ public interface Namespaces {
      *            maxProducersPerTopic value for a namespace
      */
     CompletableFuture<Void> setMaxProducersPerTopicAsync(String namespace, int maxProducersPerTopic);
+
+    /**
+     * Remove maxProducersPerTopic for a namespace.
+     * @param namespace Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeMaxProducersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxProducersPerTopic for a namespace asynchronously.
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeMaxProducersPerTopicAsync(String namespace);
 
     /**
      * Get the maxProducersPerTopic for a namespace.

@@ -471,6 +471,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-max-producers-per-topic myprop/clust/ns1 -p 1"));
         verify(mockNamespaces).setMaxProducersPerTopic("myprop/clust/ns1", 1);
 
+        namespaces.run(split("remove-max-producers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxProducersPerTopic("myprop/clust/ns1");
+
         namespaces.run(split("get-max-consumers-per-topic myprop/clust/ns1"));
         verify(mockNamespaces).getMaxConsumersPerTopic("myprop/clust/ns1");
 

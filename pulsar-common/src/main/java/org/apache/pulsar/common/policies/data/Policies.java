@@ -77,7 +77,7 @@ public class Policies {
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_producers_per_topic = 0;
+    public Integer max_producers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_topic = 0;
     @SuppressWarnings("checkstyle:MemberName")
@@ -164,7 +164,7 @@ public class Policies {
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(inactive_topic_policies, other.inactive_topic_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && max_producers_per_topic == other.max_producers_per_topic
+                    && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
                     && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
