@@ -31,8 +31,8 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 
 /**
@@ -123,13 +123,12 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         return completableFuture;
     }
 
-    private List<PulsarMarkers.MessageIdData> getMessageIdDataList(List<MessageIdData> sendMessageIdList) {
-        List<PulsarMarkers.MessageIdData> messageIdDataList = new ArrayList<>(sendMessageIdList.size());
+    private List<MarkersMessageIdData> getMessageIdDataList(List<MessageIdData> sendMessageIdList) {
+        List<MarkersMessageIdData> messageIdDataList = new ArrayList<>(sendMessageIdList.size());
         for (MessageIdData msgIdData : sendMessageIdList) {
-            messageIdDataList.add(
-                    PulsarMarkers.MessageIdData.newBuilder()
+            messageIdDataList.add(new MarkersMessageIdData()
                             .setLedgerId(msgIdData.getLedgerId())
-                            .setEntryId(msgIdData.getEntryId()).build());
+                            .setEntryId(msgIdData.getEntryId()));
         }
         return messageIdDataList;
     }

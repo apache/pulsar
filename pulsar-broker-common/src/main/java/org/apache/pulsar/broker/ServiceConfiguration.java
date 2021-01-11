@@ -21,9 +21,7 @@ package org.apache.pulsar.broker;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.util.internal.PlatformDependent;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,14 +33,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
@@ -1459,17 +1458,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Of course, this may degrade consumption throughput. Default is 10ms.")
     private int managedLedgerNewEntriesCheckDelayInMillis = 10;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
+    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
+            .getValue();
+
     /*** --- Load balancer --- ****/
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        doc = "Enable load balancer"
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Enable load balancer"
     )
     private boolean loadBalancerEnabled = true;
     @Deprecated
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        deprecated = true,
-        doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
+            category = CATEGORY_LOAD_BALANCER,
+            deprecated = true,
+            doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
     )
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
 

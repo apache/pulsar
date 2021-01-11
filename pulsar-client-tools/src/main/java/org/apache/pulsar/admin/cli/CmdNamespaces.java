@@ -23,15 +23,15 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -42,11 +42,12 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1253,6 +1254,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove max producers per topic for a namespace")
+    private class RemoveMaxProducersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxProducersPerTopic(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set maxProducersPerTopic for a namespace")
     private class SetMaxProducersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1650,7 +1663,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(
                 names = {"--driver", "-d"},
                 description = "Driver to use to offload old data to long term storage, " +
-                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                        "(Possible values: S3, aws-s3, google-cloud-storage, filesystem, azureblob)",
                 required = true)
         private String driver;
 
@@ -1710,17 +1723,24 @@ public class CmdNamespaces extends CmdBase {
                 required = false)
         private String offloadAfterThresholdStr;
 
-        private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
+        @Parameter(
+                names = {"--offloadedReadPriority", "-orp"},
+                description = "read priority for offloaded messages",
+                required = false
+        )
+        private String offloadReadPriorityStr;
+
+        public final ImmutableList<String> DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
 
         public boolean driverSupported(String driver) {
-            return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
+            return DRIVER_NAMES.stream().anyMatch(d -> d.equalsIgnoreCase(driver));
         }
 
         public boolean isS3Driver(String driver) {
             if (StringUtils.isEmpty(driver)) {
                 return false;
             }
-            return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
+            return driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1));
         }
 
         public boolean positiveCheck(String paramName, long value) {
@@ -1744,7 +1764,7 @@ public class CmdNamespaces extends CmdBase {
             if (!driverSupported(driver)) {
                 throw new ParameterException(
                         "The driver " + driver + " is not supported, " +
-                                "(Possible values: S3, aws-s3, google-cloud-storage).");
+                                "(Possible values: " + String.join(",", DRIVER_NAMES) + ").");
             }
 
             if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
@@ -1788,10 +1808,24 @@ public class CmdNamespaces extends CmdBase {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
+            OffloadedReadPriority offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
+
+            if (this.offloadReadPriorityStr != null) {
+                try {
+                    offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
+                } catch (Exception e) {
+                    throw new ParameterException("--offloadedReadPriority parameter must be one of " +
+                            Arrays.stream(OffloadedReadPriority.values())
+                                    .map(OffloadedReadPriority::toString)
+                                    .collect(Collectors.joining(","))
+                            + " but got: " + this.offloadReadPriorityStr, e);
+                }
+            }
 
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadAfterElapsedInMillis);
+                    offloadAfterElapsedInMillis, offloadedReadPriority);
+
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }
@@ -1957,6 +1991,8 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
         jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducersPerTopic());
+        jcommander.addCommand("remove-max-producers-per-topic", new RemoveMaxProducersPerTopic());
+
         jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumersPerTopic());
         jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());

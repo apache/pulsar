@@ -1587,9 +1587,6 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate == null) {
-            dispatchRate = policies.clusterDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        }
         if (dispatchRate != null) {
             return dispatchRate;
         } else {
@@ -1914,12 +1911,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.persistence == null) {
-            return new PersistencePolicies(config().getManagedLedgerDefaultEnsembleSize(),
-                    config().getManagedLedgerDefaultWriteQuorum(), config().getManagedLedgerDefaultAckQuorum(), 0.0d);
-        } else {
-            return policies.persistence;
-        }
+        return policies.persistence;
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2386,12 +2378,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.retention_policies == null) {
-            return new RetentionPolicies(config().getDefaultRetentionTimeInMinutes(),
-                    config().getDefaultRetentionSizeInMB());
-        } else {
-            return policies.retention_policies;
-        }
+        return policies.retention_policies;
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
@@ -2560,7 +2547,7 @@ public abstract class NamespacesBase extends AdminResource {
                         + "specific limit. To disable retention both limits must be set to 0.");
     }
 
-    protected int internalGetMaxProducersPerTopic() {
+    protected Integer internalGetMaxProducersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_producers_per_topic;
     }
@@ -2578,7 +2565,7 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("deduplicationSnapshotIntervalSeconds", interval);
     }
 
-    protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
+    protected void internalSetMaxProducersPerTopic(Integer maxProducersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2587,7 +2574,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxProducersPerTopic < 0) {
+            if (maxProducersPerTopic != null && maxProducersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxProducersPerTopic must be 0 or more");
             }

@@ -35,12 +35,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
@@ -205,13 +204,8 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
                 ByteBuf buffer = (ByteBuf) msg;
                 buffer.readUnsignedInt(); // discard frame length
                 int cmdSize = (int) buffer.readUnsignedInt();
-                buffer.writerIndex(buffer.readerIndex() + cmdSize);
-                ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(buffer);
-                BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
-                BaseCommand cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
-
-                cmdInputStream.recycle();
-                cmdBuilder.recycle();
+                BaseCommand cmd = new BaseCommand();
+                cmd.parseFrom(buffer, cmdSize);
                 buffer.release();
 
                 promise.complete(cmd);

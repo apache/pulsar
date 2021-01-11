@@ -33,7 +33,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -583,6 +583,7 @@ public interface ManagedLedger {
     /**
      * Roll current ledger if it is full
      */
+    @Deprecated
     void rollCurrentLedgerIfFull();
 
     /**

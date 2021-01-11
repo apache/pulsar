@@ -37,6 +37,7 @@ struct ClientConfigurationImpl {
     std::unique_ptr<LoggerFactory> loggerFactory;
     bool validateHostName;
     unsigned int partitionsUpdateInterval;
+    std::string listenerName;
 
     ClientConfigurationImpl()
         : authenticationPtr(AuthFactory::Disabled()),

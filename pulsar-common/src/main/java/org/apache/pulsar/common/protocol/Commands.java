@@ -21,12 +21,12 @@ package org.apache.pulsar.common.protocol;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
-import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.FastThreadLocal;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -38,94 +38,67 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddSubscriptionToTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddSubscriptionToTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPing;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPong;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
-import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.api.proto.AuthMethod;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.BaseCommand.Type;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.CommandSeek;
+import org.apache.pulsar.common.api.proto.CommandSend;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
+import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.Schema;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 @UtilityClass
 @Slf4j
@@ -143,6 +116,43 @@ public class Commands {
     public static final short magicBrokerEntryMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
+    private static final FastThreadLocal<BaseCommand> LOCAL_BASE_COMMAND = new FastThreadLocal<BaseCommand>() {
+        @Override
+        protected BaseCommand initialValue() throws Exception {
+            return new BaseCommand();
+        }
+    };
+
+    private static BaseCommand localCmd(BaseCommand.Type type) {
+        return LOCAL_BASE_COMMAND.get()
+                .clear()
+                .setType(type);
+    }
+
+    private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
+            new FastThreadLocal<SingleMessageMetadata>() {
+                @Override
+                protected SingleMessageMetadata initialValue() throws Exception {
+                    return new SingleMessageMetadata();
+                }
+            };
+
+    private static final FastThreadLocal<MessageMetadata> LOCAL_MESSAGE_METADATA = //
+            new FastThreadLocal<MessageMetadata>() {
+                @Override
+                protected MessageMetadata initialValue() throws Exception {
+                    return new MessageMetadata();
+                }
+            };
+
+    private static final FastThreadLocal<BrokerEntryMetadata> BROKER_ENTRY_METADATA = //
+            new FastThreadLocal<BrokerEntryMetadata>() {
+                @Override
+                protected BrokerEntryMetadata initialValue() throws Exception {
+                    return new BrokerEntryMetadata();
+                }
+            };
+
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */,
                 null /* originalPrincipal */, null /* Client Auth Data */, null /* Client Auth Method */);
@@ -159,91 +169,84 @@ public class Commands {
                 originalPrincipal, clientAuthData, clientAuthMethod);
     }
 
-    public static FeatureFlags getFeatureFlags() {
-        FeatureFlags.Builder flags = FeatureFlags.newBuilder();
+    private static void setFeatureFlags(FeatureFlags flags) {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
-        return flags.build();
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
             String targetBroker, String originalPrincipal, String originalAuthData,
             String originalAuthMethod) {
-        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
-        connectBuilder.setAuthMethodName(authMethodName);
+        BaseCommand cmd = localCmd(Type.CONNECT);
+        CommandConnect connect = cmd.setConnect()
+                .setClientVersion(libVersion != null ? libVersion : "Pulsar Client")
+                .setAuthMethodName(authMethodName);
 
         if ("ycav1".equals(authMethodName)) {
             // Handle the case of a client that gets updated before the broker and starts sending the string auth method
             // name. An example would be in broker-to-broker replication. We need to make sure the clients are still
             // passing both the enum and the string until all brokers are upgraded.
-            connectBuilder.setAuthMethod(AuthMethod.AuthMethodYcaV1);
+            connect.setAuthMethod(AuthMethod.AuthMethodYcaV1);
         }
 
         if (targetBroker != null) {
             // When connecting through a proxy, we need to specify which broker do we want to be proxied through
-            connectBuilder.setProxyToBrokerUrl(targetBroker);
+            connect.setProxyToBrokerUrl(targetBroker);
         }
 
         if (authData != null) {
-            connectBuilder.setAuthData(copyFromUtf8(authData));
+            connect.setAuthData(authData.getBytes(UTF_8));
         }
 
         if (originalPrincipal != null) {
-            connectBuilder.setOriginalPrincipal(originalPrincipal);
+            connect.setOriginalPrincipal(originalPrincipal);
         }
 
         if (originalAuthData != null) {
-            connectBuilder.setOriginalAuthData(originalAuthData);
+            connect.setOriginalAuthData(originalAuthData);
         }
 
         if (originalAuthMethod != null) {
-            connectBuilder.setOriginalAuthMethod(originalAuthMethod);
+            connect.setOriginalAuthMethod(originalAuthMethod);
         }
-        connectBuilder.setProtocolVersion(protocolVersion);
+        connect.setProtocolVersion(protocolVersion);
 
-        connectBuilder.setFeatureFlags(getFeatureFlags());
-        CommandConnect connect = connectBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
-        connect.recycle();
-        connectBuilder.recycle();
-        return res;
+        setFeatureFlags(connect.setFeatureFlags());
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
                                      String targetBroker, String originalPrincipal, AuthData originalAuthData,
                                      String originalAuthMethod) {
-        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
-        connectBuilder.setAuthMethodName(authMethodName);
+        BaseCommand cmd = localCmd(Type.CONNECT);
+        CommandConnect connect = cmd.setConnect()
+                .setClientVersion(libVersion != null ? libVersion : "Pulsar Client")
+                .setAuthMethodName(authMethodName);
 
         if (targetBroker != null) {
             // When connecting through a proxy, we need to specify which broker do we want to be proxied through
-            connectBuilder.setProxyToBrokerUrl(targetBroker);
+            connect.setProxyToBrokerUrl(targetBroker);
         }
 
         if (authData != null) {
-            connectBuilder.setAuthData(ByteString.copyFrom(authData.getBytes()));
+            connect.setAuthData(authData.getBytes());
         }
 
         if (originalPrincipal != null) {
-            connectBuilder.setOriginalPrincipal(originalPrincipal);
+            connect.setOriginalPrincipal(originalPrincipal);
         }
 
         if (originalAuthData != null) {
-            connectBuilder.setOriginalAuthData(new String(originalAuthData.getBytes(), UTF_8));
+            connect.setOriginalAuthData(new String(originalAuthData.getBytes(), UTF_8));
         }
 
         if (originalAuthMethod != null) {
-            connectBuilder.setOriginalAuthMethod(originalAuthMethod);
+            connect.setOriginalAuthMethod(originalAuthMethod);
         }
-        connectBuilder.setProtocolVersion(protocolVersion);
-        connectBuilder.setFeatureFlags(getFeatureFlags());
-        CommandConnect connect = connectBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
-        connect.recycle();
-        connectBuilder.recycle();
-        return res;
+        connect.setProtocolVersion(protocolVersion);
+        setFeatureFlags(connect.setFeatureFlags());
+
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newConnected(int clientProtocoVersion) {
@@ -251,10 +254,12 @@ public class Commands {
     }
 
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize) {
-        CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
-        connectedBuilder.setServerVersion("Pulsar Server");
+        BaseCommand cmd = localCmd(Type.CONNECTED);
+        CommandConnected connected = cmd.setConnected()
+                .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
+
         if (INVALID_MAX_MESSAGE_SIZE != maxMessageSize) {
-            connectedBuilder.setMaxMessageSize(maxMessageSize);
+            connected.setMaxMessageSize(maxMessageSize);
         }
 
         // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
@@ -262,104 +267,53 @@ public class Commands {
         int currentProtocolVersion = getCurrentProtocolVersion();
         int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
-        connectedBuilder.setProtocolVersion(versionToAdvertise);
-
-        CommandConnected connected = connectedBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.CONNECTED).setConnected(connected).build();
-        connectedBuilder.recycle();
-        builder.recycle();
-        return res;
+        connected.setProtocolVersion(versionToAdvertise);
+        return cmd;
     }
 
     public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize) {
-        CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
-        connectedBuilder.setServerVersion("Pulsar Server");
-        if (INVALID_MAX_MESSAGE_SIZE != maxMessageSize) {
-            connectedBuilder.setMaxMessageSize(maxMessageSize);
-        }
-
-        // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
-        // client supports, to avoid confusing the client.
-        int currentProtocolVersion = getCurrentProtocolVersion();
-        int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
-
-        connectedBuilder.setProtocolVersion(versionToAdvertise);
-
-        CommandConnected connected = connectedBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
-        connected.recycle();
-        connectedBuilder.recycle();
-        return res;
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
-        CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
+        BaseCommand cmd = localCmd(Type.AUTH_CHALLENGE);
+        CommandAuthChallenge challenge = cmd.setAuthChallenge();
 
         // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
         // client supports, to avoid confusing the client.
         int currentProtocolVersion = getCurrentProtocolVersion();
         int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
-        challengeBuilder.setProtocolVersion(versionToAdvertise);
-
-        byte[] authData = brokerData != null ? brokerData.getBytes() : new byte[0];
-
-        CommandAuthChallenge challenge = challengeBuilder
-            .setChallenge(PulsarApi.AuthData.newBuilder()
-                .setAuthData(copyFrom(authData))
-                .setAuthMethodName(authMethod)
-                .build())
-            .build();
-
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
-        challenge.recycle();
-        challengeBuilder.recycle();
-        return res;
+        challenge.setProtocolVersion(versionToAdvertise)
+                .setChallenge()
+                .setAuthData(brokerData != null ? brokerData.getBytes() : new byte[0])
+                .setAuthMethodName(authMethod);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAuthResponse(String authMethod,
                                            AuthData clientData,
                                            int clientProtocolVersion,
                                            String clientVersion) {
-        CommandAuthResponse.Builder responseBuilder  = CommandAuthResponse.newBuilder();
-
-        responseBuilder.setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client");
-        responseBuilder.setProtocolVersion(clientProtocolVersion);
-
-        CommandAuthResponse response = responseBuilder
-            .setResponse(PulsarApi.AuthData.newBuilder()
-                .setAuthData(copyFrom(clientData.getBytes()))
-                .setAuthMethodName(authMethod)
-                .build())
-            .build();
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthResponse(response));
-        response.recycle();
-        responseBuilder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.AUTH_RESPONSE);
+        cmd.setAuthResponse()
+                .setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client")
+                .setProtocolVersion(clientProtocolVersion)
+                .setResponse()
+                .setAuthData(clientData.getBytes())
+                .setAuthMethodName(authMethod);
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newSuccessCommand(long requestId) {
-        CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
-        successBuilder.setRequestId(requestId);
-        CommandSuccess success = successBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success).build();
-        successBuilder.recycle();
-        builder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.SUCCESS);
+        cmd.setSuccess()
+                .setRequestId(requestId);
+        return cmd;
     }
 
     public static ByteBuf newSuccess(long requestId) {
-        CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
-        successBuilder.setRequestId(requestId);
-        CommandSuccess success = successBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success));
-        successBuilder.recycle();
-        success.recycle();
-        return res;
+        return serializeWithSize(newSuccessCommand(requestId));
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName,
@@ -372,136 +326,69 @@ public class Commands {
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName, long lastSequenceId,
-                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-                                                 boolean isProducerReady) {
-        CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
-        producerSuccessBuilder.setRequestId(requestId);
-        producerSuccessBuilder.setProducerName(producerName);
-        producerSuccessBuilder.setLastSequenceId(lastSequenceId);
-        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
-        producerSuccessBuilder.setProducerReady(isProducerReady);
-        topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
-        CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess).build();
-        producerSuccessBuilder.recycle();
-        builder.recycle();
-        return res;
+            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady) {
+        BaseCommand cmd = localCmd(Type.PRODUCER_SUCCESS);
+        CommandProducerSuccess ps = cmd.setProducerSuccess()
+                .setRequestId(requestId)
+                .setProducerName(producerName)
+                .setLastSequenceId(lastSequenceId)
+                .setSchemaVersion(schemaVersion.bytes())
+                .setProducerReady(isProducerReady);
+        topicEpoch.ifPresent(ps::setTopicEpoch);
+        return cmd;
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
-        SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-        boolean isProducerReady) {
-        CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
-        producerSuccessBuilder.setRequestId(requestId);
-        producerSuccessBuilder.setProducerName(producerName);
-        producerSuccessBuilder.setLastSequenceId(lastSequenceId);
-        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
-        producerSuccessBuilder.setProducerReady(isProducerReady);
-        topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
-        CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
-        producerSuccess.recycle();
-        producerSuccessBuilder.recycle();
-        return res;
+            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady) {
+        return serializeWithSize(newProducerSuccessCommand(requestId, producerName, lastSequenceId, schemaVersion,
+                topicEpoch, isProducerReady));
     }
 
-    public static BaseCommand newErrorCommand(long requestId, ServerError error, String message) {
-        CommandError.Builder cmdErrorBuilder = CommandError.newBuilder();
-        cmdErrorBuilder.setRequestId(requestId);
-        cmdErrorBuilder.setError(error);
-        cmdErrorBuilder.setMessage(message);
-        CommandError cmdError = cmdErrorBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.ERROR).setError(cmdError).build();
-        cmdErrorBuilder.recycle();
-        builder.recycle();
-        return res;
+    public static BaseCommand newErrorCommand(long requestId, ServerError serverError, String message) {
+        BaseCommand cmd = localCmd(Type.ERROR);
+        cmd.setError()
+                .setRequestId(requestId)
+                .setError(serverError)
+                .setMessage(message);
+        return cmd;
     }
 
-    public static ByteBuf newError(long requestId, ServerError error, String message) {
-        CommandError.Builder cmdErrorBuilder = CommandError.newBuilder();
-        cmdErrorBuilder.setRequestId(requestId);
-        cmdErrorBuilder.setError(error);
-        cmdErrorBuilder.setMessage(message);
-        CommandError cmdError = cmdErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ERROR).setError(cmdError));
-        cmdError.recycle();
-        cmdErrorBuilder.recycle();
-        return res;
-
+    public static ByteBuf newError(long requestId, ServerError serverError, String message) {
+        return serializeWithSize(newErrorCommand(requestId, serverError, message));
     }
 
     public static BaseCommand newSendReceiptCommand(long producerId, long sequenceId, long highestId, long ledgerId,
             long entryId) {
-        CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
-        sendReceiptBuilder.setProducerId(producerId);
-        sendReceiptBuilder.setSequenceId(sequenceId);
-        sendReceiptBuilder.setHighestSequenceId(highestId);
-        MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-        messageIdBuilder.setLedgerId(ledgerId);
-        messageIdBuilder.setEntryId(entryId);
-        MessageIdData messageId = messageIdBuilder.build();
-        sendReceiptBuilder.setMessageId(messageId);
-        CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.SEND_RECEIPT).setSendReceipt(sendReceipt).build();
-        messageIdBuilder.recycle();
-        sendReceiptBuilder.recycle();
-        builder.recycle();
-        return command;
+        BaseCommand cmd = localCmd(Type.SEND_RECEIPT);
+        cmd.setSendReceipt()
+                .setProducerId(producerId)
+                .setSequenceId(sequenceId)
+                .setHighestSequenceId(highestId)
+                .setMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
+        return cmd;
     }
 
     public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
-             long entryId) {
-        CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
-        sendReceiptBuilder.setProducerId(producerId);
-        sendReceiptBuilder.setSequenceId(sequenceId);
-        sendReceiptBuilder.setHighestSequenceId(highestId);
-        MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-        messageIdBuilder.setLedgerId(ledgerId);
-        messageIdBuilder.setEntryId(entryId);
-        MessageIdData messageId = messageIdBuilder.build();
-        sendReceiptBuilder.setMessageId(messageId);
-        CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.SEND_RECEIPT).setSendReceipt(sendReceipt));
-        messageIdBuilder.recycle();
-        messageId.recycle();
-        sendReceiptBuilder.recycle();
-        sendReceipt.recycle();
-        return res;
+            long entryId) {
+        return serializeWithSize(newSendReceiptCommand(producerId, sequenceId, highestId, ledgerId, entryId));
     }
 
     public static BaseCommand newSendErrorCommand(long producerId, long sequenceId, ServerError error,
             String errorMsg) {
-        CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
-        sendErrorBuilder.setProducerId(producerId);
-        sendErrorBuilder.setSequenceId(sequenceId);
-        sendErrorBuilder.setError(error);
-        sendErrorBuilder.setMessage(errorMsg);
-        CommandSendError sendError = sendErrorBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.SEND_ERROR).setSendError(sendError).build();
-        sendErrorBuilder.recycle();
-        builder.recycle();
-        return command;
+        BaseCommand cmd = localCmd(Type.SEND_ERROR);
+        cmd.setSendError()
+                .setProducerId(producerId)
+                .setSequenceId(sequenceId)
+                .setError(error)
+                .setMessage(errorMsg);
+        return cmd;
     }
 
     public static ByteBuf newSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
-        CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
-        sendErrorBuilder.setProducerId(producerId);
-        sendErrorBuilder.setSequenceId(sequenceId);
-        sendErrorBuilder.setError(error);
-        sendErrorBuilder.setMessage(errorMsg);
-        CommandSendError sendError = sendErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEND_ERROR).setSendError(sendError));
-        sendErrorBuilder.recycle();
-        sendError.recycle();
-        return res;
+        return serializeWithSize(newSendErrorCommand(producerId, sequenceId, error, errorMsg));
     }
-
 
     public static boolean hasChecksum(ByteBuf buffer) {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
@@ -524,26 +411,18 @@ public class Commands {
     }
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
-        try {
-            // first, skip raw metadata if exist
-            skipBrokerEntryMetadataIfExist(buffer);
-            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
-            // to parse metadata
-            skipChecksumIfPresent(buffer);
-            int metadataSize = (int) buffer.readUnsignedInt();
+        MessageMetadata md = LOCAL_MESSAGE_METADATA.get();
+        parseMessageMetadata(buffer, md);
+        return md;
+    }
 
-            int writerIndex = buffer.writerIndex();
-            buffer.writerIndex(buffer.readerIndex() + metadataSize);
-            ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
-            MessageMetadata.Builder messageMetadataBuilder = MessageMetadata.newBuilder();
-            MessageMetadata res = messageMetadataBuilder.mergeFrom(stream, null).build();
-            buffer.writerIndex(writerIndex);
-            messageMetadataBuilder.recycle();
-            stream.recycle();
-            return res;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public static void parseMessageMetadata(ByteBuf buffer, MessageMetadata msgMetadata) {
+        // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
+        // to parse metadata
+        skipChecksumIfPresent(buffer);
+        int metadataSize = (int) buffer.readUnsignedInt();
+
+        msgMetadata.parseFrom(buffer, metadataSize);
     }
 
     public static void skipMessageMetadata(ByteBuf buffer) {
@@ -555,51 +434,36 @@ public class Commands {
         buffer.skipBytes(metadataSize);
     }
 
-    public static BaseCommand newMessageCommand(long consumerId, MessageIdData messageId, int redeliveryCount,
-            long[] ackSet) {
-        CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
-        msgBuilder.setConsumerId(consumerId);
-        msgBuilder.setMessageId(messageId);
+    public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, long[] ackSet) {
+        BaseCommand cmd = localCmd(Type.MESSAGE);
+        CommandMessage msg = cmd.setMessage()
+                .setConsumerId(consumerId);
+        msg.setMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId)
+                .setPartition(partition);
         if (redeliveryCount > 0) {
-            msgBuilder.setRedeliveryCount(redeliveryCount);
+            msg.setRedeliveryCount(redeliveryCount);
         }
         if (ackSet != null) {
-            msgBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
+            for (int i = 0; i < ackSet.length; i++) {
+                msg.addAckSet(ackSet[i]);
+            }
         }
-        CommandMessage msg = msgBuilder.build();
-        BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
-        BaseCommand cmd = cmdBuilder.setType(Type.MESSAGE).setMessage(msg).build();
-        msgBuilder.recycle();
-        cmdBuilder.recycle();
         return cmd;
     }
 
-    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
-        ByteBuf metadataAndPayload, long[] ackSet) {
-        CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
-        msgBuilder.setConsumerId(consumerId);
-        msgBuilder.setMessageId(messageId);
-        if (redeliveryCount > 0) {
-            msgBuilder.setRedeliveryCount(redeliveryCount);
-        }
-        if (ackSet != null) {
-            msgBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
-        }
-        CommandMessage msg = msgBuilder.build();
-        BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
-        BaseCommand cmd = cmdBuilder.setType(Type.MESSAGE).setMessage(msg).build();
-
-        ByteBufPair res = serializeCommandMessageWithSize(cmd, metadataAndPayload);
-        cmd.recycle();
-        cmdBuilder.recycle();
-        msg.recycle();
-        msgBuilder.recycle();
-        return res;
+    public static ByteBufPair newMessage(long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet) {
+        return serializeCommandMessageWithSize(
+                newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet),
+                metadataAndPayload);
     }
 
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
                                       MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, sequenceId, numMessaegs,
+        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessaegs,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
                 checksumType, messageMetadata, payload);
@@ -613,59 +477,30 @@ public class Commands {
                 checksumType, messageMetadata, payload);
     }
 
-    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
+    public static ByteBufPair newSend(long producerId, long sequenceId, long highestSequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
-        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
-        sendBuilder.setProducerId(producerId);
-        sendBuilder.setSequenceId(sequenceId);
+        BaseCommand cmd = localCmd(Type.SEND);
+        CommandSend send = cmd.setSend()
+                .setProducerId(producerId)
+                .setSequenceId(sequenceId);
+        if (highestSequenceId >= 0) {
+            send.setHighestSequenceId(highestSequenceId);
+        }
         if (numMessages > 1) {
-            sendBuilder.setNumMessages(numMessages);
+            send.setNumMessages(numMessages);
         }
         if (txnIdLeastBits >= 0) {
-            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+            send.setTxnidLeastBits(txnIdLeastBits);
         }
         if (txnIdMostBits >= 0) {
-            sendBuilder.setTxnidMostBits(txnIdMostBits);
+            send.setTxnidMostBits(txnIdMostBits);
         }
         if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
-            sendBuilder.setIsChunk(true);
+            send.setIsChunk(true);
         }
-        CommandSend send = sendBuilder.build();
 
-        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
-                checksumType, messageData, payload);
-        send.recycle();
-        sendBuilder.recycle();
-        return res;
-    }
-
-    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
-          long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
-          MessageMetadata messageData, ByteBuf payload) {
-        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
-        sendBuilder.setProducerId(producerId);
-        sendBuilder.setSequenceId(lowestSequenceId);
-        sendBuilder.setHighestSequenceId(highestSequenceId);
-        if (numMessages > 1) {
-            sendBuilder.setNumMessages(numMessages);
-        }
-        if (txnIdLeastBits >= 0) {
-            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
-        }
-        if (txnIdMostBits >= 0) {
-            sendBuilder.setTxnidMostBits(txnIdMostBits);
-        }
-        if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
-            sendBuilder.setIsChunk(true);
-        }
-        CommandSend send = sendBuilder.build();
-
-        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
-                checksumType, messageData, payload);
-        send.recycle();
-        sendBuilder.recycle();
-        return res;
+        return serializeCommandSendWithSize(cmd, checksumType, messageData, payload);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
@@ -681,9 +516,9 @@ public class Commands {
             Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
-                return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                        isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
-                        startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
+        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
+                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
@@ -691,60 +526,63 @@ public class Commands {
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy) {
-        CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
-        subscribeBuilder.setTopic(topic);
-        subscribeBuilder.setSubscription(subscription);
-        subscribeBuilder.setSubType(subType);
-        subscribeBuilder.setConsumerId(consumerId);
-        subscribeBuilder.setConsumerName(consumerName);
-        subscribeBuilder.setRequestId(requestId);
-        subscribeBuilder.setPriorityLevel(priorityLevel);
-        subscribeBuilder.setDurable(isDurable);
-        subscribeBuilder.setReadCompacted(readCompacted);
-        subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
-        subscribeBuilder.setReplicateSubscriptionState(isReplicated);
-        subscribeBuilder.setForceTopicCreation(createTopicIfDoesNotExist);
+        BaseCommand cmd = localCmd(Type.SUBSCRIBE);
+        CommandSubscribe subscribe = cmd.setSubscribe()
+                .setTopic(topic)
+                .setSubscription(subscription)
+                .setSubType(subType)
+                .setConsumerId(consumerId)
+                .setConsumerName(consumerName)
+                .setRequestId(requestId)
+                .setPriorityLevel(priorityLevel)
+                .setDurable(isDurable)
+                .setReadCompacted(readCompacted)
+                .setInitialPosition(subscriptionInitialPosition)
+                .setReplicateSubscriptionState(isReplicated)
+                .setForceTopicCreation(createTopicIfDoesNotExist);
 
         if (keySharedPolicy != null) {
-            KeySharedMeta.Builder keySharedMetaBuilder = PulsarApi.KeySharedMeta.newBuilder();
-            keySharedMetaBuilder.setAllowOutOfOrderDelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
-            keySharedMetaBuilder.setKeySharedMode(convertKeySharedMode(keySharedPolicy.getKeySharedMode()));
+            KeySharedMeta keySharedMeta = subscribe.setKeySharedMeta();
+            keySharedMeta.setAllowOutOfOrderDelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
+            keySharedMeta.setKeySharedMode(convertKeySharedMode(keySharedPolicy.getKeySharedMode()));
 
             if (keySharedPolicy instanceof KeySharedPolicy.KeySharedPolicySticky) {
                 List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
                         .getRanges();
                 for (Range range : ranges) {
-                    keySharedMetaBuilder.addHashRanges(PulsarApi.IntRange.newBuilder()
-                            .setStart(range.getStart())
-                            .setEnd(range.getEnd()));
+                    IntRange r = keySharedMeta.addHashRange();
+                    r.setStart(range.getStart());
+                    r.setEnd(range.getEnd());
                 }
             }
-
-            subscribeBuilder.setKeySharedMeta(keySharedMetaBuilder.build());
         }
 
         if (startMessageId != null) {
-            subscribeBuilder.setStartMessageId(startMessageId);
+            subscribe.setStartMessageId().copyFrom(startMessageId);
         }
         if (startMessageRollbackDurationInSec > 0) {
-            subscribeBuilder.setStartMessageRollbackDurationSec(startMessageRollbackDurationInSec);
+            subscribe.setStartMessageRollbackDurationSec(startMessageRollbackDurationInSec);
         }
-        subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
-        Schema schema = null;
+        if (!metadata.isEmpty()) {
+            metadata.entrySet().forEach(e -> subscribe.addMetadata()
+                    .setKey(e.getKey())
+                    .setValue(e.getValue()));
+        }
+
         if (schemaInfo != null) {
-            schema = getSchema(schemaInfo);
-            subscribeBuilder.setSchema(schema);
+            if (subscribe.hasSchema()) {
+                throw new IllegalStateException();
+            }
+
+            if (subscribe.setSchema().getPropertiesCount() > 0) {
+                throw new IllegalStateException();
+            }
+
+            convertSchema(schemaInfo, subscribe.setSchema());
         }
 
-        CommandSubscribe subscribe = subscribeBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
-        subscribeBuilder.recycle();
-        subscribe.recycle();
-        if (null != schema) {
-            schema.recycle();
-        }
-        return res;
+        return serializeWithSize(cmd);
     }
 
 
@@ -758,100 +596,66 @@ public class Commands {
     }
 
     public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
-        CommandUnsubscribe.Builder unsubscribeBuilder = CommandUnsubscribe.newBuilder();
-        unsubscribeBuilder.setConsumerId(consumerId);
-        unsubscribeBuilder.setRequestId(requestId);
-        CommandUnsubscribe unsubscribe = unsubscribeBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.UNSUBSCRIBE).setUnsubscribe(unsubscribe));
-        unsubscribeBuilder.recycle();
-        unsubscribe.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.UNSUBSCRIBE);
+        cmd.setUnsubscribe()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
-        CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
-            .setConsumerId(consumerId)
+        BaseCommand cmd = localCmd(Type.ACTIVE_CONSUMER_CHANGE);
+        cmd.setActiveConsumerChange()
+                .setConsumerId(consumerId)
                 .setIsActive(isActive);
-
-        CommandActiveConsumerChange change = changeBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
-        changeBuilder.recycle();
-        change.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newSeek(long consumerId, long requestId,
                                   long ledgerId, long entryId, long[] ackSet) {
-        CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
-        seekBuilder.setConsumerId(consumerId);
-        seekBuilder.setRequestId(requestId);
-
-        MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-        messageIdBuilder.setLedgerId(ledgerId);
-        messageIdBuilder.setEntryId(entryId);
-        messageIdBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
-
-        MessageIdData messageId = messageIdBuilder.build();
-        seekBuilder.setMessageId(messageId);
-
-        CommandSeek seek = seekBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEEK).setSeek(seek));
-        messageId.recycle();
-        messageIdBuilder.recycle();
-        seekBuilder.recycle();
-        seek.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.SEEK);
+        CommandSeek seek = cmd.setSeek()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId);
+        MessageIdData messageId = seek.setMessageId()
+            .setLedgerId(ledgerId)
+            .setEntryId(entryId);
+        for (int i = 0; i < ackSet.length; i++) {
+            messageId.addAckSet(ackSet[i]);
+        }
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newSeek(long consumerId, long requestId, long timestamp) {
-        CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
-        seekBuilder.setConsumerId(consumerId);
-        seekBuilder.setRequestId(requestId);
-
-        seekBuilder.setMessagePublishTime(timestamp);
-
-        CommandSeek seek = seekBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEEK).setSeek(seek));
-
-        seekBuilder.recycle();
-        seek.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.SEEK);
+        cmd.setSeek()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId)
+                .setMessagePublishTime(timestamp);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
-        CommandCloseConsumer.Builder closeConsumerBuilder = CommandCloseConsumer.newBuilder();
-        closeConsumerBuilder.setConsumerId(consumerId);
-        closeConsumerBuilder.setRequestId(requestId);
-        CommandCloseConsumer closeConsumer = closeConsumerBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.CLOSE_CONSUMER).setCloseConsumer(closeConsumer));
-        closeConsumerBuilder.recycle();
-        closeConsumer.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
+        cmd.setCloseConsumer()
+            .setConsumerId(consumerId)
+            .setRequestId(requestId);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newReachedEndOfTopic(long consumerId) {
-        CommandReachedEndOfTopic.Builder reachedEndOfTopicBuilder = CommandReachedEndOfTopic.newBuilder();
-        reachedEndOfTopicBuilder.setConsumerId(consumerId);
-        CommandReachedEndOfTopic reachedEndOfTopic = reachedEndOfTopicBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.REACHED_END_OF_TOPIC).setReachedEndOfTopic(reachedEndOfTopic));
-        reachedEndOfTopicBuilder.recycle();
-        reachedEndOfTopic.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.REACHED_END_OF_TOPIC);
+        cmd.setReachedEndOfTopic()
+            .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newCloseProducer(long producerId, long requestId) {
-        CommandCloseProducer.Builder closeProducerBuilder = CommandCloseProducer.newBuilder();
-        closeProducerBuilder.setProducerId(producerId);
-        closeProducerBuilder.setRequestId(requestId);
-        CommandCloseProducer closeProducer = closeProducerBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.CLOSE_PRODUCER).setCloseProducer(closeProducerBuilder));
-        closeProducerBuilder.recycle();
-        closeProducer.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.CLOSE_PRODUCER);
+        cmd.setCloseProducer()
+            .setProducerId(producerId)
+            .setRequestId(requestId);
+        return serializeWithSize(cmd);
     }
 
     @VisibleForTesting
@@ -875,142 +679,93 @@ public class Commands {
     }
 
     public static SchemaType getSchemaType(Schema.Type type) {
-        if (type.getNumber() < 0) {
+        if (type.getValue() < 0) {
             // this is unexpected
             return SchemaType.NONE;
         } else {
-            return SchemaType.valueOf(type.getNumber());
+            return SchemaType.valueOf(type.getValue());
         }
     }
 
-    private static Schema getSchema(SchemaInfo schemaInfo) {
-        Schema.Builder builder = Schema.newBuilder()
-            .setName(schemaInfo.getName())
-            .setSchemaData(copyFrom(schemaInfo.getSchema()))
-            .setType(getSchemaType(schemaInfo.getType()))
-            .addAllProperties(
-                schemaInfo.getProperties().entrySet().stream().map(entry ->
-                    KeyValue.newBuilder()
-                        .setKey(entry.getKey())
-                        .setValue(entry.getValue())
-                        .build()
-                ).collect(Collectors.toList())
-            );
-        Schema schema = builder.build();
-        builder.recycle();
-        return schema;
+    private static void convertSchema(SchemaInfo schemaInfo, Schema schema) {
+        schema.setName(schemaInfo.getName())
+                .setSchemaData(schemaInfo.getSchema())
+                .setType(getSchemaType(schemaInfo.getType()));
+
+        schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
+            schema.addProperty()
+                .setKey(entry.getKey())
+                .setValue(entry.getValue());
+        });
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
           boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
           long epoch, boolean userProvidedProducerName,
-          ProducerAccessMode accessMode,
-          Optional<Long> topicEpoch) {
-        CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
-        producerBuilder.setTopic(topic);
-        producerBuilder.setProducerId(producerId);
-        producerBuilder.setRequestId(requestId);
-        producerBuilder.setEpoch(epoch);
+          ProducerAccessMode accessMode, Optional<Long> topicEpoch) {
+        BaseCommand cmd = localCmd(Type.PRODUCER);
+        CommandProducer producer = cmd.setProducer()
+                .setTopic(topic)
+                .setProducerId(producerId)
+                .setRequestId(requestId)
+                .setEpoch(epoch)
+                .setUserProvidedProducerName(userProvidedProducerName)
+                .setEncrypted(encrypted)
+                .setProducerAccessMode(convertProducerAccessMode(accessMode));
         if (producerName != null) {
-            producerBuilder.setProducerName(producerName);
+            producer.setProducerName(producerName);
         }
-        producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
-        producerBuilder.setEncrypted(encrypted);
 
-        producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
+        if (!metadata.isEmpty()) {
+            metadata.forEach((k, v) -> producer.addMetadata()
+                    .setKey(k)
+                    .setValue(v));
+        }
 
         if (null != schemaInfo) {
-            producerBuilder.setSchema(getSchema(schemaInfo));
+            convertSchema(schemaInfo, producer.setSchema());
         }
 
-        producerBuilder.setProducerAccessMode(convertProducerAccessMode(accessMode));
-        topicEpoch.ifPresent(producerBuilder::setTopicEpoch);
-
-        CommandProducer producer = producerBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
-        producerBuilder.recycle();
-        producer.recycle();
-        return res;
+        topicEpoch.ifPresent(producer::setTopicEpoch);
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newPartitionMetadataResponseCommand(ServerError error, String errorMsg, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
-                CommandPartitionedTopicMetadataResponse.newBuilder();
-        partitionMetadataResponseBuilder.setRequestId(requestId);
-        partitionMetadataResponseBuilder.setError(error);
-        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
+        BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA_RESPONSE);
+        CommandPartitionedTopicMetadataResponse response = cmd.setPartitionMetadataResponse()
+                .setRequestId(requestId)
+                .setError(error)
+                .setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
         if (errorMsg != null) {
-            partitionMetadataResponseBuilder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
 
-        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.PARTITIONED_METADATA_RESPONSE)
-                .setPartitionMetadataResponse(partitionMetadataResponse).build();
-        partitionMetadataResponseBuilder.recycle();
-        builder.recycle();
-        return res;
+        return cmd;
     }
 
     public static ByteBuf newPartitionMetadataResponse(ServerError error, String errorMsg, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
-            CommandPartitionedTopicMetadataResponse.newBuilder();
-        partitionMetadataResponseBuilder.setRequestId(requestId);
-        partitionMetadataResponseBuilder.setError(error);
-        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
-        if (errorMsg != null) {
-            partitionMetadataResponseBuilder.setMessage(errorMsg);
-        }
-
-        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
-                .setPartitionMetadataResponse(partitionMetadataResponse));
-        partitionMetadataResponseBuilder.recycle();
-        partitionMetadataResponse.recycle();
-        return res;
+        return serializeWithSize(newPartitionMetadataResponseCommand(error, errorMsg, requestId));
     }
 
     public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
-        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
-        partitionMetadataBuilder.setTopic(topic);
-        partitionMetadataBuilder.setRequestId(requestId);
-        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
-        partitionMetadataBuilder.recycle();
-        partitionMetadata.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA);
+        cmd.setPartitionMetadata()
+                .setTopic(topic)
+                .setRequestId(requestId);
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newPartitionMetadataResponseCommand(int partitions, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
-                CommandPartitionedTopicMetadataResponse.newBuilder();
-        partitionMetadataResponseBuilder.setPartitions(partitions);
-        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Success);
-        partitionMetadataResponseBuilder.setRequestId(requestId);
-
-        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.PARTITIONED_METADATA_RESPONSE)
-                .setPartitionMetadataResponse(partitionMetadataResponse).build();
-        partitionMetadataResponseBuilder.recycle();
-        builder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA_RESPONSE);
+        cmd.setPartitionMetadataResponse()
+                .setPartitions(partitions)
+                .setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Success)
+                .setRequestId(requestId);
+        return cmd;
     }
 
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
-            CommandPartitionedTopicMetadataResponse.newBuilder();
-        partitionMetadataResponseBuilder.setPartitions(partitions);
-        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Success);
-        partitionMetadataResponseBuilder.setRequestId(requestId);
-
-        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
-                .setPartitionMetadataResponse(partitionMetadataResponse));
-        partitionMetadataResponseBuilder.recycle();
-        partitionMetadataResponse.recycle();
-        return res;
+        return serializeWithSize(newPartitionMetadataResponseCommand(partitions, requestId));
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
@@ -1018,144 +773,97 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId) {
-        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
-        lookupTopicBuilder.setTopic(topic);
-        lookupTopicBuilder.setRequestId(requestId);
-        lookupTopicBuilder.setAuthoritative(authoritative);
+        BaseCommand cmd = localCmd(Type.LOOKUP);
+        CommandLookupTopic lookup = cmd.setLookupTopic()
+                .setTopic(topic)
+                .setRequestId(requestId)
+                .setAuthoritative(authoritative);
         if (StringUtils.isNotBlank(listenerName)) {
-            lookupTopicBuilder.setAdvertisedListenerName(listenerName);
+            lookup.setAdvertisedListenerName(listenerName);
         }
-        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
-        lookupTopicBuilder.recycle();
-        lookupBroker.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newLookupResponseCommand(String brokerServiceUrl, String brokerServiceUrlTls,
-        boolean authoritative, LookupType response, long requestId, boolean proxyThroughServiceUrl) {
-        CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
-        commandLookupTopicResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
+        boolean authoritative, LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
+        BaseCommand cmd = localCmd(Type.LOOKUP_RESPONSE);
+        CommandLookupTopicResponse response = cmd.setLookupTopicResponse()
+                .setBrokerServiceUrl(brokerServiceUrl)
+                .setResponse(lookupType)
+                .setRequestId(requestId)
+                .setAuthoritative(authoritative)
+                .setProxyThroughServiceUrl(proxyThroughServiceUrl);
         if (brokerServiceUrlTls != null) {
-            commandLookupTopicResponseBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
+            response.setBrokerServiceUrlTls(brokerServiceUrlTls);
         }
-        commandLookupTopicResponseBuilder.setResponse(response);
-        commandLookupTopicResponseBuilder.setRequestId(requestId);
-        commandLookupTopicResponseBuilder.setAuthoritative(authoritative);
-        commandLookupTopicResponseBuilder.setProxyThroughServiceUrl(proxyThroughServiceUrl);
 
-        CommandLookupTopicResponse commandLookupTopicResponse = commandLookupTopicResponseBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.LOOKUP_RESPONSE)
-                .setLookupTopicResponse(commandLookupTopicResponse).build();
-        commandLookupTopicResponseBuilder.recycle();
-        builder.recycle();
-        return res;
+        return cmd;
     }
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-            LookupType response, long requestId, boolean proxyThroughServiceUrl) {
-        CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
-        commandLookupTopicResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
-        if (brokerServiceUrlTls != null) {
-            commandLookupTopicResponseBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
-        }
-        commandLookupTopicResponseBuilder.setResponse(response);
-        commandLookupTopicResponseBuilder.setRequestId(requestId);
-        commandLookupTopicResponseBuilder.setAuthoritative(authoritative);
-        commandLookupTopicResponseBuilder.setProxyThroughServiceUrl(proxyThroughServiceUrl);
-
-        CommandLookupTopicResponse commandLookupTopicResponse = commandLookupTopicResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE)
-                .setLookupTopicResponse(commandLookupTopicResponse));
-        commandLookupTopicResponseBuilder.recycle();
-        commandLookupTopicResponse.recycle();
-        return res;
+            LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
+        return serializeWithSize(newLookupResponseCommand(brokerServiceUrl, brokerServiceUrlTls, authoritative,
+                lookupType, requestId, proxyThroughServiceUrl));
     }
 
     public static BaseCommand newLookupErrorResponseCommand(ServerError error, String errorMsg, long requestId) {
-        CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
-        commandLookupTopicResponseBuilder.setRequestId(requestId);
-        commandLookupTopicResponseBuilder.setError(error);
+        BaseCommand cmd = localCmd(Type.LOOKUP_RESPONSE);
+        CommandLookupTopicResponse response = cmd.setLookupTopicResponse()
+                .setRequestId(requestId)
+                .setError(error)
+                .setResponse(LookupType.Failed);
         if (errorMsg != null) {
-            commandLookupTopicResponseBuilder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        commandLookupTopicResponseBuilder.setResponse(LookupType.Failed);
 
-        CommandLookupTopicResponse commandLookupTopicResponse = commandLookupTopicResponseBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand res = builder.setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(
-                commandLookupTopicResponse).build();
-        commandLookupTopicResponseBuilder.recycle();
-        builder.recycle();
-        return res;
+        return cmd;
     }
 
     public static ByteBuf newLookupErrorResponse(ServerError error, String errorMsg, long requestId) {
-        CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
-        connectionBuilder.setRequestId(requestId);
-        connectionBuilder.setError(error);
-        if (errorMsg != null) {
-            connectionBuilder.setMessage(errorMsg);
-        }
-        connectionBuilder.setResponse(LookupType.Failed);
-
-        CommandLookupTopicResponse connectionBroker = connectionBuilder.build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
-        connectionBuilder.recycle();
-        connectionBroker.recycle();
-        return res;
+        return serializeWithSize(newLookupErrorResponseCommand(error, errorMsg, requestId));
     }
 
-    public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID, List<Triple<Long, Long,
-            ConcurrentBitSetRecyclable>> entries) {
-        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
-        ackBuilder.setConsumerId(consumerId);
-        ackBuilder.setAckType(AckType.Individual);
-        ackBuilder.setTxnidLeastBits(txnID.getLeastSigBits());
-        ackBuilder.setTxnidMostBits(txnID.getMostSigBits());
-        return newMultiMessageAckCommon(ackBuilder, entries);
+    public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
+            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        BaseCommand cmd = newMultiMessageAckCommon(entries);
+        cmd.getAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual)
+                .setTxnidLeastBits(txnID.getLeastSigBits())
+                .setTxnidMostBits(txnID.getMostSigBits());
+        return serializeWithSize(cmd);
     }
-    public static ByteBuf newMultiMessageAckCommon(CommandAck.Builder ackBuilder,
-                                                   List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck();
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
             ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
-            MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
-            messageIdDataBuilder.setLedgerId(ledgerId);
-            messageIdDataBuilder.setEntryId(entryId);
+            MessageIdData msgId = ack.addMessageId()
+                    .setLedgerId(ledgerId)
+                    .setEntryId(entryId);
             if (bitSet != null) {
-                messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(bitSet.toLongArray()));
-            }
-            MessageIdData messageIdData = messageIdDataBuilder.build();
-            ackBuilder.addMessageId(messageIdData);
-            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
                 bitSet.recycle();
             }
-            messageIdDataBuilder.recycle();
         }
 
-        CommandAck ack = ackBuilder.build();
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
-
-        for (int i = 0; i < entriesCount; i++) {
-            ack.getMessageId(i).recycle();
-        }
-        ack.recycle();
-        ackBuilder.recycle();
-        return res;
+        return cmd;
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
-        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
-        ackBuilder.setConsumerId(consumerId);
-        ackBuilder.setAckType(AckType.Individual);
-        return newMultiMessageAckCommon(ackBuilder, entries);
+            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        BaseCommand cmd = newMultiMessageAckCommon(entries);
+        cmd.getAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
@@ -1167,46 +875,43 @@ public class Commands {
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId, int batchSize) {
-        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
-        ackBuilder.setConsumerId(consumerId);
-        ackBuilder.setAckType(ackType);
-        MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
-        messageIdDataBuilder.setLedgerId(ledgerId);
-        messageIdDataBuilder.setEntryId(entryId);
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(ackType);
+        MessageIdData messageIdData = ack.addMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
         if (ackSet != null) {
-            messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
+            long[] as = ackSet.toLongArray();
+            for (int i = 0; i < as.length; i++) {
+                messageIdData.addAckSet(as[i]);
+            }
         }
 
         if (batchSize >= 0) {
-            messageIdDataBuilder.setBatchSize(batchSize);
+          messageIdData.setBatchSize(batchSize);
         }
-        MessageIdData messageIdData = messageIdDataBuilder.build();
-        ackBuilder.addMessageId(messageIdData);
+
         if (validationError != null) {
-            ackBuilder.setValidationError(validationError);
+            ack.setValidationError(validationError);
         }
         if (txnIdMostBits >= 0) {
-            ackBuilder.setTxnidMostBits(txnIdMostBits);
+            ack.setTxnidMostBits(txnIdMostBits);
         }
         if (txnIdLeastBits >= 0) {
-            ackBuilder.setTxnidLeastBits(txnIdLeastBits);
+            ack.setTxnidLeastBits(txnIdLeastBits);
         }
 
         if (requestId >= 0) {
-            ackBuilder.setRequestId(requestId);
+            ack.setRequestId(requestId);
         }
-        for (Map.Entry<String, Long> e : properties.entrySet()) {
-            ackBuilder.addProperties(
-                    KeyLongValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
+        if (!properties.isEmpty()) {
+            properties.forEach((k, v) -> {
+                ack.addProperty().setKey(k).setValue(v);
+            });
         }
-        CommandAck ack = ackBuilder.build();
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
-        ack.recycle();
-        ackBuilder.recycle();
-        messageIdDataBuilder.recycle();
-        messageIdData.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
@@ -1217,139 +922,99 @@ public class Commands {
     }
 
     public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
-        CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
-        commandAckResponseBuilder.setConsumerId(consumerId);
-        commandAckResponseBuilder.setRequestId(requestId);
+        BaseCommand cmd = localCmd(Type.ACK_RESPONSE);
+        CommandAckResponse  response = cmd.setAckResponse()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId);
 
         if (error != null) {
-            commandAckResponseBuilder.setError(error);
+            response.setError(error);
         }
 
         if (errorMsg != null) {
-            commandAckResponseBuilder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
 
-        CommandAckResponse commandAckResponse = commandAckResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-                .setType(Type.ACK_RESPONSE).setAckResponse(commandAckResponseBuilder));
-
-        commandAckResponseBuilder.recycle();
-        commandAckResponse.recycle();
-
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newFlow(long consumerId, int messagePermits) {
-        CommandFlow.Builder flowBuilder = CommandFlow.newBuilder();
-        flowBuilder.setConsumerId(consumerId);
-        flowBuilder.setMessagePermits(messagePermits);
-        CommandFlow flow = flowBuilder.build();
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.FLOW).setFlow(flowBuilder));
-        flow.recycle();
-        flowBuilder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.FLOW);
+        cmd.setFlow()
+                .setConsumerId(consumerId)
+                .setMessagePermits(messagePermits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId) {
-        CommandRedeliverUnacknowledgedMessages.Builder redeliverBuilder = CommandRedeliverUnacknowledgedMessages
-                .newBuilder();
-        redeliverBuilder.setConsumerId(consumerId);
-        CommandRedeliverUnacknowledgedMessages redeliver = redeliverBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)
-                .setRedeliverUnacknowledgedMessages(redeliverBuilder));
-        redeliver.recycle();
-        redeliverBuilder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
+        cmd.setRedeliverUnacknowledgedMessages()
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, List<MessageIdData> messageIds) {
-        CommandRedeliverUnacknowledgedMessages.Builder redeliverBuilder = CommandRedeliverUnacknowledgedMessages
-                .newBuilder();
-        redeliverBuilder.setConsumerId(consumerId);
-        redeliverBuilder.addAllMessageIds(messageIds);
-        CommandRedeliverUnacknowledgedMessages redeliver = redeliverBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)
-                .setRedeliverUnacknowledgedMessages(redeliverBuilder));
-        redeliver.recycle();
-        redeliverBuilder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
+        CommandRedeliverUnacknowledgedMessages req = cmd.setRedeliverUnacknowledgedMessages()
+                .setConsumerId(consumerId);
+        messageIds.forEach(msgId -> {
+            MessageIdData m = req.addMessageId()
+                    .setLedgerId(msgId.getLedgerId())
+                    .setEntryId(msgId.getEntryId());
+            if (msgId.hasBatchIndex()) {
+                m.setBatchIndex(msgId.getBatchIndex());
+            }
+        });
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newConsumerStatsResponse(ServerError serverError, String errMsg, long requestId) {
-        CommandConsumerStatsResponse.Builder commandConsumerStatsResponseBuilder = CommandConsumerStatsResponse
-                .newBuilder();
-        commandConsumerStatsResponseBuilder.setRequestId(requestId);
-        commandConsumerStatsResponseBuilder.setErrorMessage(errMsg);
-        commandConsumerStatsResponseBuilder.setErrorCode(serverError);
-
-        CommandConsumerStatsResponse commandConsumerStatsResponse = commandConsumerStatsResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
-                .setConsumerStatsResponse(commandConsumerStatsResponseBuilder));
-        commandConsumerStatsResponse.recycle();
-        commandConsumerStatsResponseBuilder.recycle();
-        return res;
+        return serializeWithSize(newConsumerStatsResponseCommand(serverError, errMsg, requestId));
     }
 
-    public static ByteBuf newConsumerStatsResponse(CommandConsumerStatsResponse.Builder builder) {
-        CommandConsumerStatsResponse commandConsumerStatsResponse = builder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
-                .setConsumerStatsResponse(builder));
-        commandConsumerStatsResponse.recycle();
-        builder.recycle();
-        return res;
+    public static BaseCommand newConsumerStatsResponseCommand(ServerError serverError, String errMsg, long requestId) {
+        BaseCommand cmd = localCmd(Type.CONSUMER_STATS_RESPONSE);
+        cmd.setConsumerStatsResponse()
+                .setRequestId(requestId)
+                .setErrorCode(serverError);
+        if (errMsg != null) {
+            cmd.getConsumerStatsResponse()
+                .setErrorMessage(errMsg);
+        }
+        return cmd;
     }
 
     public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId, Mode mode) {
-        CommandGetTopicsOfNamespace.Builder topicsBuilder = CommandGetTopicsOfNamespace.newBuilder();
-        topicsBuilder.setNamespace(namespace).setRequestId(requestId).setMode(mode);
-
-        CommandGetTopicsOfNamespace topicsCommand = topicsBuilder.build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.GET_TOPICS_OF_NAMESPACE).setGetTopicsOfNamespace(topicsCommand));
-        topicsBuilder.recycle();
-        topicsCommand.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE);
+        CommandGetTopicsOfNamespace topics = cmd.setGetTopicsOfNamespace();
+        topics.setNamespace(namespace);
+        topics.setRequestId(requestId);
+        topics.setMode(mode);
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newGetTopicsOfNamespaceResponseCommand(List<String> topics, long requestId) {
-        CommandGetTopicsOfNamespaceResponse.Builder topicsResponseBuilder =
-                CommandGetTopicsOfNamespaceResponse.newBuilder();
+        BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE);
+        CommandGetTopicsOfNamespaceResponse topicsResponse = cmd.setGetTopicsOfNamespaceResponse();
+        topicsResponse.setRequestId(requestId);
+        for (int i = 0; i < topics.size(); i++) {
+            topicsResponse.addTopic(topics.get(i));
+        }
 
-        topicsResponseBuilder.setRequestId(requestId).addAllTopics(topics);
-
-        CommandGetTopicsOfNamespaceResponse topicsOfNamespaceResponse = topicsResponseBuilder.build();
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE)
-                .setGetTopicsOfNamespaceResponse(topicsOfNamespaceResponse).build();
-        topicsResponseBuilder.recycle();
-        builder.recycle();
-        return command;
+        return cmd;
     }
 
     public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
-        CommandGetTopicsOfNamespaceResponse.Builder topicsResponseBuilder =
-            CommandGetTopicsOfNamespaceResponse.newBuilder();
-
-        topicsResponseBuilder.setRequestId(requestId).addAllTopics(topics);
-
-        CommandGetTopicsOfNamespaceResponse topicsOfNamespaceResponse = topicsResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE)
-            .setGetTopicsOfNamespaceResponse(topicsOfNamespaceResponse));
-
-        topicsResponseBuilder.recycle();
-        topicsOfNamespaceResponse.recycle();
-        return res;
+        return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(topics, requestId));
     }
 
     private final static ByteBuf cmdPing;
 
     static {
-        ByteBuf serializedCmdPing = serializeWithSize(
-                   BaseCommand.newBuilder()
-                       .setType(Type.PING)
-                       .setPing(CommandPing.getDefaultInstance()));
+        BaseCommand cmd = new BaseCommand()
+                .setType(Type.PING);
+        cmd.setPing();
+        ByteBuf serializedCmdPing = serializeWithSize(cmd);
         cmdPing = Unpooled.copiedBuffer(serializedCmdPing);
         serializedCmdPing.release();
     }
@@ -1361,10 +1026,10 @@ public class Commands {
     private final static ByteBuf cmdPong;
 
     static {
-        ByteBuf serializedCmdPong = serializeWithSize(
-                   BaseCommand.newBuilder()
-                       .setType(Type.PONG)
-                       .setPong(CommandPong.getDefaultInstance()));
+        BaseCommand cmd = new BaseCommand()
+                .setType(Type.PONG);
+        cmd.setPong();
+        ByteBuf serializedCmdPong = serializeWithSize(cmd);
         cmdPong = Unpooled.copiedBuffer(serializedCmdPong);
         serializedCmdPong.release();
     }
@@ -1374,474 +1039,308 @@ public class Commands {
     }
 
     public static ByteBuf newGetLastMessageId(long consumerId, long requestId) {
-        CommandGetLastMessageId.Builder cmdBuilder = CommandGetLastMessageId.newBuilder();
-        cmdBuilder.setConsumerId(consumerId).setRequestId(requestId);
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_LAST_MESSAGE_ID)
-            .setGetLastMessageId(cmdBuilder.build()));
-        cmdBuilder.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.GET_LAST_MESSAGE_ID);
+        cmd.setGetLastMessageId()
+                .setRequestId(requestId)
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newGetLastMessageIdResponse(long requestId, MessageIdData messageIdData) {
-        PulsarApi.CommandGetLastMessageIdResponse.Builder response =
-            PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
-            .setLastMessageId(messageIdData)
-            .setRequestId(requestId);
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_LAST_MESSAGE_ID_RESPONSE)
-            .setGetLastMessageIdResponse(response.build()));
-        response.recycle();
-        return res;
+    public static ByteBuf newGetLastMessageIdResponse(long requestId, long ledgerId, long entryId,
+            int partitionIdx, int batchIndex) {
+        BaseCommand cmd = localCmd(Type.GET_LAST_MESSAGE_ID_RESPONSE);
+        cmd.setGetLastMessageIdResponse()
+            .setRequestId(requestId)
+            .setLastMessageId()
+            .setLedgerId(ledgerId)
+            .setEntryId(entryId)
+            .setPartition(partitionIdx)
+            .setBatchIndex(batchIndex);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newGetSchema(long requestId, String topic, Optional<SchemaVersion> version) {
-        CommandGetSchema.Builder schema = CommandGetSchema.newBuilder()
-            .setRequestId(requestId);
-        schema.setTopic(topic);
-        version.ifPresent(schemaVersion -> schema.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes())));
-
-        CommandGetSchema getSchema = schema.build();
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_SCHEMA)
-            .setGetSchema(getSchema));
-        schema.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.GET_SCHEMA);
+        CommandGetSchema schema = cmd.setGetSchema()
+                .setRequestId(requestId)
+                .setTopic(topic);
+        version.ifPresent(schemaVersion -> schema.setSchemaVersion(schemaVersion.bytes()));
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newGetSchemaResponse(long requestId, CommandGetSchemaResponse response) {
-        CommandGetSchemaResponse.Builder schemaResponseBuilder = CommandGetSchemaResponse.newBuilder(response)
+        BaseCommand cmd = localCmd(Type.GET_SCHEMA_RESPONSE);
+        cmd.setGetSchemaResponse()
+            .copyFrom(response)
             .setRequestId(requestId);
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_SCHEMA_RESPONSE)
-            .setGetSchemaResponse(schemaResponseBuilder.build()));
-        schemaResponseBuilder.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
-    public static BaseCommand newGetSchemaResponseCommand(long requestId, SchemaInfo schema, SchemaVersion version) {
-        CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
+    public static BaseCommand newGetSchemaResponseCommand(long requestId,
+            SchemaInfo schemaInfo, SchemaVersion version) {
+        BaseCommand cmd = localCmd(Type.GET_SCHEMA_RESPONSE);
+        Schema schema = cmd.setGetSchemaResponse()
                 .setRequestId(requestId)
-                .setSchemaVersion(ByteString.copyFrom(version.bytes()))
-                .setSchema(getSchema(schema));
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.GET_SCHEMA_RESPONSE)
-                .setGetSchemaResponse(schemaResponse.build()).build();
-
-        schemaResponse.recycle();
-        builder.recycle();
-        return command;
+                .setSchemaVersion(version.bytes())
+                .setSchema();
+        convertSchema(schemaInfo, schema);
+        return cmd;
     }
 
-    public static ByteBuf newGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version) {
-        CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
-            .setRequestId(requestId)
-            .setSchemaVersion(ByteString.copyFrom(version.bytes()))
-            .setSchema(getSchema(schema));
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_SCHEMA_RESPONSE)
-            .setGetSchemaResponse(schemaResponse.build()));
-        schemaResponse.recycle();
-        return res;
+    public static ByteBuf newGetSchemaResponse(long requestId, SchemaInfo schemaInfo, SchemaVersion version) {
+        return serializeWithSize(newGetSchemaResponseCommand(requestId, schemaInfo, version));
     }
 
     public static BaseCommand newGetSchemaResponseErrorCommand(long requestId, ServerError error, String errorMessage) {
-        CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
+        BaseCommand cmd = localCmd(Type.GET_SCHEMA_RESPONSE);
+        cmd.setGetSchemaResponse()
                 .setRequestId(requestId)
                 .setErrorCode(error)
                 .setErrorMessage(errorMessage);
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.GET_SCHEMA_RESPONSE)
-                .setGetSchemaResponse(schemaResponse.build()).build();
-        schemaResponse.recycle();
-        builder.recycle();
-        return command;
+        return cmd;
     }
 
     public static ByteBuf newGetSchemaResponseError(long requestId, ServerError error, String errorMessage) {
-        CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
-            .setRequestId(requestId)
-            .setErrorCode(error)
-            .setErrorMessage(errorMessage);
-
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-            .setType(Type.GET_SCHEMA_RESPONSE)
-            .setGetSchemaResponse(schemaResponse.build()));
-        schemaResponse.recycle();
-        return res;
+        return serializeWithSize(newGetSchemaResponseErrorCommand(requestId, error, errorMessage));
     }
 
     public static ByteBuf newGetOrCreateSchema(long requestId, String topic, SchemaInfo schemaInfo) {
-        CommandGetOrCreateSchema getOrCreateSchema =
-                CommandGetOrCreateSchema.newBuilder()
-                                        .setRequestId(requestId)
-                                        .setTopic(topic)
-                                        .setSchema(getSchema(schemaInfo)).build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-                                                   .setType(Type.GET_OR_CREATE_SCHEMA)
-                                                   .setGetOrCreateSchema(getOrCreateSchema));
-        getOrCreateSchema.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.GET_OR_CREATE_SCHEMA);
+        Schema schema = cmd.setGetOrCreateSchema()
+                .setRequestId(requestId)
+                .setTopic(topic)
+                .setSchema();
+        convertSchema(schemaInfo, schema);
+        return serializeWithSize(cmd);
     }
 
     public static BaseCommand newGetOrCreateSchemaResponseCommand(long requestId, SchemaVersion schemaVersion) {
-        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
-                CommandGetOrCreateSchemaResponse.newBuilder()
-                        .setRequestId(requestId)
-                        .setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
-                .setGetOrCreateSchemaResponse(schemaResponse.build()).build();
-        schemaResponse.recycle();
-        builder.recycle();
-        return command;
+        BaseCommand cmd = localCmd(Type.GET_OR_CREATE_SCHEMA_RESPONSE);
+        cmd.setGetOrCreateSchemaResponse()
+                .setRequestId(requestId)
+                .setSchemaVersion(schemaVersion.bytes());
+        return cmd;
     }
 
     public static ByteBuf newGetOrCreateSchemaResponse(long requestId, SchemaVersion schemaVersion) {
-        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
-                CommandGetOrCreateSchemaResponse.newBuilder()
-                                                .setRequestId(requestId)
-                                                .setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-                                                   .setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
-                                                   .setGetOrCreateSchemaResponse(schemaResponse.build()));
-        schemaResponse.recycle();
-        return res;
+        return serializeWithSize(newGetOrCreateSchemaResponseCommand(requestId, schemaVersion));
     }
 
     public static BaseCommand newGetOrCreateSchemaResponseErrorCommand(long requestId, ServerError error,
             String errorMessage) {
-        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
-                CommandGetOrCreateSchemaResponse.newBuilder()
-                        .setRequestId(requestId)
-                        .setErrorCode(error)
-                        .setErrorMessage(errorMessage);
-        BaseCommand.Builder builder = BaseCommand.newBuilder();
-        BaseCommand command = builder.setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
-                .setGetOrCreateSchemaResponse(schemaResponse.build()).build();
-        schemaResponse.recycle();
-        builder.recycle();
-        return command;
+        BaseCommand cmd = localCmd(Type.GET_OR_CREATE_SCHEMA_RESPONSE);
+        cmd.setGetOrCreateSchemaResponse()
+                .setRequestId(requestId)
+                .setErrorCode(error)
+                .setErrorMessage(errorMessage);
+        return cmd;
     }
 
     public static ByteBuf newGetOrCreateSchemaResponseError(long requestId, ServerError error, String errorMessage) {
-        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
-                CommandGetOrCreateSchemaResponse.newBuilder()
-                                                .setRequestId(requestId)
-                                                .setErrorCode(error)
-                                                .setErrorMessage(errorMessage);
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
-                                                   .setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
-                                                   .setGetOrCreateSchemaResponse(schemaResponse.build()));
-        schemaResponse.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.GET_OR_CREATE_SCHEMA_RESPONSE);
+        cmd.setGetOrCreateSchemaResponse()
+                .setRequestId(requestId)
+                .setErrorCode(error)
+                .setErrorMessage(errorMessage);
+        return serializeWithSize(cmd);
     }
 
     // ---- transaction related ----
 
     public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
-        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setTcId(tcId).setRequestId(requestId)
-                .setTxnTtlSeconds(ttlSeconds)
-                .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.NEW_TXN).setNewTxn(commandNewTxn));
-        commandNewTxn.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.NEW_TXN);
+        cmd.setNewTxn()
+                .setTcId(tcId)
+                .setRequestId(requestId)
+                .setTxnTtlSeconds(ttlSeconds);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandNewTxnResponse commandNewTxnResponse = CommandNewTxnResponse.newBuilder().setRequestId(requestId)
-                                                                           .setTxnidMostBits(txnIdMostBits)
-                                                                           .setTxnidLeastBits(txnIdLeastBits).build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.NEW_TXN_RESPONSE).setNewTxnResponse(commandNewTxnResponse));
-        commandNewTxnResponse.recycle();
-
-        return res;
+        BaseCommand cmd = localCmd(Type.NEW_TXN_RESPONSE);
+        cmd.setNewTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidMostBits(txnIdMostBits)
+                .setTxnidLeastBits(txnIdLeastBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
-        CommandNewTxnResponse.Builder builder = CommandNewTxnResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidMostBits(txnIdMostBits);
-        builder.setError(error);
+        BaseCommand cmd = localCmd(Type.NEW_TXN_RESPONSE);
+        CommandNewTxnResponse response = cmd.setNewTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidMostBits(txnIdMostBits)
+                .setError(error);
         if (errorMsg != null) {
-            builder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        CommandNewTxnResponse errorResponse = builder.build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.NEW_TXN_RESPONSE).setNewTxnResponse(errorResponse));
-        builder.recycle();
-        errorResponse.recycle();
-
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                List<String> partitions) {
-        PulsarApi.CommandAddPartitionToTxn.Builder builder = CommandAddPartitionToTxn.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidLeastBits(txnIdLeastBits);
-        builder.setTxnidMostBits(txnIdMostBits);
+        BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN);
+        CommandAddPartitionToTxn req = cmd.setAddPartitionToTxn()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
         if (partitions != null) {
-            builder.addAllPartitions(partitions);
+            partitions.forEach(req::addPartition);
         }
-        CommandAddPartitionToTxn commandAddPartitionToTxn = builder.build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.ADD_PARTITION_TO_TXN).setAddPartitionToTxn(commandAddPartitionToTxn));
-        commandAddPartitionToTxn.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse = CommandAddPartitionToTxnResponse
-                                                                                .newBuilder().setRequestId(requestId)
-                                                                                .setTxnidLeastBits(txnIdLeastBits)
-                                                                                .setTxnidMostBits(txnIdMostBits)
-                                                                                .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_PARTITION_TO_TXN_RESPONSE)
-                                                   .setAddPartitionToTxnResponse(commandAddPartitionToTxnResponse));
-        commandAddPartitionToTxnResponse.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
+        cmd.setAddPartitionToTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
            String errorMsg) {
-        CommandAddPartitionToTxnResponse.Builder builder = CommandAddPartitionToTxnResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidMostBits(txnIdMostBits);
-        builder.setError(error);
-        if (errorMsg != null) {
-            builder.setMessage(errorMsg);
-        }
-        CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse = builder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_PARTITION_TO_TXN_RESPONSE)
-                                                   .setAddPartitionToTxnResponse(commandAddPartitionToTxnResponse));
-        builder.recycle();
-        commandAddPartitionToTxnResponse.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
+        cmd.setAddPartitionToTxnResponse()
+                .setRequestId(requestId)
+                .setError(error)
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddSubscriptionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
-                                                  List<Subscription> subscription) {
-        CommandAddSubscriptionToTxn commandAddSubscriptionToTxn =
-            CommandAddSubscriptionToTxn.newBuilder()
-                                       .setRequestId(requestId)
-                                       .setTxnidLeastBits(txnIdLeastBits)
-                                       .setTxnidMostBits(txnIdMostBits)
-                                       .addAllSubscription(subscription).build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN)
-                                                   .setAddSubscriptionToTxn(commandAddSubscriptionToTxn));
-        commandAddSubscriptionToTxn.recycle();
-        return res;
+            List<Subscription> subscriptions) {
+        BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN);
+        CommandAddSubscriptionToTxn add = cmd.setAddSubscriptionToTxn()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
+        subscriptions.forEach(s -> add.addSubscription().copyFrom(s));
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandAddSubscriptionToTxnResponse command = CommandAddSubscriptionToTxnResponse
-                .newBuilder().setRequestId(requestId)
+        BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE);
+        cmd.setAddSubscriptionToTxnResponse()
+                .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits)
-                .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE)
-                .setAddSubscriptionToTxnResponse(command));
-        command.recycle();
-        return res;
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
           String errorMsg) {
-        CommandAddSubscriptionToTxnResponse.Builder builder = CommandAddSubscriptionToTxnResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidMostBits(txnIdMostBits);
-        builder.setError(error);
+        BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE);
+        CommandAddSubscriptionToTxnResponse response = cmd.setAddSubscriptionToTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidMostBits(txnIdMostBits)
+                .setError(error);
         if (errorMsg != null) {
-            builder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        CommandAddSubscriptionToTxnResponse errorResponse = builder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE)
-                                                   .setAddSubscriptionToTxnResponse(errorResponse));
-        builder.recycle();
-        errorResponse.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction,
-                                    List<MessageIdData> messageIdList) {
-        CommandEndTxn commandEndTxn = CommandEndTxn.newBuilder()
+    public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
+        BaseCommand cmd = localCmd(Type.END_TXN);
+        cmd.setEndTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
-                .setTxnAction(txnAction)
-                .addAllMessageId(messageIdList)
-                .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN).setEndTxn(commandEndTxn));
-        commandEndTxn.recycle();
-        for (MessageIdData messageIdData : messageIdList) {
-            messageIdData.recycle();
-        }
-        return res;
+                .setTxnAction(txnAction);
+        return cmd;
     }
 
     public static ByteBuf newEndTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandEndTxnResponse commandEndTxnResponse = CommandEndTxnResponse.newBuilder().setRequestId(requestId)
-                                                                           .setTxnidLeastBits(txnIdLeastBits)
-                                                                           .setTxnidMostBits(txnIdMostBits).build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.END_TXN_RESPONSE).setEndTxnResponse(commandEndTxnResponse));
-        commandEndTxnResponse.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.END_TXN_RESPONSE);
+        cmd.setEndTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
-        CommandEndTxnResponse.Builder builder = CommandEndTxnResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidMostBits(txnIdMostBits);
-        builder.setError(error);
+        BaseCommand cmd = localCmd(Type.END_TXN_RESPONSE);
+        CommandEndTxnResponse response = cmd.setEndTxnResponse()
+                .setRequestId(requestId)
+                .setTxnidMostBits(txnIdMostBits)
+                .setError(error);
         if (errorMsg != null) {
-            builder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        CommandEndTxnResponse commandEndTxnResponse = builder.build();
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.END_TXN_RESPONSE).setEndTxnResponse(commandEndTxnResponse));
-        builder.recycle();
-        commandEndTxnResponse.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
                                                TxnAction txnAction, List<MessageIdData> messageIdDataList) {
-        CommandEndTxnOnPartition.Builder txnEndOnPartition = CommandEndTxnOnPartition.newBuilder()
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION);
+        cmd.setEndTxnOnPartition()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
                 .setTxnidMostBits(txnIdMostBits)
                 .setTopic(topic)
                 .setTxnAction(txnAction)
-                .addAllMessageId(messageIdDataList);
-        ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION).setEndTxnOnPartition(txnEndOnPartition));
-        txnEndOnPartition.recycle();
-        for (MessageIdData messageIdData : messageIdDataList) {
-            messageIdData.recycle();
-        }
-        return res;
+                .addAllMessageIds(messageIdDataList);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnPartitionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse = CommandEndTxnOnPartitionResponse
-                                                                                .newBuilder().setRequestId(requestId)
-                                                                                .setTxnidLeastBits(txnIdLeastBits)
-                                                                                .setTxnidMostBits(txnIdMostBits)
-                                                                                .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION_RESPONSE)
-                                                   .setEndTxnOnPartitionResponse(commandEndTxnOnPartitionResponse));
-        commandEndTxnOnPartitionResponse.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION_RESPONSE);
+        cmd.setEndTxnOnPartitionResponse()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnPartitionResponse(long requestId, ServerError error, String errorMsg) {
-        CommandEndTxnOnPartitionResponse.Builder builder = CommandEndTxnOnPartitionResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setError(error);
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION_RESPONSE);
+        CommandEndTxnOnPartitionResponse response = cmd.setEndTxnOnPartitionResponse()
+                .setRequestId(requestId)
+                .setError(error);
         if (errorMsg != null) {
-            builder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse = builder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION_RESPONSE)
-                                                   .setEndTxnOnPartitionResponse(commandEndTxnOnPartitionResponse));
-        builder.recycle();
-        commandEndTxnOnPartitionResponse.recycle();
-        return res;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnSubscription(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-                                                  String subscription, TxnAction txnAction) {
-        Subscription.Builder builder = Subscription.newBuilder();
-        builder.setTopic(topic);
-        builder.setSubscription(subscription);
-        Subscription sub = builder.build();
-        builder.recycle();
-        return newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits, sub, txnAction);
-    }
-
-    public static ByteBuf newEndTxnOnSubscription(long requestId, long txnIdLeastBits, long txnIdMostBits,
-                                                  Subscription subscription, TxnAction txnAction) {
-        CommandEndTxnOnSubscription commandEndTxnOnSubscription =
-            CommandEndTxnOnSubscription.newBuilder()
-                                       .setRequestId(requestId)
-                                       .setTxnidLeastBits(txnIdLeastBits)
-                                       .setTxnidMostBits(txnIdMostBits)
-                                       .setSubscription(subscription)
-                                       .setTxnAction(txnAction)
-                                       .build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_SUBSCRIPTION)
-                                                   .setEndTxnOnSubscription(commandEndTxnOnSubscription));
-        subscription.recycle();
-        commandEndTxnOnSubscription.recycle();
-        return res;
+            String subscription, TxnAction txnAction) {
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_SUBSCRIPTION);
+        cmd.setEndTxnOnSubscription()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .setTxnAction(txnAction)
+                .setSubscription()
+                .setTopic(topic)
+                .setSubscription(subscription);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnSubscriptionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandEndTxnOnSubscriptionResponse response =
-            CommandEndTxnOnSubscriptionResponse.newBuilder()
-                                               .setRequestId(requestId)
-                                               .setTxnidLeastBits(txnIdLeastBits)
-                                               .setTxnidMostBits(txnIdMostBits).build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_SUBSCRIPTION_RESPONSE)
-                                                   .setEndTxnOnSubscriptionResponse(response));
-        response.recycle();
-        return res;
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_SUBSCRIPTION_RESPONSE);
+        cmd.setEndTxnOnSubscriptionResponse()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits);
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newEndTxnOnSubscriptionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                           ServerError error, String errorMsg) {
-        CommandEndTxnOnSubscriptionResponse.Builder builder = CommandEndTxnOnSubscriptionResponse.newBuilder();
-        builder.setRequestId(requestId);
-        builder.setTxnidMostBits(txnIdMostBits);
-        builder.setTxnidLeastBits(txnIdLeastBits);
-        builder.setError(error);
+        BaseCommand cmd = localCmd(Type.END_TXN_ON_SUBSCRIPTION_RESPONSE);
+        CommandEndTxnOnSubscriptionResponse response = cmd.setEndTxnOnSubscriptionResponse()
+                .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .setError(error);
         if (errorMsg != null) {
-            builder.setMessage(errorMsg);
+            response.setMessage(errorMsg);
         }
-        CommandEndTxnOnSubscriptionResponse response = builder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_SUBSCRIPTION_RESPONSE)
-                                                   .setEndTxnOnSubscriptionResponse(response));
-        builder.recycle();
-        response.recycle();
-        return res;
-    }
-    @VisibleForTesting
-    public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
-        // / Wire format
-        // [TOTAL_SIZE] [CMD_SIZE][CMD]
-        BaseCommand cmd = cmdBuilder.build();
-
-        int cmdSize = cmd.getSerializedSize();
-        int totalSize = cmdSize + 4;
-        int frameSize = totalSize + 4;
-
-        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(frameSize, frameSize);
-
-        // Prepend 2 lengths to the buffer
-        buf.writeInt(totalSize);
-        buf.writeInt(cmdSize);
-
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
-
-        try {
-            cmd.writeTo(outStream);
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        } finally {
-            cmd.recycle();
-            cmdBuilder.recycle();
-            outStream.recycle();
-        }
-
-        return buf;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf serializeWithSize(BaseCommand cmd) {
@@ -1856,27 +1355,15 @@ public class Commands {
         // Prepend 2 lengths to the buffer
         buf.writeInt(totalSize);
         buf.writeInt(cmdSize);
-
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
-
-        try {
-            cmd.writeTo(outStream);
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        } finally {
-            outStream.recycle();
-        }
-
+        cmd.writeTo(buf);
         return buf;
     }
 
-    private static ByteBufPair serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType,
+    private static ByteBufPair serializeCommandSendWithSize(BaseCommand cmd, ChecksumType checksumType,
             MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
 
-        BaseCommand cmd = cmdBuilder.build();
         int cmdSize = cmd.getSerializedSize();
         int msgMetadataSize = msgMetadata.getSerializedSize();
         int payloadSize = payload.readableBytes();
@@ -1893,30 +1380,20 @@ public class Commands {
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         headers.writeInt(totalSize); // External frame
 
-        try {
-            // Write cmd
-            headers.writeInt(cmdSize);
+        // Write cmd
+        headers.writeInt(cmdSize);
+        cmd.writeTo(headers);
 
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
-            cmd.writeTo(outStream);
-            cmd.recycle();
-            cmdBuilder.recycle();
-
-            //Create checksum placeholder
-            if (includeChecksum) {
-                headers.writeShort(magicCrc32c);
-                checksumReaderIndex = headers.writerIndex();
-                headers.writerIndex(headers.writerIndex() + checksumSize); //skip 4 bytes of checksum
-            }
-
-            // Write metadata
-            headers.writeInt(msgMetadataSize);
-            msgMetadata.writeTo(outStream);
-            outStream.recycle();
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
+        // Create checksum placeholder
+        if (includeChecksum) {
+            headers.writeShort(magicCrc32c);
+            checksumReaderIndex = headers.writerIndex();
+            headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
         }
+
+        // Write metadata
+        headers.writeInt(msgMetadataSize);
+        msgMetadata.writeTo(headers);
 
         ByteBufPair command = ByteBufPair.get(headers, payload);
 
@@ -1935,31 +1412,7 @@ public class Commands {
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> interceptors) {
-        //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
-        //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
-
-        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
-        for (BrokerEntryMetadataInterceptor interceptor : interceptors) {
-            interceptor.intercept(brokerMetadataBuilder);
-        }
-        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
-        int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
-        ByteBuf brokerMeta =
-                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
-        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
-        brokerMeta.writeInt(brokerMetaSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
-        try {
-            brokerEntryMetadata.writeTo(outStream);
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        }
-        outStream.recycle();
-
-        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
-        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
-        return compositeByteBuf;
+        return addBrokerEntryMetadata(headerAndPayload, interceptors, -1);
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
@@ -1968,25 +1421,20 @@ public class Commands {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
-        PulsarApi.BrokerEntryMetadata.Builder brokerMetadataBuilder = PulsarApi.BrokerEntryMetadata.newBuilder();
+        BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
-            interceptor.intercept(brokerMetadataBuilder);
-            interceptor.interceptWithNumberOfMessages(brokerMetadataBuilder, numberOfMessages);
+            interceptor.intercept(brokerEntryMetadata);
+            if (numberOfMessages >= 0) {
+                interceptor.interceptWithNumberOfMessages(brokerEntryMetadata, numberOfMessages);
+            }
         }
-        PulsarApi.BrokerEntryMetadata brokerEntryMetadata = brokerMetadataBuilder.build();
+
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
         ByteBuf brokerMeta =
                 PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
         brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
         brokerMeta.writeInt(brokerMetaSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(brokerMeta);
-        try {
-            brokerEntryMetadata.writeTo(outStream);
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        }
-        outStream.recycle();
+        brokerEntryMetadata.writeTo(brokerMeta);
 
         CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
         compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
@@ -2005,35 +1453,24 @@ public class Commands {
         return headerAndPayloadWithBrokerEntryMetadata;
     }
 
-    public static PulsarApi.BrokerEntryMetadata parseBrokerEntryMetadataIfExist(
+    public static BrokerEntryMetadata parseBrokerEntryMetadataIfExist(
             ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
         int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
-        if (headerAndPayloadWithBrokerEntryMetadata.readShort() == magicBrokerEntryMetadata) {
+        if (headerAndPayloadWithBrokerEntryMetadata.getShort(readerIndex) == magicBrokerEntryMetadata) {
+            headerAndPayloadWithBrokerEntryMetadata.skipBytes(2);
             int brokerEntryMetadataSize = headerAndPayloadWithBrokerEntryMetadata.readInt();
-            int writerIndex = headerAndPayloadWithBrokerEntryMetadata.writerIndex();
-            headerAndPayloadWithBrokerEntryMetadata.writerIndex(headerAndPayloadWithBrokerEntryMetadata.readerIndex()
-                    + brokerEntryMetadataSize);
-            ByteBufCodedInputStream brokerEntryMetadataInputStream =
-                    ByteBufCodedInputStream.get(headerAndPayloadWithBrokerEntryMetadata);
-            PulsarApi.BrokerEntryMetadata.Builder builder =  PulsarApi.BrokerEntryMetadata.newBuilder();
-            try {
-                builder.mergeFrom(brokerEntryMetadataInputStream, null).build();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            headerAndPayloadWithBrokerEntryMetadata.writerIndex(writerIndex);
-            brokerEntryMetadataInputStream.recycle();
-            return builder.build();
+            BrokerEntryMetadata brokerEntryMetadata = new BrokerEntryMetadata();
+            brokerEntryMetadata.parseFrom(headerAndPayloadWithBrokerEntryMetadata, brokerEntryMetadataSize);
+            return brokerEntryMetadata;
         } else {
-            headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
             return null;
         }
     }
 
-    public static PulsarApi.BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
+    public static BrokerEntryMetadata peekBrokerEntryMetadataIfExist(
             ByteBuf headerAndPayloadWithBrokerEntryMetadata) {
         final int readerIndex = headerAndPayloadWithBrokerEntryMetadata.readerIndex();
-        PulsarApi.BrokerEntryMetadata entryMetadata =
+        BrokerEntryMetadata entryMetadata =
                 parseBrokerEntryMetadataIfExist(headerAndPayloadWithBrokerEntryMetadata);
         headerAndPayloadWithBrokerEntryMetadata.readerIndex(readerIndex);
         return entryMetadata;
@@ -2054,25 +1491,18 @@ public class Commands {
         int totalSize = headerContentSize + payloadSize;
 
         ByteBuf metadataAndPayload = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
-        try {
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
 
-            //Create checksum placeholder
-            if (includeChecksum) {
-                metadataAndPayload.writeShort(magicCrc32c);
-                checksumReaderIndex = metadataAndPayload.writerIndex();
-                metadataAndPayload.writerIndex(metadataAndPayload.writerIndex()
-                                               + checksumSize); //skip 4 bytes of checksum
-            }
-
-            // Write metadata
-            metadataAndPayload.writeInt(msgMetadataSize);
-            msgMetadata.writeTo(outStream);
-            outStream.recycle();
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
+        // Create checksum placeholder
+        if (includeChecksum) {
+            metadataAndPayload.writeShort(magicCrc32c);
+            checksumReaderIndex = metadataAndPayload.writerIndex();
+            metadataAndPayload.writerIndex(metadataAndPayload.writerIndex()
+                    + checksumSize); // skip 4 bytes of checksum
         }
+
+        // Write metadata
+        metadataAndPayload.writeInt(msgMetadataSize);
+        msgMetadata.writeTo(metadataAndPayload);
 
         // write checksum at created checksum-placeholder
         if (includeChecksum) {
@@ -2089,15 +1519,16 @@ public class Commands {
         return metadataAndPayload;
     }
 
-    public static long initBatchMessageMetadata(MessageMetadata.Builder messageMetadata,
-            MessageMetadata.Builder builder) {
+    public static long initBatchMessageMetadata(MessageMetadata messageMetadata,
+            MessageMetadata builder) {
         messageMetadata.setPublishTime(builder.getPublishTime());
         messageMetadata.setProducerName(builder.getProducerName());
         messageMetadata.setSequenceId(builder.getSequenceId());
+
         // Attach the key to the message metadata.
         if (builder.hasPartitionKey()) {
             messageMetadata.setPartitionKey(builder.getPartitionKey());
-            messageMetadata.setPartitionKeyB64Encoded(builder.getPartitionKeyB64Encoded());
+            messageMetadata.setPartitionKeyB64Encoded(builder.isPartitionKeyB64Encoded());
         }
         if (builder.hasOrderingKey()) {
             messageMetadata.setOrderingKey(builder.getOrderingKey());
@@ -2105,92 +1536,77 @@ public class Commands {
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }
-        if (builder.getReplicateToCount() > 0) {
-            messageMetadata.addAllReplicateTo(builder.getReplicateToList());
+        if (builder.getReplicateTosCount() > 0) {
+            for (int i = 0; i < builder.getReplicateTosCount(); i++) {
+                messageMetadata.addReplicateTo(builder.getReplicateToAt(i));
+            }
         }
         if (builder.hasSchemaVersion()) {
             messageMetadata.setSchemaVersion(builder.getSchemaVersion());
         }
+
         return builder.getSequenceId();
     }
 
     public static ByteBuf serializeSingleMessageInBatchWithPayload(
-            SingleMessageMetadata.Builder singleMessageMetadataBuilder,
+            SingleMessageMetadata singleMessageMetadata,
             ByteBuf payload, ByteBuf batchBuffer) {
-        int payLoadSize = payload.readableBytes();
-        SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.setPayloadSize(payLoadSize)
-                .build();
+        singleMessageMetadata.setPayloadSize(payload.readableBytes());
+
         // serialize meta-data size, meta-data and payload for single message in batch
-        int singleMsgMetadataSize = singleMessageMetadata.getSerializedSize();
-        try {
-            batchBuffer.writeInt(singleMsgMetadataSize);
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(batchBuffer);
-            singleMessageMetadata.writeTo(outStream);
-            singleMessageMetadata.recycle();
-            outStream.recycle();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        batchBuffer.writeInt(singleMessageMetadata.getSerializedSize());
+        singleMessageMetadata.writeTo(batchBuffer);
         return batchBuffer.writeBytes(payload);
     }
 
-    public static ByteBuf serializeSingleMessageInBatchWithPayload(MessageMetadata.Builder msgBuilder,
+    public static ByteBuf serializeSingleMessageInBatchWithPayload(MessageMetadata msg,
             ByteBuf payload, ByteBuf batchBuffer) {
-
         // build single message meta-data
-        SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata
-                .newBuilder();
-        if (msgBuilder.hasPartitionKey()) {
-            singleMessageMetadataBuilder = singleMessageMetadataBuilder.setPartitionKey(msgBuilder.getPartitionKey())
-                .setPartitionKeyB64Encoded(msgBuilder.getPartitionKeyB64Encoded());
+        SingleMessageMetadata smm = LOCAL_SINGLE_MESSAGE_METADATA.get();
+        smm.clear();
+
+        if (msg.hasPartitionKey()) {
+            smm.setPartitionKey(msg.getPartitionKey());
+            smm.setPartitionKeyB64Encoded(msg.isPartitionKeyB64Encoded());
         }
-        if (msgBuilder.hasOrderingKey()) {
-            singleMessageMetadataBuilder = singleMessageMetadataBuilder.setOrderingKey(msgBuilder.getOrderingKey());
+        if (msg.hasOrderingKey()) {
+            smm.setOrderingKey(msg.getOrderingKey());
         }
-        if (!msgBuilder.getPropertiesList().isEmpty()) {
-            singleMessageMetadataBuilder = singleMessageMetadataBuilder
-                    .addAllProperties(msgBuilder.getPropertiesList());
+        for (int i = 0; i < msg.getPropertiesCount(); i++) {
+            smm.addProperty()
+                    .setKey(msg.getPropertyAt(i).getKey())
+                    .setValue(msg.getPropertyAt(i).getValue());
         }
 
-        if (msgBuilder.hasEventTime()) {
-            singleMessageMetadataBuilder.setEventTime(msgBuilder.getEventTime());
+        if (msg.hasEventTime()) {
+            smm.setEventTime(msg.getEventTime());
         }
 
-        if (msgBuilder.hasSequenceId()) {
-            singleMessageMetadataBuilder.setSequenceId(msgBuilder.getSequenceId());
+        if (msg.hasSequenceId()) {
+            smm.setSequenceId(msg.getSequenceId());
         }
 
-        if (msgBuilder.hasNullValue()) {
-            singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
+        if (msg.hasNullValue()) {
+            smm.setNullValue(msg.isNullValue());
         }
 
-        if (msgBuilder.hasNullPartitionKey()) {
-            singleMessageMetadataBuilder.setNullPartitionKey(msgBuilder.hasNullPartitionKey());
+        if (msg.hasNullPartitionKey()) {
+            smm.setNullPartitionKey(msg.isNullPartitionKey());
         }
 
-        try {
-            return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
-        } finally {
-            singleMessageMetadataBuilder.recycle();
-        }
+        return serializeSingleMessageInBatchWithPayload(smm, payload, batchBuffer);
     }
 
     public static ByteBuf deSerializeSingleMessageInBatch(ByteBuf uncompressedPayload,
-            SingleMessageMetadata.Builder singleMessageMetadataBuilder, int index, int batchSize)
+            SingleMessageMetadata singleMessageMetadata, int index, int batchSize)
             throws IOException {
         int singleMetaSize = (int) uncompressedPayload.readUnsignedInt();
-        int writerIndex = uncompressedPayload.writerIndex();
-        int beginIndex = uncompressedPayload.readerIndex() + singleMetaSize;
-        uncompressedPayload.writerIndex(beginIndex);
-        ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(uncompressedPayload);
-        singleMessageMetadataBuilder.mergeFrom(stream, null);
-        stream.recycle();
+        singleMessageMetadata.parseFrom(uncompressedPayload, singleMetaSize);
 
-        int singleMessagePayloadSize = singleMessageMetadataBuilder.getPayloadSize();
+        int singleMessagePayloadSize = singleMessageMetadata.getPayloadSize();
 
         int readerIndex = uncompressedPayload.readerIndex();
         ByteBuf singleMessagePayload = uncompressedPayload.retainedSlice(readerIndex, singleMessagePayloadSize);
-        uncompressedPayload.writerIndex(writerIndex);
 
         // reader now points to beginning of payload read; so move it past message payload just read
         if (index < batchSize) {
@@ -2206,7 +1622,6 @@ public class Commands {
         //
         // metadataAndPayload contains from magic-number to the payload included
 
-
         int cmdSize = cmd.getSerializedSize();
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();
         int headersSize = 4 + 4 + cmdSize;
@@ -2214,18 +1629,9 @@ public class Commands {
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
         headers.writeInt(totalSize); // External frame
 
-        try {
-            // Write cmd
-            headers.writeInt(cmdSize);
-
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
-            cmd.writeTo(outStream);
-            outStream.recycle();
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        }
-
+        // Write cmd
+        headers.writeInt(cmdSize);
+        cmd.writeTo(headers);
         return ByteBufPair.get(headers, metadataAndPayload);
     }
 
@@ -2235,9 +1641,7 @@ public class Commands {
         if (msgMetadata == null) {
             return -1;
         } else {
-            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
-            msgMetadata.recycle();
-            return numMessagesInBatch;
+            return msgMetadata.getNumMessagesInBatch();
         }
     }
 
@@ -2258,7 +1662,7 @@ public class Commands {
 
     public static int getCurrentProtocolVersion() {
         // Return the last ProtocolVersion enum value
-        return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
+        return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getValue();
     }
 
     /**
@@ -2270,39 +1674,39 @@ public class Commands {
     }
 
     public static boolean peerSupportsGetLastMessageId(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v12.getNumber();
+        return peerVersion >= ProtocolVersion.v12.getValue();
     }
 
     public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v12.getNumber();
+        return peerVersion >= ProtocolVersion.v12.getValue();
     }
 
     public static boolean peerSupportsMultiMessageAcknowledgment(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v12.getNumber();
+        return peerVersion >= ProtocolVersion.v12.getValue();
     }
 
     public static boolean peerSupportJsonSchemaAvroFormat(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v13.getNumber();
+        return peerVersion >= ProtocolVersion.v13.getValue();
     }
 
     public static boolean peerSupportsGetOrCreateSchema(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v15.getNumber();
+        return peerVersion >= ProtocolVersion.v15.getValue();
     }
 
-    private static PulsarApi.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {
+    private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {
         switch (accessMode) {
         case Exclusive:
-            return PulsarApi.ProducerAccessMode.Exclusive;
+            return org.apache.pulsar.common.api.proto.ProducerAccessMode.Exclusive;
         case Shared:
-            return PulsarApi.ProducerAccessMode.Shared;
+            return org.apache.pulsar.common.api.proto.ProducerAccessMode.Shared;
         case WaitForExclusive:
-            return PulsarApi.ProducerAccessMode.WaitForExclusive;
+            return org.apache.pulsar.common.api.proto.ProducerAccessMode.WaitForExclusive;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
     }
 
-    public static ProducerAccessMode convertProducerAccessMode(PulsarApi.ProducerAccessMode accessMode) {
+    public static ProducerAccessMode convertProducerAccessMode(org.apache.pulsar.common.api.proto.ProducerAccessMode accessMode) {
         switch (accessMode) {
         case Exclusive:
             return ProducerAccessMode.Exclusive;
@@ -2316,6 +1720,6 @@ public class Commands {
     }
 
     public static boolean peerSupportsBrokerMetadata(int peerVersion) {
-        return peerVersion >= ProtocolVersion.v16.getNumber();
+        return peerVersion >= ProtocolVersion.v16.getValue();
     }
 }
