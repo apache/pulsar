@@ -216,7 +216,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService messagePublishBufferMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
-    private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
@@ -310,8 +309,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         new DefaultThreadFactory("pulsar-publish-buffer-monitor"));
         this.consumedLedgersMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
-        this.ledgerFullMonitor =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("ledger-full-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -461,7 +458,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startCompactionMonitor();
         this.startMessagePublishBufferMonitor();
         this.startConsumedLedgersMonitor();
-        this.startLedgerFullMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
@@ -552,12 +548,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             consumedLedgersMonitor.scheduleAtFixedRate(safeRun(this::checkConsumedLedgers),
                                                             interval, interval, TimeUnit.SECONDS);
         }
-    }
-
-    protected void startLedgerFullMonitor() {
-        int interval = pulsar().getConfiguration().getManagedLedgerMaxLedgerRolloverTimeMinutes();
-        ledgerFullMonitor.scheduleAtFixedRate(safeRun(this::checkLedgerFull),
-                interval, interval, TimeUnit.MINUTES);
     }
 
     protected void startBacklogQuotaChecker() {
@@ -698,7 +688,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         inactivityMonitor.shutdown();
         messageExpiryMonitor.shutdown();
         compactionMonitor.shutdown();
-        ledgerFullMonitor.shutdown();
         messagePublishBufferMonitor.shutdown();
         consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
@@ -1440,18 +1429,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
                             managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
-                        }
-                );
-            }
-        });
-    }
-
-    private void checkLedgerFull() {
-        forEachTopic((t) -> {
-            if (t instanceof PersistentTopic) {
-                Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
-                        managedLedger -> {
-                            managedLedger.rollCurrentLedgerIfFull();
                         }
                 );
             }

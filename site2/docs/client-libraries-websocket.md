@@ -42,6 +42,17 @@ webServicePort=8080
 clusterName=my-cluster
 ```
 
+### Security settings
+
+To enable TLS encryption on WebSocket service:
+```properties
+tlsEnabled=true
+tlsAllowInsecureConnection=false
+tlsCertificateFilePath=/path/to/client-websocket.cert.pem
+tlsKeyFilePath=/path/to/client-websocket.key-pk8.pem
+tlsTrustCertsFilePath=/path/to/ca.cert.pem
+```
+
 ### Starting the broker
 
 When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) tool:
@@ -311,7 +322,13 @@ Here's an example Python producer that sends a simple message to a Pulsar [topic
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
+
+TOPIC = scheme + '://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -340,7 +357,13 @@ Here's an example Python consumer that listens on a Pulsar topic and prints the 
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
+
+TOPIC = scheme + '://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -363,8 +386,13 @@ Here's an example Python reader that listens on a Pulsar topic and prints the me
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
 
+TOPIC = scheme + '://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'
 ws = websocket.create_connection(TOPIC)
 
 while True:
@@ -392,9 +420,12 @@ $ npm install ws
 Here's an example Node.js producer that sends a simple message to a Pulsar topic:
 
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/producer/persistent/public/default/my-topic`;
+const ws = new WebSocket(topic);
 
 var message = {
   "payload" : new Buffer("Hello World").toString('base64'),
@@ -420,9 +451,12 @@ ws.on('message', function(message) {
 Here's an example Node.js consumer that listens on the same topic used by the producer above:
 
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub`;
+const ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
     var receiveMsg = JSON.parse(message);
@@ -434,9 +468,12 @@ ws.on('message', function(message) {
 
 #### NodeJS reader
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/reader/persistent/public/default/my-topic`;
+const ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
     var receiveMsg = JSON.parse(message);

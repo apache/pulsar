@@ -1047,6 +1047,8 @@ public class PulsarClientException extends IOException {
             return new ProducerFencedException(msg);
         } else if (cause instanceof MemoryBufferIsFullError) {
             return new MemoryBufferIsFullError(msg);
+        } else if (cause instanceof NotFoundException) {
+            return new NotFoundException(msg);
         } else {
             return new PulsarClientException(t);
         }

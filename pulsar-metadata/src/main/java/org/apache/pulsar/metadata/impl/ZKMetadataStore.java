@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.impl.zookeeper;
+package org.apache.pulsar.metadata.impl;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
@@ -35,22 +37,22 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
-
-public class ZKMetadataStore implements MetadataStore {
+@Slf4j
+public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStore, Watcher {
 
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private final ExecutorService executor;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
         try {
@@ -62,15 +64,12 @@ public class ZKMetadataStore implements MetadataStore {
         } catch (KeeperException | InterruptedException e) {
             throw new IOException(e);
         }
-
-        this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("zk-metadata-store-callback"));
     }
 
     @VisibleForTesting
     public ZKMetadataStore(ZooKeeper zkc) {
         this.isZkManaged = false;
         this.zkc = zkc;
-        this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("zk-metadata-store-callback"));
     }
 
     @Override
@@ -78,12 +77,29 @@ public class ZKMetadataStore implements MetadataStore {
         CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
 
         try {
-            zkc.getData(path, null, (rc, path1, ctx, data, stat) -> {
+            zkc.getData(path, this, (rc, path1, ctx, data, stat) -> {
                 executor.execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(Optional.of(new GetResult(data, getStat(stat))));
                     } else if (code == Code.NONODE) {
+                        // Place a watch on the non-existing node, so we'll get notified
+                        // when it gets created and we can invalidate the negative cache.
+                        existsFromStore(path).thenAccept(exists -> {
+                            if (exists) {
+                                get(path).thenAccept(c -> future.complete(c))
+                                        .exceptionally(ex -> {
+                                            future.completeExceptionally(ex);
+                                            return null;
+                                        });
+                            } else {
+                                // Z-node does not exist
+                                future.complete(Optional.empty());
+                            }
+                        }).exceptionally(ex -> {
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
                         future.complete(Optional.empty());
                     } else {
                         future.completeExceptionally(getException(code, path));
@@ -98,11 +114,11 @@ public class ZKMetadataStore implements MetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildren(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
         try {
-            zkc.getChildren(path, null, (rc, path1, ctx, children) -> {
+            zkc.getChildren(path, this, (rc, path1, ctx, children) -> {
                 executor.execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -114,9 +130,9 @@ public class ZKMetadataStore implements MetadataStore {
                         // been created after the call to getChildren, but before the call to exists().
                         // If this is the case, exists will return true, and we just call getChildren
                         // again.
-                        exists(path).thenAccept(exists -> {
+                        existsFromStore(path).thenAccept(exists -> {
                             if (exists) {
-                                getChildren(path).thenAccept(c -> future.complete(c)).exceptionally(ex -> {
+                                getChildrenFromStore(path).thenAccept(c -> future.complete(c)).exceptionally(ex -> {
                                     future.completeExceptionally(ex);
                                     return null;
                                 });
@@ -128,8 +144,6 @@ public class ZKMetadataStore implements MetadataStore {
                             future.completeExceptionally(ex);
                             return null;
                         });
-
-                        future.complete(Collections.emptyList());
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
@@ -143,11 +157,11 @@ public class ZKMetadataStore implements MetadataStore {
     }
 
     @Override
-    public CompletableFuture<Boolean> exists(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
+            zkc.exists(path, this, (rc, path1, ctx, stat) -> {
                 executor.execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -250,7 +264,7 @@ public class ZKMetadataStore implements MetadataStore {
         if (isZkManaged) {
             zkc.close();
         }
-        executor.shutdownNow();
+        super.close();
     }
 
     private static Stat getStat(org.apache.zookeeper.data.Stat zkStat) {
@@ -268,5 +282,41 @@ public class ZKMetadataStore implements MetadataStore {
         default:
             return new MetadataStoreException(ex);
         }
+    }
+
+    @Override
+    public void process(WatchedEvent event) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received ZK watch : {}", event);
+        }
+        String path = event.getPath();
+        if (path == null) {
+            // Ignore Session events
+            return;
+        }
+
+        NotificationType type;
+        switch (event.getType()) {
+        case NodeCreated:
+            type = NotificationType.Created;
+            break;
+
+        case NodeDataChanged:
+            type = NotificationType.Modified;
+            break;
+
+        case NodeChildrenChanged:
+            type = NotificationType.ChildrenChanged;
+            break;
+
+        case NodeDeleted:
+            type = NotificationType.Deleted;
+            break;
+
+        default:
+            return;
+        }
+
+        receivedNotification(new Notification(type, event.getPath()));
     }
 }
