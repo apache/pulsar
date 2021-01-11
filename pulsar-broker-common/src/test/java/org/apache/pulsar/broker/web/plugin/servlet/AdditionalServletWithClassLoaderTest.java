@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.*;

@@ -22,7 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Set;
-import org.apache.pulsar.broker.intercept.*;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.powermock.api.mockito.PowerMockito;
@@ -40,7 +39,7 @@ import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
 @PrepareForTest({
-        BrokerInterceptorUtils.class, NarClassLoader.class
+        NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class AdditionalServletUtilsTest {
@@ -52,7 +51,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test
-    public void testLoadProxyEventListener() throws Exception {
+    public void testLoadEventListener() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(MockAdditionalServlet.class.getName());
         def.setDescription("test-proxy-listener");
@@ -86,7 +85,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadProxyEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadEventListenerWithBlankListerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setDescription("test-proxy-listener");
 
@@ -115,7 +114,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadProxyEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadEventListenerWithWrongListerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(Runnable.class.getName());
         def.setDescription("test-proxy-listener");
