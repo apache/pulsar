@@ -123,20 +123,30 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             String retryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String deadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
             if(conf.getDeadLetterPolicy() == null) {
-                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
-                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                                        .retryLetterTopic(retryLetterTopic)
-                                        .deadLetterTopic(deadLetterTopic)
-                                        .build());
+                DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                        .retryLetterTopic(retryLetterTopic);
+                // Don't set DLQ for key shared subType since it requires msg to be ordered for key.
+                if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                    dlpBuilder.deadLetterTopic(deadLetterTopic);
+                }
+                conf.setDeadLetterPolicy(dlpBuilder.build());
             } else {
                 if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
                     conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
                 }
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
+                        && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
                     conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
                 }
             }
             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+        }
+        if (conf.getDeadLetterPolicy() != null && StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
+                && conf.getSubscriptionType() == SubscriptionType.Key_Shared) {
+            return FutureUtil
+                    .failedFuture(new InvalidConfigurationException("DeadLetterQueue is not supported for" +
+                            " Key_Shared subscription type since DLQ can't guarantee message ordering."));
         }
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :

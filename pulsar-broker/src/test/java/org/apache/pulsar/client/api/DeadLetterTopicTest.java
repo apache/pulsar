@@ -142,7 +142,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        // Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
@@ -170,7 +171,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // make sure message not acked sent to retry topic.
         assertEquals(totalReceived, sendMessages * (maxRedeliveryCount + 1));
 
-        // make sure no message sent to DLQ.
+        // make sure no message sent to dead letter topic.
         Message dlqMessage = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
         assertNull(dlqMessage);
 
