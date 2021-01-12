@@ -77,6 +77,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -3691,5 +3692,89 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testIncomingMessageSizeForNonPartitionedTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSizeForNonPartitionedTopic-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        final int messages = 100;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
+    }
+
+    @Test
+    public void testIncomingMessageSizeForPartitionedTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSizeForPartitionedTopic-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        final int messages = 100;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
     }
 }

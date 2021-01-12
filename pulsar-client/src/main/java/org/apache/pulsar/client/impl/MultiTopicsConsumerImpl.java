@@ -312,7 +312,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected synchronized void messageProcessed(Message<?> msg) {
         unAckedMessageTracker.add(msg.getMessageId());
-        updateIncomingMessageSize(msg);
+        decreaseIncomingMessageSize(msg);
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
@@ -335,7 +335,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         Message<T> message;
         try {
             message = incomingMessages.take();
-            updateIncomingMessageSize(message);
+            decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
             unAckedMessageTracker.add(message.getMessageId());
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -351,7 +351,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
-                updateIncomingMessageSize(message);
+                decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
                 unAckedMessageTracker.add(message.getMessageId());
             }
@@ -392,7 +392,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
-                        updateIncomingMessageSize(msg);
+                        decreaseIncomingMessageSize(msg);
                         Message<T> interceptMsg = beforeConsume(msg);
                         messages.add(interceptMsg);
                     }
@@ -420,7 +420,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             pendingReceives.add(result);
             cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
         } else {
-            updateIncomingMessageSize(message);
+            decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
             unAckedMessageTracker.add(message.getMessageId());
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -785,7 +785,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             Message<T> message = incomingMessages.poll();
             checkState(message instanceof TopicMessageImpl);
             while (message != null) {
-                updateIncomingMessageSize(message);
+                decreaseIncomingMessageSize(message);
                 MessageId messageId = message.getMessageId();
                 if (!messageIds.contains(messageId)) {
                     messageIds.add(messageId);
