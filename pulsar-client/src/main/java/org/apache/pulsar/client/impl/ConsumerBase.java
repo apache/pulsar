@@ -861,7 +861,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 (message.getData() != null) ? -message.getData().length : 0);
     }
 
-    @VisibleForTesting
     public long getIncomingMessageSize() {
         return INCOMING_MESSAGES_SIZE_UPDATER.get(this);
     }
