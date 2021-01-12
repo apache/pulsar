@@ -1351,6 +1351,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
+          <version>${maven-assembly-plugin.version}</version>
           <dependencies>
               <dependency>
                   <groupId>org.apache.apache.resources</groupId>
@@ -1371,7 +1372,8 @@ flexible messaging model and an intuitive client API.</description>
                           <!-- defined in Apache Parent Pom -->
                           <descriptorRef>${sourceReleaseAssemblyDescriptor}</descriptorRef>
                       </descriptorRefs>
-                      <finalName>apache-pulsar-src-${project.version}</finalName>
+                      <finalName>apache-pulsar-${project.version}-src</finalName>
+                      <appendAssemblyId>false</appendAssemblyId>
                       <formats>
                           <format>tar.gz</format>
                       </formats>
