@@ -89,8 +89,6 @@ public abstract class PulsarWebResource {
 
     private PulsarService pulsar;
 
-    private final PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
-
     protected PulsarService pulsar() {
         if (pulsar == null) {
             pulsar = (PulsarService) servletContext.getAttribute(WebService.ATTRIBUTE_PULSAR_NAME);
@@ -361,6 +359,7 @@ public abstract class PulsarWebResource {
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         try {
+            PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
                     && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
                 serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrlTls());
