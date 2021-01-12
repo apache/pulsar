@@ -45,15 +45,17 @@ class OpReadEntry implements ReadEntriesCallback {
     // Results
     private List<Entry> entries;
     private PositionImpl nextReadPosition;
+    PositionImpl maxPosition;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx) {
+            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
         op.entries = Lists.newArrayList();
+        op.maxPosition = maxPosition;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
@@ -131,7 +133,8 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     void checkReadCompletion() {
-        if (entries.size() < count && cursor.hasMoreEntries()) {
+        if (entries.size() < count && cursor.hasMoreEntries() &&
+                ((PositionImpl) cursor.getReadPosition()).compareTo(maxPosition) < 0) {
             // We still have more entries to read from the next ledger, schedule a new async operation
             if (nextReadPosition.getLedgerId() != readPosition.getLedgerId()) {
                 cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
@@ -184,6 +187,7 @@ class OpReadEntry implements ReadEntriesCallback {
         ctx = null;
         entries = null;
         nextReadPosition = null;
+        maxPosition = null;
         recyclerHandle.recycle(this);
     }
 

@@ -28,9 +28,7 @@ import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
@@ -145,17 +143,17 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn1 = getTxn();
         Transaction txn2 = getTxn();
 
-        int txn1MessageCnt = 0;
-        int txn2MessageCnt = 0;
+        int txnMessageCnt = 0;
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
-                txn1MessageCnt ++;
+                MessageId messageId = producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn1).getTxnIdMostBits(), ((TransactionImpl)txn1).getTxnIdLeastBits()), messageId);
             } else {
-                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
-                txn2MessageCnt ++;
+                MessageId messageId = producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn2).getTxnIdMostBits(), ((TransactionImpl)txn2).getTxnIdLeastBits()), messageId);
             }
+            txnMessageCnt++;
         }
 
         // Can't receive transaction messages before commit.
@@ -163,29 +161,18 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         txn1.commit().get();
+        txn2.commit().get();
 
-        // txn1 messages could be received after txn1 committed
         int receiveCnt = 0;
-        for (int i = 0; i < txn1MessageCnt; i++) {
+        for (int i = 0; i < txnMessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
             receiveCnt ++;
         }
-        Assert.assertEquals(txn1MessageCnt, receiveCnt);
+        Assert.assertEquals(txnMessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
-
-        txn2.commit().get();
-
-        // txn2 messages could be received after txn2 committed
-        receiveCnt = 0;
-        for (int i = 0; i < txn2MessageCnt; i++) {
-            message = consumer.receive();
-            Assert.assertNotNull(message);
-            receiveCnt ++;
-        }
-        Assert.assertEquals(txn2MessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
@@ -576,7 +563,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
-        Map<TxnID, List<MessageId>> txnIDListMap = new HashMap<>();
+        List<TxnID> txnIDList = new ArrayList<>();
 
         int txnCnt = 20;
         int messageCnt = 10;
@@ -584,12 +571,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             TransactionImpl txn = (TransactionImpl) pulsarClient.newTransaction()
                     .withTransactionTimeout(5, TimeUnit.MINUTES)
                     .build().get();
-            List<MessageId> messageIds = new ArrayList<>();
             for (int j = 0; j < messageCnt; j++) {
-                MessageId messageId = producer.newMessage(txn).value("Hello".getBytes()).sendAsync().get();
-                messageIds.add(messageId);
+                producer.newMessage(txn).value("Hello".getBytes()).sendAsync().get();
             }
-            txnIDListMap.put(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()), messageIds);
+            txnIDList.add(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
         pulsarClient.close();
@@ -601,8 +586,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build();
 
         TransactionCoordinatorClient tcClient = recoverPulsarClient.getTcClient();
-        for (Map.Entry<TxnID, List<MessageId>> entry : txnIDListMap.entrySet()) {
-            tcClient.commit(entry.getKey(), entry.getValue());
+        for (TxnID txnID : txnIDList) {
+            tcClient.commit(txnID);
         }
 
         @Cleanup

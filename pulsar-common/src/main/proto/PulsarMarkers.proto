@@ -84,6 +84,5 @@ message MarkersMessageIdData {
 
 
 /// --- Transaction marker ---
-message TxnCommitMarker {
-    repeated MarkersMessageIdData message_id = 1;
+message TxnMarker {
 }
