@@ -31,6 +31,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.packages.management.core.common.PackageName;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -56,22 +57,28 @@ public class FunctionConfigUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
-    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
-            throws IllegalArgumentException {
-        
-        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
-
+    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader) {
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             if (classLoader != null) {
                 try {
                     typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
+                    return convert(functionConfig, typeArgs[0].getName(), typeArgs[1].getName());
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
-                            String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+                        String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
                 }
             }
         }
+        return convert(functionConfig, null, null);
+    }
+
+    public static FunctionDetails convert(FunctionConfig functionConfig, String sourceTypeClassName, String sinkTypeClassName)
+            throws IllegalArgumentException {
+        
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+
+
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
@@ -167,8 +174,8 @@ public class FunctionConfigUtils {
 
         sourceSpecBuilder.setSubscriptionPosition(subPosition);
 
-        if (typeArgs != null) {
-            sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
+        if (sourceTypeClassName != null) {
+            sourceSpecBuilder.setTypeClassName(sourceTypeClassName);
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -208,8 +215,8 @@ public class FunctionConfigUtils {
                 throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
             }
         }
-        if (typeArgs != null) {
-            sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
+        if (sinkTypeClassName != null) {
+            sinkSpecBuilder.setTypeClassName(sinkTypeClassName);
         }
         if (functionConfig.getProducerConfig() != null) {
             sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig()));
@@ -940,5 +947,17 @@ public class FunctionConfigUtils {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
+    }
+
+    public static boolean isPackageNameStyle(String functionPkgUrl) {
+        if (!org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+            return false;
+        }
+        try {
+            PackageName.get(functionPkgUrl);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

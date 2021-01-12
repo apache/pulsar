@@ -301,11 +301,15 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
                 WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
-                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                if (FunctionConfigUtils.isPackageNameStyle(functionPkgUrl)) {
+                    packageLocationMetaDataBuilder.setPackagePath(functionPkgUrl);
+                } else {
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         uploadedInputStreamAsFile.getName()));
-                packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
-                log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                    packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
+                    log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                }
             } else if (functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)
                     || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
                 String fileName = new File(new URL(functionMetaData.getPackageLocation().getPackagePath()).toURI()).getName();
