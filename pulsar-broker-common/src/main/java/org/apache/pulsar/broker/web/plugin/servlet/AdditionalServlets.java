@@ -66,16 +66,20 @@ public class AdditionalServlets implements AutoCloseable {
             // Compatible with the current proxy configuration
             additionalServletDirectory = conf.getProperties().getProperty(PROXY_ADDITIONAL_SERVLET_DIRECTORY);
         }
-        AdditionalServletDefinitions definitions =
-                AdditionalServletUtils.searchForServlets(additionalServletDirectory
-                        , null);
-
-        ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 
         String additionalServlets = conf.getProperties().getProperty(ADDITIONAL_SERVLETS);
         if (additionalServlets == null) {
             additionalServlets = conf.getProperties().getProperty(PROXY_ADDITIONAL_SERVLETS);
         }
+        if (additionalServletDirectory == null || additionalServlets == null) {
+            return null;
+        }
+
+        AdditionalServletDefinitions definitions =
+                AdditionalServletUtils.searchForServlets(additionalServletDirectory
+                        , null);
+        ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
+
         List<String> additionalServletsList = Arrays.asList(additionalServlets.split(","));
         additionalServletsList.forEach(servletName -> {
 
