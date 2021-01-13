@@ -69,9 +69,11 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,6 +198,24 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
+    }
+
+    @Test(timeOut = 10000)
+    public void activeBrokerParse() throws Exception {
+        pulsar1.getConfiguration().setAuthorizationEnabled(true);
+        //init clusterData
+        ClusterData cluster2Data = new ClusterData();
+        String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678", pulsar2.getWebServiceAddress());
+        cluster2Data.setServiceUrl(cluster2ServiceUrls);
+        String cluster2 = "activeCLuster2";
+        admin2.clusters().createCluster(cluster2, cluster2Data);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin2.clusters().getCluster(cluster2) != null);
+
+        List<String> list = admin1.brokers().getActiveBrokers(cluster2);
+        assertEquals(list.get(0), url2.toString().replace("http://", ""));
+        //restore configuration
+        pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
 
     @SuppressWarnings("unchecked")
