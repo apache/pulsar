@@ -219,8 +219,8 @@
             "fileName": [
                 "swaggerfunctions",
                 "swaggerpackages",
-                "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggersink"
             ]
         }
     ],
