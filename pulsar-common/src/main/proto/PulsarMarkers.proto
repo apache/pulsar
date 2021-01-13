@@ -78,8 +78,8 @@ message ClusterMessageId {
 }
 
 message MarkersMessageIdData {
-	required uint64 ledger_id = 1;
-	required uint64 entry_id  = 2;
+    required uint64 ledger_id = 1;
+    required uint64 entry_id = 2;
 }
 
 
