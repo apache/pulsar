@@ -68,9 +68,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private boolean autoPrefetchEnabled = false;
     private long cachedRoleTokenTimestamp;
     private String roleToken;
-    private final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
-    private final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
-    private final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
+    private static final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
+    private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
+    private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
 
     public AuthenticationAthenz() {
     }
@@ -130,12 +130,10 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         setAuthParams(authParams);
     }
 
-    private void setAuthParams(Map<String, String> authParams) {
+    private synchronized void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
-        synchronized (providerDomainLock) {
-            this.providerDomain = authParams.get("providerDomain");
-        }
+        this.providerDomain = authParams.get("providerDomain");
         // privateKeyPath is deprecated, this is for compatibility
         if (isBlank(authParams.get("privateKey")) && isNotBlank(authParams.get("privateKeyPath"))) {
             this.privateKey = loadPrivateKey(authParams.get("privateKeyPath"));
