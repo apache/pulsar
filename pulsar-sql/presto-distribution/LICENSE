@@ -302,11 +302,11 @@ The Apache Software License, Version 2.0
     - configuration-0.195.jar
     - discovery-0.195.jar
     - discovery-server-1.29.jar
-    - event-0.195.jar
-    - http-client-0.195.jar
-    - http-server-0.195.jar
-    - jmx-0.195.jar
-    - jmx-http-0.195.jar
+    - event-0.197.jar
+    - http-client-0.197.jar
+    - http-server-0.197.jar
+    - jmx-0.197.jar
+    - jmx-http-0.197.jar
     - jmx-http-rpc-0.159.jar
     - joni-2.1.5.3.jar
     - json-0.199.jar
@@ -318,10 +318,10 @@ The Apache Software License, Version 2.0
     - node-0.195.jar
     - parameternames-1.4.jar
     - resolver-1.5.jar
-    - security-0.195.jar
+    - security-0.197.jar
     - slice-0.38.jar
-    - stats-0.195.jar
-    - trace-token-0.195.jar
+    - stats-0.197.jar
+    - trace-token-0.197.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
@@ -395,17 +395,17 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Presto
-    - presto-array-332.jar
-    - presto-cli-332.jar
-    - presto-client-332.jar
-    - presto-geospatial-toolkit-332.jar
-    - presto-main-332.jar
-    - presto-matching-332.jar
-    - presto-memory-context-332.jar
-    - presto-parser-332.jar
-    - presto-plugin-toolkit-332.jar
-    - presto-spi-332.jar
-    - presto-record-decoder-332.jar
+    - presto-array-334.jar
+    - presto-cli-334.jar
+    - presto-client-334.jar
+    - presto-geospatial-toolkit-334.jar
+    - presto-main-334.jar
+    - presto-matching-334.jar
+    - presto-memory-context-334.jar
+    - presto-parser-334.jar
+    - presto-plugin-toolkit-334.jar
+    - presto-server-main-334.jar
+    - presto-spi-334.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
