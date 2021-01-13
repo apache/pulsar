@@ -28,7 +28,7 @@ POM_VERSION=`$SRC_ROOT_DIR/src/get-project-version.py`
 # Sanitize VERSION by removing `SNAPSHOT` if any since it's not legal in DEB
 VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
-ROOT_DIR=apache-pulsar-$POM_VERSION
+ROOT_DIR=apache-pulsar-$POM_VERSION-src
 CPP_DIR=$ROOT_DIR/pulsar-client-cpp
 
 rm -rf BUILD
