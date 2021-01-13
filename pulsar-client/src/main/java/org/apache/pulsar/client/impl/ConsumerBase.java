@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import java.util.Collections;
 import java.util.List;
@@ -668,8 +669,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
-                    this, message.getData() == null ? 0 : message.getData().length);
+            increaseIncomingMessageSize(message);
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -679,7 +679,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
-                || (batchReceivePolicy.getMaxNumBytes() > 0 && INCOMING_MESSAGES_SIZE_UPDATER.get(this) >= batchReceivePolicy.getMaxNumBytes());
+                || (batchReceivePolicy.getMaxNumBytes() > 0 && getIncomingMessageSize() >= batchReceivePolicy.getMaxNumBytes());
     }
 
     private void verifyConsumerState() throws PulsarClientException {
@@ -851,13 +851,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return pendingBatchReceives != null && peekNextBatchReceive() != null;
     }
 
+    protected void increaseIncomingMessageSize(final Message<?> message) {
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
+                this, message.getData() == null ? 0 : message.getData().length);
+    }
+
     protected void resetIncomingMessageSize() {
         INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
     }
 
-    protected void updateIncomingMessageSize(final Message<?> message) {
+    protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this,
-                (message.getData() != null) ? message.getData().length : 0);
+                (message.getData() != null) ? -message.getData().length : 0);
+    }
+
+    public long getIncomingMessageSize() {
+        return INCOMING_MESSAGES_SIZE_UPDATER.get(this);
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

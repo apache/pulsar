@@ -1528,7 +1528,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.updateNumMsgsReceived(msg);
 
         trackMessage(msg);
-        updateIncomingMessageSize(msg);
+        decreaseIncomingMessageSize(msg);
     }
 
     protected void trackMessage(Message<?> msg) {
@@ -2222,7 +2222,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // try not to remove elements that are added while we remove
             Message<T> message = incomingMessages.poll();
             while (message != null) {
-                updateIncomingMessageSize(message);
+                decreaseIncomingMessageSize(message);
                 messagesFromQueue++;
                 MessageIdImpl id = getMessageIdImpl(message);
                 if (!messageIds.contains(id)) {
