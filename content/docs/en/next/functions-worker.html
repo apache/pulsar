@@ -98,6 +98,7 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <ul>
 <li><code>numFunctionPackageReplicas</code>: The number of replicas to store function packages. The default value is <code>1</code>, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than <code>2</code>.</li>
 <li><code>pulsarFunctionsCluster</code>: Set the value to your Pulsar cluster name (same as the <code>clusterName</code> setting in the broker configuration).</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsarinitialize-cluster-metadata</code> command.</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
 <ul>

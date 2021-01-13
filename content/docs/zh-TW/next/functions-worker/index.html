@@ -98,6 +98,7 @@
 <ul>
 <li><code>numFunctionPackageReplicas</code>: 存儲 function packages 的副本數。 預設值為 <code>1</code>，這對於單機模式部署非常有用。 For production deployment, to ensure high availability, set it to be larger than <code>2</code>.</li>
 <li><code>pulsarFunctionsCluster</code>: 將值設置為你的 Pulsar 群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsarinitialize-cluster-metadata</code> command.</li>
 </ul>
 <p>如果在 BookKeeper 群集上啟用了身份驗證，請配置以下 BookKeeper 身份驗證設定。</p>
 <ul>
