@@ -102,9 +102,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
             log.error("[{}] Read last entry error.", name, e);
         } finally {
             if (ledgerEntries != null) {
-                for (LedgerEntry entry : ledgerEntries) {
-                    entry.getEntryBuffer().release();
-                }
+                ledgerEntries.close();
             }
         }
     }
