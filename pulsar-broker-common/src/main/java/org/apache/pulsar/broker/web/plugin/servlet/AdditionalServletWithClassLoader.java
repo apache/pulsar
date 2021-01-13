@@ -16,32 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.IOException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * A proxy additional servlet with it's classloader.
+ * An additional servlet with it's classloader.
  */
 @Slf4j
 @Data
 @RequiredArgsConstructor
-public class ProxyAdditionalServletWithClassLoader implements ProxyAdditionalServlet {
+public class AdditionalServletWithClassLoader implements AdditionalServlet {
 
-    private final ProxyAdditionalServlet servlet;
+    private final AdditionalServlet servlet;
     private final NarClassLoader classLoader;
 
     @Override
-    public void loadConfig(ProxyConfiguration proxyConfiguration) {
-        servlet.loadConfig(proxyConfiguration);
+    public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+        servlet.loadConfig(pulsarConfiguration);
     }
 
     @Override

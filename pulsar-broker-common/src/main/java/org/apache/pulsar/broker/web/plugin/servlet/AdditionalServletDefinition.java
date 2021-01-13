@@ -16,8 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.web.plugin.servlet;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * Pulsar proxy servlet plugin.
+ * Metadata information about an additional servlet.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+@Data
+@NoArgsConstructor
+public class AdditionalServletDefinition {
+    /**
+     * The name of the additional servlet.
+     */
+    private String name;
+
+    /**
+     * The description of the additional servlet to be used for user help.
+     */
+    private String description;
+
+    /**
+     * The class name for the additional servlet.
+     */
+    private String additionalServletClass;
+}

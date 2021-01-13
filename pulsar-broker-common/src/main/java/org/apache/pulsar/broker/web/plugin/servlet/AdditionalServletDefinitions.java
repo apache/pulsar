@@ -16,26 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
-import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 /**
- * The metadata of proxy additional servlet
+ * The collection of additional servlet definition.
  */
 @Data
-@NoArgsConstructor
-public class ProxyAdditionalServletMetadata {
+@Accessors(fluent = true)
+public class AdditionalServletDefinitions {
 
-    /**
-     * The definition of the proxy additional servlet.
-     */
-    private ProxyAdditionalServletDefinition definition;
-
-    /**
-     * The path to the additional servlet package.
-     */
-    private Path archivePath;
+    private final Map<String, AdditionalServletMetadata> servlets = new TreeMap<>();
 }

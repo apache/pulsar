@@ -16,29 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.google.common.annotations.Beta;
+import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * Metadata information about a proxy additional servlet.
+ * The additional servlet interface for support additional servlet.
  */
-@Data
-@NoArgsConstructor
-public class ProxyAdditionalServletDefinition {
-    /**
-     * The name of the proxy additional servlet.
-     */
-    private String name;
+@Beta
+public interface AdditionalServlet extends AutoCloseable {
 
     /**
-     * The description of the proxy additional servlet to be used for user help.
+     * load plugin config
+     *
+     * @param pulsarConfiguration
      */
-    private String description;
+    void loadConfig(PulsarConfiguration pulsarConfiguration);
 
     /**
-     * The class name for the additional servlet.
+     * Get the base path of prometheus metrics
+     *
+     * @return the base path of prometheus metrics
      */
-    private String additionalServletClass;
+    String getBasePath();
+
+    /**
+     * Get the servlet holder
+     *
+     * @return the servlet holder
+     */
+    ServletHolder getServletHolder();
+
+    @Override
+    void close();
 }

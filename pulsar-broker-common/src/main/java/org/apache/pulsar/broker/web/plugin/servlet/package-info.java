@@ -16,39 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
-
-import com.google.common.annotations.Beta;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * The additional servlet interface for support additional servlet on Pulsar proxy.
+ * Pulsar proxy servlet plugin.
  */
-@Beta
-public interface ProxyAdditionalServlet extends AutoCloseable {
-
-    /**
-     * load plugin config
-     *
-     * @param proxyConfiguration
-     */
-    void loadConfig(ProxyConfiguration proxyConfiguration);
-
-    /**
-     * Get the base path of prometheus metrics
-     *
-     * @return the base path of prometheus metrics
-     */
-    String getBasePath();
-
-    /**
-     * Get the servlet holder
-     *
-     * @return the servlet holder
-     */
-    ServletHolder getServletHolder();
-
-    @Override
-    void close();
-}
+package org.apache.pulsar.broker.web.plugin.servlet;

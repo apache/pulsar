@@ -16,19 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
+import org.eclipse.jetty.servlet.ServletHolder;
 
-/**
- * The collection of proxy additional servlet definition.
- */
-@Data
-@Accessors(fluent = true)
-public class ProxyAdditionalServletDefinitions {
+public class MockAdditionalServlet implements AdditionalServlet {
 
-    private final Map<String, ProxyAdditionalServletMetadata> servlets = new TreeMap<>();
+    @Override
+    public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+
+    }
+
+    @Override
+    public String getBasePath() {
+        return null;
+    }
+
+    @Override
+    public ServletHolder getServletHolder() {
+        return null;
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 }

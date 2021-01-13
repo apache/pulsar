@@ -16,31 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
-import org.eclipse.jetty.servlet.ServletHolder;
+import java.nio.file.Path;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public class MockProxyAdditionalServlet implements ProxyAdditionalServlet {
+/**
+ * The metadata of additional servlet
+ */
+@Data
+@NoArgsConstructor
+public class AdditionalServletMetadata {
 
-    @Override
-    public void loadConfig(ProxyConfiguration proxyConfiguration) {
+    /**
+     * The definition of the additional servlet.
+     */
+    private AdditionalServletDefinition definition;
 
-    }
-
-    @Override
-    public String getBasePath() {
-        return null;
-    }
-
-    @Override
-    public ServletHolder getServletHolder() {
-        return null;
-    }
-
-    @Override
-    public void close() {
-        // no-op
-    }
+    /**
+     * The path to the additional servlet package.
+     */
+    private Path archivePath;
 }
