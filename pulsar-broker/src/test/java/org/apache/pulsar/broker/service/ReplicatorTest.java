@@ -200,7 +200,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void activeBrokerParse() throws Exception {
         pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
@@ -214,6 +214,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
         assertEquals(list.get(0), url2.toString().replace("http://", ""));
+        //restore configuration
+        pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
 
     @SuppressWarnings("unchecked")
