@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
-
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
@@ -34,9 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;

@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -39,11 +39,6 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: checkout
         uses: actions/checkout@v2
         with:
@@ -68,25 +63,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run flaky test
+      - name: run unit test 'BROKER_GROUP_2'
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/MessagePublishBufferThrottleTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/ReplicatorTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/TopicOwnerTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AntiAffinityNamespaceGroupTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run unit tests for pulsar-broker "org/apache/pulsar/broker/"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn ${MAVEN_CLI_OPTS} test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java' -Dexclude='**/ReplicatorTest.java,**/MessagePublishBufferThrottleTest.java,**/TopicOwnerTest.java,**/AntiAffinityNamespaceGroupTest.java'
+        run: ./build/run_unit_group.sh BROKER_GROUP_2
 
       - name: package surefire artifacts
         if: failure()

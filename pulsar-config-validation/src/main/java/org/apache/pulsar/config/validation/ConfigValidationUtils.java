@@ -90,8 +90,7 @@ public class ConfigValidationUtils {
                     return;
                 }
                 throw new IllegalArgumentException(
-                        "Field " + name + " must be an Iterable but was "
-                                + ((field == null) ? "null" : ("a " + field.getClass())));
+                        "Field " + name + " must be an Iterable but was a " + field.getClass());
             }
         };
     }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
@@ -60,9 +59,9 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -91,9 +90,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
-    private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    private final String MESSAGE_ID = "X-Pulsar-Message-ID";
-    private final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    static private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    static private final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    static private final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -1385,7 +1384,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         String msgId = response.getHeaderString(MESSAGE_ID);
-        PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata messageMetadata = new MessageMetadata();
         try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
             stream.read(data);
@@ -1421,18 +1420,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                 Map<String, String> properties, PulsarApi.MessageMetadata.Builder msgMetadataBuilder) {
+                                 Map<String, String> properties, MessageMetadata msgMetadataBuilder) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         ByteBuf buf = Unpooled.wrappedBuffer(data);
         for (int i = 0; i < batchSize; i++) {
             String batchMsgId = msgId + ":" + i;
-            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                    .newBuilder();
+            SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             try {
                 ByteBuf singleMessagePayload =
-                        Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i, batchSize);
-                SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.build();
+                        Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadata, i, batchSize);
                 if (singleMessageMetadata.getPropertiesCount() > 0) {
                     for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
                         properties.put(entry.getKey(), entry.getValue());
@@ -1443,7 +1440,6 @@ public class TopicsImpl extends BaseResource implements Topics {
             } catch (Exception ex) {
                 log.error("Exception occurred while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
-            singleMessageMetadataBuilder.recycle();
         }
         buf.release();
         return ret;
@@ -2633,6 +2629,159 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> removeMaxProducersAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxProducers");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
+        try {
+            return getMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Integer>() {
+                    @Override
+                    public void completed(Integer maxSubscriptionsPerTopic) {
+                        future.complete(maxSubscriptionsPerTopic);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setMaxSubscriptionsPerTopic(String topic, int maxSubscriptionsPerTopic) throws PulsarAdminException {
+        try {
+            setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setMaxSubscriptionsPerTopicAsync(String topic, int maxSubscriptionsPerTopic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
+        return asyncPostRequest(path, Entity.entity(maxSubscriptionsPerTopic, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
+        try {
+            removeMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxSubscriptionsPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxMessageSize(String topic) throws PulsarAdminException {
+        try {
+            return getMaxMessageSizeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getMaxMessageSizeAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxMessageSize");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Integer>() {
+                    @Override
+                    public void completed(Integer maxMessageSize) {
+                        future.complete(maxMessageSize);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setMaxMessageSize(String topic, int maxMessageSize) throws PulsarAdminException {
+        try {
+            setMaxMessageSizeAsync(topic, maxMessageSize).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setMaxMessageSizeAsync(String topic, int maxMessageSize) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxMessageSize");
+        return asyncPostRequest(path, Entity.entity(maxMessageSize, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeMaxMessageSize(String topic) throws PulsarAdminException {
+        try {
+            removeMaxMessageSizeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxMessageSizeAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "maxMessageSize");
         return asyncDeleteRequest(path);
     }
 

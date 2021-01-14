@@ -270,4 +270,9 @@ Since the VM has lot of RAM you can increase a lot from the defaults and leave t
 ### When there are multiple consumers for a topic, the broker reads once from bookies and send them to all consumers with some buffer? or go get from bookies all the time for each consumers ?
 In general, all dispatching is done directly by broker memory. We only read from bookies when consumer are falling behind.
 
-
+### My bookies ledgers are running out of disk space? How can I find out what went wrong
+TBD
+- Expiry/TTL
+- Backlog Quotas
+- Retention Settings
+- Bookie configuration e.g. Garbage Collection

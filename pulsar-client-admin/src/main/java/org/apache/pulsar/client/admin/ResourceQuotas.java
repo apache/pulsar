@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.policies.data.ResourceQuota;

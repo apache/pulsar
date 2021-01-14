@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -60,7 +59,8 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void start() throws PulsarServerException {
-        lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get();
+        lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
+                + pulsar.getConfiguration().getWebServicePort().get();
         localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
                 new PulsarResourceDescription());
         zkClient = pulsar.getZkClient();

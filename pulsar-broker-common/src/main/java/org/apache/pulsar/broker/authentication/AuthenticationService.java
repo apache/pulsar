@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 
@@ -31,8 +35,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
 
 /**
  * Authentication service
@@ -48,16 +50,30 @@ public class AuthenticationService implements Closeable {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
-                AuthenticationProvider provider;
+                Map<String, List<AuthenticationProvider>> providerMap = new HashMap<>();
                 for (String className : conf.getAuthenticationProviders()) {
                     if (className.isEmpty()) {
                         continue;
                     }
-                    provider = (AuthenticationProvider) Class.forName(className).newInstance();
+                    AuthenticationProvider provider = (AuthenticationProvider) Class.forName(className).newInstance();
+
+                    List<AuthenticationProvider> providerList = providerMap.get(provider.getAuthMethodName());
+                    if (null == providerList) {
+                        providerList = new ArrayList<>(1);
+                        providerMap.put(provider.getAuthMethodName(), providerList);
+                    }
+                    providerList.add(provider);
+                }
+
+                for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
+                    AuthenticationProviderList provider = new AuthenticationProviderList(entry.getValue());
                     provider.initialize(conf);
                     providers.put(provider.getAuthMethodName(), provider);
-                    LOG.info("{} has been loaded.", className);
+                    LOG.info("[{}] has been loaded.",
+                        entry.getValue().stream().map(
+                            p -> p.getClass().getName()).collect(Collectors.joining(",")));
                 }
+
                 if (providers.isEmpty()) {
                     LOG.warn("No authentication providers are loaded.");
                 }

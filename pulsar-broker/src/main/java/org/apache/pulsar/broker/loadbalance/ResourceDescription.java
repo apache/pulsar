@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Map;
-
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 
 /*

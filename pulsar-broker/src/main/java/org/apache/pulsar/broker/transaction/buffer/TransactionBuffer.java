@@ -22,10 +22,9 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 
 /**
  * A class represent a transaction buffer. The transaction buffer

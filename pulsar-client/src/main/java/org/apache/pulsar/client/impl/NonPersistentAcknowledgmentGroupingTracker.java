@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
  * A no-op acknowledgment grouping tracker.

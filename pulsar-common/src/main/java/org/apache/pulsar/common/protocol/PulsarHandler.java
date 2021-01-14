@@ -22,9 +22,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPing;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPong;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
-    protected int remoteEndpointProtocolVersion = ProtocolVersion.v0.getNumber();
+    protected int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
     private boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
@@ -98,7 +98,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
             // response later and thus not enforce the strict timeout here.
             log.warn("[{}] Forcing connection to close after keep-alive timeout", ctx.channel());
             ctx.close();
-        } else if (remoteEndpointProtocolVersion >= ProtocolVersion.v1.getNumber()) {
+        } else if (remoteEndpointProtocolVersion >= ProtocolVersion.v1.getValue()) {
             // Send keep alive probe to peer only if it supports the ping/pong commands, added in v1
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Sending ping message", ctx.channel());

@@ -108,7 +108,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +118,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;
@@ -688,7 +690,10 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() + requiredSpace);
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;

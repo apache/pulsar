@@ -304,6 +304,18 @@ public interface Context {
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
 
     /**
+     * New output message using schema for serializing to the topic in the cluster
+     *
+     * @parem clusterName the name of the cluster for topic
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String clusterName, String topicName, Schema<O> schema) throws PulsarClientException;
+
+    /**
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects

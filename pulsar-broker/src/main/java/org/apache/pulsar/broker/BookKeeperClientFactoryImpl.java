@@ -23,14 +23,12 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
-
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -40,12 +38,12 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @SuppressWarnings("deprecation")
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
@@ -135,8 +133,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
         bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
-        bkConf.setGetBookieInfoIntervalSeconds(conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
-        bkConf.setGetBookieInfoRetryIntervalSeconds(conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setGetBookieInfoIntervalSeconds(
+                conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setGetBookieInfoRetryIntervalSeconds(
+                conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
 
         return bkConf;
     }

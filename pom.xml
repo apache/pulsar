@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.7.0-SNAPSHOT</version>
+  <version>2.8.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,21 +92,17 @@ flexible messaging model and an intuitive client API.</description>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
 
-    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
-    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
-
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.12.0</bookkeeper.version>
+    <bookkeeper.version>4.12.1</bookkeeper.version>
     <zookeeper.version>3.6.2</zookeeper.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
-    <jetty.version>9.4.33.v20201020</jetty.version>
+    <jetty.version>9.4.35.v20201120</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -115,22 +111,21 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
-    <log4j2.version>2.10.0</log4j2.version>
-    <bouncycastle.version>1.66</bouncycastle.version>
+    <log4j2.version>2.14.0</log4j2.version>
+    <bouncycastle.version>1.68</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.11.1</jackson.version>
     <jackson.databind.version>2.11.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
-    <swagger.version>1.5.21</swagger.version>
+    <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
-    <gson.version>2.8.2</gson.version>
+    <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
@@ -156,7 +151,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
-    <guava.version>30.0-jre</guava.version>
+    <guava.version>30.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
@@ -176,18 +171,22 @@ flexible messaging model and an intuitive client API.</description>
     <java-semver.version>0.9.0</java-semver.version>
     <hppc.version>0.7.3</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.11.1</assertj-core.version>
-    <lombok.version>1.18.10</lombok.version>
+    <assertj-core.version>3.18.1</assertj-core.version>
+    <lombok.version>1.18.16</lombok.version>
     <javax.annotation-api.version>1.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
     <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <nsq-client.version>1.0</nsq-client.version>
+    <cron-utils.version>9.1.3</cron-utils.version>
+    <spring-context.version>5.3.1</spring-context.version>
+    <docker-java.version>3.2.7</docker-java.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.14.3</testcontainers.version>
+    <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.0.0</mockito.version>
@@ -197,13 +196,14 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <confluent.version>5.2.2</confluent.version>
     <objenesis.version>3.1</objenesis.version>
-    <awaitility.version>4.0.2</awaitility.version>
+    <awaitility.version>4.0.3</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
-    <license-maven-plugin.version>3.0</license-maven-plugin.version>
+    <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
+    <directory-maven-plugin.version>0.3.1</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
@@ -212,6 +212,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
     <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
+    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <maven-archiver.version>2.5</maven-archiver.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
@@ -220,6 +221,12 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.3</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.1.3</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.2.0</spotbugs.version>
+    <errorprone.version>2.4.0</errorprone.version>
+    <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
+    <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
+    <lightproto-maven-plugin.version>0.2</lightproto-maven-plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -491,6 +498,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-haproxy</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
         <version>${jcommander.version}</version>
@@ -552,40 +565,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
+        <artifactId>log4j-bom</artifactId>
         <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-core</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j-impl</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-web</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
-        <type>test-jar</type>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-core</artifactId>
-        <type>test-jar</type>
-        <version>${log4j2.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -646,6 +629,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
+      </dependency>
+      
+      <dependency>
+         <groupId>com.github.docker-java</groupId>
+         <artifactId>docker-java-core</artifactId>
+         <version>${docker-java.version}</version>
       </dependency>
 
       <dependency>
@@ -924,25 +913,15 @@ flexible messaging model and an intuitive client API.</description>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.arquillian.cube</groupId>
-        <artifactId>arquillian-cube-docker</artifactId>
-        <version>${arquillian-cube.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jboss.arquillian.junit</groupId>
-        <artifactId>arquillian-junit-standalone</artifactId>
-        <version>${arquillian-junit.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.datastax.cassandra</groupId>
         <artifactId>cassandra-driver-core</artifactId>
         <version>${cassandra.version}</version>
       </dependency>
       <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<version>${assertj-core.version}</version>
-	  </dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${assertj-core.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.projectlombok</groupId>
@@ -1059,10 +1038,10 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<scope>test</scope>
-	 </dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -1121,6 +1100,15 @@ flexible messaging model and an intuitive client API.</description>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
           <optimize>true</optimize>
+          <!-- workaround https://issues.apache.org/jira/browse/MCOMPILER-205 -->
+          <useIncrementalCompilation>false</useIncrementalCompilation>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>
@@ -1131,7 +1119,6 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
-            -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
@@ -1156,65 +1143,94 @@ flexible messaging model and an intuitive client API.</description>
       </plugin>
 
       <plugin>
+        <groupId>org.commonjava.maven.plugins</groupId>
+        <artifactId>directory-maven-plugin</artifactId>
+        <version>${directory-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>directories</id>
+            <goals>
+              <goal>directory-of</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <property>pulsar.basedir</property>
+              <project>
+                <groupId>org.apache.pulsar</groupId>
+                <artifactId>pulsar</artifactId>
+              </project>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <version>${license-maven-plugin.version}</version>
         <configuration>
-          <header>src/license-header.txt</header>
-
-          <excludes>
-            <exclude>LICENSE</exclude>
-            <exclude>NOTICE</exclude>
-            <exclude>**/*.txt</exclude>
-            <exclude>**/*.pem</exclude>
-            <exclude>**/*.crt</exclude>
-            <exclude>**/*.key</exclude>
-            <exclude>**/*.csr</exclude>
-            <exclude>**/*.log</exclude>
-            <exclude>**/*.patch</exclude>
-            <exclude>**/*.avsc</exclude>
-            <exclude>**/*.versionsBackup</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
-            <exclude>**/ByteBufCodedInputStream.java</exclude>
-            <exclude>**/ByteBufCodedOutputStream.java</exclude>
-            <exclude>bin/proto/*</exclude>
-            <exclude>conf/schema_example.conf</exclude>
-            <exclude>data/**</exclude>
-            <exclude>logs/**</exclude>
-            <exclude>**/circe/**</exclude>
-            <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
-            <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
-            <exclude>pulsar-client-cpp/**/Makefile</exclude>
-            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site2/**</exclude>
-            <exclude>generated-site/**</exclude>
-            <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/**</exclude>
-            <exclude>**/generated/**</exclude>
-            <exclude>**/zk-3.5-test-data/*</exclude>
-          </excludes>
+          <licenseSets>
+            <licenseSet>
+              <header>${pulsar.basedir}/src/license-header.txt</header>
+              <excludes>
+                <exclude>LICENSE</exclude>
+                <exclude>NOTICE</exclude>
+                <exclude>**/*.txt</exclude>
+                <exclude>**/*.pem</exclude>
+                <exclude>**/*.crt</exclude>
+                <exclude>**/*.key</exclude>
+                <exclude>**/*.csr</exclude>
+                <exclude>**/*.log</exclude>
+                <exclude>**/*.patch</exclude>
+                <exclude>**/*.avsc</exclude>
+                <exclude>**/*.versionsBackup</exclude>
+                <exclude>**/*.pyc</exclude>
+                <exclude>**/*.graffle</exclude>
+                <exclude>**/*.hgrm</exclude>
+                <exclude>**/src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
+                <exclude>**/src/test/java/org/apache/pulsar/common/api/proto/*.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+                <exclude>**/src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
+                <exclude>**/src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
+                <exclude>**/ByteBufCodedInputStream.java</exclude>
+                <exclude>**/ByteBufCodedOutputStream.java</exclude>
+                <exclude>**/ahc.properties</exclude>
+                <exclude>bin/proto/*</exclude>
+                <exclude>conf/schema_example.conf</exclude>
+                <exclude>data/**</exclude>
+                <exclude>logs/**</exclude>
+                <exclude>**/circe/**</exclude>
+                <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
+                <exclude>pulsar-client-cpp/include/gtest/gtest_prod.h</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
+                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
+                <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+                <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+                <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
+                <exclude>pulsar-client-cpp/**/Makefile</exclude>
+                <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+                <exclude>**/CMakeFiles/**</exclude>
+                <exclude>**/django/stats/migrations/*.py</exclude>
+                <exclude>site2/**</exclude>
+                <exclude>generated-site/**</exclude>
+                <exclude>.github/*.md</exclude>
+                <exclude>**/.idea/**</exclude>
+                <exclude>**/generated/**</exclude>
+                <exclude>**/zk-3.5-test-data/*</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
+            <java>JAVADOC_STYLE</java>
             <proto>JAVADOC_STYLE</proto>
             <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>
@@ -1239,6 +1255,14 @@ flexible messaging model and an intuitive client API.</description>
             <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
         </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.rat</groupId>
@@ -1255,9 +1279,6 @@ flexible messaging model and an intuitive client API.</description>
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/TestApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
@@ -1274,10 +1295,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-
-            <!-- These files are BSD licensed files -->
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
 
             <!-- Imported from Netty - Apache License v2 -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
@@ -1299,6 +1316,8 @@ flexible messaging model and an intuitive client API.</description>
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
+            <!-- This file is generated by c++ client -->
+            <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
             <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
@@ -1345,16 +1364,16 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                     <goal>enforce</goal>
                 </goals>
-                <configuration>
-                    <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
-                    </rules>
-                </configuration>
+              <configuration>
+                <rules>
+                  <requireJavaVersion>
+                    <version>[1.8.0,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <version>[3.3.9,)</version>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
             </execution>
         </executions>
       </plugin>
@@ -1403,6 +1422,10 @@ flexible messaging model and an intuitive client API.</description>
           </configuration>
         </plugin>
         <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>${maven-antrun-plugin.version}</version>
+        </plugin>
+        <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
           <version>${exec-maven-plugin.version}</version>
@@ -1447,15 +1470,28 @@ flexible messaging model and an intuitive client API.</description>
             </dependency>
           </dependencies>
           <configuration>
-            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
             <encoding>UTF-8</encoding>
+            <excludes>**/proto/*</excludes>
           </configuration>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
           <version>${git-commit-id-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>${spotbugs-maven-plugin.version}</version>
+            <dependencies>
+              <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs</artifactId>
+                <version>${spotbugs.version}</version>
+              </dependency>
+            </dependencies>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1509,9 +1545,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-checkstyle-plugin</artifactId>
             <configuration>
-              <configLocation>pulsar/checkstyle.xml</configLocation>
-              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
-              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+              <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+              <encoding>UTF-8</encoding>
+              <excludes>**/proto/*</excludes>
             </configuration>
           </plugin>
           <plugin>
@@ -1567,11 +1604,12 @@ flexible messaging model and an intuitive client API.</description>
                        <execution>
                           <id>check-style</id>
                           <phase>verify</phase>
-                          <configuration>
-         					  <configLocation>./buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-         					  <suppressionsLocation>/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                              <encoding>UTF-8</encoding>
-                          </configuration>
+                         <configuration>
+                           <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+                           <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+                           <encoding>UTF-8</encoding>
+                           <excludes>**/proto/*</excludes>
+                         </configuration>
                           <goals>
                              <goal>check</goal>
                           </goals>
@@ -1655,6 +1693,10 @@ flexible messaging model and an intuitive client API.</description>
         <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 
@@ -1700,9 +1742,133 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
       </modules>
     </profile>
 
+    <!--
+         Configure Google Error Prone static code analyser, http://errorprone.info
+
+         consists of 3 maven profiles: errorprone, errorprone-jdk8 and errorprone-jdk11
+
+         usage:
+         activate profiles "errorprone" and either "errorprone-jdk8" or "errorprone-jdk11"
+         depending on the JVM version
+
+         It is required to add "lombok.addJavaxGeneratedAnnotation = true" to lombok.config
+         temporarily before running the analysis.
+
+         usage example:
+         echo lombok.addJavaxGeneratedAnnotation=true >> lombok.config
+         mvn -Perrorprone,errorprone-jdk11,main compile
+
+         Revisiting warnings and errors is possible in IntelliJ after activating
+         errorprone, errorprone-jdk11 and main in "Maven->Profiles" and choosing
+         "Build->Rebuild Project"
+         Compiling all Pulsar projects in IntelliJ requires some manual tweaks to get the
+         shaded projects to pass compilation. In some cases, it's better to mark the project
+         ignored in IntelliJ by right clicking the project in IntelliJ's maven view and
+         choosing "Ignore Projects". After "Reload All Maven Projects" and a rebuild, it might
+         be possible to proceed compiling the remaining projects.
+    -->
+    <profile>
+      <id>errorprone</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <fork>true</fork>
+              <meminitial>128m</meminitial>
+              <maxmem>1024m</maxmem>
+              <optimize>false</optimize>
+              <compilerArgs combine.children="append">
+                <arg>-XDcompilePolicy=simple</arg>
+                <arg>-Xlint:-options</arg>
+                <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
+                <!-- the following argument must be kept on one line when building with JDK8 -->
+                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF ${errorprone.arguments.jdk11}</arg>
+              </compilerArgs>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>com.google.errorprone</groupId>
+                  <artifactId>error_prone_core</artifactId>
+                  <version>${errorprone.version}</version>
+                </path>
+                <path>
+                  <groupId>org.mockito</groupId>
+                  <artifactId>mockito-errorprone</artifactId>
+                  <version>${mockito.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!-- running errorprone on JDK 8 requires special javac configuration -->
+    <profile>
+      <id>errorprone-jdk8</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerArgs combine.children="append">
+                <arg>
+                  -J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
+              </compilerArgs>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>com.google.errorprone</groupId>
+                  <artifactId>javac</artifactId>
+                  <version>${errorprone.javac.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>errorprone-jdk11</id>
+      <dependencies>
+        <!-- required on JDK9+ when there is "lombok.addJavaxGeneratedAnnotation = true" in lombok.config -->
+        <dependency>
+          <groupId>javax.annotation</groupId>
+          <artifactId>javax.annotation-api</artifactId>
+        </dependency>
+      </dependencies>
+      <properties>
+        <!-- pass the additional properties to -Xplugin:ErrorProne argument defined in errorprone profile -->
+        <!-- change configuration of slf4j checks to be more permissive -->
+        <errorprone.arguments.jdk11>-Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</errorprone.arguments.jdk11>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <!-- add https://github.com/KengoTODA/errorprone-slf4j Error Prone plugin -->
+                <!-- detects slf4j misusage. Doesn't run on Java 8, so this is why it's in the errorprone-jdk11 profile -->
+                <path>
+                  <groupId>jp.skypencil.errorprone.slf4j</groupId>
+                  <artifactId>errorprone-slf4j</artifactId>
+                  <version>${errorprone-slf4j.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <repositories>
@@ -1730,4 +1896,3 @@ flexible messaging model and an intuitive client API.</description>
   </repositories>
 
 </project>
-

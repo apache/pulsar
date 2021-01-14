@@ -20,8 +20,6 @@ package org.apache.pulsar.client.impl;
 
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -42,7 +40,6 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
-import org.apache.pulsar.common.util.FutureUtil;
 
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
@@ -53,6 +50,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         String subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
             subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+        }
+        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
+            subscription = readerConfiguration.getSubscriptionName();
         }
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());

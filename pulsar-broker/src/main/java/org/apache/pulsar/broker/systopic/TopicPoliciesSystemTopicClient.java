@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -29,11 +31,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
 /**
- * System topic for topic policy
+ * System topic for topic policy.
  */
 public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
 
@@ -49,7 +48,8 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer,
+                            TopicPoliciesSystemTopicClient.this));
                 });
     }
 
@@ -63,7 +63,8 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader,
+                            TopicPoliciesSystemTopicClient.this));
                 });
     }
 

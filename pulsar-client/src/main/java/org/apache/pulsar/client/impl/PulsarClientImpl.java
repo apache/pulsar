@@ -75,7 +75,7 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -110,6 +110,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+    private final MemoryLimitController memoryLimitController;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
@@ -165,6 +166,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
         }
 
+        memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
         state.set(State.Open);
     }
 
@@ -796,6 +798,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
+    }
+
+    public MemoryLimitController getMemoryLimitController() {
+        return memoryLimitController;
     }
 
     @SuppressWarnings("unchecked")

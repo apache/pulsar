@@ -5,7 +5,7 @@
     "build": "docusaurus-build",
     "publish-gh-pages": "docusaurus-publish",
     "write-translations": "docusaurus-write-translations",
-    "version": "docusaurus-version",
+    "version": "cp -r docusaurus-version.js ./node_modules/docusaurus/lib/version.js && docusaurus-version",
     "rename-version": "docusaurus-rename-version",
     "test": "jest --detectOpenHandles",
     "crowdin-upload": "crowdin --config ../crowdin.yaml upload sources --auto-update -b master",
