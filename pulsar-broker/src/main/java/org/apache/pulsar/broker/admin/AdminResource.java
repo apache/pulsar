@@ -812,7 +812,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             String topicPartitionPath = joinPath(MANAGED_LEDGER_PATH_ZNODE,
                     namespaceName.toString(), topicDomain.value());
-            List<String> topics = globalZk().getChildren(topicPartitionPath, false);
+            List<String> topics = localZk().getChildren(topicPartitionPath, false);
             topicPartitions = topics.stream()
                     .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
                     .collect(Collectors.toList());
