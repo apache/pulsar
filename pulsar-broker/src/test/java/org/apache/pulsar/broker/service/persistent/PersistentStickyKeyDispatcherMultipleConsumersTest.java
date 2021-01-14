@@ -221,7 +221,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), PositionImpl.latest);
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }

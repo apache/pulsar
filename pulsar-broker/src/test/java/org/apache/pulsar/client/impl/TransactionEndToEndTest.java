@@ -62,6 +62,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -216,15 +217,20 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        Thread.sleep(1000);
-        for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats =
-                    admin.topics().getInternalStats("persistent://" + TOPIC_OUTPUT + "-partition-" + i);
-            // the transaction abort, the related messages and abort marke should be acked,
-            // so all the entries in this topic should be acked
-            // and the markDeletePosition is equals with the lastConfirmedEntry
-            Assert.assertEquals(stats.cursors.get("test").markDeletePosition, stats.lastConfirmedEntry);
-        }
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            boolean flag = true;
+            for (int i = 0; i < TOPIC_PARTITION; i++) {
+                PersistentTopicInternalStats stats =
+                        admin.topics().getInternalStats("persistent://" + TOPIC_OUTPUT + "-partition-" + i);
+                // the transaction abort, the related messages and abort marke should be acked,
+                // so all the entries in this topic should be acked
+                // and the markDeletePosition is equals with the lastConfirmedEntry
+                if (stats.cursors.get("test").markDeletePosition.equals(stats.lastConfirmedEntry)) {
+                    flag = false;
+                }
+            }
+            return flag;
+        });
 
         log.info("finished test partitionAbortTest");
     }

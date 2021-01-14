@@ -297,6 +297,7 @@ public class PersistentTopic extends AbstractTopic
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
         }
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
     }
 
     // for testing purposes
@@ -311,7 +312,7 @@ public class PersistentTopic extends AbstractTopic
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {

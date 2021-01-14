@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -109,6 +110,7 @@ public class PersistentSubscriptionTest {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
+        doReturn(new TopicTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
 

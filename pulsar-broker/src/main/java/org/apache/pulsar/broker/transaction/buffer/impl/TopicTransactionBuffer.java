@@ -42,7 +42,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
     private final PersistentTopic topic;
 
-    private volatile PositionImpl maxReadPosition = PositionImpl.earliest;
+    private volatile PositionImpl maxReadPosition = PositionImpl.latest;
 
     private final LinkedMap<TxnID, PositionImpl> ongoingTxns = new LinkedMap<>();
 
@@ -195,7 +195,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public synchronized PositionImpl getMaxReadPosition() {
+    public PositionImpl getMaxReadPosition() {
         return this.maxReadPosition;
     }
 }
