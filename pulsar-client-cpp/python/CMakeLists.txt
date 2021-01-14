@@ -75,6 +75,7 @@ if (NOT PYTHON_WRAPPER_LIBS)
     MESSAGE(FATAL_ERROR "Could not find Boost Python library")
 endif ()
 
+
 if (APPLE)
     set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -undefined dynamic_lookup")
     target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS} ${COMMON_LIBS} ${ICU_LIBS})
