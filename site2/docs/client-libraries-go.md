@@ -232,7 +232,7 @@ canc()
 | CompressionType | CompressionType set the compression type for the producer. | not compressed | 
 | MessageRouter | MessageRouter set a custom message routing policy by passing an implementation of MessageRouter | |
 | DisableBatching | DisableBatching control whether automatic batching of messages is enabled for the producer. | false |
-| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 10ms |
+| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms |
 | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | 
 
 ## Consumers
