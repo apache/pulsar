@@ -27,7 +27,7 @@ SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 
 
-if (NOT APPLE AND NOT MSVC)
+if (CMAKE_CXX_FLAGS_PYTHON)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_PYTHON}")
 endif()
 
@@ -36,8 +36,8 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 # Newer boost versions don't use the -mt suffix
-if (NOT DEFINED ${Boost_PYTHON27-MT_LIBRARY})
-  set(Boost_PYTHON27-MT_LIBRARY ${Boost_PYTHON27_LIBRARY})
+if (NOT DEFINED ${Boost_PYTHON36-MT_LIBRARY})
+  set(Boost_PYTHON36-MT_LIBRARY ${Boost_PYTHON36_LIBRARY})
 endif()
 
 if (NOT DEFINED ${Boost_PYTHON37-MT_LIBRARY})
@@ -50,13 +50,12 @@ endif()
 
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
-                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
-                        ${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
+                        ${Boost_PYTHON37-MT_LIBRARY}
                         ${Boost_PYTHON36_LIBRARY} ${Boost_PYTHON38_LIBRARY})
 
 if (APPLE)
     set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
-                         ${Boost_PYTHON27-MT_LIBRARY_RELEASE}
+                         ${Boost_PYTHON36-MT_LIBRARY_RELEASE}
                          ${Boost_PYTHON37-MT_LIBRARY_RELEASE}
                          ${Boost_PYTHON38-MT_LIBRARY_RELEASE})
 
