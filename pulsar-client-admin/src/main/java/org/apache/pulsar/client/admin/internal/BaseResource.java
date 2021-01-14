@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.ServiceUnavailableException;
@@ -48,7 +46,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,11 +160,11 @@ public abstract class BaseResource {
         return future;
     }
 
-    public <T> Future<T> asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
+    public <T> void asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
         try {
-            return request(target).async().get(callback);
+            request(target).async().get(callback);
         } catch (PulsarAdminException cae) {
-            return FutureUtil.failedFuture(cae);
+            callback.failed(cae);
         }
     }
 
