@@ -64,7 +64,8 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
-        if (interceptorEnabled && !MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(request.getContentType())) {
+        if (interceptorEnabled && !MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(request.getContentType())
+                && !MediaType.APPLICATION_OCTET_STREAM.equalsIgnoreCase(request.getContentType())) {
             interceptor.onWebserviceResponse(request, response);
         }
     }
