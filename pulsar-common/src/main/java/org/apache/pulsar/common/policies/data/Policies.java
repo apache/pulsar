@@ -81,7 +81,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_producers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_consumers_per_topic = 0;
+    public Integer max_consumers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
     @SuppressWarnings("checkstyle:MemberName")
