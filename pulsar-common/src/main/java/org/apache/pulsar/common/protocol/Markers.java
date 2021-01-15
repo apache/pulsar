@@ -252,21 +252,6 @@ public class Markers {
                 MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
     }
 
-    public static TxnMarker parseTxnMarker(ByteBuf payload) throws IOException {
-        TxnMarker txnMarker = LOCAL_TXN_COMMIT_MARKER.get();
-        txnMarker.parseFrom(payload, payload.readableBytes());
-        return txnMarker;
-    }
-
-
-    private static final FastThreadLocal<TxnMarker> LOCAL_TXN_COMMIT_MARKER = //
-            new FastThreadLocal<TxnMarker>() {
-                @Override
-                protected TxnMarker initialValue() throws Exception {
-                    return new TxnMarker();
-                }
-            };
-
     private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
                                         long txnLeastBits) {
         MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
@@ -278,15 +263,11 @@ public class Markers {
                 .setTxnidMostBits(txnMostBits)
                 .setTxnidLeastBits(txnLeastBits);
 
-        TxnMarker txnMarker = LOCAL_TXN_COMMIT_MARKER.get()
-                .clear();
-
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(txnMarker.getSerializedSize());
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
 
         try {
-            txnMarker.writeTo(payload);
-            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
+            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,
+                    msgMetadata, payload);
         } finally {
             payload.release();
         }

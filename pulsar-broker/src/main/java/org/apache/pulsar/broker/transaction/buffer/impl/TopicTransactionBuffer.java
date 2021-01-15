@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
@@ -63,11 +64,13 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, Object ctx) {
-                if (!ongoingTxns.containsKey(txnId)) {
-                    ongoingTxns.put(txnId, (PositionImpl) position);
-                    PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
-                    //max read position is less than first ongoing transaction message position, so entryId -1
-                    maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
+                synchronized (TopicTransactionBuffer.this) {
+                    if (!ongoingTxns.containsKey(txnId)) {
+                        ongoingTxns.put(txnId, (PositionImpl) position);
+                        PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
+                        //max read position is less than first ongoing transaction message position, so entryId -1
+                        maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
+                    }
                 }
                 completableFuture.complete(position);
             }
@@ -98,8 +101,10 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, Object ctx) {
-                changeMaxReadPosition(txnID);
-                handleLowWaterMark(txnID, lowWaterMark);
+                synchronized (TopicTransactionBuffer.this) {
+                    updateMaxReadPosition(txnID);
+                    handleLowWaterMark(txnID, lowWaterMark);
+                }
                 completableFuture.complete(null);
             }
 
@@ -123,8 +128,11 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, Object ctx) {
-                aborts.put(txnID, (PositionImpl) position);
-                changeMaxReadPosition(txnID);
+                synchronized (TopicTransactionBuffer.this) {
+                    aborts.put(txnID, (PositionImpl) position);
+                    updateMaxReadPosition(txnID);
+                    handleLowWaterMark(txnID, lowWaterMark);
+                }
                 completableFuture.complete(null);
             }
 
@@ -146,8 +154,10 @@ public class TopicTransactionBuffer implements TransactionBuffer {
                 topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
                     @Override
                     public void addComplete(Position position, Object ctx) {
-                        aborts.put(firstTxn, (PositionImpl) position);
-                        changeMaxReadPosition(firstTxn);
+                        synchronized (TopicTransactionBuffer.this) {
+                            aborts.put(firstTxn, (PositionImpl) position);
+                            updateMaxReadPosition(firstTxn);
+                        }
                     }
 
                     @Override
@@ -159,7 +169,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         }
     }
 
-    void changeMaxReadPosition(TxnID txnID) {
+    void updateMaxReadPosition(TxnID txnID) {
         ongoingTxns.remove(txnID);
         if (!ongoingTxns.isEmpty()) {
             PositionImpl position = ongoingTxns.get(ongoingTxns.firstKey());
@@ -189,8 +199,10 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
         // when ongoing transaction is empty, proved that lastAddConfirm is can read max position, because callback
         // thread is the same tread, in this time the lastAddConfirm don't content transaction message.
-        if (ongoingTxns.isEmpty()) {
-            maxReadPosition = position;
+        synchronized (TopicTransactionBuffer.this) {
+            if (ongoingTxns.isEmpty()) {
+                maxReadPosition = position;
+            }
         }
     }
 
