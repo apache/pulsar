@@ -2750,7 +2750,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         CountDownLatch l2 = new CountDownLatch(1);
         store.asyncUpdateLedgerIds(mLName, builder.build(),
-                new Stat(1, 0, 0),
+                new Stat(mLName, 1, 0, 0),
                 new MetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void result, Stat version) {
