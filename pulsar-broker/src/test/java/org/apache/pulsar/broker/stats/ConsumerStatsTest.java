@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -43,6 +44,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         conf.setMaxUnackedMessagesPerConsumer(0);
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -141,6 +143,60 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.size(), 1);
             Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).unackedMessages, 0);
         }
+    }
+
+    @Test
+    public void testCumulativeAckStatsForExclusiveSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
+        final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
+        admin.topics().createPartitionedTopic(topic, 1);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub")
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync(("message-" + i).getBytes());
+        }
+
+        int cumulativeInterval = 10;
+        int received = 0;
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> msg = consumer.receive();
+
+            TopicStats stats = admin.topics().getStats(topic + "-partition-0");
+            Assert.assertEquals(stats.subscriptions.size(), 1);
+            Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.size(), 1);
+
+            long msgOutCounter = stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).msgOutCounter;
+            long expectUnacked = msgOutCounter - (i - i % cumulativeInterval);
+            Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).unackedMessages, expectUnacked);
+
+            if ((i+1) % cumulativeInterval == 0) {
+                consumer.acknowledgeCumulative(msg);
+            }
+            received++;
+        }
+        Assert.assertEquals(messages, received);
+
+        // wait acknowledge send
+        Thread.sleep(2000);
+
+        TopicStats stats = admin.topics().getStats(topic + "-partition-0");
+        Assert.assertEquals(stats.subscriptions.size(), 1);
+        Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.size(), 1);
+        Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).unackedMessages, 0);
+
     }
 
     @Test

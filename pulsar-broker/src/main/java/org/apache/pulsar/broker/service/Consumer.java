@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -169,12 +170,7 @@ public class Consumer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
-        if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
-        } else {
-            // We don't need to keep track of pending acks if the subscription is not shared
-            this.pendingAcks = null;
-        }
+        this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
     }
 
     public SubType subType() {
@@ -255,15 +251,13 @@ public class Consumer {
         bytesOutCounter.add(totalBytes);
         chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
-
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
                 entries, batchSizes, batchIndexesAcks, redeliveryTracker);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages
-                && maxUnackedMessages > 0) {
+        int unackedMessages = addAndGetUnAckedMsgs(this, ackedMessages);
+        if (maxUnackedMessages > 0 && unackedMessages >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -344,10 +338,12 @@ public class Consumer {
             }
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
+                removePendingAcks(position, AckType.Cumulative);
                 return transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
                         ack.getTxnidLeastBits(), positionsAcked);
             } else {
                 List<Position> positionsAcked = Collections.singletonList(position);
+                removePendingAcks(position, AckType.Cumulative);
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
                 return CompletableFuture.completedFuture(null);
             }
@@ -399,7 +395,7 @@ public class Consumer {
                 if (((PositionImpl) position).getAckSet() != null) {
                     if (((PersistentSubscription) subscription)
                             .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
-                        removePendingAcks((PositionImpl) position);
+                        removePendingAcks((PositionImpl) position, AckType.Individual);
                     }
                 }
             }));
@@ -450,7 +446,7 @@ public class Consumer {
                         if (positionLongMutablePair.getLeft().getAckSet() != null) {
                             if (((PersistentSubscription) subscription)
                                     .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                                removePendingAcks(positionLongMutablePair.left);
+                                removePendingAcks(positionLongMutablePair.left, AckType.Individual);
                             }
                         }
                     }));
@@ -466,9 +462,7 @@ public class Consumer {
     }
 
     private void checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
-        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
-            removePendingAcks(position);
-        }
+        removePendingAcks(position, AckType.Individual);
     }
 
     private boolean isTransactionEnabled() {
@@ -568,7 +562,7 @@ public class Consumer {
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+        return maxUnackedMessages > 0;
     }
 
     public void updateRates() {
@@ -662,7 +656,7 @@ public class Consumer {
      *
      * @param position
      */
-    private void removePendingAcks(PositionImpl position) {
+    private void removePendingAcks(PositionImpl position, AckType ackType) {
         Consumer ackOwnedConsumer = null;
         if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
@@ -676,27 +670,73 @@ public class Consumer {
             ackOwnedConsumer = this;
         }
 
-        // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        LongPair ackedPosition = ackOwnedConsumer != null
-                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
-                : null;
-        if (ackedPosition != null) {
-            int totalAckedMsgs = (int) ackedPosition.first;
-            if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
-                // Message was already removed by the other consumer
-                return;
+        if (ackOwnedConsumer == null) {
+            return;
+        }
+
+        int totalAckedMsgs = 0;
+        if (AckType.Cumulative == ackType) {
+
+            ConcurrentLongLongPairHashMap pendingAcks = ackOwnedConsumer.getPendingAcks();
+
+            AtomicInteger ackedMsgsThisTime = new AtomicInteger(0);
+            List<PositionImpl> ackedPositions = new ArrayList<>();
+            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
+                if (ledgerId < position.getLedgerId()
+                        || (ledgerId == position.getLedgerId() && entryId < position.getEntryId())) {
+                    ackedPositions.add(new PositionImpl(ledgerId, entryId));
+                    ackedMsgsThisTime.addAndGet((int) batchSize);
+                }
+            });
+
+            ackedPositions.forEach(pos -> pendingAcks.remove(pos.getLedgerId(), pos.getEntryId()));
+
+            if (position.getAckSet() != null) {
+                long ackedMsgs = position.getAckSet().length;
+                ackedMsgsThisTime.addAndGet((int) ackedMsgs);
+                LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+                if (batchSize != null) {
+                    long pendingAckMsgs = batchSize.first - ackedMsgs;
+                    pendingAcks.put(position.getLedgerId(), position.getEntryId(), pendingAckMsgs, 0);
+                }
+            } else {
+                LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+                if (batchSize != null) {
+                    long ackedMsgs = batchSize.first;
+                    ackedMsgsThisTime.addAndGet((int) ackedMsgs);
+                    pendingAcks.remove(position.getLedgerId(), position.getEntryId());
+                }
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
+
+            totalAckedMsgs = ackedMsgsThisTime.get();
+        } else {
+            // Individual ack
+
+            // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
+            LongPair ackedPosition = ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(),
+                    position.getEntryId());
+            if (ackedPosition != null) {
+                totalAckedMsgs = (int) ackedPosition.first;
+                if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
+                    // Message was already removed by the other consumer
+                    return;
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
+                }
             }
-            // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
-            // consuming messages
-            if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
-                    && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
-                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
-                ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
-                flowConsumerBlockedPermits(ackOwnedConsumer);
-            }
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("acked -{} message this time", totalAckedMsgs);
+        }
+        // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
+        // consuming messages
+        if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
+                && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+                && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
+            ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
+            flowConsumerBlockedPermits(ackOwnedConsumer);
         }
     }
 
