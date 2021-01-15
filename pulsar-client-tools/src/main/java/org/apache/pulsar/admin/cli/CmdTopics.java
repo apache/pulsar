@@ -121,7 +121,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("remove-retention", new RemoveRetention());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
-        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+        jcommander.addCommand("get-deduplication", new GetDeduplicationEnabled());
 
         jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
         jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
