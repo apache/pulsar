@@ -747,18 +747,16 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true,
-                new TimedCompletableFuture<>());
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true);
     }
 
     public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true,
-                new TimedCompletableFuture<>());
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true);
     }
 
-    public CompletableFuture<Void> newAckForResponseWithFuture(ByteBuf request, long requestId,
-                                                               TimedCompletableFuture<Void> future) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
+    public void newAckForResponseWithFuture(ByteBuf request, long requestId,
+                                            TimedCompletableFuture<Void> future) {
+        sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
     }
 
     @Override
@@ -833,11 +831,10 @@ public class ClientCnx extends PulsarHandler {
     }
 
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
-        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true,
-                new TimedCompletableFuture<>());
+        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
     }
 
-    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
+    private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
                                                                  RequestType requestType, boolean flush,
                                                                  TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
@@ -856,12 +853,17 @@ public class ClientCnx extends PulsarHandler {
             ctx.write(requestMessage, ctx().voidPromise());
         }
         requestTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId, requestType));
+    }
+
+    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
+                                                 RequestType requestType, boolean flush) {
+        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
+        sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
         return future;
     }
 
     public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId,
-                true, new TimedCompletableFuture<>());
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
@@ -883,13 +885,12 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<CommandGetSchemaResponse> sendGetRawSchema(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema, true,
-                new TimedCompletableFuture<>());
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema, true);
     }
 
     public CompletableFuture<byte[]> sendGetOrCreateSchema(ByteBuf request, long requestId) {
         CompletableFuture<CommandGetOrCreateSchemaResponse> future = sendRequestAndHandleTimeout(request, requestId,
-                RequestType.GetOrCreateSchema, true, new TimedCompletableFuture<>());
+                RequestType.GetOrCreateSchema, true);
         return future.thenCompose(response -> {
             if (response.hasErrorCode()) {
                 // Request has failed

@@ -44,19 +44,19 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseEnabled")
+    @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackResponseTimeout() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackResponseEnabled")
-    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackResponseEnabled)
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
             throws PulsarClientException, InterruptedException {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .subscriptionName("test")
-                .enableAckResponse(ackResponseEnabled)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
         consumer.close();
         Thread.sleep(2000);

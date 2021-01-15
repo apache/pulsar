@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -86,7 +87,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
-    private final boolean ackResponseEnabled;
+    private final boolean ackReceiptEnabled;
 
     public PersistentAcknowledgmentsGroupingTracker(ConsumerImpl<?> consumer, ConsumerConfigurationData<?> conf,
                                                     EventLoopGroup eventLoopGroup) {
@@ -95,7 +96,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
         this.batchIndexAckEnabled = conf.isBatchIndexAckEnabled();
-        this.ackResponseEnabled = conf.isAckResponseEnabled();
+        this.ackReceiptEnabled = conf.isAckReceiptEnabled();
         this.currentIndividualAckFuture = new TimedCompletableFuture<>();
         this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
 
@@ -125,7 +126,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds,
                                                          AckType ackType, Map<String, Long> properties) {
         if (AckType.Cumulative.equals(ackType)) {
-            if (ackResponseEnabled) {
+            if (ackReceiptEnabled) {
                 Set<CompletableFuture<Void>> completableFutureSet = new HashSet<>();
                 messageIds.forEach(messageId ->
                         completableFutureSet.add(addAcknowledgment((MessageIdImpl) messageId, ackType, properties)));
@@ -135,7 +136,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return CompletableFuture.completedFuture(null);
             }
         } else {
-            if (ackResponseEnabled) {
+            if (ackReceiptEnabled) {
                 try {
                     // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
                     // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
@@ -230,16 +231,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         MessageIdImpl messageId = new MessageIdImpl(batchMessageId.getLedgerId(),
                 batchMessageId.getEntryId(), batchMessageId.getPartitionIndex());
         consumer.getStats().incrementNumAcksSent(batchMessageId.getBatchSize());
-        clearMessageIdFromUnackTrackerAndDeadLetter(messageId);
+        clearMessageIdFromUnAckTrackerAndDeadLetter(messageId);
         return messageId;
     }
 
     private void modifyMessageIdStatesInConsumer(MessageIdImpl messageId) {
         consumer.getStats().incrementNumAcksSent(1);
-        clearMessageIdFromUnackTrackerAndDeadLetter(messageId);
+        clearMessageIdFromUnAckTrackerAndDeadLetter(messageId);
     }
 
-    private void clearMessageIdFromUnackTrackerAndDeadLetter(MessageIdImpl messageId) {
+    private void clearMessageIdFromUnAckTrackerAndDeadLetter(MessageIdImpl messageId) {
         consumer.getUnAckedMessageTracker().remove(messageId);
         if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
             consumer.getPossibleSendToDeadLetterTopicMessages().remove(messageId);
@@ -252,7 +253,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Individual, properties, null);
         } else {
-            if (ackResponseEnabled) {
+            if (ackReceiptEnabled) {
                 // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
                 // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
                 // any ack operation is allowed.
@@ -293,7 +294,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private CompletableFuture<Void> doIndividualBatchAck(BatchMessageIdImpl batchMessageId) {
-        if (ackResponseEnabled) {
+        if (ackReceiptEnabled) {
             // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
             // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
             // any ack operation is allowed.
@@ -318,7 +319,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Cumulative, properties, bitSet);
         } else {
-            if (ackResponseEnabled) {
+            if (ackReceiptEnabled) {
                 try {
                     // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
                     // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
@@ -432,18 +433,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             bitSet.clear(batchIndex);
         }
 
-        CompletableFuture<Void> completableFuture;
-        if (ackResponseEnabled) {
-            long requestId = consumer.getClient().newRequestId();
-            final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                    null, properties, requestId);
-            completableFuture = cnx.newAckForResponse(cmd, consumer.getClient().newRequestId());
-        } else {
-            final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                    null, properties, -1);
-            cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-            completableFuture = CompletableFuture.completedFuture(null);
-        }
+        CompletableFuture<Void> completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId,
+                msgId.ledgerId, msgId.entryId, bitSet, ackType, null, properties, true, null, null);
         bitSet.recycle();
         return completableFuture;
     }
@@ -462,7 +453,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return;
         }
 
-        if (ackResponseEnabled) {
+        if (ackReceiptEnabled) {
             this.lock.writeLock().lock();
             try {
                 flushAsync(cnx);
@@ -477,19 +468,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private void flushAsync(ClientCnx cnx) {
         boolean shouldFlush = false;
         if (cumulativeAckFlushRequired) {
-            if (ackResponseEnabled) {
-                long requestId = consumer.getClient().newRequestId();
-                ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.messageId.ledgerId,
-                        lastCumulativeAck.messageId.getEntryId(), lastCumulativeAck.bitSetRecyclable,
-                        AckType.Cumulative, null, Collections.emptyMap(), requestId);
-                cnx.newAckForResponseWithFuture(cmd, requestId, currentCumulativeAckFuture);
-                this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
-            } else {
-                ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.messageId.ledgerId,
-                        lastCumulativeAck.messageId.getEntryId(), lastCumulativeAck.bitSetRecyclable,
-                        AckType.Cumulative, null, Collections.emptyMap(), -1);
-                cnx.ctx().write(cmd, cnx.ctx().voidPromise());
-            }
+            newMessageAckCommandAndWrite(cnx, consumer.consumerId, lastCumulativeAck.messageId.ledgerId,
+                    lastCumulativeAck.messageId.getEntryId(), lastCumulativeAck.bitSetRecyclable,
+                    AckType.Cumulative, null, Collections.emptyMap(), false,
+                    this.currentCumulativeAckFuture, null);
             this.consumer.unAckedChunkedMessageIdSequenceMap.remove(lastCumulativeAck.messageId);
             shouldFlush=true;
             cumulativeAckFlushRequired = false;
@@ -528,11 +510,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     if (msgId == null) {
                         break;
                     }
-
-                    ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(), null,
-                            AckType.Individual, null, Collections.emptyMap(), -1);
-                    cnx.ctx().write(cmd, cnx.ctx().voidPromise());
-
+                    newMessageAckCommandAndWrite(cnx, consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(), null,
+                            AckType.Individual, null, Collections.emptyMap(), false, null, null);
                     shouldFlush = true;
                 }
             }
@@ -549,15 +528,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         if (entriesToAck.size() > 0) {
-            if (ackResponseEnabled) {
-                long requestId = consumer.getClient().newRequestId();
-                ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, requestId);
-                cnx.newAckForResponseWithFuture(cmd, requestId, currentIndividualAckFuture);
-                this.currentIndividualAckFuture = new TimedCompletableFuture<>();
-            } else {
-                cnx.ctx().write(Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, -1),
-                        cnx.ctx().voidPromise());
-            }
+
+            newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
+                    null, AckType.Individual, null, null, true, currentIndividualAckFuture, entriesToAck);
             shouldFlush = true;
         }
 
@@ -600,39 +573,78 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
                     }
                 }
-                if (ackResponseEnabled) {
-                    long requestId = consumer.getClient().newRequestId();
-                    ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, requestId);
-                    completableFuture = cnx.newAckForResponse(cmd, requestId);
-                } else {
-                    ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck, -1);
-                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-                    completableFuture = CompletableFuture.completedFuture(null);
-                }
+                completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
+                        null, ackType, null, null, true, null, entriesToAck);
             } else {
                 // if don't support multi message ack, it also support ack response, so we should not think about the
                 // ack response in this logic
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
-                    ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
-                            bitSet, ackType, null, map, -1);
-                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                    newMessageAckCommandAndWrite(cnx, consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
+                            bitSet, ackType, null, map, true, null, null);
                 }
                 completableFuture = CompletableFuture.completedFuture(null);
             }
         } else {
-            if (ackResponseEnabled) {
-                long requestId = consumer.getClient().newRequestId();
-                ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), bitSet,
-                        ackType, null, map, requestId);
-                completableFuture = cnx.newAckForResponse(cmd, requestId);
-            } else {
-                ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), bitSet,
-                        ackType, null, map, -1);
-                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-                completableFuture = CompletableFuture.completedFuture(null);
-            }
+            completableFuture = newMessageAckCommandAndWrite(cnx, consumerId, msgId.ledgerId, msgId.getEntryId(),
+                    bitSet, ackType, null, map, true, null, null);
         }
         return completableFuture;
+    }
+
+    private CompletableFuture<Void> newMessageAckCommandAndWrite(ClientCnx cnx, long consumerId, long ledgerId,
+                                                                 long entryId, BitSetRecyclable ackSet, AckType ackType,
+                                                                 CommandAck.ValidationError validationError,
+                                                                 Map<String, Long> properties, boolean flush,
+                                                                 TimedCompletableFuture<Void> timedCompletableFuture,
+                                                                 List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
+        if (ackReceiptEnabled && Commands.peerSupportsAckResponse(cnx.getRemoteEndpointProtocolVersion())) {
+            final long requestId = consumer.getClient().newRequestId();
+            final ByteBuf cmd;
+            if (entriesToAck == null) {
+                cmd = Commands.newAck(consumerId, ledgerId, entryId, ackSet,
+                        ackType, null, properties, requestId);
+            } else {
+                cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, requestId);
+            }
+            if (timedCompletableFuture == null) {
+                return cnx.newAckForResponse(cmd, requestId);
+            } else {
+                if (ackType == AckType.Individual) {
+                    this.currentIndividualAckFuture = new TimedCompletableFuture<>();
+                } else {
+                    this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
+                }
+                cnx.newAckForResponseWithFuture(cmd, requestId, timedCompletableFuture);
+                return timedCompletableFuture;
+            }
+        } else {
+            if (ackReceiptEnabled) {
+                log.warn("Server don't support ack for receipt! " +
+                        "ProtoVersion >=17 support! nowVersion : {}", cnx.getRemoteEndpointProtocolVersion());
+                synchronized (PersistentAcknowledgmentsGroupingTracker.this) {
+                    if (!this.currentCumulativeAckFuture.isDone()) {
+                        this.currentCumulativeAckFuture.complete(null);
+                    }
+
+                    if (!this.currentIndividualAckFuture.isDone()) {
+                        this.currentIndividualAckFuture.complete(null);
+                    }
+                }
+            }
+            final ByteBuf cmd;
+            if (entriesToAck == null) {
+                cmd = Commands.newAck(consumerId, ledgerId, entryId, ackSet,
+                        ackType, null, properties, -1);
+            } else {
+                cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, -1);
+            }
+            if (flush) {
+                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+            } else {
+                cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            }
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private static class LastCumulativeAck {

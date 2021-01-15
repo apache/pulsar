@@ -194,8 +194,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> enableAckResponse(boolean ackResponseEnable) {
-        conf.setAckResponseEnabled(ackResponseEnable);
+    public ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled) {
+        conf.setAckReceiptEnabled(isAckReceiptEnabled);
         return this;
     }
 

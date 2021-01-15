@@ -59,13 +59,13 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseEnabled")
-    public Object[][] ackResponseEnabled() {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackResponseEnabled")
-    public void testBatchMessageIndexAckForSharedSubscription(boolean ackResponseEnabled) throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws Exception {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
         final String subscriptionName = "sub";
 
@@ -74,7 +74,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName(subscriptionName)
             .receiverQueueSize(100)
-            .enableAckResponse(ackResponseEnabled)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .subscriptionType(SubscriptionType.Shared)
             .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
@@ -145,8 +145,8 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test(dataProvider = "ackResponseEnabled")
-    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackResponseEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
@@ -154,7 +154,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
-            .enableAckResponse(ackResponseEnabled)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .enableBatchIndexAcknowledgment(true)
             .subscribe();
 

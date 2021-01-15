@@ -81,7 +81,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -141,7 +141,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testBatchAckTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -201,7 +201,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testImmediateAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -230,7 +230,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testImmediateBatchAckingTracker(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -261,7 +261,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -323,7 +323,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testBatchAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckResponseEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedResponse);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -393,9 +393,8 @@ public class AcknowledgementsGroupingTrackerTest {
         }
 
         @Override
-        public CompletableFuture<Void> newAckForResponseWithFuture(ByteBuf request, long requestId,
+        public void newAckForResponseWithFuture(ByteBuf request, long requestId,
                                                                    TimedCompletableFuture<Void> future) {
-            return CompletableFuture.completedFuture(null);
         }
     }
 }

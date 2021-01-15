@@ -58,13 +58,13 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseEnabled")
-    public Object[][] ackResponseEnabled() {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackResponseEnabled")
-    public void testBatchMessageIndexAckForSharedSubscription(boolean ackResponseEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
 
         @Cleanup
@@ -73,7 +73,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             .subscriptionName("sub")
             .receiverQueueSize(100)
             .subscriptionType(SubscriptionType.Shared)
-            .enableAckResponse(ackResponseEnabled)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .ackTimeout(1, TimeUnit.SECONDS)
             .subscribe();
 
@@ -104,8 +104,8 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test(dataProvider = "ackResponseEnabled")
-    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackResponseEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
@@ -113,7 +113,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
-            .enableAckResponse(ackResponseEnabled)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .subscribe();
 
         @Cleanup

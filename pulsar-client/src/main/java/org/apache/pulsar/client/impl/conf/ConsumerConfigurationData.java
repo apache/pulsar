@@ -129,7 +129,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean batchIndexAckEnabled = false;
 
-    private boolean ackResponseEnabled = false;
+    private boolean ackReceiptEnabled = false;
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");

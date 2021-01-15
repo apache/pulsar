@@ -47,12 +47,12 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "ackResponseEnabled")
-    public Object[][] ackResponseEnabled() {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(timeOut = 30000, dataProvider = "ackResponseEnabled")
+    @Test(timeOut = 30000, dataProvider = "ackReceiptEnabled")
     public void testBatchListAck(boolean ackResponseEnabled) throws Exception {
         ackListMessage(true,true, ackResponseEnabled);
         ackListMessage(true,false, ackResponseEnabled);
@@ -60,7 +60,7 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         ackListMessage(false,true, ackResponseEnabled);
     }
 
-    public void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackResponseEnabled) throws Exception {
+    public void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
@@ -78,8 +78,8 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .topic(topic)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(ackResponseEnabled)
-                .enableAckResponse(ackResponseEnabled)
+                .enableBatchIndexAcknowledgment(ackReceiptEnabled)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();

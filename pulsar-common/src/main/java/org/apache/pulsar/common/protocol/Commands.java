@@ -1697,6 +1697,10 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v15.getValue();
     }
 
+    public static boolean peerSupportsAckResponse(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v17.getValue();
+    }
+
     private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {
         switch (accessMode) {
         case Exclusive:
