@@ -864,32 +864,6 @@ public class PulsarClientException extends IOException {
         }
     }
 
-    /**
-     * Consumer ack for response timeout.
-     */
-    public static class AckResponseTimeoutException extends PulsarClientException {
-
-        /**
-         * Constructs an {@code AckResponseTimeoutException} with the specified cause.
-         *
-         * @param t
-         *        The cause (which is saved for later retrieval by the
-         *        {@link #getCause()} method).  (A null value is permitted,
-         *        and indicates that the cause is nonexistent or unknown.)
-         */
-        public AckResponseTimeoutException(Throwable t) {
-            super(t);
-        }
-
-        /**
-         * Constructs an {@code AckResponseTimeoutException} with the specified detail message.
-         * @param msg The detail message.
-         */
-        public AckResponseTimeoutException(String msg) {
-            super(msg);
-        }
-    }
-
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();

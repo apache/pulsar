@@ -187,12 +187,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Ack will return response but does not mean that the message will not be resent after get response.
+     * Ack will return receipt but does not mean that the message will not be resent after get receipt.
      *
-     * @param ackResponseEnabled {@link Boolean} is enable ack for response
+     * @param isAckReceiptEnabled {@link Boolean} is enable ack for receipt
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> enableAckResponse(boolean ackResponseEnabled);
+    ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
 
     /**
      * Define the granularity of the ack-timeout redelivery.

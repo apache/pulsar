@@ -167,11 +167,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 if (!batchMessageId.ackIndividual()) {
                     doIndividualBatchAckAsync((BatchMessageIdImpl) messageId);
                 } else {
-                    messageId = modifyBatchMessageIdAndStatusInConsumer(batchMessageId);
+                    messageId = modifyBatchMessageIdAndStatesInConsumer(batchMessageId);
                     doIndividualAckAsync((MessageIdImpl) messageId);
                 }
             } else {
-                modifyMessageIdStatusInConsumer((MessageIdImpl) messageId);
+                modifyMessageIdStatesInConsumer((MessageIdImpl) messageId);
                 doIndividualAckAsync((MessageIdImpl) messageId);
             }
         }
@@ -186,7 +186,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 consumer.onAcknowledge(msgId, null);
                 // ack this ack carry bitSet index and judge bit set are all ack
                 if (batchMessageId.ackIndividual()) {
-                    MessageIdImpl messageId = modifyBatchMessageIdAndStatusInConsumer(batchMessageId);
+                    MessageIdImpl messageId = modifyBatchMessageIdAndStatesInConsumer(batchMessageId);
                     return doIndividualAck(messageId, properties);
                 } else if (batchIndexAckEnabled){
                     return doIndividualBatchAck(batchMessageId, properties);
@@ -197,11 +197,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 }
             } else {
                 consumer.onAcknowledgeCumulative(msgId, null);
-                if (((BatchMessageIdImpl) msgId).ackCumulative()) {
+                if (batchMessageId.ackCumulative()) {
                     return doCumulativeAck(msgId, properties, null);
                 } else {
                     if (batchIndexAckEnabled) {
-                        return doCumulativeBatchAck(batchMessageId, properties);
+                        return doCumulativeBatchIndexAck(batchMessageId, properties);
                     } else {
                         // ack the pre messageId, because we prevent the batchIndexAck, we can ensure pre messageId can
                         // ack
@@ -217,7 +217,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         } else {
             if (ackType == AckType.Individual) {
                 consumer.onAcknowledge(msgId, null);
-                modifyMessageIdStatusInConsumer(msgId);
+                modifyMessageIdStatesInConsumer(msgId);
                 return doIndividualAck(msgId, properties);
             } else {
                 consumer.onAcknowledgeCumulative(msgId, null);
@@ -226,20 +226,20 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private MessageIdImpl modifyBatchMessageIdAndStatusInConsumer(BatchMessageIdImpl batchMessageId) {
+    private MessageIdImpl modifyBatchMessageIdAndStatesInConsumer(BatchMessageIdImpl batchMessageId) {
         MessageIdImpl messageId = new MessageIdImpl(batchMessageId.getLedgerId(),
                 batchMessageId.getEntryId(), batchMessageId.getPartitionIndex());
         consumer.getStats().incrementNumAcksSent(batchMessageId.getBatchSize());
-        modifyMessageIdStatusInConsumerCommon(messageId);
+        clearMessageIdFromUnackTrackerAndDeadLetter(messageId);
         return messageId;
     }
 
-    private void modifyMessageIdStatusInConsumer(MessageIdImpl messageId) {
+    private void modifyMessageIdStatesInConsumer(MessageIdImpl messageId) {
         consumer.getStats().incrementNumAcksSent(1);
-        modifyMessageIdStatusInConsumerCommon(messageId);
+        clearMessageIdFromUnackTrackerAndDeadLetter(messageId);
     }
 
-    private void modifyMessageIdStatusInConsumerCommon(MessageIdImpl messageId) {
+    private void clearMessageIdFromUnackTrackerAndDeadLetter(MessageIdImpl messageId) {
         consumer.getUnAckedMessageTracker().remove(messageId);
         if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
             consumer.getPossibleSendToDeadLetterTopicMessages().remove(messageId);
@@ -387,8 +387,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doCumulativeBatchAck(BatchMessageIdImpl batchMessageId,
-                                                         Map<String, Long> properties) {
+    private CompletableFuture<Void> doCumulativeBatchIndexAck(BatchMessageIdImpl batchMessageId,
+                                                              Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
             return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                     batchMessageId.getBatchSize(), AckType.Cumulative, properties);
