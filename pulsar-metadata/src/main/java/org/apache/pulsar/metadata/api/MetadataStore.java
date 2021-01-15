@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.pulsar.metadata.cache.MetadataCache;
 
 /**
  * Metadata store client interface.

@@ -16,33 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.api;
-
-import lombok.Data;
+package org.apache.pulsar.metadata.api.coordination;
 
 /**
- * Represent the information associated with a given value in the store.
+ * State of the leader election.
  */
-@Data
-public class Stat {
+public enum LeaderElectionState {
+    /**
+     * No leader has been elected yet
+     */
+    NoLeader,
 
     /**
-     * The path of the value
+     * We are currently the leader
      */
-    final String path;
+    Leading,
 
     /**
-     * The data version.
+     * Follower state
      */
-    final long version;
-
-    /**
-     * When the value was first inserted.
-     */
-    final long creationTimestamp;
-
-    /**
-     * When the value was last modified.
-     */
-    final long modificationTimestamp;
+    Following
 }
