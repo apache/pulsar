@@ -162,9 +162,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
-        jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducers());
-        jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducers());
-        jcommander.addCommand("remove-max-producers-per-topic", new RemoveMaxProducers());
+        jcommander.addCommand("get-max-producers", new GetMaxProducers());
+        jcommander.addCommand("set-max-producers", new SetMaxProducers());
+        jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
 
         jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
         jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
@@ -182,9 +182,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
         jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
 
-        jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumers());
-        jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumers());
-        jcommander.addCommand("remove-max-consumers-per-topic", new RemoveMaxConsumers());
+        jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
+        jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
+        jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
 
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());

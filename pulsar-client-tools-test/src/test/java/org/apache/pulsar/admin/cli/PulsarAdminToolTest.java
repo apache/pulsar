@@ -813,18 +813,18 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-message-size persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 99);
 
-        cmdTopics.run(split("get-max-producers-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("get-max-producers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("remove-max-producers-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("remove-max-producers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxProducers("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("set-max-producers-per-topic persistent://myprop/clust/ns1/ds1 -p 99"));
+        cmdTopics.run(split("set-max-producers persistent://myprop/clust/ns1/ds1 -p 99"));
         verify(mockTopics).setMaxProducers("persistent://myprop/clust/ns1/ds1", 99);
 
-        cmdTopics.run(split("get-max-consumers-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("remove-max-consumers-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxConsumers("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("set-max-consumers-per-topic persistent://myprop/clust/ns1/ds1 -c 99"));
+        cmdTopics.run(split("set-max-consumers persistent://myprop/clust/ns1/ds1 -c 99"));
         verify(mockTopics).setMaxConsumers("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
