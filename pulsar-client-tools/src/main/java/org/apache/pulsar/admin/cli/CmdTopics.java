@@ -120,8 +120,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
 
-        jcommander.addCommand("enable-deduplication", new EnableDeduplication());
-        jcommander.addCommand("disable-deduplication", new DisableDeduplication());
+        jcommander.addCommand("set-deduplication", new SetDeduplication());
         jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
 
         jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
@@ -1214,27 +1213,25 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Enable the deduplication policy for a topic")
-    private class EnableDeduplication extends CliCommand {
+    @Parameters(commandDescription = "Enable or disable deduplication for a topic")
+    private class SetDeduplication extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable deduplication")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable deduplication")
+        private boolean disable = false;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            admin.topics().enableDeduplication(persistentTopic, true);
-        }
-    }
 
-    @Parameters(commandDescription = "Disable the deduplication policy for a topic")
-    private class DisableDeduplication extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            admin.topics().enableDeduplication(persistentTopic, false);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.topics().enableDeduplication(persistentTopic, enable);
         }
     }
 
