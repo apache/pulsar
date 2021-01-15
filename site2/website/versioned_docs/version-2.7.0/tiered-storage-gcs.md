@@ -92,7 +92,7 @@ You can configure GCS offloader driver in the configuration file `broker.conf` o
     `gcsManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `gcsManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic.|2
-    `managedLedgerMaxEntriesPerLedger`|Max number of entries to append to a ledger before triggering a rollover.|5000
+    `managedLedgerMaxEntriesPerLedger`|The max number of entries to append to a ledger before triggering a rollover.|5000
 
 #### Bucket (required)
 

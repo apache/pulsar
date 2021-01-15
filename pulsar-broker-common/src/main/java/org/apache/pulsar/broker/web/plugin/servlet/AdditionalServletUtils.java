@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,76 +34,76 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Util class to search and load {@link ProxyAdditionalServlets}.
+ * Util class to search and load {@link AdditionalServlets}.
  */
 @UtilityClass
 @Slf4j
-public class ProxyAdditionalServletUtils {
+public class AdditionalServletUtils {
 
-    public final String PROXY_ADDITIONAL_SERVLET_FILE = "proxy_additional_servlet.yml";
+    public final String ADDITIONAL_SERVLET_FILE = "additional_servlet.yml";
 
     /**
-     * Retrieve the proxy additional servlet definition from the provided nar package.
+     * Retrieve the additional servlet definition from the provided nar package.
      *
-     * @param narPath the path to the proxy additional servlet NAR package
-     * @return the proxy additional servlet definition
-     * @throws IOException when fail to load the proxy additional servlet or get the definition
+     * @param narPath the path to the additional servlet NAR package
+     * @return the additional servlet definition
+     * @throws IOException when fail to load the additional servlet or get the definition
      */
-    public ProxyAdditionalServletDefinition getProxyAdditionalServletDefinition(
+    public AdditionalServletDefinition getAdditionalServletDefinition(
             String narPath, String narExtractionDirectory) throws IOException {
 
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(
                 new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
-            return getProxyAdditionalServletDefinition(ncl);
+            return getAdditionalServletDefinition(ncl);
         }
     }
 
-    private ProxyAdditionalServletDefinition getProxyAdditionalServletDefinition(NarClassLoader ncl) throws IOException {
-        String configStr = ncl.getServiceDefinition(PROXY_ADDITIONAL_SERVLET_FILE);
+    private AdditionalServletDefinition getAdditionalServletDefinition(NarClassLoader ncl) throws IOException {
+        String configStr = ncl.getServiceDefinition(ADDITIONAL_SERVLET_FILE);
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
-                configStr, ProxyAdditionalServletDefinition.class
+                configStr, AdditionalServletDefinition.class
         );
     }
 
     /**
-     * Search and load the available proxy additional servlets.
+     * Search and load the available additional servlets.
      *
-     * @param additionalServletDirectory the directory where all the proxy additional servlets are stored
-     * @return a collection of proxy additional servlet definitions
-     * @throws IOException when fail to load the available proxy additional servlets from the provided directory.
+     * @param additionalServletDirectory the directory where all the additional servlets are stored
+     * @return a collection of additional servlet definitions
+     * @throws IOException when fail to load the available additional servlets from the provided directory.
      */
-    public ProxyAdditionalServletDefinitions searchForServlets(String additionalServletDirectory,
-                                                               String narExtractionDirectory) throws IOException {
+    public AdditionalServletDefinitions searchForServlets(String additionalServletDirectory,
+                                                          String narExtractionDirectory) throws IOException {
         Path path = Paths.get(additionalServletDirectory).toAbsolutePath();
-        log.info("Searching for proxy additional servlets in {}", path);
+        log.info("Searching for additional servlets in {}", path);
 
-        ProxyAdditionalServletDefinitions servletDefinitions = new ProxyAdditionalServletDefinitions();
+        AdditionalServletDefinitions servletDefinitions = new AdditionalServletDefinitions();
         if (!path.toFile().exists()) {
-            log.warn("Pulsar proxy additional servlets directory not found");
+            log.warn("Pulsar additional servlets directory not found");
             return servletDefinitions;
         }
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ProxyAdditionalServletDefinition def =
-                            ProxyAdditionalServletUtils.getProxyAdditionalServletDefinition(
+                    AdditionalServletDefinition def =
+                            AdditionalServletUtils.getAdditionalServletDefinition(
                                     archive.toString(), narExtractionDirectory);
-                    log.info("Found proxy additional servlet from {} : {}", archive, def);
+                    log.info("Found additional servlet from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getAdditionalServletClass()));
 
-                    ProxyAdditionalServletMetadata metadata = new ProxyAdditionalServletMetadata();
+                    AdditionalServletMetadata metadata = new AdditionalServletMetadata();
                     metadata.setDefinition(def);
                     metadata.setArchivePath(archive);
 
                     servletDefinitions.servlets().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load proxy additional servlet from {}."
-                            + " It is OK however if you want to use this proxy additional servlet,"
-                            + " please make sure you put the correct proxy additional servlet NAR"
-                            + " package in the proxy additional servlets directory.", archive, t);
+                    log.warn("Failed to load additional servlet from {}."
+                            + " It is OK however if you want to use this additional servlet,"
+                            + " please make sure you put the correct additional servlet NAR"
+                            + " package in the additional servlets directory.", archive, t);
                 }
             }
         }
@@ -112,33 +112,33 @@ public class ProxyAdditionalServletUtils {
     }
 
     /**
-     * Load the proxy additional servlets according to the additional servlet definition.
+     * Load the additional servlets according to the additional servlet definition.
      *
-     * @param metadata the proxy additional servlet definition.
+     * @param metadata the additional servlet definition.
      */
-    public ProxyAdditionalServletWithClassLoader load(
-            ProxyAdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
+    public AdditionalServletWithClassLoader load(
+            AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
 
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
-                ProxyAdditionalServlet.class.getClassLoader(), narExtractionDirectory);
+                AdditionalServlet.class.getClassLoader(), narExtractionDirectory);
 
-        ProxyAdditionalServletDefinition def = getProxyAdditionalServletDefinition(ncl);
+        AdditionalServletDefinition def = getAdditionalServletDefinition(ncl);
         if (StringUtils.isBlank(def.getAdditionalServletClass())) {
-            throw new IOException("Proxy additional servlets `" + def.getName() + "` does NOT provide a proxy"
-                    + " additional servlets implementation");
+            throw new IOException("Additional servlets `" + def.getName() + "` does NOT provide an "
+                    + "additional servlets implementation");
         }
 
         try {
             Class additionalServletClass = ncl.loadClass(def.getAdditionalServletClass());
             Object additionalServlet = additionalServletClass.newInstance();
-            if (!(additionalServlet instanceof ProxyAdditionalServlet)) {
+            if (!(additionalServlet instanceof AdditionalServlet)) {
                 throw new IOException("Class " + def.getAdditionalServletClass()
-                        + " does not implement proxy additional servlet interface");
+                        + " does not implement additional servlet interface");
             }
-            ProxyAdditionalServlet servlet = (ProxyAdditionalServlet) additionalServlet;
-            return new ProxyAdditionalServletWithClassLoader(servlet, ncl);
+            AdditionalServlet servlet = (AdditionalServlet) additionalServlet;
+            return new AdditionalServletWithClassLoader(servlet, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);
             return null;

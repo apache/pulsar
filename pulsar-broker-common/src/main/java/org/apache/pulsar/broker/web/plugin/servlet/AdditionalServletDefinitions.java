@@ -16,39 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin.servlet;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
-import com.google.common.annotations.Beta;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.eclipse.jetty.servlet.ServletHolder;
+import java.util.Map;
+import java.util.TreeMap;
+import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
- * The additional servlet interface for support additional servlet on Pulsar proxy.
+ * The collection of additional servlet definition.
  */
-@Beta
-public interface ProxyAdditionalServlet extends AutoCloseable {
+@Data
+@Accessors(fluent = true)
+public class AdditionalServletDefinitions {
 
-    /**
-     * load plugin config
-     *
-     * @param proxyConfiguration
-     */
-    void loadConfig(ProxyConfiguration proxyConfiguration);
-
-    /**
-     * Get the base path of prometheus metrics
-     *
-     * @return the base path of prometheus metrics
-     */
-    String getBasePath();
-
-    /**
-     * Get the servlet holder
-     *
-     * @return the servlet holder
-     */
-    ServletHolder getServletHolder();
-
-    @Override
-    void close();
+    private final Map<String, AdditionalServletMetadata> servlets = new TreeMap<>();
 }

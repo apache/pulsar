@@ -16,26 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.plugin;
+package org.apache.pulsar.broker.web.plugin.servlet;
 
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test {@link ProxyAdditionalServletWithClassLoader}.
+ * Unit test {@link AdditionalServletWithClassLoader}.
  */
-public class ProxyAdditionalServletWithClassLoaderTest {
+public class AdditionalServletWithClassLoaderTest {
 
     @Test
     public void testWrapper() throws Exception {
-        ProxyAdditionalServlet servlet = mock(ProxyAdditionalServlet.class);
+        AdditionalServlet servlet = mock(AdditionalServlet.class);
         NarClassLoader loader = mock(NarClassLoader.class);
-        ProxyAdditionalServletWithClassLoader wrapper = new ProxyAdditionalServletWithClassLoader(servlet, loader);
+        AdditionalServletWithClassLoader wrapper = new AdditionalServletWithClassLoader(servlet, loader);
 
         String basePath = "metrics/pulsar";
 

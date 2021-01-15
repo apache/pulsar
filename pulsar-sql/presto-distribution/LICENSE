@@ -411,18 +411,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.12.0.jar
-    - bookkeeper-common-allocator-4.12.0.jar
-    - bookkeeper-proto-4.12.0.jar
-    - bookkeeper-server-4.12.0.jar
-    - bookkeeper-stats-api-4.12.0.jar
-    - bookkeeper-tools-framework-4.12.0.jar
-    - circe-checksum-4.12.0.jar
-    - codahale-metrics-provider-4.12.0jar
-    - cpu-affinity-4.12.0.jar
-    - http-server-4.12.0.jar
-    - prometheus-metrics-provider-4.12.0.jar
-    - codahale-metrics-provider-4.12.0.jar
+    - bookkeeper-common-4.12.1.jar
+    - bookkeeper-common-allocator-4.12.1.jar
+    - bookkeeper-proto-4.12.1.jar
+    - bookkeeper-server-4.12.1.jar
+    - bookkeeper-stats-api-4.12.1.jar
+    - bookkeeper-tools-framework-4.12.1.jar
+    - circe-checksum-4.12.1.jar
+    - codahale-metrics-provider-4.12.1jar
+    - cpu-affinity-4.12.1.jar
+    - http-server-4.12.1.jar
+    - prometheus-metrics-provider-4.12.1.jar
+    - codahale-metrics-provider-4.12.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -569,6 +569,6 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
--    - bcpkix-jdk15on-1.66.jar
--    - bcprov-ext-jdk15on-1.66.jar
--    - bcprov-jdk15on-1.66.jar
+-    - bcpkix-jdk15on-1.68.jar
+-    - bcprov-ext-jdk15on-1.68.jar
+-    - bcprov-jdk15on-1.68.jar

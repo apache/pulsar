@@ -395,32 +395,32 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-1.2-api-2.14.0.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.12.0.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.12.0.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.12.0.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.12.0.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.12.0.jar
-    - org.apache.bookkeeper-circe-checksum-4.12.0.jar
-    - org.apache.bookkeeper-cpu-affinity-4.12.0.jar
-    - org.apache.bookkeeper-statelib-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-api-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-common-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-server-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.12.0.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.12.0.jar
-    - org.apache.bookkeeper.http-http-server-4.12.0.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.12.0.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.12.0.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.12.0.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.12.0.jar
-    - org.apache.distributedlog-distributedlog-common-4.12.0.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.0-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.0.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.12.0.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.12.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.12.1.jar
+    - org.apache.bookkeeper-circe-checksum-4.12.1.jar
+    - org.apache.bookkeeper-cpu-affinity-4.12.1.jar
+    - org.apache.bookkeeper-statelib-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-api-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-common-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-server-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.12.1.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.12.1.jar
+    - org.apache.bookkeeper.http-http-server-4.12.1.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.12.1.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.12.1.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.12.1.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.12.1.jar
+    - org.apache.distributedlog-distributedlog-common-4.12.1.jar
+    - org.apache.distributedlog-distributedlog-core-4.12.1-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.12.1.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.12.1.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.12.1.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
@@ -476,9 +476,9 @@ The Apache Software License, Version 2.0
     - org.apache.avro-avro-1.9.1.jar
     - org.apache.avro-avro-protobuf-1.9.1.jar
   * Apache Curator
-    - org.apache.curator-curator-client-4.0.1.jar
-    - org.apache.curator-curator-framework-4.0.1.jar
-    - org.apache.curator-curator-recipes-4.0.1.jar
+    - org.apache.curator-curator-client-5.1.0.jar
+    - org.apache.curator-curator-framework-5.1.0.jar
+    - org.apache.curator-curator-recipes-5.1.0.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.5.0.jar
   * @FreeBuilder
@@ -591,9 +591,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk15on-1.66.jar
-    - org.bouncycastle-bcprov-ext-jdk15on-1.66.jar
-    - org.bouncycastle-bcprov-jdk15on-1.66.jar
+    - org.bouncycastle-bcpkix-jdk15on-1.68.jar
+    - org.bouncycastle-bcprov-ext-jdk15on-1.68.jar
+    - org.bouncycastle-bcprov-jdk15on-1.68.jar
 
 ------------------------
 
