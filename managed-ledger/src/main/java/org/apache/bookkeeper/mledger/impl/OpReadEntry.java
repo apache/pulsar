@@ -55,6 +55,9 @@ class OpReadEntry implements ReadEntriesCallback {
         op.count = count;
         op.callback = callback;
         op.entries = Lists.newArrayList();
+        if (maxPosition == null) {
+            maxPosition = PositionImpl.latest;
+        }
         op.maxPosition = maxPosition;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
