@@ -58,7 +58,7 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
+
     <dependency>
          <groupId>org.apache.curator</groupId>
          <artifactId>curator-recipes</artifactId>
@@ -85,6 +85,18 @@
       <artifactId>zookeeper</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-core</artifactId>
+       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+       <groupId>org.xerial.snappy</groupId>
+       <artifactId>snappy-java</artifactId>
+       <scope>test</scope>
     </dependency>
 
     <dependency>
