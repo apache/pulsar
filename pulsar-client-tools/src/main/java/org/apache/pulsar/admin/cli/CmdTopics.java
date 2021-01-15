@@ -153,19 +153,19 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
         jcommander.addCommand("remove-compaction-threshold", new RemoveCompactionThreshold());
-        jcommander.addCommand("get-max-unacked-messages-on-consumer", new GetMaxUnackedMessagesOnConsumer());
-        jcommander.addCommand("set-max-unacked-messages-on-consumer", new SetMaxUnackedMessagesOnConsumer());
-        jcommander.addCommand("remove-max-unacked-messages-on-consumer", new RemoveMaxUnackedMessagesOnConsumer());
-        jcommander.addCommand("get-max-unacked-messages-on-subscription", new GetMaxUnackedMessagesOnSubscription());
-        jcommander.addCommand("set-max-unacked-messages-on-subscription", new SetMaxUnackedMessagesOnSubscription());
-        jcommander.addCommand("remove-max-unacked-messages-on-subscription", new RemoveMaxUnackedMessagesOnSubscription());
+        jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("remove-max-unacked-messages-per-consumer", new RemoveMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesOnSubscription());
+        jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesOnSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription", new RemoveMaxUnackedMessagesOnSubscription());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
-        jcommander.addCommand("get-maxProducers", new GetMaxProducers());
-        jcommander.addCommand("set-maxProducers", new SetMaxProducers());
-        jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+        jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducers());
+        jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducers());
+        jcommander.addCommand("remove-max-producers-per-topic", new RemoveMaxProducers());
 
         jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
         jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
@@ -183,9 +183,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
         jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
 
-        jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
-        jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
-        jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
+        jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumers());
+        jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumers());
+        jcommander.addCommand("remove-max-consumers-per-topic", new RemoveMaxConsumers());
 
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
