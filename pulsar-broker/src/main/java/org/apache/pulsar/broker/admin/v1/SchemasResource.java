@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.broker.admin.v1;
 
 import java.time.Clock;
 
@@ -71,7 +71,7 @@ public class SchemasResource extends SchemasResourceBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/schema")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic", response = GetSchemaResponse.class)
     @ApiResponses(value = {
@@ -85,17 +85,18 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
+        @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
         @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         getSchema(authoritative, response);
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/schema/{version}")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/schema/{version}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic at a given version", response = GetSchemaResponse.class)
     @ApiResponses(value = {
@@ -109,18 +110,19 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
+        @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @PathParam("version") @Encoded String version,
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
         @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         getSchema(authoritative, version, response);
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/schemas")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/schemas")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the all schemas of a topic", response = GetAllVersionsSchemaResponse.class)
     @ApiResponses(value = {
@@ -134,17 +136,18 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void getAllSchemas(
             @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         getAllSchemas(authoritative, response);
     }
 
     @DELETE
-    @Path("/{tenant}/{namespace}/{topic}/schema")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Delete the schema of a topic", response = DeleteSchemaResponse.class)
     @ApiResponses(value = {
@@ -157,17 +160,18 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void deleteSchema(
         @PathParam("tenant") String tenant,
+        @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
         @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         deleteSchema(authoritative, response);
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{topic}/schema")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Update the schema of a topic", response = PostSchemaResponse.class)
@@ -183,6 +187,7 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void postSchema(
         @PathParam("tenant") String tenant,
+        @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @ApiParam(
@@ -199,12 +204,12 @@ public class SchemasResource extends SchemasResourceBase {
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
         @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         postSchema(payload, authoritative, response);
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{topic}/compatibility")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/compatibility")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "test the schema compatibility", response = IsCompatibilityResponse.class)
@@ -218,6 +223,7 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void testCompatibility(
             @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
@@ -235,12 +241,12 @@ public class SchemasResource extends SchemasResourceBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         testCompatibility(payload, authoritative, response);
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{topic}/version")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/version")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "get the version of the schema", response = LongSchemaVersion.class)
@@ -255,6 +261,7 @@ public class SchemasResource extends SchemasResourceBase {
     })
     public void getVersionBySchema(
             @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
@@ -272,7 +279,7 @@ public class SchemasResource extends SchemasResourceBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response
     ) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(tenant, cluster, namespace, topic);
         getVersionBySchema(payload, authoritative, response);
     }
 }
