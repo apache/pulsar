@@ -38,7 +38,6 @@ import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -170,8 +169,14 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                     }
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof BadVersionException) {
-                        result.completeExceptionally(
-                                new LockBusyException("Resource at " + path + " is already locked"));
+                        // There was a conflict between 2 participants trying to become leaders at same time. Retry
+                        // to fetch info on new leader.
+                        elect()
+                            .thenAccept(lse -> result.complete(lse))
+                            .exceptionally(ex2 -> {
+                                result.completeExceptionally(ex2);
+                                return null;
+                            });
                     } else {
                         result.completeExceptionally(ex.getCause());
                     }
