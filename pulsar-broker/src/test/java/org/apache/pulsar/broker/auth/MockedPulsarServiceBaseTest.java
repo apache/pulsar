@@ -83,6 +83,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected URI lookupUrl;
 
     protected MockZooKeeper mockZooKeeper;
+    protected MockZooKeeper mockZooKeeperGlobal;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
     protected static final String configClusterName = "test";
@@ -152,6 +153,7 @@ public abstract class MockedPulsarServiceBaseTest {
                     .build());
 
         mockZooKeeper = createMockZooKeeper();
+        mockZooKeeperGlobal = createMockZooKeeperGlobal();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
 
         startBroker();
@@ -315,6 +317,10 @@ public abstract class MockedPulsarServiceBaseTest {
         return zk;
     }
 
+    public static MockZooKeeper createMockZooKeeperGlobal() throws Exception {
+        return  MockZooKeeper.newInstanceForGlobalZK(MoreExecutors.newDirectExecutorService());
+    }
+
     public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
                                                                  ExecutorService executor) throws Exception {
         return spy(new NonClosableMockBookKeeper(zookeeper, executor));
@@ -347,7 +353,11 @@ public abstract class MockedPulsarServiceBaseTest {
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
-            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
+
+            if (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())) {
+                return CompletableFuture.completedFuture(mockZooKeeperGlobal);
+            }
+
             return CompletableFuture.completedFuture(mockZooKeeper);
         }
     };
