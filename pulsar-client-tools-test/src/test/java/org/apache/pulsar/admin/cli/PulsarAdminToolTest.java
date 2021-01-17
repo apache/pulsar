@@ -857,11 +857,24 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("last-message-id persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
 
+        cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10"));
+        verify(mockTopics).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10);
+
+        cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
+
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(admin);
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds2 -s sub1 -m 1:1 -e"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
+
+        cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMessageTTLApplied("persistent://myprop/clust/ns1/ds1");
+
     }
 
     @Test

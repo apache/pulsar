@@ -821,7 +821,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
+    Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
 
     /**
      * Get the message TTL for a namespace asynchronously.

@@ -1522,19 +1522,35 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageTTLApplied")
+    @ApiOperation(value = "Get message TTL applied policy for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public int getMessageTTLApplied(@PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        Integer messageTTL = getTopicPolicies(topicName).map(TopicPolicies::getMessageTTLInSeconds)
+                .orElse(getNamespacePolicies(namespaceName).message_ttl_in_seconds);
+        return messageTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds() : messageTTL;
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
     @ApiOperation(value = "Get message TTL in seconds for a topic")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
-    public int getMessageTTL(@PathParam("tenant") String tenant,
+    public Integer getMessageTTL(@PathParam("tenant") String tenant,
                              @PathParam("namespace") String namespace,
                              @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         return getTopicPolicies(topicName)
                 .map(TopicPolicies::getMessageTTLInSeconds)
-                .orElse(0);  //same as default ttl at namespace level
+                .orElse(null);
     }
 
     @POST
