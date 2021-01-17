@@ -145,6 +145,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 100));
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
                 200L);
+        //restore config
+        config1.setSystemTopicEnabled(false);
+        config1.setTopicLevelPoliciesEnabled(false);
+        config1.setDispatchThrottlingRatePerReplicatorInMsg(0);
+        config1.setDispatchThrottlingRatePerReplicatorInByte(0L);
     }
 
     /**
