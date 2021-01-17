@@ -120,6 +120,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         mockPulsarSetup.cleanup();
+        resetConfig();
     }
 
     @DataProvider(name = "topicType")
