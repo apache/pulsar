@@ -1907,11 +1907,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            if (applied) {
-                print(admin.topics().getInactiveTopicPoliciesApplied(persistentTopic));
-            } else {
-                print(admin.topics().getInactiveTopicPolicies(persistentTopic));
-            }
+            print(admin.topics().getInactiveTopicPolicies(persistentTopic, applied));
         }
     }
 

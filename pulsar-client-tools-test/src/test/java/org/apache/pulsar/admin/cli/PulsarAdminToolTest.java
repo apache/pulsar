@@ -824,7 +824,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
@@ -864,7 +864,7 @@ public class PulsarAdminToolTest {
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
-        verify(mockTopics).getInactiveTopicPoliciesApplied("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);
     }
 
     @Test
