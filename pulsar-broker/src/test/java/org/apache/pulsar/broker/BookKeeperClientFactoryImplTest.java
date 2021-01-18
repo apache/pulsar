@@ -205,4 +205,18 @@ public class BookKeeperClientFactoryImplTest {
         }
     }
 
+    @Test
+    public void testOpportunisticStripingConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        // default value
+        assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), false);
+        conf.setBookkeeperOpportunisticStriping(true);
+        assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), true);
+
+        conf.setBookkeeperOpportunisticStriping(false);
+        assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), false);
+
+    }
+
 }

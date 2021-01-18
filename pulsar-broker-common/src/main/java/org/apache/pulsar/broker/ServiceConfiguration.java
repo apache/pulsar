@@ -1072,6 +1072,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bookkeeperMetadataServiceUri;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "With Opportustic Striping the bookeeper client will fallback to use less bookies in case "
+                + "of lack of a sufficient number of writable bookies for striping."
+                + "But you still have WriteQuorum bookies, in order to preserve durability configuration."
+    )
+    private boolean bookkeeperOpportunisticStriping;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
     )
     private String bookkeeperClientAuthenticationPlugin;
