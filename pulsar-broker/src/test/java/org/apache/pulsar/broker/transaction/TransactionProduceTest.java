@@ -114,12 +114,12 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
 
-    @Test
+    @Test(timeOut = 90000)
     public void produceAndCommitTest() throws Exception {
         produceTest(true);
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void produceAndAbortTest() throws Exception {
         produceTest(false);
     }
@@ -247,7 +247,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void ackCommitTest() throws Exception {
         final String subscriptionName = "ackCommitTest";
         Transaction txn = pulsarClient
@@ -311,7 +311,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         log.info("finish test ackCommitTest");
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void ackAbortTest() throws Exception {
         final String subscriptionName = "ackAbortTest";
         Transaction txn = pulsarClient

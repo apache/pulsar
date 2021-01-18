@@ -107,7 +107,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testCommitOnTopic() throws ExecutionException, InterruptedException {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
@@ -120,7 +120,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testAbortOnTopic() throws ExecutionException, InterruptedException {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
@@ -133,7 +133,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testCommitOnSubscription() throws ExecutionException, InterruptedException {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
@@ -146,7 +146,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testAbortOnSubscription() throws ExecutionException, InterruptedException {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {

@@ -45,7 +45,7 @@ public class InMemTransactionBufferReaderTest {
 
     private final TxnID txnID = new TxnID(1234L, 5678L);
 
-    @Test
+    @Test(timeOut = 90000)
     public void testInvalidNumEntriesArgument() {
         try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
             txnID,
@@ -62,7 +62,7 @@ public class InMemTransactionBufferReaderTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testCloseReleaseAllEntries() throws Exception {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;
@@ -88,7 +88,7 @@ public class InMemTransactionBufferReaderTest {
         verifyEntriesReleased(entries, 10L, numEntries - 10);
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testEndOfTransactionException() throws Exception {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;

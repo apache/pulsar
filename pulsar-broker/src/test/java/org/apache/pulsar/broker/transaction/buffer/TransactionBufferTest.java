@@ -75,7 +75,7 @@ public class TransactionBufferTest {
         this.buffer.closeAsync();
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testOpenReaderOnNonExistentTxn() throws Exception {
         try {
             buffer.openTransactionBufferReader(txnId, 0L).get();
@@ -85,7 +85,7 @@ public class TransactionBufferTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testOpenReaderOnAnOpenTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);
@@ -125,7 +125,7 @@ public class TransactionBufferTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testCommitNonExistentTxn() throws Exception {
         try {
             buffer.commitTxn(txnId, Collections.EMPTY_LIST).get();
@@ -135,7 +135,7 @@ public class TransactionBufferTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testCommitTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);
@@ -149,7 +149,7 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testAbortNonExistentTxn() throws Exception {
         try {
             buffer.abortTxn(txnId, Collections.emptyList()).get();
@@ -159,7 +159,7 @@ public class TransactionBufferTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testAbortCommittedTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);
@@ -183,7 +183,7 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testAbortTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);

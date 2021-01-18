@@ -34,7 +34,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTest
         super.setup();
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void testTransactionMetaStoreAssignAndFailover() throws IOException, InterruptedException {
 
         int transactionMetaStoreCount = 0;

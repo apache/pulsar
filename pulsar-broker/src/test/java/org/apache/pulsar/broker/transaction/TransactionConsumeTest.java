@@ -77,7 +77,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void noSortedTest() throws Exception {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
@@ -156,7 +156,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
 
-    @Test
+    @Test(timeOut = 90000)
     public void sortedTest() throws Exception {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
