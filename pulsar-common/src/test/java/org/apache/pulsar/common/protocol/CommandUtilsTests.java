@@ -18,45 +18,29 @@
  */
 package org.apache.pulsar.common.protocol;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
-import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
-import org.testng.Assert;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.testng.annotations.Test;
-
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 public class CommandUtilsTests {
-
-    @Test
-    public void testToKeyValueList() {
-        List<PulsarApi.KeyValue> keyValues = CommandUtils.toKeyValueList(null);
-        Assert.assertNotNull(keyValues);
-        Assert.assertTrue(keyValues.isEmpty());
-
-        final Map<String, String> metadata = new HashMap<>();
-        metadata.put("key1", "value1");
-
-        keyValues = CommandUtils.toKeyValueList(metadata);
-        Assert.assertEquals(keyValues.size(), keyValues.size());
-        PulsarApi.KeyValue kv = keyValues.get(0);
-        final Map.Entry<String, String> entry = metadata.entrySet().iterator().next();
-        Assert.assertEquals(kv.getKey(), entry.getKey());
-        Assert.assertEquals(kv.getValue(), entry.getValue());
-    }
 
     @Test
     public void testMetadataFromCommandProducer() {
@@ -67,7 +51,7 @@ public class CommandUtilsTests {
         final String key = "key";
         final String value = "value";
 
-        PulsarApi.CommandProducer cmd = newCommandProducer(key, value);
+        CommandProducer cmd = newCommandProducer(key, value);
         metadata = CommandUtils.metadataFromCommand(cmd);
         Assert.assertEquals(1, metadata.size());
         final Map.Entry<String, String> entry = metadata.entrySet().iterator().next();
@@ -84,7 +68,7 @@ public class CommandUtilsTests {
         final String key = "key";
         final String value = "value";
 
-        PulsarApi.CommandSubscribe cmd = newCommandSubscribe(key, value);
+        CommandSubscribe cmd = newCommandSubscribe(key, value);
         metadata = CommandUtils.metadataFromCommand(cmd);
         Assert.assertEquals(1, metadata.size());
         final Map.Entry<String, String> entry = metadata.entrySet().iterator().next();
@@ -92,33 +76,37 @@ public class CommandUtilsTests {
         Assert.assertEquals(value, entry.getValue());
     }
 
-    private PulsarApi.CommandProducer newCommandProducer(String key, String value) {
-        PulsarApi.CommandProducer.Builder cmd = PulsarApi.CommandProducer.newBuilder()
+    private CommandProducer newCommandProducer(String key, String value) {
+        CommandProducer cmd = new CommandProducer()
                 .setProducerId(1)
                 .setRequestId(1)
                 .setTopic("my-topic")
                 .setProducerName("producer");
 
         if (key != null && value != null) {
-            cmd.addMetadata(PulsarApi.KeyValue.newBuilder().setKey(key).setValue(value).build());
+            cmd.addMetadata()
+                .setKey(key)
+                .setValue(value);
         }
 
-        return cmd.build();
+        return cmd;
     }
 
-    private PulsarApi.CommandSubscribe newCommandSubscribe(String key, String value) {
-        PulsarApi.CommandSubscribe.Builder cmd = PulsarApi.CommandSubscribe.newBuilder()
+    private CommandSubscribe newCommandSubscribe(String key, String value) {
+        CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setRequestId(1)
                 .setTopic("my-topic")
                 .setSubscription("my-subscription")
-                .setSubType(PulsarApi.CommandSubscribe.SubType.Shared);
+                .setSubType(CommandSubscribe.SubType.Shared);
 
         if (key != null && value != null) {
-            cmd.addMetadata(PulsarApi.KeyValue.newBuilder().setKey(key).setValue(value).build());
+            cmd.addMetadata()
+                    .setKey(key)
+                    .setValue(value);
         }
 
-        return cmd.build();
+        return cmd;
     }
 
     @Test
@@ -150,12 +138,9 @@ public class CommandUtilsTests {
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
 
-        PulsarApi.BrokerEntryMetadata brokerMetadata =
-                PulsarApi.BrokerEntryMetadata
-                        .newBuilder()
+        BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
                         .setBrokerTimestamp(System.currentTimeMillis())
-                        .setIndex(MOCK_BATCH_SIZE - 1)
-                        .build();
+                        .setIndex(MOCK_BATCH_SIZE - 1);
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         assertEquals(brokerMetadata.getSerializedSize() + data.length() + 6,
@@ -190,7 +175,7 @@ public class CommandUtilsTests {
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
-        PulsarApi.BrokerEntryMetadata brokerMetadata =
+        BrokerEntryMetadata brokerMetadata =
                 Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
@@ -211,7 +196,7 @@ public class CommandUtilsTests {
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         int bytesBeforePeek = dataWithBrokerEntryMetadata.readableBytes();
-        PulsarApi.BrokerEntryMetadata brokerMetadata =
+        BrokerEntryMetadata brokerMetadata =
                 Commands.peekBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
@@ -222,7 +207,7 @@ public class CommandUtilsTests {
 
         // test parse logic after peek
 
-        PulsarApi.BrokerEntryMetadata brokerMetadata1 =
+        BrokerEntryMetadata brokerMetadata1 =
                 Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertTrue(brokerMetadata1.getBrokerTimestamp() <= System.currentTimeMillis());
 
@@ -244,9 +229,9 @@ public class CommandUtilsTests {
 
 
     public ByteBuf getMessage(String producerName, long seqId) {
-        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+        MessageMetadata messageMetadata = new MessageMetadata()
                 .setProducerName(producerName).setSequenceId(seqId)
-                .setPublishTime(System.currentTimeMillis()).build();
+                .setPublishTime(System.currentTimeMillis());
 
         return serializeMetadataAndPayload(
                 Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));

@@ -57,10 +57,6 @@ for conf_filename in conf_files:
     for k in sorted(os.environ.keys()):
         v = os.environ[k].strip()
 
-        # Quote the value if it contains a space.
-        if v.find(" ") >= 0:
-            v = '\"%s\"' % v
-
         # Hide the value in logs if is password.
         if "password" in k:
             displayValue = "********"
@@ -80,10 +76,6 @@ for conf_filename in conf_files:
         v = os.environ[k]
         if not k.startswith(PF_ENV_PREFIX):
             continue
-
-        # Quote the value if it contains a space.
-        if v.find(" ") >= 0:
-            v = '\"%s\"' % v
 
         # Hide the value in logs if is password.
         if "password" in k:

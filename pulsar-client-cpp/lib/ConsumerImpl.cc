@@ -38,6 +38,7 @@ DECLARE_LOG_OBJECT()
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscriptionName, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
+                           bool hasParent /* = false by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
                            Commands::SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId)
     : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), milliseconds(0))),
@@ -46,6 +47,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       subscription_(subscriptionName),
       originalSubscriptionName_(subscriptionName),
       messageListener_(config_.getMessageListener()),
+      hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
       startMessageId_(startMessageId),
@@ -563,7 +565,6 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
@@ -638,7 +639,6 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         callback(ResultOk, msg);
     } else {
         pendingReceives_.push(callback);
@@ -672,7 +672,6 @@ Result ConsumerImpl::receiveHelper(Message& msg) {
 
     incomingMessages_.pop(msg);
     messageProcessed(msg);
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     return ResultOk;
 }
 
@@ -702,7 +701,6 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(timeout))) {
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
         return ResultTimeout;
@@ -720,6 +718,7 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
+    trackMessage(msg);
 }
 
 /**
@@ -1230,6 +1229,14 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
 
 void ConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
     negativeAcksTracker_.setEnabledForTesting(enabled);
+}
+
+void ConsumerImpl::trackMessage(const Message& msg) {
+    if (hasParent_) {
+        unAckedMessageTrackerPtr_->remove(msg.getMessageId());
+    } else {
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+    }
 }
 
 } /* namespace pulsar */

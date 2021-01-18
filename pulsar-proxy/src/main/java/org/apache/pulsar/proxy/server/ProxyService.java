@@ -51,7 +51,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -118,7 +118,7 @@ public class ProxyService implements Closeable {
     @Getter
     private final Map<String, TopicStats> topicStats;
     @Getter
-    private ProxyAdditionalServlets proxyAdditionalServlets;
+    private AdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws IOException {
@@ -152,7 +152,7 @@ public class ProxyService implements Closeable {
                 stats.calculate();
             });
         }, 60, TimeUnit.SECONDS);
-        this.proxyAdditionalServlets = ProxyAdditionalServlets.load(proxyConfig);
+        this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
     }
 
     public void start() throws Exception {

@@ -1186,8 +1186,9 @@ Future<Result, BrokerConsumerStatsImpl> ClientConnection::newConsumerStats(uint6
 }
 
 void ClientConnection::newTopicLookup(const std::string& topicName, bool authoritative,
-                                      const uint64_t requestId, LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(topicName, authoritative, requestId), requestId, promise);
+                                      const std::string& listenerName, const uint64_t requestId,
+                                      LookupDataResultPromisePtr promise) {
+    newLookup(Commands::newLookup(topicName, authoritative, requestId, listenerName), requestId, promise);
 }
 
 void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,

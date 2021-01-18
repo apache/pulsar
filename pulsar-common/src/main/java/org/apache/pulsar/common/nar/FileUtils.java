@@ -181,7 +181,8 @@ public class FileUtils {
                 }
                 if (ingestFile.isDirectory() && recurse) {
                     FileUtils.deleteFilesInDirectory(ingestFile, filter, logger, recurse, deleteEmptyDirectories);
-                    if (deleteEmptyDirectories && ingestFile.list().length == 0) {
+                    String[] ingestFileList = ingestFile.list();
+                    if (deleteEmptyDirectories && ingestFileList != null && ingestFileList.length == 0) {
                         FileUtils.deleteFile(ingestFile, logger, 3);
                     }
                 }

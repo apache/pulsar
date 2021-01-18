@@ -38,7 +38,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
@@ -113,7 +114,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
         // append messages to TB
-        List<PulsarApi.MessageIdData> txnMessageIdList =
+        List<MessageIdData> txnMessageIdList =
                 appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
@@ -192,7 +193,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
         // append messages to TB
-        List<PulsarApi.MessageIdData> txnMessageIdList =
+        List<MessageIdData> txnMessageIdList =
                 appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
         transactionBuffer.commitTxn(txnID, txnMessageIdList).get();
         log.info("Commit txn.");
@@ -222,26 +223,26 @@ public class TransactionConsumeTest extends TransactionTestBase {
         }
     }
 
-    private List<PulsarApi.MessageIdData> appendTransactionMessages(
+    private List<MessageIdData> appendTransactionMessages(
             TxnID txnID, TransactionBuffer tb, int transactionMsgCnt,
             List<String> sendMessageList) throws ExecutionException, InterruptedException {
-        List<PulsarApi.MessageIdData> positionList = new ArrayList<>();
+        List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
-            PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-            builder.setProducerName("producerName");
-            builder.setSequenceId(i);
-            builder.setTxnidMostBits(txnID.getMostSigBits());
-            builder.setTxnidLeastBits(txnID.getLeastSigBits());
-            builder.setPublishTime(System.currentTimeMillis());
+            MessageMetadata metadata = new MessageMetadata()
+                    .setProducerName("producerName")
+                    .setSequenceId(i)
+                    .setTxnidMostBits(txnID.getMostSigBits())
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
+                    .setPublishTime(System.currentTimeMillis());
 
             String msg = TXN_MSG_CONTENT + i;
             sendMessageList.add(msg);
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
-                    Commands.ChecksumType.Crc32c, builder.build(),
+                    Commands.ChecksumType.Crc32c, metadata,
                     Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
             PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, headerAndPayload).get();
-            positionList.add(PulsarApi.MessageIdData.newBuilder()
-                    .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()).build());
+            positionList.add(new MessageIdData()
+                    .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()));
         }
         log.info("append messages to TB finish.");
         return positionList;

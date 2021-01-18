@@ -141,6 +141,9 @@ class PULSAR_PUBLIC ClientConfiguration {
     ClientConfiguration& setValidateHostName(bool validateHostName);
     bool isValidateHostName() const;
 
+    ClientConfiguration& setListenerName(const std::string& listenerName);
+    const std::string& getListenerName() const;
+
     /*
      * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
      * Set to 0 in order to disable stats collection.

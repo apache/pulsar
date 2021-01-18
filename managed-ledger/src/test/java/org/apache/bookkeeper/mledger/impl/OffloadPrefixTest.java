@@ -23,22 +23,19 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.ImmutableSet;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
@@ -50,11 +47,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
-
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.annotations.Test;
 
 public class OffloadPrefixTest extends MockedBookKeeperTestCase {
@@ -995,7 +990,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS);
+                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY);
 
         @Override
         public String getOffloadDriverName() {

@@ -54,6 +54,7 @@ lib*.so*
 .settings/
 .pydevproject
 .idea/
+.vs/
 *.cbp
 *.ninja*
 .clangd/

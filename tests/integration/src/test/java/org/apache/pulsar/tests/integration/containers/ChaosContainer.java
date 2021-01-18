@@ -47,14 +47,14 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     }
 
     protected void beforeStop() {
-        if (null == containerId) {
+        if (null == getContainerId()) {
             return;
         }
 
         // dump the container log
         DockerUtils.dumpContainerLogToTarget(
             getDockerClient(),
-            containerId
+            getContainerId()
         );
     }
 
@@ -66,7 +66,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
 
     public void tailContainerLog() {
         CompletableFuture.runAsync(() -> {
-            while (null == containerId) {
+            while (null == getContainerId()) {
                 try {
                     TimeUnit.MILLISECONDS.sleep(100);
                 } catch (InterruptedException e) {
@@ -74,7 +74,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
                 }
             }
 
-            LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
+            LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(getContainerId());
             logContainerCmd.withStdOut(true).withStdErr(true).withFollowStream(true);
             logContainerCmd.exec(new LogContainerResultCallback() {
                 @Override
@@ -88,7 +88,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     public String getContainerLog() {
         StringBuilder sb = new StringBuilder();
 
-        LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
+        LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(getContainerId());
         logContainerCmd.withStdOut(true).withStdErr(true);
         try {
             logContainerCmd.exec(new LogContainerResultCallback() {

@@ -22,21 +22,22 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 
 public class RawMessageImpl implements RawMessage {
 
     private final RawMessageIdImpl messageId = new RawMessageIdImpl();
 
-    private ReferenceCountedObject<MessageMetadata> msgMetadata;
-    private PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata;
+    private ReferenceCountedMessageMetadata msgMetadata;
+    private final SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
     private ByteBuf payload;
 
     private static final Recycler<RawMessageImpl> RECYCLER = new Recycler<RawMessageImpl>() {
@@ -56,24 +57,23 @@ public class RawMessageImpl implements RawMessage {
     public void release() {
         msgMetadata.release();
         msgMetadata = null;
-
-        if (singleMessageMetadata != null) {
-            singleMessageMetadata.recycle();
-            singleMessageMetadata = null;
-        }
+        singleMessageMetadata.clear();
 
         payload.release();
         handle.recycle(this);
     }
 
-    public static RawMessage get(ReferenceCountedObject<MessageMetadata> msgMetadata,
-            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata,
+    public static RawMessage get(ReferenceCountedMessageMetadata msgMetadata,
+            SingleMessageMetadata singleMessageMetadata,
             ByteBuf payload,
             long ledgerId, long entryId, long batchIndex) {
         RawMessageImpl msg = RECYCLER.get();
         msg.msgMetadata = msgMetadata;
         msg.msgMetadata.retain();
-        msg.singleMessageMetadata = singleMessageMetadata;
+
+        if (singleMessageMetadata != null) {
+            msg.singleMessageMetadata.copyFrom(singleMessageMetadata);
+        }
         msg.messageId.ledgerId = ledgerId;
         msg.messageId.entryId = entryId;
         msg.messageId.batchIndex = batchIndex;
@@ -86,8 +86,8 @@ public class RawMessageImpl implements RawMessage {
         if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
-        } else if (msgMetadata.get().getPropertiesCount() > 0) {
-            return msgMetadata.get().getPropertiesList().stream()
+        } else if (msgMetadata.getMetadata().getPropertiesCount() > 0) {
+            return msgMetadata.getMetadata().getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
         } else {
             return Collections.emptyMap();
@@ -106,15 +106,15 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public long getPublishTime() {
-        return msgMetadata.get().getPublishTime();
+        return msgMetadata.getMetadata().getPublishTime();
     }
 
     @Override
     public long getEventTime() {
         if (singleMessageMetadata != null && singleMessageMetadata.hasEventTime()) {
             return singleMessageMetadata.getEventTime();
-        } else if (msgMetadata.get().hasEventTime()) {
-            return msgMetadata.get().getEventTime();
+        } else if (msgMetadata.getMetadata().hasEventTime()) {
+            return msgMetadata.getMetadata().getEventTime();
         } else {
             return 0;
         }
@@ -122,20 +122,20 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public long getSequenceId() {
-        return msgMetadata.get().getSequenceId() + messageId.batchIndex;
+        return msgMetadata.getMetadata().getSequenceId() + messageId.batchIndex;
     }
 
     @Override
     public String getProducerName() {
-        return msgMetadata.get().getProducerName();
+        return msgMetadata.getMetadata().getProducerName();
     }
 
     @Override
     public Optional<String> getKey() {
         if (singleMessageMetadata != null && singleMessageMetadata.hasPartitionKey()) {
             return Optional.of(singleMessageMetadata.getPartitionKey());
-        } else if (msgMetadata.get().hasPartitionKey()){
-            return Optional.of(msgMetadata.get().getPartitionKey());
+        } else if (msgMetadata.getMetadata().hasPartitionKey()){
+            return Optional.of(msgMetadata.getMetadata().getPartitionKey());
         } else {
             return Optional.empty();
         }
@@ -143,8 +143,8 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public byte[] getSchemaVersion() {
-        if (msgMetadata != null && msgMetadata.get().hasSchemaVersion()) {
-            return msgMetadata.get().getSchemaVersion().toByteArray();
+        if (msgMetadata != null && msgMetadata.getMetadata().hasSchemaVersion()) {
+            return msgMetadata.getMetadata().getSchemaVersion();
         } else {
             return null;
         }
@@ -155,7 +155,7 @@ public class RawMessageImpl implements RawMessage {
             if (hasBase64EncodedKey()) {
                 return Optional.of(Unpooled.wrappedBuffer(Base64.getDecoder().decode(getKey().get())));
             } else {
-                return Optional.of(Unpooled.wrappedBuffer(getKey().get().getBytes()));
+                return Optional.of(Unpooled.wrappedBuffer(getKey().get().getBytes(StandardCharsets.UTF_8)));
             }
         }
         return Optional.empty();
@@ -164,12 +164,12 @@ public class RawMessageImpl implements RawMessage {
     @Override
     public boolean hasBase64EncodedKey() {
         if (singleMessageMetadata != null) {
-            return singleMessageMetadata.getPartitionKeyB64Encoded();
+            return singleMessageMetadata.isPartitionKeyB64Encoded();
         }
-        return msgMetadata.get().getPartitionKeyB64Encoded();
+        return msgMetadata.getMetadata().isPartitionKeyB64Encoded();
     }
 
     public int getBatchSize() {
-        return msgMetadata.get().getNumMessagesInBatch();
+        return msgMetadata.getMetadata().getNumMessagesInBatch();
     }
 }

@@ -81,6 +81,7 @@ public class ZkBookieRackAffinityMappingTest {
         bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
         assertNull(bkClientConf1.getProperty(ZkBookieRackAffinityMapping.ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE));
+        mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping1.setConf(bkClientConf1);
         List<String> racks1 = mapping1
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
@@ -95,6 +96,7 @@ public class ZkBookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf2 = new ClientConfiguration();
         bkClientConf2.setZkServers("127.0.0.1" + ":" + localZkS.getZookeeperPort());
         bkClientConf2.setZkTimeout(1000);
+        mapping2.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping2.setConf(bkClientConf2);
         List<String> racks2 = mapping2
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
@@ -111,6 +113,7 @@ public class ZkBookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), null);
@@ -155,6 +158,7 @@ public class ZkBookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
         });
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));

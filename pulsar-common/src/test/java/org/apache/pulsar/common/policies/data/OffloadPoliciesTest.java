@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Properties;
+import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -59,7 +60,8 @@ public class OffloadPoliciesTest {
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
-                offloadDeletionLagInMillis
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
         );
 
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
@@ -86,6 +88,7 @@ public class OffloadPoliciesTest {
         final Integer readBufferSizeInBytes = 2 * M;
         final Long offloadThresholdInBytes = 0L;
         final Long offloadDeletionLagInMillis = 5 * MIN;
+        final OffloadedReadPriority readPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create(
                 driver,
@@ -97,7 +100,8 @@ public class OffloadPoliciesTest {
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
-                offloadDeletionLagInMillis
+                offloadDeletionLagInMillis,
+                readPriority
         );
 
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
@@ -107,6 +111,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority(), readPriority);
     }
 
     @Test

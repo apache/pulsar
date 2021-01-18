@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.pulsar.client.api.PulsarClientException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -34,7 +35,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -1273,7 +1273,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));
@@ -1288,7 +1289,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(100));
@@ -1302,7 +1304,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-2));
@@ -1316,7 +1319,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));
@@ -1411,6 +1415,132 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicy(namespace, 1, -2);
 
         admin.namespaces().deleteNamespace(namespace);
+    }
+
+    @Test
+    public void testMaxTopicsPerNamespace() throws Exception {
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(15);
+        super.internalSetup();
+
+        String namespace = "testTenant/ns1";
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+                Sets.newHashSet("use"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
+        assertEquals(10, admin.namespaces().getMaxTopicsPerNamespace(namespace));
+
+        // check create partitioned/non-partitioned topics using namespace policy
+        String topic = "persistent://testTenant/ns1/test_create_topic_v";
+        admin.topics().createPartitionedTopic(topic + "1", 2);
+        admin.topics().createPartitionedTopic(topic + "2", 3);
+        admin.topics().createPartitionedTopic(topic + "3", 4);
+        admin.topics().createNonPartitionedTopic(topic + "4");
+
+        try {
+            admin.topics().createPartitionedTopic(topic + "5", 2);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
+        }
+
+        // remove namespace policy limit, use broker configuration instead.
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        admin.topics().createPartitionedTopic(topic + "6", 4);
+        try {
+            admin.topics().createPartitionedTopic(topic + "7", 3);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
+        }
+
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 0);
+        // set namespace policy to no limit
+        for (int i = 0; i< 10; ++i) {
+            admin.topics().createPartitionedTopic(topic + "_v" + i, 2);
+            admin.topics().createNonPartitionedTopic(topic + "_vn" + i);
+        }
+
+
+        // check producer/consumer auto create partitioned topic
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(3);
+        conf.setAllowAutoTopicCreationType("partitioned");
+        super.internalSetup();
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
+
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
+
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // remove namespace limit
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        for (int i = 0; i < 10; ++i) {
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
+        }
+
+        // check producer/consumer auto create non-partitioned topic
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
+        conf.setAllowAutoTopicCreationType("non-partitioned");
+        super.internalSetup();
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);
+
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
+
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // set namespace limit to 5
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 5);
+        pulsarClient.newProducer().topic(topic + "4").create().close();
+        pulsarClient.newProducer().topic(topic + "5").create().close();
+        try {
+            pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // remove namespace limit
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        for (int i = 0; i< 10; ++i) {
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
+        }
+
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
+        conf.setAllowAutoTopicCreationType("non-partitioned");
     }
 
     private void assertInvalidRetentionPolicy(String namespace, int retentionTimeInMinutes, int retentionSizeInMB) {

@@ -155,8 +155,7 @@ public final class WorkerUtils {
         return conf;
     }
 
-    public static URI newDlogNamespaceURI(InternalConfigurationData internalConf) {
-        String zookeeperServers = internalConf.getZookeeperServers();
+    public static URI newDlogNamespaceURI(String zookeeperServers) {
         return URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
     }
 
@@ -176,7 +175,7 @@ public final class WorkerUtils {
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
 
-        URI dlogUri = newDlogNamespaceURI(internalConf);
+        URI dlogUri = newDlogNamespaceURI(internalConf.getZookeeperServers());
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
