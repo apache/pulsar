@@ -40,6 +40,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -89,6 +90,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // input topic consumer & output topic producer
     private final PulsarClientImpl client;
+    private final PulsarAdmin pulsarAdmin;
 
     private LogAppender logAppender;
 
@@ -135,6 +137,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 FunctionCacheManager fnCache,
                                 String jarFile,
                                 PulsarClient pulsarClient,
+                                PulsarAdmin pulsarAdmin,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry,
@@ -143,6 +146,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.fnCache = fnCache;
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
+        this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -234,7 +238,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager, pulsarAdmin);
     }
 
     /**

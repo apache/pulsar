@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -112,7 +113,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
         this.config = config;
         this.logger = logger;
         this.statsManager = statsManager;
@@ -126,6 +127,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 try {
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
+                                    InstanceUtils.createPulsarAdminClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
                                     ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
@@ -133,7 +135,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             }
         }
         this.defaultPulsarCluster = "default-" + UUID.randomUUID();
-        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, config.getFunctionDetails().getSink().getProducerSpec()));
+        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, pulsarAdmin, config.getFunctionDetails().getSink().getProducerSpec()));
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -298,6 +300,16 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         } else {
             return null;
         }
+    }
+
+    @Override
+    public PulsarAdmin getPulsarAdmin() {
+        return getPulsarAdmin(defaultPulsarCluster);
+    }
+
+    @Override
+    public PulsarAdmin getPulsarAdmin(String clusterName) {
+        return externalPulsarClusters.get(clusterName).getAdminClient();
     }
 
     @Override
@@ -639,6 +651,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 for (Producer<?> producer : pulsar.getTlPublishProducers().get().values()) {
                     futures.add(producer.closeAsync());
                 }
+            }
+
+            if (pulsar.getAdminClient() != null) {
+                pulsar.getAdminClient().close();
             }
         }
 

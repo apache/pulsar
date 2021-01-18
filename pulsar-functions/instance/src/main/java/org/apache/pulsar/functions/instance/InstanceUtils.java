@@ -26,6 +26,9 @@ import lombok.experimental.UtilityClass;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -170,6 +173,27 @@ public class InstanceUtils {
             }
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
+        }
+        return null;
+    }
+
+    public static PulsarAdmin createPulsarAdminClient(String pulsarServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
+        PulsarAdminBuilder pulsarAdminBuilder = null;
+        if (isNotBlank(pulsarServiceUrl)) {
+            pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarServiceUrl);
+            if (authConfig != null) {
+                if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                        && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    pulsarAdminBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
+                            authConfig.getClientAuthenticationParameters());
+                }
+                if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                    pulsarAdminBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
+                }
+                pulsarAdminBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
+                pulsarAdminBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+            }
+            return pulsarAdminBuilder.build();
         }
         return null;
     }

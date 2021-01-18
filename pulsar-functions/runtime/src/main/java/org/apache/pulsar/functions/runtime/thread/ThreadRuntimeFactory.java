@@ -24,6 +24,7 @@ import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
@@ -54,6 +55,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
     private PulsarClient pulsarClient;
+    private PulsarAdmin pulsarAdmin;
     private String storageServiceUrl;
     private SecretsProvider defaultSecretsProvider;
     private CollectorRegistry collectorRegistry;
@@ -71,21 +73,23 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader) throws Exception {
         initialize(threadGroupName, InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig),
-                storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
+                storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
+                InstanceUtils.createPulsarAdminClient(pulsarServiceUrl, authConfig));
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                                String narExtractionDirectory, ClassLoader rootClassLoader) {
+                                String narExtractionDirectory, ClassLoader rootClassLoader, PulsarAdmin pulsarAdmin) {
 
         initialize(threadGroupName, pulsarClient, storageServiceUrl,
-                null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
+                null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader, pulsarAdmin);
     }
 
     private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
-                            CollectorRegistry collectorRegistry,  String narExtractionDirectory, ClassLoader rootClassLoader) {
+                            CollectorRegistry collectorRegistry,  String narExtractionDirectory, ClassLoader rootClassLoader,
+                            PulsarAdmin pulsarAdmin) {
         if (rootClassLoader == null) {
             rootClassLoader = Thread.currentThread().getContextClassLoader();
         }
@@ -96,6 +100,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
+        this.pulsarAdmin = pulsarAdmin;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
@@ -112,7 +117,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         initialize(factoryConfig.getThreadGroupName(),
                 InstanceUtils.createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
-                null, workerConfig.getNarExtractionDirectory(), null);
+                null, workerConfig.getNarExtractionDirectory(), null,
+                InstanceUtils.createPulsarAdminClient(workerConfig.getPulsarServiceUrl(), authenticationConfig));
     }
 
     @Override
@@ -134,6 +140,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             threadGroup,
             jarFile,
             pulsarClient,
+            pulsarAdmin,
             storageServiceUrl,
             secretsProvider,
             collectorRegistry,
@@ -154,6 +161,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         } catch (PulsarClientException e) {
             log.warn("Failed to close pulsar client when closing function container factory", e);
         }
+        pulsarAdmin.close();
 
         // Shutdown instance cache
         InstanceCache.shutdown();

@@ -23,6 +23,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -261,6 +263,15 @@ public interface Context {
      * @return The secret if anything was found or null
      */
     String getSecret(String secretName);
+
+    /**
+     * Get the pulsar admin client.
+     *
+     * @return The instance of pulsar admin client
+     */
+    PulsarAdmin getPulsarAdmin();
+
+    PulsarAdmin getPulsarAdmin(String clusterName);
 
     /**
      * Record a user defined metric.

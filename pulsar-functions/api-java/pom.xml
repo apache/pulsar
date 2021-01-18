@@ -49,6 +49,13 @@
       <scope>compile</scope>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-admin-original</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
