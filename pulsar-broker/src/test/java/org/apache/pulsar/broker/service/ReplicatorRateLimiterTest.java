@@ -69,6 +69,9 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
+        resetConfig1();
+        resetConfig2();
+        resetConfig3();
     }
 
     enum DispatchRateType {
@@ -145,11 +148,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 100));
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
                 200L);
-        //restore config
-        config1.setSystemTopicEnabled(false);
-        config1.setTopicLevelPoliciesEnabled(false);
-        config1.setDispatchThrottlingRatePerReplicatorInMsg(0);
-        config1.setDispatchThrottlingRatePerReplicatorInByte(0L);
     }
 
     /**
