@@ -35,6 +35,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -310,7 +312,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .topic(topic)
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
-
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
         // Initially the token is valid and producer will be able to publish
         producer.send("hello-1");
 
@@ -319,6 +321,8 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         if (shouldRefreshToken) {
             // The token will have been refreshed, so the app won't see any error
             producer.send("hello-2");
+            long timestamp = producer.getLastDisconnectedTimestamp();
+            assertEquals(timestamp, lastDisconnectedTimestamp);
         } else {
             // The token has expired, so this next message will be rejected
             try {
