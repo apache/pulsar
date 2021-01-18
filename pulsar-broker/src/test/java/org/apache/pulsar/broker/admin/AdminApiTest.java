@@ -2181,6 +2181,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNamespaceNotExist() throws Exception {
+        final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
+        try {
+            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+            fail("should falied for namespaces not exist");
+        } catch (Exception e) {
+            assertTrue(e instanceof NotFoundException);
+            assertTrue(e.getMessage().equals("Namespace not found"));
+        }
+    }
+
+    @Test
     public void testPersistentTopicCreation() throws Exception {
         final String nonPartitionedtopic = "persistent://prop-xyz/ns1/non-partitioned-topic";
         final String partitionedtopic = "persistent://prop-xyz/ns1/partitioned-topic";
