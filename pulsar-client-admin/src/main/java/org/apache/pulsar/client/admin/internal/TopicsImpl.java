@@ -2002,6 +2002,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public Integer getMessageTTL(String topic) throws PulsarAdminException {
+        return getMessageTTL(topic, false);
         try {
             TopicName topicName = validateTopic(topic);
             WebTarget path = topicPath(topicName, "messageTTL");
