@@ -73,6 +73,9 @@ import org.slf4j.LoggerFactory;
 @PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
 public abstract class MockedPulsarServiceBaseTest {
 
+    protected final String DUMMY_VALUE = "DUMMY_VALUE";
+    protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
+
     protected ServiceConfiguration conf;
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
@@ -354,7 +357,9 @@ public abstract class MockedPulsarServiceBaseTest {
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
 
-            if (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())) {
+            if (serverList != null &&
+                    (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())
+                            || serverList.equalsIgnoreCase(GLOBAL_DUMMY_VALUE))) {
                 return CompletableFuture.completedFuture(mockZooKeeperGlobal);
             }
 
