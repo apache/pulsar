@@ -163,24 +163,6 @@ public interface AuthorizationProvider extends Closeable {
                                                  AuthenticationDataSource authenticationData);
 
     /**
-     * Check the a role has the permission to do the package operations in a namespace.
-     *
-     * @param namespaceName
-     *              the namespace name you want to check
-     * @param role
-     *              the role to check
-     * @param authenticationData
-     *              authentication data related to the role
-     * @return
-     *              a boolean value to determine whether authorized or not
-     */
-    default CompletableFuture<Boolean> canDoPackageOpsAsync(NamespaceName namespaceName, String role,
-                                                    AuthenticationDataSource authenticationData) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-            String.format("package operations in the namespace %s is not supported by the Authorization provider"
-                + " you are using.", namespaceName)));
-    }
-    /**
      *
      * Grant authorization-action permission on a namespace to the given client
      *

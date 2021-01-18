@@ -232,12 +232,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
     }
 
-    @Override
-    public CompletableFuture<Boolean> canDoPackageOpsAsync(NamespaceName namespaceName, String role,
-                                                           AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.packages);
-    }
-
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
@@ -544,7 +538,22 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
+        CompletableFuture<Boolean> isAuthorizedFuture;
+        if (operation == NamespaceOperation.PACKAGES) {
+            isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
+        } else {
+            isAuthorizedFuture = FutureUtil.failedFuture(
+                new IllegalStateException("NamespaceOperation is not supported."));
+        }
+        CompletableFuture<Boolean> isTenantAdminFuture = validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
+        return isTenantAdminFuture.thenCombine(isAuthorizedFuture, (isTenantAdmin, isAuthorized) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Verify if role {} is allowed to {} to topic {}:"
+                        + " isTenantAdmin={}, isAuthorized={}",
+                    role, operation, namespaceName, isTenantAdmin, isAuthorized);
+            }
+            return isTenantAdmin || isAuthorized;
+        });
     }
 
     @Override
