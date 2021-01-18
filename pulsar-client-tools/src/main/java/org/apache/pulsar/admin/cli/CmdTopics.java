@@ -1087,11 +1087,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            if (applied) {
-                print(admin.topics().getMessageTTLApplied(persistentTopic));
-            } else {
-                print(admin.topics().getMessageTTL(persistentTopic));
-            }
+            print(admin.topics().getMessageTTL(persistentTopic, applied));
         }
     }
 

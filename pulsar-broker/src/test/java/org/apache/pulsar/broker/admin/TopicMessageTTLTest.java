@@ -192,31 +192,31 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Integer topicMessageTTL = admin.topics().getMessageTTL(topicName);
         Assert.assertNull(topicMessageTTL);
         //use broker-level by default
-        int topicMessageTTLApplied = admin.topics().getMessageTTLApplied(topicName);
+        int topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
-        topicMessageTTLApplied = admin.topics().getMessageTTLApplied(topicName);
+        topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
-        topicMessageTTLApplied = admin.topics().getMessageTTLApplied(topicName);
+        topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 0);
 
         admin.topics().setMessageTTL(topicName, 20);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> Assert.assertNotNull(admin.topics().getMessageTTL(topicName)));
-        topicMessageTTLApplied = admin.topics().getMessageTTLApplied(topicName);
+        topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 20);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         admin.topics().removeMessageTTL(topicName);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
-                -> Assert.assertEquals(admin.topics().getMessageTTLApplied(topicName), 3600));
+                -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
         Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
     }
 

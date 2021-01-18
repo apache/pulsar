@@ -858,7 +858,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
 
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10"));
         verify(mockTopics).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10);
@@ -873,7 +873,7 @@ public class PulsarAdminToolTest {
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
 
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
-        verify(mockTopics).getMessageTTLApplied("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
 
     }
 

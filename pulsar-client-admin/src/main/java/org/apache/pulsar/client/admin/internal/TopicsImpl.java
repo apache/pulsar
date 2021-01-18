@@ -2003,21 +2003,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public Integer getMessageTTL(String topic) throws PulsarAdminException {
         return getMessageTTL(topic, false);
-        try {
-            TopicName topicName = validateTopic(topic);
-            WebTarget path = topicPath(topicName, "messageTTL");
-            return request(path).get(new GenericType<Integer>() {});
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
     }
 
     @Override
-    public int getMessageTTLApplied(String topic) throws PulsarAdminException {
+    public Integer getMessageTTL(String topic, boolean applied) throws PulsarAdminException {
         try {
             TopicName topicName = validateTopic(topic);
             WebTarget path = topicPath(topicName, "messageTTL");
-            path = path.queryParam("applied", true);
+            path = path.queryParam("applied", applied);
             return request(path).get(new GenericType<Integer>() {});
         } catch (Exception e) {
             throw getApiException(e);

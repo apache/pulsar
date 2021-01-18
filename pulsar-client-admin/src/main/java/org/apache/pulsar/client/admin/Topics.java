@@ -1612,7 +1612,7 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
-    int getMessageTTLApplied(String topic) throws PulsarAdminException;
+    Integer getMessageTTL(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Remove message TTL for a topic.
