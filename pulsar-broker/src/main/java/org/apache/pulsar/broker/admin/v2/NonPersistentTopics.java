@@ -336,8 +336,14 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
+                NamespaceBundle nsBundle;
+                try {
+                    nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
                         bundleRange, true, true);
+                } catch (WebApplicationException wae) {
+                    asyncResponse.resume(wae);
+                    return;
+                }
                 try {
                     final List<String> topicList = Lists.newArrayList();
                     pulsar().getBrokerService().forEachTopic(topic -> {
