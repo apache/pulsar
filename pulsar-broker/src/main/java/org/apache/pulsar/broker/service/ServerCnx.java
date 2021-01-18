@@ -1791,7 +1791,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         service.pulsar().getTransactionMetadataStoreService()
                 .endTransaction(txnID, txnAction)
                 .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits()))).exceptionally(throwable -> {
+                        txnID.getLeastSigBits(), txnID.getMostSigBits())))
+                .exceptionally(throwable -> {
                     log.error("Send response error for end txn request.", throwable);
                     ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
                             BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));

@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -38,6 +39,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -53,6 +55,7 @@ public class TransactionMetadataStoreService {
     private final TransactionMetadataStoreProvider transactionMetadataStoreProvider;
     private final PulsarService pulsarService;
     private final TransactionBufferClient tbClient;
+    private final TransactionTimeoutTrackerFactory timeoutTrackerFactory;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient) {
@@ -60,6 +63,7 @@ public class TransactionMetadataStoreService {
         this.stores = new ConcurrentHashMap<>();
         this.transactionMetadataStoreProvider = transactionMetadataStoreProvider;
         this.tbClient = tbClient;
+        this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this);
     }
 
     public void start() {
@@ -117,7 +121,8 @@ public class TransactionMetadataStoreService {
                     if (e != null) {
                         LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
                     } else {
-                        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v)
+                        transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
+                                timeoutTrackerFactory.newTracker(tcId))
                                 .whenComplete((store, ex) -> {
                                     if (ex != null) {
                                         LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
