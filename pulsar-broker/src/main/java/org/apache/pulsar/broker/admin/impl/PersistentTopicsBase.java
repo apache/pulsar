@@ -2725,6 +2725,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
+    protected Optional<DispatchRate> internalGetReplicatorDispatchRate() {
+        preValidation();
+        return getTopicPolicies(topicName).map(TopicPolicies::getReplicatorDispatchRate);
+    }
+
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+        preValidation();
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
+        topicPolicies.setReplicatorDispatchRate(dispatchRate);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
     private void preValidation() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();

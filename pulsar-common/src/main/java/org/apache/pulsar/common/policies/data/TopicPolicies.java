@@ -57,6 +57,11 @@ public class TopicPolicies {
     private Integer deduplicationSnapshotIntervalSeconds = null;
     private Integer maxMessageSize = null;
     private Integer maxSubscriptionsPerTopic = null;
+    private DispatchRate replicatorDispatchRate = null;
+
+    public boolean isReplicatorDispatchRateSet() {
+        return replicatorDispatchRate != null;
+    }
 
     public boolean isMaxSubscriptionsPerTopicSet() {
         return maxSubscriptionsPerTopic != null;

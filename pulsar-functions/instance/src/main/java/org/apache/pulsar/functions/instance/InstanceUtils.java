@@ -140,6 +140,8 @@ public class InstanceUtils {
             case SINK:
                 properties.put("application", "pulsar-sink");
                 break;
+            default:
+                throw new IllegalArgumentException("Not support component type");
         }
         properties.put("id", fullyQualifiedName);
         properties.put("instance_id", String.valueOf(instanceId));

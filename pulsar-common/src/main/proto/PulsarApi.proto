@@ -93,9 +93,9 @@ enum CompressionType {
 }
 
 enum ProducerAccessMode {
-	Shared           = 0; // By default multiple producers can publish on a topic
-	Exclusive        = 1; // Require exclusive access for producer. Fail immediately if there's already a producer connected.
-	WaitForExclusive = 2; // Producer creation is pending until it can acquire exclusive access
+    Shared = 0; // By default multiple producers can publish on a topic
+    Exclusive = 1; // Require exclusive access for producer. Fail immediately if there's already a producer connected.
+    WaitForExclusive = 2; // Producer creation is pending until it can acquire exclusive access
 }
 
 message MessageMetadata {
@@ -150,11 +150,11 @@ message MessageMetadata {
     optional uint64 highest_sequence_id = 24 [default = 0];
 
     // Indicate if the message payload value is set
-    optional bool null_value = 25 [ default = false ];
+    optional bool null_value = 25 [default = false];
     optional string uuid = 26;
-	optional int32 num_chunks_from_msg = 27;
-	optional int32 total_chunk_msg_size = 28;
-	optional int32 chunk_id = 29;
+    optional int32 num_chunks_from_msg = 27;
+    optional int32 total_chunk_msg_size = 28;
+    optional int32 chunk_id = 29;
 
     // Indicate if the message partition key is set
     optional bool null_partition_key = 30 [default = false];
@@ -474,11 +474,11 @@ message CommandProducer {
     // Require that this producers will be the only producer allowed on the topic
     optional ProducerAccessMode producer_access_mode = 10 [default = Shared];
 
-	// Topic epoch is used to fence off producers that reconnects after a new
-	// exclusive producer has already taken over. This id is assigned by the
-	// broker on the CommandProducerSuccess. The first time, the client will
-	// leave it empty and then it will always carry the same epoch number on
-	// the subsequent reconnections.
+    // Topic epoch is used to fence off producers that reconnects after a new
+    // exclusive producer has already taken over. This id is assigned by the
+    // broker on the CommandProducerSuccess. The first time, the client will
+    // leave it empty and then it will always carry the same epoch number on
+    // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
 }
 
@@ -625,7 +625,7 @@ message CommandProducerSuccess {
     optional uint64 topic_epoch = 5;
 
     // If producer is not "ready", the client will avoid to timeout the request
-    // for creating the producer. Instead it will wait indefinitely until it gets 
+    // for creating the producer. Instead it will wait indefinitely until it gets
     // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
     optional bool producer_ready = 6 [default = true];
 }

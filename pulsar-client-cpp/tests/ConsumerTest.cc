@@ -20,6 +20,8 @@
 #include <thread>
 #include <time.h>
 #include <set>
+#include <map>
+#include <vector>
 
 #include "gtest/gtest.h"
 
@@ -341,6 +343,72 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
     Message msg;
     auto ret = consumer.receive(msg, 1000);
     ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
+    consumer.close();
+    client.close();
+}
+
+TEST(ConsumerTest, testBatchUnAckedMessageTracker) {
+    Client client(lookupUrl);
+    const std::string topic = "testBatchUnAckedMessageTracker" + std::to_string(time(nullptr));
+    std::string subName = "sub-batch-un-acked-msg-tracker";
+    constexpr int numOfMessages = 50;
+    constexpr int batchSize = 5;
+    constexpr int batchCount = numOfMessages / batchSize;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
+    ASSERT_EQ(ResultOk, client.subscribe(topic, subName, consumerConfig, consumer));
+    auto consumerImplPtr = PulsarFriend::getConsumerImplPtr(consumer);
+    auto tracker =
+        static_cast<UnAckedMessageTrackerEnabled*>(consumerImplPtr->unAckedMessageTrackerPtr_.get());
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(true);
+    producerConfig.setBlockIfQueueFull(true);
+    producerConfig.setBatchingMaxMessages(batchSize);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producerConfig, producer));
+    std::string prefix = "message-";
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder().setContent(messageContent).build();
+        producer.sendAsync(msg, NULL);
+    }
+    producer.close();
+
+    std::map<MessageId, std::vector<MessageId>> msgIdInBatchMap;
+    std::vector<MessageId> messageIds;
+    for (auto i = 0; i < numOfMessages; ++i) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        MessageId msgId = msg.getMessageId();
+        MessageId id(msgId.partition(), msgId.ledgerId(), msgId.entryId(), -1);
+        msgIdInBatchMap[id].emplace_back(msgId);
+    }
+
+    ASSERT_EQ(batchCount, msgIdInBatchMap.size());
+    ASSERT_EQ(batchCount, tracker->size());
+    for (const auto& iter : msgIdInBatchMap) {
+        ASSERT_EQ(iter.second.size(), batchSize);
+    }
+
+    int ackedBatchCount = 0;
+    for (auto iter = msgIdInBatchMap.begin(); iter != msgIdInBatchMap.end(); ++iter) {
+        ASSERT_EQ(batchSize, iter->second.size());
+        for (auto i = 0; i < iter->second.size(); ++i) {
+            ASSERT_EQ(ResultOk, consumer.acknowledge(iter->second[i]));
+        }
+        ackedBatchCount++;
+        ASSERT_EQ(batchCount - ackedBatchCount, tracker->size());
+    }
+    ASSERT_EQ(0, tracker->size());
+    ASSERT_TRUE(tracker->isEmpty());
+
     consumer.close();
     client.close();
 }
