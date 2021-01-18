@@ -45,4 +45,5 @@ public enum PolicyName {
     SUBSCRIPTION_AUTH_MODE,
     ENCRYPTION,
     TTL,
+    MAX_TOPICS
 }

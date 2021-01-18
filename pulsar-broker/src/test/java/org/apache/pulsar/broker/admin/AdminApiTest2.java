@@ -100,6 +100,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setEnableNamespaceIsolationUpdateOnTime(true);
         super.internalSetup();
 
         // create otherbroker to test redirect on calls that need
@@ -309,7 +310,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns2";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), null);
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -908,6 +909,62 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertFalse(isolationData.isPrimary);
     }
 
+    // create 1 namespace:
+    //  0. without isolation policy configured, lookup will success.
+    //  1. with matched isolation broker configured and matched, lookup will success.
+    //  2. update isolation policy, without broker matched, lookup will fail.
+    @Test
+    public void brokerNamespaceIsolationPoliciesUpdateOnTime() throws Exception {
+        String brokerName = pulsar.getAdvertisedAddress();
+        String ns1Name = "prop-xyz/test_ns1_iso_" + System.currentTimeMillis();
+        admin.namespaces().createNamespace(ns1Name, Sets.newHashSet("test"));
+
+        //  0. without isolation policy configured, lookup will success.
+        String brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic1");
+        assertTrue(brokerUrl.contains(brokerName));
+        log.info("0 get lookup url {}", brokerUrl);
+
+        // create
+        String policyName1 = "policy-1";
+        String cluster = pulsar.getConfiguration().getClusterName();
+        String namespaceRegex = ns1Name;
+        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        nsPolicyData1.namespaces = new ArrayList<String>();
+        nsPolicyData1.namespaces.add(ns1Name);
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + ".*");
+        nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
+        nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
+        admin.clusters().createNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
+
+        //  1. with matched isolation broker configured and matched, lookup will success.
+        brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic2");
+        assertTrue(brokerUrl.contains(brokerName));
+        log.info(" 1 get lookup url {}", brokerUrl);
+
+        //  2. update isolation policy, without broker matched, lookup will fail.
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + "not_match");
+        admin.clusters().updateNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
+
+        try {
+            admin.lookups().lookupTopic(ns1Name + "/topic3");
+        } catch (Exception e) {
+            // expected lookup fail, because no brokers matched the policy.
+            log.info(" 2 expected fail lookup");
+        }
+
+        try {
+            admin.lookups().lookupTopic(ns1Name + "/topic1");
+        } catch (Exception e) {
+            // expected lookup fail, because no brokers matched the policy.
+            log.info(" 22 expected fail lookup");
+        }
+    }
+
     @Test
     public void clustersList() throws PulsarAdminException {
         final String cluster = pulsar.getConfiguration().getClusterName();
@@ -1383,11 +1440,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1402,11 +1459,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create();
-        pulsarClient.newProducer().topic(topic + "2").create();
-        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe();
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
-            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe();
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Exception: ", e);
@@ -1630,6 +1687,59 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             c.close();
         }
         client.close();
+    }
+
+    @Test
+    public void testMaxProducersPerTopicUnlimited() throws Exception {
+        final int maxProducersPerTopic = 1;
+        super.internalCleanup();
+        mockPulsarSetup.cleanup();
+        conf.setMaxProducersPerTopic(maxProducersPerTopic);
+        super.internalSetup();
+        //init namespace
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+        final String topic = "persistent://" + myNamespace + "/testMaxProducersPerTopicUnlimited";
+        //the policy is set to 0, so there will be no restrictions
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 0);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 0);
+        List<Producer<byte[]>> producers = new ArrayList<>();
+        for (int i = 0; i < maxProducersPerTopic + 1; i++) {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            producers.add(producer);
+        }
+
+        admin.namespaces().removeMaxProducersPerTopic(myNamespace);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == null);
+        try {
+            pulsarClient.newProducer().topic(topic).create();
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertTrue(ignore.getMessage().contains("Topic reached max producers limit"));
+        }
+        //set the limit to 3
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 3);
+        // should success
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producers.add(producer);
+        try {
+            pulsarClient.newProducer().topic(topic).create();
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertTrue(ignore.getMessage().contains("Topic reached max producers limit"));
+        }
+
+        //clean up
+        for (Producer<byte[]> tempProducer : producers) {
+            tempProducer.close();
+        }
     }
 
 

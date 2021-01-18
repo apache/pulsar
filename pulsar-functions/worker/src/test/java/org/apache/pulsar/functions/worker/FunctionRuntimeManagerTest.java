@@ -49,8 +49,8 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -562,22 +562,22 @@ public class FunctionRuntimeManagerTest {
                 .build();
 
         List<Message<byte[]>> messageList = new LinkedList<>();
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
 
         MessageId messageId1 = new MessageIdImpl(0, 1, -1);
         Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         MessageId messageId2 = new MessageIdImpl(0, 2, -1);
         Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         MessageId messageId3 = new MessageIdImpl(0, 3, -1);
         Message message3 = spy(new MessageImpl("foo", messageId3.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
         messageList.add(message1);

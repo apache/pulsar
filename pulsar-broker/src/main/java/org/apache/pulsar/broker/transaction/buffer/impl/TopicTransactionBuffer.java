@@ -23,15 +23,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 
 /**
@@ -54,14 +55,18 @@ public class TopicTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        topic.publishMessage(buffer, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to append buffer to txn {}", txnId, e);
-                completableFuture.completeExceptionally(e);
-                return;
+        topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(position);
             }
-            completableFuture.complete(PositionImpl.get(ledgerId, entryId));
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to append buffer to txn {}", txnId, exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
@@ -78,14 +83,19 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                 txnID.getLeastSigBits(), getMessageIdDataList(sendMessageIdList));
-        topic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to commit for txn {}", txnID, e);
-                completableFuture.completeExceptionally(e);
-                return;
+
+        topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(null);
             }
-            completableFuture.complete(null);
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to commit for txn {}", txnID, exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
@@ -98,24 +108,27 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
         ByteBuf abortMarker = Markers.newTxnAbortMarker(
                 -1L, txnID.getMostSigBits(), txnID.getLeastSigBits(), getMessageIdDataList(sendMessageIdList));
-        topic.publishMessage(abortMarker, (e, ledgerId, entryId) -> {
-            if (e != null) {
-                log.error("Failed to abort for txn {}", txnID, e);
-                completableFuture.completeExceptionally(e);
-                return;
+        topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                completableFuture.complete(null);
             }
-            completableFuture.complete(null);
-        });
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to abort for txn {}", txnID, exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
-    private List<PulsarMarkers.MessageIdData> getMessageIdDataList(List<MessageIdData> sendMessageIdList) {
-        List<PulsarMarkers.MessageIdData> messageIdDataList = new ArrayList<>(sendMessageIdList.size());
+    private List<MarkersMessageIdData> getMessageIdDataList(List<MessageIdData> sendMessageIdList) {
+        List<MarkersMessageIdData> messageIdDataList = new ArrayList<>(sendMessageIdList.size());
         for (MessageIdData msgIdData : sendMessageIdList) {
-            messageIdDataList.add(
-                    PulsarMarkers.MessageIdData.newBuilder()
+            messageIdDataList.add(new MarkersMessageIdData()
                             .setLedgerId(msgIdData.getLedgerId())
-                            .setEntryId(msgIdData.getEntryId()).build());
+                            .setEntryId(msgIdData.getEntryId()));
         }
         return messageIdDataList;
     }

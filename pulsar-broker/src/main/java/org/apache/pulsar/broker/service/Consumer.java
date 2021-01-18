@@ -43,18 +43,18 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeyLongValue;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +110,7 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
-    private final PulsarApi.KeySharedMeta keySharedMeta;
+    private final KeySharedMeta keySharedMeta;
 
     /**
      * It starts keep tracking the average messages per entry.
@@ -129,7 +129,7 @@ public class Consumer {
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    KeySharedMeta keySharedMeta) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -255,6 +255,7 @@ public class Consumer {
         bytesOutCounter.add(totalBytes);
         chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
+
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
                 entries, batchSizes, batchIndexesAcks, redeliveryTracker);
     }
@@ -316,12 +317,11 @@ public class Consumer {
         Map<String, Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
-                .collect(Collectors.toMap(PulsarApi.KeyLongValue::getKey,
-                        PulsarApi.KeyLongValue::getValue));
+                .collect(Collectors.toMap(KeyLongValue::getKey, KeyLongValue::getValue));
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
-            if (ack.getMessageIdCount() != 1) {
+            if (ack.getMessageIdsCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
             }
 
@@ -330,11 +330,14 @@ public class Consumer {
                         subscription, consumerId);
             }
             PositionImpl position = PositionImpl.earliest;
-            if (ack.getMessageIdCount() == 1) {
-                MessageIdData msgId = ack.getMessageId(0);
-                if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
-                            SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+            if (ack.getMessageIdsCount() == 1) {
+                MessageIdData msgId = ack.getMessageIdAt(0);
+                if (msgId.getAckSetsCount() > 0) {
+                    long[] ackSets = new long[msgId.getAckSetsCount()];
+                    for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                        ackSets[j] = msgId.getAckSetAt(j);
+                    }
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
@@ -360,13 +363,16 @@ public class Consumer {
     //this method is for individual ack not carry the transaction
     private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
-        List<PositionImpl> checkBatchPositions = null;
-        for (int i = 0; i < ack.getMessageIdCount(); i++) {
-            MessageIdData msgId = ack.getMessageId(i);
+
+        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
+            MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
-            if (msgId.getAckSetCount() > 0) {
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
-                        SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+            if (msgId.getAckSetsCount() > 0) {
+                long[] ackSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    ackSets[j] = msgId.getAckSetAt(j);
+                }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
@@ -412,12 +418,15 @@ public class Consumer {
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
         }
 
-        for (int i = 0; i < ack.getMessageIdCount(); i++) {
-            MessageIdData msgId = ack.getMessageId(i);
+        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
+            MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
-            if (msgId.getAckSetCount() > 0) {
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
-                        SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+            if (msgId.getAckSetsCount() > 0) {
+                long[] acksSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    acksSets[j] = msgId.getAckSetAt(j);
+                }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), acksSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
             }
@@ -457,7 +466,7 @@ public class Consumer {
     }
 
     private void checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
-        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
+        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
             removePendingAcks(position);
         }
     }
@@ -603,7 +612,7 @@ public class Consumer {
         return unackedMessages;
     }
 
-    public PulsarApi.KeySharedMeta getKeySharedMeta() {
+    public KeySharedMeta getKeySharedMeta() {
         return keySharedMeta;
     }
 

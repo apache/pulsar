@@ -102,19 +102,20 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -336,10 +337,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        MessageMetadata.Builder messageMetadata = MessageMetadata.newBuilder();
-        messageMetadata.setPublishTime(System.currentTimeMillis());
-        messageMetadata.setProducerName("prod-name");
-        messageMetadata.setSequenceId(1);
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("prod-name")
+                .setSequenceId(1);
 
         ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
         final CountDownLatch latch = new CountDownLatch(1);
@@ -529,11 +530,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
         // Empty subscription name
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription("").setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription("")
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false, null);
         try {
             f1.get();
@@ -548,18 +555,24 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testSubscribeUnsubscribe() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false, null);
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false, null);
         try {
             f2.get();
@@ -582,7 +595,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
-                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
         sub.addConsumer(consumer);
         consumer.close();
 
@@ -592,7 +606,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Dispatcher previousDispatcher = sub.getDispatcher();
 
             consumer = new Consumer(sub, subType, topic.getName(), 1, 0, "Cons1", 50000, serverCnx, "myrole-1",
-                    Collections.emptyMap(), false, InitialPosition.Latest, null);
+                    Collections.emptyMap(), false, InitialPosition.Latest,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
             sub.addConsumer(consumer);
 
             assertTrue(sub.getDispatcher().isConsumerConnected());
@@ -961,11 +976,16 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.removeProducer(producer);
 
         // 4. delete topic with subscriber
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
@@ -979,11 +999,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testDeleteAndUnsubscribeTopic() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setRequestId(1)
+                .setReadCompacted(false)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
@@ -1034,11 +1060,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
@@ -1122,11 +1152,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             assertEquals(e.getCause().getClass(), BrokerServiceException.TopicFencedException.class);
         }
 
-        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         try {
             f.get();
@@ -1258,37 +1294,53 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testFailoverSubscription() throws Exception {
         PersistentTopic topic1 = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        CommandSubscribe cmd1 = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Failover).build();
+        CommandSubscribe cmd1 = new CommandSubscribe()
+                .setConsumerId(1)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Failover);
 
         // 1. Subscribe with non partition topic
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
-                cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap(),
-                cmd1.getReadCompacted(), InitialPosition.Latest,
+                cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.isDurable(), null, Collections.emptyMap(),
+                cmd1.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
         // 2. Subscribe with partition topic
         PersistentTopic topic2 = new PersistentTopic(successPartitionTopicName, ledgerMock, brokerService);
 
-        CommandSubscribe cmd2 = CommandSubscribe.newBuilder().setConsumerId(1).setConsumerName("C1")
-                .setTopic(successPartitionTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(SubType.Failover).build();
+        CommandSubscribe cmd2 = new CommandSubscribe()
+                .setConsumerId(1)
+                .setConsumerName("C1")
+                .setTopic(successPartitionTopicName)
+                .setSubscription(successSubName)
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Failover);
 
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
-                cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap(),
-                cmd2.getReadCompacted(), InitialPosition.Latest,
+                cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.isDurable(), null, Collections.emptyMap(),
+                cmd2.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f2.get();
 
         // 3. Subscribe and create second consumer
-        CommandSubscribe cmd3 = CommandSubscribe.newBuilder().setConsumerId(2).setConsumerName("C2")
-                .setTopic(successPartitionTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(SubType.Failover).build();
+        CommandSubscribe cmd3 = new CommandSubscribe()
+                .setConsumerId(2)
+                .setConsumerName("C2")
+                .setTopic(successPartitionTopicName)
+                .setSubscription(successSubName)
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Failover);
 
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
-                cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap(),
-                cmd3.getReadCompacted(), InitialPosition.Latest,
+                cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.isDurable(), null, Collections.emptyMap(),
+                cmd3.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f3.get();
 
@@ -1304,13 +1356,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 "C2");
 
         // 4. Subscribe and create third duplicate consumer
-        CommandSubscribe cmd4 = CommandSubscribe.newBuilder().setConsumerId(3).setConsumerName("C1")
-                .setTopic(successPartitionTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(SubType.Failover).build();
+        CommandSubscribe cmd4 = new CommandSubscribe()
+                .setConsumerId(3)
+                .setConsumerName("C1")
+                .setTopic(successPartitionTopicName)
+                .setSubscription(successSubName)
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Failover);
 
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
-                cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap(),
-                cmd4.getReadCompacted(), InitialPosition.Latest,
+                cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.isDurable(), null, Collections.emptyMap(),
+                cmd4.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f4.get();
 
@@ -1331,13 +1388,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 "C2");
 
         // 5. Subscribe on partition topic with existing consumer id and different sub type
-        CommandSubscribe cmd5 = CommandSubscribe.newBuilder().setConsumerId(2).setConsumerName("C1")
-                .setTopic(successPartitionTopicName).setSubscription(successSubName).setRequestId(1)
-                .setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd5 = new CommandSubscribe()
+                .setConsumerId(2).
+                setConsumerName("C1")
+                .setTopic(successPartitionTopicName)
+                .setSubscription(successSubName)
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
-                cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap(),
-                cmd5.getReadCompacted(), InitialPosition.Latest,
+                cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.isDurable(), null, Collections.emptyMap(),
+                cmd5.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/,false /* replicated */, null);
         try {
             f5.get();
@@ -1348,13 +1410,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }
 
         // 6. Subscribe on partition topic with different sub name, type and different consumer id
-        CommandSubscribe cmd6 = CommandSubscribe.newBuilder().setConsumerId(4).setConsumerName("C3")
-                .setTopic(successPartitionTopicName).setSubscription(successSubName2).setRequestId(1)
-                .setSubType(SubType.Exclusive).build();
+        CommandSubscribe cmd6 = new CommandSubscribe()
+                .setConsumerId(4)
+                .setConsumerName("C3")
+                .setTopic(successPartitionTopicName)
+                .setSubscription(successSubName2)
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
 
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
-                cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap(),
-                cmd6.getReadCompacted(), InitialPosition.Latest,
+                cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.isDurable(), null, Collections.emptyMap(),
+                cmd6.isReadCompacted(), InitialPosition.Latest,
                 0 /*avoid reseting cursor*/, false /* replicated */, null);
         f6.get();
 
@@ -1795,17 +1862,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) throws IOException {
-        MessageMetadata messageData = MessageMetadata.newBuilder().setPublishTime(System.currentTimeMillis())
-            .setProducerName("prod-name").setSequenceId(0).build();
+        MessageMetadata messageData = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("prod-name")
+                .setSequenceId(0);
         ByteBuf payload = Unpooled.wrappedBuffer(data, 0, data.length);
 
         int msgMetadataSize = messageData.getSerializedSize();
         int headersSize = 4 + msgMetadataSize;
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
-        messageData.writeTo(outStream);
-        outStream.recycle();
+        messageData.writeTo(headers);
         return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
     }
 }

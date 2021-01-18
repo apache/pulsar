@@ -54,7 +54,8 @@
       "version-2.7.0-tiered-storage-overview",
       "version-2.7.0-tiered-storage-aws",
       "version-2.7.0-tiered-storage-gcs",
-      "version-2.7.0-tiered-storage-filesystem"
+      "version-2.7.0-tiered-storage-filesystem",
+      "version-2.7.0-tiered-storage-azure"
     ],
     "Transactions": [
       "version-2.7.0-transactions",
@@ -148,6 +149,7 @@
     "Reference": [
       "version-2.7.0-reference-terminology",
       "version-2.7.0-reference-cli-tools",
+      "version-2.7.0-pulsar-admin",
       "version-2.7.0-reference-configuration",
       "version-2.7.0-reference-metrics"
     ]

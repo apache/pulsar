@@ -398,6 +398,35 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             LOG.warn("TEST FAILED [{}]", e.getMessage());
             throw e;
         }
+
+        // validate regex: invlid regex for primary and seconday
+        NamespaceIsolationData nsRegexPolicy = new NamespaceIsolationData();
+        nsRegexPolicy.namespaces = new ArrayList<String>();
+        nsRegexPolicy.namespaces.add("other/use/other.*");
+        nsRegexPolicy.primary = new ArrayList<String>();
+        nsRegexPolicy.primary.add("prod1-broker[45-46].messaging.use.example.com");
+        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyData();
+        nsRegexPolicy.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsRegexPolicy.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsRegexPolicy.auto_failover_policy.parameters.put("min_limit", "1");
+        nsRegexPolicy.auto_failover_policy.parameters.put("usage_threshold", "100");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        }catch (PulsarAdminException e) {
+            //Ok
+        }
+
+        nsRegexPolicy.primary.add("prod1-broker[4-5].messaging.use.example.com");
+        nsRegexPolicy.secondary = new ArrayList<String>();
+        nsRegexPolicy.secondary.add("prod1-broker[45-46].messaging.use.example.com");
+        try {
+            admin.clusters().createNamespaceIsolationPolicy("test", "invalid_primary", nsRegexPolicy);
+            fail("should have failed with invalid regex");
+        } catch (PulsarAdminException e) {
+            // Ok
+        }
+
     }
 
     @Test
@@ -689,7 +718,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.namespace_auth.remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
-        assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), null);
         admin.namespaces().setPersistence("prop-xyz/ns1", new PersistencePolicies(3, 2, 1, 10.0));
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), new PersistencePolicies(3, 2, 1, 10.0));
 
@@ -845,7 +874,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
-
         // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 admin.topics().getPartitionedStats(partitionedTopicName,false).metadata.partitions);
@@ -2068,17 +2096,29 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
 
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
-        assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 0);
-        assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
-        assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 10);
+        SubscriptionStats subStats1 = topicStats.subscriptions.get("my-sub1");
+        assertEquals(subStats1.msgBacklog, 0);
+        assertTrue(subStats1.lastMarkDeleteAdvancedTimestamp > 0L);
+        SubscriptionStats subStats2 = topicStats.subscriptions.get("my-sub2");
+        assertEquals(subStats2.msgBacklog, 10);
+        assertEquals(subStats2.lastMarkDeleteAdvancedTimestamp, 0L);
+        SubscriptionStats subStats3 = topicStats.subscriptions.get("my-sub3");
+        assertEquals(subStats3.msgBacklog, 10);
+        assertEquals(subStats3.lastMarkDeleteAdvancedTimestamp, 0L);
 
         admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/ns1/ds2", 1);
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
 
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
-        assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 0);
-        assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 0);
-        assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 0);
+        SubscriptionStats newSubStats1 = topicStats.subscriptions.get("my-sub1");
+        assertEquals(newSubStats1.msgBacklog, 0);
+        assertEquals(newSubStats1.lastMarkDeleteAdvancedTimestamp, subStats1.lastMarkDeleteAdvancedTimestamp);
+        SubscriptionStats newSubStats2 = topicStats.subscriptions.get("my-sub2");
+        assertEquals(newSubStats2.msgBacklog, 0);
+        assertTrue(newSubStats2.lastMarkDeleteAdvancedTimestamp > subStats2.lastMarkDeleteAdvancedTimestamp);
+        SubscriptionStats newSubStats3 = topicStats.subscriptions.get("my-sub3");
+        assertEquals(newSubStats3.msgBacklog, 0);
+        assertTrue(newSubStats3.lastMarkDeleteAdvancedTimestamp > subStats3.lastMarkDeleteAdvancedTimestamp);
 
         consumer1.close();
         consumer2.close();
@@ -2138,6 +2178,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         client.close();
 
+    }
+
+    @Test
+    public void testNamespaceNotExist() throws Exception {
+        final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
+        try {
+            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+            fail("should falied for namespaces not exist");
+        } catch (Exception e) {
+            assertTrue(e instanceof NotFoundException);
+            assertTrue(e.getMessage().equals("Namespace not found"));
+        }
     }
 
     @Test
@@ -2518,6 +2570,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             producer.send(new byte[1024 * i * 5]);
         }
 
+        TopicStats topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.subscriptions.get("sub-1").lastMarkDeleteAdvancedTimestamp, 0L);
+
         for (int i = 0; i < messages; i++) {
             consumer.acknowledgeCumulative(consumer.receive());
         }
@@ -2525,8 +2580,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // Wait ack send
         Thread.sleep(1000);
 
-        TopicStats topicStats = admin.topics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.backlogSize, 0);
+        assertTrue(topicStats.subscriptions.get("sub-1").lastMarkDeleteAdvancedTimestamp > 0L);
     }
 
     @Test

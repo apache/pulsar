@@ -20,45 +20,81 @@ package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.util.concurrent.FastThreadLocal;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
+
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.api.proto.TxnCommitMarker;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
 @UtilityClass
 @SuppressWarnings("checkstyle:JavadocType")
 public class Markers {
 
+    private static final FastThreadLocal<MessageMetadata> LOCAL_MESSAGE_METADATA = //
+            new FastThreadLocal<MessageMetadata>() {
+                @Override
+                protected MessageMetadata initialValue() throws Exception {
+                    return new MessageMetadata();
+                }
+            };
+
+    private static final FastThreadLocal<ReplicatedSubscriptionsSnapshotRequest> LOCAL_SNAPSHOT_REQUEST = //
+            new FastThreadLocal<ReplicatedSubscriptionsSnapshotRequest>() {
+                @Override
+                protected ReplicatedSubscriptionsSnapshotRequest initialValue() throws Exception {
+                    return new ReplicatedSubscriptionsSnapshotRequest();
+                }
+            };
+
+    private static final FastThreadLocal<ReplicatedSubscriptionsSnapshotResponse> LOCAL_SNAPSHOT_RESPONSE = //
+            new FastThreadLocal<ReplicatedSubscriptionsSnapshotResponse>() {
+                @Override
+                protected ReplicatedSubscriptionsSnapshotResponse initialValue() throws Exception {
+                    return new ReplicatedSubscriptionsSnapshotResponse();
+                }
+            };
+
+    private static final FastThreadLocal<ReplicatedSubscriptionsSnapshot> LOCAL_SNAPSHOT = //
+            new FastThreadLocal<ReplicatedSubscriptionsSnapshot>() {
+                @Override
+                protected ReplicatedSubscriptionsSnapshot initialValue() throws Exception {
+                    return new ReplicatedSubscriptionsSnapshot();
+                }
+            };
+
+    private static final FastThreadLocal<ReplicatedSubscriptionsUpdate> LOCAL_SUBSCRIPTION_UPDATE = //
+            new FastThreadLocal<ReplicatedSubscriptionsUpdate>() {
+                @Override
+                protected ReplicatedSubscriptionsUpdate initialValue() throws Exception {
+                    return new ReplicatedSubscriptionsUpdate();
+                }
+            };
+
     private static ByteBuf newMessage(MarkerType markerType, Optional<String> restrictToCluster, ByteBuf payload) {
-        MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
-        msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
-        msgMetadataBuilder.setProducerName("pulsar.marker");
-        msgMetadataBuilder.setSequenceId(0);
-        msgMetadataBuilder.setMarkerType(markerType.getNumber());
+        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
+                .clear()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("pulsar.marker")
+                .setSequenceId(0)
+                .setMarkerType(markerType.getValue());
 
-        restrictToCluster.ifPresent(msgMetadataBuilder::addReplicateTo);
+        restrictToCluster.ifPresent(msgMetadata::addReplicateTo);
 
-        MessageMetadata msgMetadata = msgMetadataBuilder.build();
-        try {
-            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
-        } finally {
-            msgMetadata.recycle();
-            msgMetadataBuilder.recycle();
-        }
+        return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
     }
 
     public static boolean isServerOnlyMarker(MessageMetadata msgMetadata) {
@@ -70,198 +106,130 @@ public class Markers {
     public static boolean isReplicatedSubscriptionSnapshotMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
                 && msgMetadata.hasMarkerType()
-                && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_VALUE;
+                && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT.getValue();
     }
 
-    @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshotRequest(String snapshotId, String sourceCluster) {
-        ReplicatedSubscriptionsSnapshotRequest.Builder builder = ReplicatedSubscriptionsSnapshotRequest.newBuilder();
-        builder.setSnapshotId(snapshotId);
-        builder.setSourceCluster(sourceCluster);
+        ReplicatedSubscriptionsSnapshotRequest req = LOCAL_SNAPSHOT_REQUEST.get()
+                .clear()
+                .setSnapshotId(snapshotId)
+                .setSourceCluster(sourceCluster);
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
 
-        ReplicatedSubscriptionsSnapshotRequest req = builder.build();
-
-        int size = req.getSerializedSize();
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
         try {
-            req.writeTo(outStream);
+            req.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST, Optional.empty(), payload);
         } finally {
             payload.release();
-            builder.recycle();
-            req.recycle();
-            outStream.recycle();
         }
     }
 
     public static ReplicatedSubscriptionsSnapshotRequest parseReplicatedSubscriptionsSnapshotRequest(ByteBuf payload)
             throws IOException {
-        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshotRequest.Builder builder = null;
-
-        try {
-            builder = ReplicatedSubscriptionsSnapshotRequest.newBuilder();
-            return builder.mergeFrom(inStream, null).build();
-        } finally {
-            builder.recycle();
-            inStream.recycle();
-        }
+        ReplicatedSubscriptionsSnapshotRequest req = LOCAL_SNAPSHOT_REQUEST.get();
+        req.parseFrom(payload, payload.readableBytes());
+        return req;
     }
 
-    @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshotResponse(String snapshotId, String replyToCluster,
             String cluster, long ledgerId, long entryId) {
-        ReplicatedSubscriptionsSnapshotResponse.Builder builder = ReplicatedSubscriptionsSnapshotResponse.newBuilder();
-        builder.setSnapshotId(snapshotId);
+        ReplicatedSubscriptionsSnapshotResponse response = LOCAL_SNAPSHOT_RESPONSE.get()
+                .clear()
+                .setSnapshotId(snapshotId);
+        response
+                .setCluster()
+                .setCluster(cluster)
+                .setMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
 
-        MessageIdData.Builder msgIdBuilder = MessageIdData.newBuilder();
-        msgIdBuilder.setLedgerId(ledgerId);
-        msgIdBuilder.setEntryId(entryId);
-
-        ClusterMessageId.Builder clusterMessageIdBuilder = ClusterMessageId.newBuilder();
-        clusterMessageIdBuilder.setCluster(cluster);
-        clusterMessageIdBuilder.setMessageId(msgIdBuilder);
-
-        builder.setCluster(clusterMessageIdBuilder);
-        ReplicatedSubscriptionsSnapshotResponse response = builder.build();
-
-        int size = response.getSerializedSize();
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
         try {
-            response.writeTo(outStream);
+            response.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE, Optional.of(replyToCluster),
                     payload);
         } finally {
-            msgIdBuilder.recycle();
-            clusterMessageIdBuilder.recycle();
             payload.release();
-            builder.recycle();
-            response.recycle();
-            outStream.recycle();
         }
     }
 
     public static ReplicatedSubscriptionsSnapshotResponse parseReplicatedSubscriptionsSnapshotResponse(ByteBuf payload)
             throws IOException {
-        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshotResponse.Builder builder = null;
-
-        try {
-            builder = ReplicatedSubscriptionsSnapshotResponse.newBuilder();
-            return builder.mergeFrom(inStream, null).build();
-        } finally {
-            builder.recycle();
-            inStream.recycle();
-        }
+        ReplicatedSubscriptionsSnapshotResponse response = LOCAL_SNAPSHOT_RESPONSE.get();
+        response.parseFrom(payload, payload.readableBytes());
+        return response;
     }
 
     @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshot(String snapshotId, String sourceCluster, long ledgerId,
-            long entryId, Map<String, MessageIdData> clusterIds) {
-        ReplicatedSubscriptionsSnapshot.Builder builder = ReplicatedSubscriptionsSnapshot.newBuilder();
-        builder.setSnapshotId(snapshotId);
-
-        MessageIdData.Builder msgIdBuilder = MessageIdData.newBuilder();
-        msgIdBuilder.setLedgerId(ledgerId);
-        msgIdBuilder.setEntryId(entryId);
-        builder.setLocalMessageId(msgIdBuilder);
+            long entryId, Map<String, MarkersMessageIdData> clusterIds) {
+        ReplicatedSubscriptionsSnapshot snapshot = LOCAL_SNAPSHOT.get()
+                .clear()
+                .setSnapshotId(snapshotId);
+        snapshot.setLocalMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
 
         clusterIds.forEach((cluster, msgId) -> {
-            ClusterMessageId.Builder clusterMessageIdBuilder = ClusterMessageId.newBuilder()
+            snapshot.addCluster()
                     .setCluster(cluster)
-                    .setMessageId(msgId);
-            builder.addClusters(clusterMessageIdBuilder);
-            clusterMessageIdBuilder.recycle();
+                    .setMessageId().copyFrom(msgId);
         });
 
-        ReplicatedSubscriptionsSnapshot snapshot = builder.build();
-
         int size = snapshot.getSerializedSize();
-
         ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
         try {
-            snapshot.writeTo(outStream);
+            snapshot.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
         } finally {
             payload.release();
-            builder.recycle();
-            snapshot.recycle();
-            outStream.recycle();
         }
     }
 
     public static ReplicatedSubscriptionsSnapshot parseReplicatedSubscriptionsSnapshot(ByteBuf payload)
             throws IOException {
-        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsSnapshot.Builder builder = null;
-
-        try {
-            builder = ReplicatedSubscriptionsSnapshot.newBuilder();
-            return builder.mergeFrom(inStream, null).build();
-        } finally {
-            builder.recycle();
-            inStream.recycle();
-        }
+        ReplicatedSubscriptionsSnapshot snapshot = LOCAL_SNAPSHOT.get();
+        snapshot.parseFrom(payload, payload.readableBytes());
+        return snapshot;
     }
 
     @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsUpdate(String subscriptionName,
-        Map<String, MessageIdData> clusterIds) {
-        ReplicatedSubscriptionsUpdate.Builder builder = ReplicatedSubscriptionsUpdate.newBuilder();
-        builder.setSubscriptionName(subscriptionName);
+        Map<String, MarkersMessageIdData> clusterIds) {
+        ReplicatedSubscriptionsUpdate update = LOCAL_SUBSCRIPTION_UPDATE.get()
+                .clear()
+                .setSubscriptionName(subscriptionName);
 
         clusterIds.forEach((cluster, msgId) -> {
-            ClusterMessageId.Builder clusterMessageIdBuilder = ClusterMessageId.newBuilder()
+            update.addCluster()
                     .setCluster(cluster)
-                    .setMessageId(msgId);
-            builder.addClusters(clusterMessageIdBuilder);
-            clusterMessageIdBuilder.recycle();
+                    .setMessageId().copyFrom(msgId);
         });
 
-        ReplicatedSubscriptionsUpdate update = builder.build();
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
 
-        int size = update.getSerializedSize();
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
         try {
-            update.writeTo(outStream);
+            update.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_UPDATE, Optional.empty(), payload);
         } finally {
             payload.release();
-            builder.recycle();
-            update.recycle();
-            outStream.recycle();
         }
     }
 
-    public static ReplicatedSubscriptionsUpdate parseReplicatedSubscriptionsUpdate(ByteBuf payload)
-            throws IOException {
-        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-        ReplicatedSubscriptionsUpdate.Builder builder = null;
-
-        try {
-            builder = ReplicatedSubscriptionsUpdate.newBuilder();
-            return builder.mergeFrom(inStream, null).build();
-        } finally {
-            builder.recycle();
-            inStream.recycle();
-        }
+    public static ReplicatedSubscriptionsUpdate parseReplicatedSubscriptionsUpdate(ByteBuf payload) {
+        ReplicatedSubscriptionsUpdate update = LOCAL_SUBSCRIPTION_UPDATE.get();
+        update.parseFrom(payload, payload.readableBytes());
+        return update;
     }
 
     public static boolean isTxnCommitMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
                && msgMetadata.hasMarkerType()
-               && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
+               && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue();
     }
 
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits, List<MessageIdData> messageIdDataList) {
+                                             long txnLeastBits, List<MarkersMessageIdData> messageIdDataList) {
         return newTxnMarker(
                 MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
@@ -269,64 +237,53 @@ public class Markers {
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
                && msgMetadata.hasMarkerType()
-               && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE;
+               && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue();
     }
 
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
-                                            long txnLeastBits, List<MessageIdData> messageIdDataList) {
+                                            long txnLeastBits, List<MarkersMessageIdData> messageIdDataList) {
         return newTxnMarker(
                 MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
     }
 
-    public static PulsarMarkers.TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
-        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(payload);
-
-        PulsarMarkers.TxnCommitMarker.Builder builder = null;
-
-        try {
-            builder = PulsarMarkers.TxnCommitMarker.newBuilder();
-            return builder.mergeFrom(inStream, null).build();
-        } finally {
-            builder.recycle();
-            inStream.recycle();
-        }
+    public static TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
+        TxnCommitMarker commitMarker = LOCAL_TXN_COMMIT_MARKER.get();
+        commitMarker.parseFrom(payload, payload.readableBytes());
+        return commitMarker;
     }
 
-    @SneakyThrows
+
+    private static final FastThreadLocal<TxnCommitMarker> LOCAL_TXN_COMMIT_MARKER = //
+            new FastThreadLocal<TxnCommitMarker>() {
+                @Override
+                protected TxnCommitMarker initialValue() throws Exception {
+                    return new TxnCommitMarker();
+                }
+            };
+
     private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
-                                        long txnLeastBits, Optional<List<MessageIdData>> messageIdDataList) {
-        MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
-        msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
-        msgMetadataBuilder.setProducerName("pulsar.txn.marker");
-        msgMetadataBuilder.setSequenceId(sequenceId);
-        msgMetadataBuilder.setMarkerType(markerType.getNumber());
-        msgMetadataBuilder.setTxnidMostBits(txnMostBits);
-        msgMetadataBuilder.setTxnidLeastBits(txnLeastBits);
+                                        long txnLeastBits, Optional<List<MarkersMessageIdData>> messageIdDataList) {
+        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
+                .clear()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("pulsar.txn.marker")
+                .setSequenceId(sequenceId)
+                .setMarkerType(markerType.getValue())
+                .setTxnidMostBits(txnMostBits)
+                .setTxnidLeastBits(txnLeastBits);
 
-        MessageMetadata msgMetadata = msgMetadataBuilder.build();
+        TxnCommitMarker commitMarker = LOCAL_TXN_COMMIT_MARKER.get()
+                .clear();
 
-        ByteBuf payload;
-        PulsarMarkers.TxnCommitMarker.Builder commitMarkerBuilder = PulsarMarkers.TxnCommitMarker.newBuilder();
+        messageIdDataList.ifPresent(commitMarker::addAllMessageIds);
 
-        messageIdDataList.ifPresent(commitMarkerBuilder::addAllMessageId);
-        PulsarMarkers.TxnCommitMarker commitMarker = commitMarkerBuilder.build();
-        int size = commitMarker.getSerializedSize();
-        payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
-        commitMarker.writeTo(outStream);
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(commitMarker.getSerializedSize());
 
         try {
+            commitMarker.writeTo(payload);
             return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
         } finally {
             payload.release();
-            msgMetadata.recycle();
-            msgMetadataBuilder.recycle();
-            commitMarkerBuilder.recycle();
-            if (messageIdDataList.isPresent()) {
-                for (MessageIdData messageIdData : messageIdDataList.get()) {
-                    messageIdData.recycle();
-                }
-            }
         }
     }
 }
