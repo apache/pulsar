@@ -1274,7 +1274,7 @@ public class Commands {
     }
 
     public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-                                               TxnAction txnAction, List<MessageIdData> messageIdDataList) {
+                                               TxnAction txnAction, long lowWaterMark) {
         BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION);
         cmd.setEndTxnOnPartition()
                 .setRequestId(requestId)
@@ -1282,7 +1282,7 @@ public class Commands {
                 .setTxnidMostBits(txnIdMostBits)
                 .setTopic(topic)
                 .setTxnAction(txnAction)
-                .addAllMessageIds(messageIdDataList);
+                .setTxnidLeastBitsOfLowWatermark(lowWaterMark);
         return serializeWithSize(cmd);
     }
 

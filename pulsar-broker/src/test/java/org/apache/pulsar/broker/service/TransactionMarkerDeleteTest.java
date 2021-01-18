@@ -75,9 +75,9 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 .setEntryId(1);
         Position position1 = managedLedger.addEntry("test".getBytes());
         managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
+                .newTxnCommitMarker(1, 1, 1).array());
         Position position3 = managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
+                .newTxnCommitMarker(1, 1, 1).array());
         assertEquals(3, cursor.getNumberOfEntriesInBacklog(true));
         assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),

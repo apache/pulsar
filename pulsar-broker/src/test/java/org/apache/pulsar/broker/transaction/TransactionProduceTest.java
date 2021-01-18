@@ -327,7 +327,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .create();
         int incomingMessageCnt = 10;
         for (int i = 0; i < incomingMessageCnt; i++) {
-            incomingProducer.newMessage().value("Hello Txn.".getBytes()).sendAsync();
+            incomingProducer.newMessage().value("Hello Txn.".getBytes()).send();
         }
         log.info("prepare incoming messages finished.");
 

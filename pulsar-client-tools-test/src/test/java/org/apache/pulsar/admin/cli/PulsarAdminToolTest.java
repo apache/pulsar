@@ -770,6 +770,16 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("disable-deduplication persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
 
+        cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md 10 -bd 11 -dt 12"));
+        verify(mockTopics).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1",
+                new DispatchRate(10,11,12));
+
+        cmdTopics.run(split("remove-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
 
