@@ -290,6 +290,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
         String initialToken = this.createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+        String refreshedToken = this.createClientTokenWithExpiry(30, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -297,7 +298,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(() -> {
                     if (shouldRefreshToken) {
                         try {
-                            return createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+                            return refreshedToken;
                         } catch (Exception e) {
                             return null;
                         }
@@ -310,11 +311,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
-                .sendTimeout(1, TimeUnit.SECONDS)
+                .sendTimeout(3, TimeUnit.SECONDS)
                 .create();
-        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
         // Initially the token is valid and producer will be able to publish
         producer.send("hello-1");
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(10));
 

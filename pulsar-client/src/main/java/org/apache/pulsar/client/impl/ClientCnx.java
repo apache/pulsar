@@ -38,6 +38,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -129,7 +130,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private static int maxMessageSize = Commpulsar-client/src/main/java/org/apache/pulsar/client/impl/ClientCnx.javaands.DEFAULT_MAX_MESSAGE_SIZE;
+    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
@@ -326,7 +327,7 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(authChallenge.hasChallenge());
         checkArgument(authChallenge.getChallenge().hasAuthData());
 
-        if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData().toByteArray())) {
+        if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
             try {
                 authenticationDataProvider = authentication.getAuthData(remoteHostName);
             } catch (PulsarClientException e) {
