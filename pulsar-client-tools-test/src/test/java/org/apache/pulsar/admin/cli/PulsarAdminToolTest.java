@@ -862,6 +862,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds2 -s sub1 -m 1:1 -e"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
+
+        cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getInactiveTopicPoliciesApplied("persistent://myprop/clust/ns1/ds1");
     }
 
     @Test

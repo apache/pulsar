@@ -1597,6 +1597,18 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public InactiveTopicPolicies getInactiveTopicPoliciesApplied(String topic) throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
+            path = path.queryParam("applied", true);
+            return request(path).get(new GenericType<InactiveTopicPolicies>() {});
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException {
         try {
             return getInactiveTopicPoliciesAsync(topic).

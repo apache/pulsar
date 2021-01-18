@@ -2192,13 +2192,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.inactive_topic_policies == null) {
-            return new InactiveTopicPolicies(config().getBrokerDeleteInactiveTopicsMode()
-                    , config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds()
-                    , config().isBrokerDeleteInactiveTopicsEnabled());
-        } else {
-            return policies.inactive_topic_policies;
-        }
+        return policies.inactive_topic_policies;
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
