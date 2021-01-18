@@ -49,9 +49,11 @@ public class NamespaceStats {
             String key;
             // example of key : "<metric_key>_0.0_0.5"
             if (i == 0 && ENTRY_LATENCY_BUCKETS_USEC.length > 0) {
-                key = String.format("%s_0.0_%1.1f", BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
+                key = String.format("%s_0.0_%1.1f",
+                        BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
             } else if (i < ENTRY_LATENCY_BUCKETS_USEC.length) {
-                key = String.format("%s_%1.1f_%1.1f", BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i - 1] / 1000.0,
+                key = String.format("%s_%1.1f_%1.1f",
+                        BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i - 1] / 1000.0,
                         ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
             } else {
                 key = String.format("%s_OVERFLOW", BRK_ADD_ENTRY_LATENCY_PREFIX);

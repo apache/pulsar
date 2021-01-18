@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * System topic for topic policy
+ * System topic for topic policy.
  */
 public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
 
@@ -48,7 +48,8 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer,
+                            TopicPoliciesSystemTopicClient.this));
                 });
     }
 
@@ -62,7 +63,8 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader,
+                            TopicPoliciesSystemTopicClient.this));
                 });
     }
 

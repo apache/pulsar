@@ -27,6 +27,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -34,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Servlet filter that hooks up to handle outgoing response
+ * Servlet filter that hooks up to handle outgoing response.
  */
 public class ResponseHandlerFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
@@ -63,7 +64,8 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
-        if (interceptorEnabled) {
+        if (interceptorEnabled && !MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(request.getContentType())
+                && !MediaType.APPLICATION_OCTET_STREAM.equalsIgnoreCase(request.getContentType())) {
             interceptor.onWebserviceResponse(request, response);
         }
     }

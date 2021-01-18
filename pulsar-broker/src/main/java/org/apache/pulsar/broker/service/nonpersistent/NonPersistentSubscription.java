@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -40,9 +41,8 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -58,8 +58,9 @@ public class NonPersistentSubscription implements Subscription {
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(NonPersistentSubscription.class, "isFenced");
+    private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER =
+            AtomicIntegerFieldUpdater
+                    .newUpdater(NonPersistentSubscription.class, "isFenced");
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
@@ -73,6 +74,11 @@ public class NonPersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
         this.lastActive = System.currentTimeMillis();
+    }
+
+    @Override
+    public BrokerInterceptor interceptor() {
+        return this.topic.getBrokerService().getInterceptor();
     }
 
     @Override
@@ -130,9 +136,8 @@ public class NonPersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
 
-                    switch (ksm.getKeySharedMode()) {
+                    switch (consumer.getKeySharedMeta().getKeySharedMode()) {
                         case STICKY:
                             dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
                                     new HashRangeExclusiveStickyKeyConsumerSelector());
@@ -258,7 +263,7 @@ public class NonPersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         // No-op
-        return CompletableFuture.completedFuture(null);// TODO: throw exception
+        return CompletableFuture.completedFuture(null); // TODO: throw exception
     }
 
     @Override
@@ -279,7 +284,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription
+     * Disconnect all consumers attached to the dispatcher and close this subscription.
      *
      * @return CompletableFuture indicating the completion of disconnect operation
      */
@@ -389,10 +394,9 @@ public class NonPersistentSubscription implements Subscription {
 
     /**
      * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
-     * unsubscribe
+     * unsubscribe.
      *
-     * @param consumer
-     *            consumer object that is initiating the unsubscribe operation
+     * @param consumer consumer object that is initiating the unsubscribe operation
      * @return CompletableFuture indicating the completion of ubsubscribe operation
      */
     @Override
@@ -482,7 +486,8 @@ public class NonPersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        completableFuture.completeExceptionally(new Exception("Unsupported operation end txn for NonPersistentSubscription"));
+        completableFuture.completeExceptionally(
+                new Exception("Unsupported operation end txn for NonPersistentSubscription"));
         return completableFuture;
     }
 

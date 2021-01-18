@@ -24,6 +24,9 @@ import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -300,9 +303,11 @@ public class LocalRunner {
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
 
-                String builtInSink = isBuiltInSink(userCodeFile);
-                if (builtInSink != null) {
-                    sinkConfig.setArchive(builtInSink);
+                if (userCodeFile != null) {
+                    String builtInSink = isBuiltInSink(userCodeFile);
+                    if (builtInSink != null) {
+                        sinkConfig.setArchive(builtInSink);
+                    }
                 }
                 parallelism = sinkConfig.getParallelism();
 
@@ -413,7 +418,7 @@ public class LocalRunner {
                             Gson gson = new GsonBuilder().setPrettyPrinting().create();
                             log.info(gson.toJson(new JsonParser().parse(json)));
                         }
-                    } catch (Exception ex) {
+                    } catch (TimeoutException | InterruptedException | ExecutionException e) {
                         log.error("Could not get status from all local instances");
                     }
                 }

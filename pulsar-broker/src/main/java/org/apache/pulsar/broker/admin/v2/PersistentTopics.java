@@ -763,6 +763,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicExistedAndCheckAllowAutoCreation(tenant, namespace, encodedTopic, checkAllowAutoCreation);
         return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
     }
 
@@ -1811,6 +1812,175 @@ public class PersistentTopics extends PersistentTopicsBase {
                         clientAppId(),
                         namespaceName,
                         topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = "Get maxSubscriptionsPerTopic config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getMaxSubscriptionsPerTopic(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<Integer> maxSubscriptionsPerTopic = internalGetMaxSubscriptionsPerTopic();
+            if (!maxSubscriptionsPerTopic.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxSubscriptionsPerTopic.get());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = "Set maxSubscriptionsPerTopic config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Invalid value of maxSubscriptionsPerTopic")})
+    public void setMaxSubscriptionsPerTopic(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Updating maxSubscriptionsPerTopic failed", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Updating maxSubscriptionsPerTopic failed", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}"
+                                + ", maxSubscriptions={}"
+                        , clientAppId(), namespaceName, topicName.getLocalName(), maxSubscriptionsPerTopic);
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
+    @ApiOperation(value = "Remove maxSubscriptionsPerTopic config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeMaxSubscriptionsPerTopic(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("tenant") String tenant,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMaxSubscriptionsPerTopic(null).whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove maxSubscriptionsPerTopic", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove maximum subscription limit: namespace={}, topic={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
+    @ApiOperation(value = "Get replicatorDispatchRate config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<DispatchRate> dispatchRate = internalGetReplicatorDispatchRate();
+            if (dispatchRate.isPresent()) {
+                asyncResponse.resume(dispatchRate.get());
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
+    @ApiOperation(value = "Set replicatorDispatchRate config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Invalid value of replicatorDispatchRate")})
+    public void setReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @ApiParam(value = "Replicator dispatch rate of the topic")
+                                                      DispatchRate dispatchRate) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetReplicatorDispatchRate(dispatchRate).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Updating replicatorDispatchRate failed", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Updating replicatorDispatchRate failed", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
+                                + ", replicatorDispatchRate={}"
+                        , clientAppId(), namespaceName, topicName.getLocalName(), dispatchRate);
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
+    @ApiOperation(value = "Remove replicatorDispatchRate config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                               @PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace,
+                                               @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetReplicatorDispatchRate(null).whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove replicatorDispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
+                        clientAppId(), namespaceName, topicName.getLocalName());
                 asyncResponse.resume(Response.noContent().build());
             }
         });

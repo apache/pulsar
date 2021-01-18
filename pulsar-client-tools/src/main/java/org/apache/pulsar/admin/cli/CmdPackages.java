@@ -36,7 +36,7 @@ class CmdPackages extends CmdBase {
 
     private final Packages packages;
 
-    CmdPackages(PulsarAdmin admin) {
+    public CmdPackages(PulsarAdmin admin) {
         super("packages", admin);
         this.packages = admin.packages();
 
@@ -133,7 +133,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(packages.listPackageVersions(packageName).toString());
+            print(packages.listPackageVersions(packageName));
         }
     }
 

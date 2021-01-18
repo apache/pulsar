@@ -44,5 +44,19 @@ public class AggregatedSubscriptionStats {
 
     long bytesOutCounter;
 
+    long lastExpireTimestamp;
+
+    long lastConsumedFlowTimestamp;
+
+    long lastConsumedTimestamp;
+
+    long lastAckedTimestamp;
+
+    long lastMarkDeleteAdvancedTimestamp;
+
+    double msgRateExpired;
+
+    long totalMsgExpired;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

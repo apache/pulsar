@@ -137,7 +137,7 @@ public class AggregatedNamespaceStats {
         storageWriteRate = 0;
         storageReadRate = 0;
         offloadedStorageUsed = 0;
-        backlogQuotaLimit= 0;
+        backlogQuotaLimit = 0;
 
         replicationStats.clear();
         subscriptionStats.clear();

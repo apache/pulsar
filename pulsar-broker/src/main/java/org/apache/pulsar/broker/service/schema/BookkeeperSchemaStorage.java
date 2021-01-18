@@ -79,7 +79,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     // schemaId => ledgers of the schemaId
     private final Map<String, List<Long>> schemaLedgers = new ConcurrentHashMap<>();
 
-    private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations =
+            new ConcurrentHashMap<>();
 
     @VisibleForTesting
     BookkeeperSchemaStorage(PulsarService pulsar) {
@@ -266,22 +267,25 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
                 //don't check the schema whether already exist
                 return readSchemaEntry(locator.getIndexList().get(0).getPosition())
-                        .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId, locator.getIndexList(), data).thenCompose(
-                        position -> {
-                            CompletableFuture<Long> future = new CompletableFuture<>();
-                            updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash)
-                                    .thenAccept(future::complete)
-                                    .exceptionally(ex -> {
-                                        if (ex.getCause() instanceof KeeperException.BadVersionException) {
-                                            // There was a race condition on the schema creation. Since it has now been created,
-                                            // retry the whole operation so that we have a chance to recover without bubbling error
-                                            putSchema(schemaId, data, hash)
-                                                    .thenAccept(future::complete)
-                                                    .exceptionally(ex2 -> {
-                                                        future.completeExceptionally(ex2);
-                                                        return null;
-                                                    });
-                                        } else {
+                        .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId,
+                                locator.getIndexList(), data).thenCompose(
+                                position -> {
+                                    CompletableFuture<Long> future = new CompletableFuture<>();
+                                    updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash)
+                                            .thenAccept(future::complete)
+                                            .exceptionally(ex -> {
+                                                if (ex.getCause() instanceof KeeperException.BadVersionException) {
+                                                    // There was a race condition on the schema creation.
+                                                    // Since it has now been created,
+                                                    // retry the whole operation so that we have a chance to
+                                                    // recover without bubbling error
+                                                    putSchema(schemaId, data, hash)
+                                                            .thenAccept(future::complete)
+                                                            .exceptionally(ex2 -> {
+                                                                future.completeExceptionally(ex2);
+                                                                return null;
+                                                            });
+                                                } else {
                                             // For other errors, just fail the operation
                                             future.completeExceptionally(ex);
                                         }
@@ -296,8 +300,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 createNewSchema(schemaId, data, hash)
                         .thenAccept(future::complete)
                         .exceptionally(ex -> {
-                            if (ex.getCause() instanceof NodeExistsException ||
-                                    ex.getCause() instanceof KeeperException.BadVersionException) {
+                            if (ex.getCause() instanceof NodeExistsException
+                                    || ex.getCause() instanceof KeeperException.BadVersionException) {
                                 // There was a race condition on the schema creation. Since it has now been created,
                                 // retry the whole operation so that we have a chance to recover without bubbling error
                                 // back to producer/consumer
@@ -472,7 +476,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Void> updateSchemaLocator(String id, SchemaStorageFormat.SchemaLocator schema, int version) {
+    private CompletableFuture<Void> updateSchemaLocator(String id,
+                                                        SchemaStorageFormat.SchemaLocator schema, int version) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         zooKeeper.setData(id, schema.toByteArray(), version, (rc, path, ctx, stat) -> {
             Code code = Code.get(rc);

@@ -706,6 +706,35 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Memory buffer full error thrown by Pulsar client.
+     */
+    public static class MemoryBufferIsFullError extends PulsarClientException {
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public MemoryBufferIsFullError(String msg) {
+            super(msg);
+        }
+
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public MemoryBufferIsFullError(String msg, long sequenceId) {
+            super(msg, sequenceId);
+        }
+    }
+
+    /**
      * Producer blocked quota exceeded error thrown by Pulsar client.
      */
     public static class ProducerBlockedQuotaExceededError extends PulsarClientException {
@@ -990,6 +1019,10 @@ public class PulsarClientException extends IOException {
             return new TopicDoesNotExistException(msg);
         } else if (cause instanceof ProducerFencedException) {
             return new ProducerFencedException(msg);
+        } else if (cause instanceof MemoryBufferIsFullError) {
+            return new MemoryBufferIsFullError(msg);
+        } else if (cause instanceof NotFoundException) {
+            return new NotFoundException(msg);
         } else {
             return new PulsarClientException(t);
         }

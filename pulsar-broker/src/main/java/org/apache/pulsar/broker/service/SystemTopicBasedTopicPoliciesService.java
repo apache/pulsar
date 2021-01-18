@@ -57,7 +57,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private final Map<NamespaceName, AtomicInteger> ownedBundlesCountPerNamespace = new ConcurrentHashMap<>();
 
-    private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader>> readerCaches = new ConcurrentHashMap<>();
+    private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader>>
+            readerCaches = new ConcurrentHashMap<>();
 
     private final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
 
@@ -70,8 +71,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         createSystemTopicFactoryIfNeeded();
-        SystemTopicClient systemTopicClient = namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject(),
-                EventType.TOPIC_POLICY);
+        SystemTopicClient systemTopicClient =
+                namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject(),
+                        EventType.TOPIC_POLICY);
 
         CompletableFuture<SystemTopicClient.Writer> writerFuture = systemTopicClient.newWriterAsync();
         writerFuture.whenComplete((writer, ex) -> {
@@ -79,8 +81,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 result.completeExceptionally(ex);
             } else {
                 writer.writeAsync(
-                    PulsarEvent.builder()
-                        .actionType(ActionType.UPDATE)
+                        PulsarEvent.builder()
+                                .actionType(ActionType.UPDATE)
                         .eventType(EventType.TOPIC_POLICY)
                         .topicPoliciesEvent(
                             TopicPoliciesEvent.builder()
@@ -121,10 +123,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return;
         }
         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
-        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
-        if (listeners.get(topicName) != null) {
+        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
+                event.getNamespace(), event.getTopic());
+        if (LISTENERS.get(topicName) != null) {
             TopicPolicies policies = event.getPolicies();
-            for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+            for (TopicPolicyListener<TopicPolicies> listener : LISTENERS.get(topicName)) {
                 listener.onUpdate(policies);
             }
         }
@@ -153,8 +156,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             result.complete(null);
             return result;
         }
-        SystemTopicClient systemTopicClient = namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject()
-                , EventType.TOPIC_POLICY);
+        SystemTopicClient systemTopicClient = namespaceEventsSystemTopicFactory
+                .createSystemTopic(topicName.getNamespaceObject()
+                        , EventType.TOPIC_POLICY);
         systemTopicClient.newReaderAsync().thenAccept(r ->
                 fetchTopicPoliciesAsyncAndCloseReader(r, topicName, null, result));
         return result;
@@ -174,7 +178,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         , EventType.TOPIC_POLICY);
                 ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                 policyCacheInitMap.put(namespace, false);
-                CompletableFuture<SystemTopicClient.Reader> readerCompletableFuture = systemTopicClient.newReaderAsync();
+                CompletableFuture<SystemTopicClient.Reader> readerCompletableFuture =
+                        systemTopicClient.newReaderAsync();
                 readerCaches.put(namespace, readerCompletableFuture);
                 readerCompletableFuture.whenComplete((reader, ex) -> {
                     if (ex != null) {
@@ -208,17 +213,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public void start() {
 
-        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(
+                new NamespaceBundleOwnershipListener() {
 
-            @Override
-            public void onLoad(NamespaceBundle bundle) {
-                addOwnedNamespaceBundleAsync(bundle);
-            }
+                    @Override
+                    public void onLoad(NamespaceBundle bundle) {
+                        addOwnedNamespaceBundleAsync(bundle);
+                    }
 
-            @Override
-            public void unLoad(NamespaceBundle bundle) {
-                removeOwnedNamespaceBundleAsync(bundle);
-            }
+                    @Override
+                    public void unLoad(NamespaceBundle bundle) {
+                        removeOwnedNamespaceBundleAsync(bundle);
+                    }
 
             @Override
             public boolean test(NamespaceBundle namespaceBundle) {
@@ -245,7 +251,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
             } else {
                 future.complete(null);
-                policyCacheInitMap.computeIfPresent(reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+                policyCacheInitMap.computeIfPresent(
+                        reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
             }
         });
     }
@@ -284,7 +291,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             synchronized (this) {
                 if (namespaceEventsSystemTopicFactory == null) {
                     try {
-                        namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
+                        namespaceEventsSystemTopicFactory =
+                                new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
                     } catch (PulsarServerException e) {
                         log.error("Create namespace event system topic factory error.", e);
                     }
@@ -293,7 +301,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    private void fetchTopicPoliciesAsyncAndCloseReader(SystemTopicClient.Reader reader, TopicName topicName, TopicPolicies policies,
+    private void fetchTopicPoliciesAsyncAndCloseReader(SystemTopicClient.Reader reader, TopicName topicName,
+                                                       TopicPolicies policies,
                                                        CompletableFuture<TopicPolicies> future) {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
@@ -312,7 +321,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 topicPoliciesEvent.getNamespace(),
                                 topicPoliciesEvent.getTopic()))
                         ) {
-                            fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, topicPoliciesEvent.getPolicies(), future);
+                            fetchTopicPoliciesAsyncAndCloseReader(reader, topicName,
+                                    topicPoliciesEvent.getPolicies(), future);
                         } else {
                             fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, policies, future);
                         }
@@ -351,12 +361,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
+        LISTENERS.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
     }
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
+        LISTENERS.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

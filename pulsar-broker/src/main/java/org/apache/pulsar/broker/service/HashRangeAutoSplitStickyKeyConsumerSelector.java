@@ -156,7 +156,9 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     private boolean is2Power(int num) {
-        if(num < 2) return false;
+        if (num < 2) {
+            return false;
+        }
         return (num & num - 1) == 0;
     }
 

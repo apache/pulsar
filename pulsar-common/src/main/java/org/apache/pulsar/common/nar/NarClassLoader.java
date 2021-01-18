@@ -26,18 +26,25 @@ package org.apache.pulsar.common.nar;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -151,11 +158,13 @@ public class NarClassLoader extends URLClassLoader {
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        try {
-            return new NarClassLoader(unpacked, additionalJars, parent);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IOException(e);
-        }
+        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
+            @SneakyThrows
+            @Override
+            public NarClassLoader run() {
+                return new NarClassLoader(unpacked, additionalJars, parent);
+            }
+        });
     }
 
     private static File getNarExtractionDirectory(String configuredDirectory) {
@@ -208,7 +217,7 @@ public class NarClassLoader extends URLClassLoader {
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
-        return new String(Files.readAllBytes(Paths.get(serviceDefPath)));
+        return new String(Files.readAllBytes(Paths.get(serviceDefPath)), StandardCharsets.UTF_8);
     }
 
     public List<String> getServiceImplementation(String serviceName) throws IOException {
@@ -216,7 +225,8 @@ public class NarClassLoader extends URLClassLoader {
 
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(serviceDefPath))) {
+        try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(new FileInputStream(serviceDefPath), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();

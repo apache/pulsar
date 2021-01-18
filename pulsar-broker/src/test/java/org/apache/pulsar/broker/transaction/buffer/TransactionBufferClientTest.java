@@ -39,12 +39,14 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.testng.annotations.AfterClass;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
@@ -91,9 +93,9 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             Topic mockTopic = Mockito.mock(Topic.class);
-            Mockito.when(mockTopic.endTxn(Mockito.any(), Mockito.anyInt(), Mockito.anyList()))
+            Mockito.when(mockTopic.endTxn(any(), Mockito.anyInt(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(mockTopic.getSubscription(Mockito.any())).thenReturn(mockSubscription);
+            Mockito.when(mockTopic.getSubscription(any())).thenReturn(mockSubscription);
 
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap =
                     Mockito.mock(ConcurrentOpenHashMap.class);
@@ -112,7 +114,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.commitTxnOnTopic(topic, 1L, i, Collections.emptyList()));
+            futures.add(tbClient.commitTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
@@ -125,7 +127,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.abortTxnOnTopic(topic, 1L, i, Collections.emptyList()));
+            futures.add(tbClient.abortTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);

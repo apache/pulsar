@@ -66,7 +66,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1
+     * returns available msg-permit if msg-dispatch-throttling is enabled else it returns -1.
      *
      * @return
      */
@@ -143,13 +143,14 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * Update dispatch-throttling-rate. gives first priority to namespace-policy configured dispatch rate else applies
-     * default broker dispatch-throttling-rate
+     * Update dispatch-throttling-rate.
+     * Topic-level has the highest priority, then namespace-level, and finally use dispatch-throttling-rate in
+     * broker-level
      */
     public void updateDispatchRate() {
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (!dispatchRate.isPresent()) {
-            dispatchRate =Optional.ofNullable(getPoliciesDispatchRate(brokerService));
+            dispatchRate = Optional.ofNullable(getPoliciesDispatchRate(brokerService));
 
             if (!dispatchRate.isPresent()) {
                 dispatchRate = Optional.of(createDispatchRate());
@@ -188,6 +189,13 @@ public class DispatchRateLimiter {
                         dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
                                 .getTopicPolicies(TopicName.get(topicName)))
                                 .map(TopicPolicies::getSubscriptionDispatchRate);
+                        break;
+                    case REPLICATOR:
+                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
+                                .getTopicPolicies(TopicName.get(topicName)))
+                                .map(TopicPolicies::getReplicatorDispatchRate);
+                        break;
+                    default:
                         break;
                 }
             } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {

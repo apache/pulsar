@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -28,13 +27,11 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -90,6 +87,10 @@ public interface Topic {
         default long getOriginalHighestSequenceId() {
             return  -1L;
         }
+
+        default long getNumberOfMessages() {
+            return  1L;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
@@ -98,21 +99,26 @@ public interface Topic {
      * Tries to add a producer to the topic. Several validations will be performed.
      *
      * @param producer
+     * @param producerQueuedFuture
+     *            a future that will be triggered if the producer is being queued up prior of getting established
      * @return the "topic epoch" if there is one or empty
      */
-    CompletableFuture<Optional<Long>> addProducer(Producer producer);
+    CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture);
 
     void removeProducer(Producer producer);
 
     /**
-     * record add-latency
+     * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
+                                          int priorityLevel, String consumerName, boolean isDurable,
+                                          MessageId startMessageId,
+                                          Map<String, String> metadata, boolean readCompacted,
+                                          InitialPosition initialPosition,
+                                          long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
+                                          KeySharedMeta keySharedMeta);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -234,19 +240,11 @@ public interface Topic {
     /* ------ Transaction related ------ */
 
     /**
-     * Get the ${@link TransactionBuffer} of this Topic.
+     * Publish Transaction message to this Topic's TransactionBuffer.
      *
-     * @param createIfMissing Create the TransactionBuffer if missing.
-     * @return TransactionBuffer CompletableFuture
-     */
-    CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
-
-    /**
-     * Publish Transaction message to this Topic's TransactionBuffer
-     *
-     * @param txnID Transaction Id
+     * @param txnID             Transaction Id
      * @param headersAndPayload Message data
-     * @param publishContext Publish context
+     * @param publishContext    Publish context
      */
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
@@ -255,8 +253,9 @@ public interface Topic {
      *
      * @param txnID Transaction id
      * @param txnAction Transaction action.
+     * @param lowWaterMark low water mark of this tc
      * @return
      */
-    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList);
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark);
 
 }

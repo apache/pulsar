@@ -21,23 +21,23 @@ package org.apache.pulsar.broker.service.utils;
 import java.util.Queue;
 
 import org.apache.pulsar.common.protocol.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandSend;
+import org.apache.pulsar.common.api.proto.CommandSendError;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 
 import com.google.common.collect.Queues;
 
@@ -70,87 +70,87 @@ public class ClientChannelHelper {
 
         @Override
         protected void handleConnect(CommandConnect connect) {
-            queue.offer(CommandConnect.newBuilder(connect).build());
+            queue.offer(new CommandConnect().copyFrom(connect));
         }
 
         @Override
         protected void handleConnected(CommandConnected connected) {
-            queue.offer(CommandConnected.newBuilder(connected).build());
+            queue.offer(new CommandConnected().copyFrom(connected));
         }
 
         @Override
         protected void handleSubscribe(CommandSubscribe subscribe) {
-            queue.offer(CommandSubscribe.newBuilder(subscribe).build());
+            queue.offer(new CommandSubscribe().copyFrom(subscribe));
         }
 
         @Override
         protected void handleProducer(CommandProducer producer) {
-            queue.offer(CommandProducer.newBuilder(producer).build());
+            queue.offer(new CommandProducer().copyFrom(producer));
         }
 
         @Override
         protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
-            queue.offer(CommandSend.newBuilder(send).build());
+            queue.offer(new CommandSend().copyFrom(send));
         }
 
         @Override
         protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
-            queue.offer(CommandSendReceipt.newBuilder(sendReceipt).build());
+            queue.offer(new CommandSendReceipt().copyFrom(sendReceipt));
         }
 
         @Override
         protected void handleSendError(CommandSendError sendError) {
-            queue.offer(CommandSendError.newBuilder(sendError).build());
+            queue.offer(new CommandSendError().copyFrom(sendError));
         }
 
         @Override
         protected void handleMessage(CommandMessage cmdMessage, ByteBuf headersAndPayload) {
-            queue.offer(CommandMessage.newBuilder(cmdMessage).build());
+            queue.offer(new CommandMessage().copyFrom(cmdMessage));
         }
 
         @Override
         protected void handleAck(CommandAck ack) {
-            queue.offer(CommandAck.newBuilder(ack).build());
+            queue.offer(new CommandAck().copyFrom(ack));
         }
 
         @Override
         protected void handleFlow(CommandFlow flow) {
-            queue.offer(CommandFlow.newBuilder(flow).build());
+            queue.offer(new CommandFlow().copyFrom(flow));
         }
 
         @Override
         protected void handleUnsubscribe(CommandUnsubscribe unsubscribe) {
-            queue.offer(CommandUnsubscribe.newBuilder(unsubscribe));
+            queue.offer(new CommandUnsubscribe().copyFrom(unsubscribe));
         }
 
         @Override
         protected void handleSuccess(CommandSuccess success) {
-            queue.offer(CommandSuccess.newBuilder(success).build());
+            queue.offer(new CommandSuccess().copyFrom(success));
         }
 
         @Override
         protected void handleError(CommandError error) {
-            queue.offer(CommandError.newBuilder(error).build());
+            queue.offer(new CommandError().copyFrom(error));
         }
 
         @Override
         protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-            queue.offer(CommandCloseProducer.newBuilder(closeProducer).build());
+            queue.offer(new CommandCloseProducer().copyFrom(closeProducer));
         }
 
         @Override
         protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
-            queue.offer(CommandCloseConsumer.newBuilder(closeConsumer).build());
+            queue.offer(new CommandCloseConsumer().copyFrom(closeConsumer));
         }
 
         @Override
         protected void handleProducerSuccess(CommandProducerSuccess success) {
-            queue.offer(CommandProducerSuccess.newBuilder(success).build());
+            queue.offer(new CommandProducerSuccess().copyFrom(success));
         }
 
         @Override
         protected void handleLookupResponse(CommandLookupTopicResponse connection) {
-            queue.offer(CommandLookupTopicResponse.newBuilder(connection).build());
+            queue.offer(new CommandLookupTopicResponse().copyFrom(connection));
         }
     };
 

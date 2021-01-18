@@ -137,4 +137,9 @@ public class PulsarClusterSpec {
      * Specify envs for proxy.
      */
     Map<String, String> proxyEnvs;
+
+    /**
+     * Specify envs for broker.
+     */
+    Map<String, String> brokerEnvs;
 }

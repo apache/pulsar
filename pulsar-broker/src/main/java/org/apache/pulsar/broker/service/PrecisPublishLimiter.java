@@ -78,7 +78,8 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
             if (this.publishMaxMessageRate > 0) {
-                topicPublishRateLimiterOnMessage = new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, rateLimitFunction);
+                topicPublishRateLimiterOnMessage =
+                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, rateLimitFunction);
             }
             if (this.publishMaxByteRate > 0) {
                 topicPublishRateLimiterOnByte = new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS);
@@ -94,7 +95,7 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
 
     @Override
     public boolean tryAcquire(int numbers, long bytes) {
-        return (topicPublishRateLimiterOnMessage == null || topicPublishRateLimiterOnMessage.tryAcquire(numbers)) &&
-                (topicPublishRateLimiterOnByte == null || topicPublishRateLimiterOnByte.tryAcquire(bytes));
+        return (topicPublishRateLimiterOnMessage == null || topicPublishRateLimiterOnMessage.tryAcquire(numbers))
+                && (topicPublishRateLimiterOnByte == null || topicPublishRateLimiterOnByte.tryAcquire(bytes));
     }
 }

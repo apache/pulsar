@@ -45,8 +45,8 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +71,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription);
 
-        this.allowOutOfOrderDelivery = ksm.getAllowOutOfOrderDelivery();
+        this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
@@ -133,12 +133,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
-    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries = new FastThreadLocal<Map<Consumer, List<Entry>>>() {
-        @Override
-        protected Map<Consumer, List<Entry>> initialValue() throws Exception {
-            return new HashMap<>();
-        }
-    };
+    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries =
+            new FastThreadLocal<Map<Consumer, List<Entry>>>() {
+                @Override
+                protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
 
     @Override
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
@@ -174,9 +175,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            final int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
+            final int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
-            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC, readType);
+            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey,
+                    maxMessagesForC, readType);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
                         name, consumer.consumerName(), messagesForC, readType);
@@ -208,15 +210,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                         readType == ReadType.Replay);
 
-                consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
+                        sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker()).addListener(future -> {
-                            if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
-                                readMoreEntries();
-                            }
-                        });
+                    if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
+                        readMoreEntries();
+                    }
+                });
 
-                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
+                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             }
@@ -253,12 +257,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 isDispatcherStuckOnReplays = true;
                 stuckConsumers.addAll(nextStuckConsumers);
             }
-            // readMoreEntries should run regardless whether or not stuck is caused by stuckConsumers for avoid stopping dispatch.
+            // readMoreEntries should run regardless whether or not stuck is caused by
+            // stuckConsumers for avoid stopping dispatch.
             readMoreEntries();
         }
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages, ReadType readType) {
+    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries,
+                                                   int maxMessages, ReadType readType) {
         if (maxMessages == 0) {
             // the consumer was stuck
             nextStuckConsumers.add(consumer);
@@ -287,15 +293,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // For example, we have 10 messages [0,1,2,3,4,5,6,7,8,9]
         // If the consumer0 get message 0 and 1, and does not acked message 0, then consumer1 joined,
         // when consumer1 get message 2,3, the broker will not dispatch messages to consumer1
-        // because of the mark delete position did not move forward. So message 2,3 will stored in the redeliver tracker.
-        // Now, consumer2 joined, it will read new messages from the cursor, so the recentJoinedPosition is 4 for consumer2
+        // because of the mark delete position did not move forward.
+        // So message 2,3 will stored in the redeliver tracker.
+        // Now, consumer2 joined, it will read new messages from the cursor,
+        // so the recentJoinedPosition is 4 for consumer2
         // Because of there are messages need to redeliver, so the broker will read the redelivery message first [2,3]
-        // message [2,3] is lower than the recentJoinedPosition 4, so the message [2,3] will dispatched to the consumer2
+        // message [2,3] is lower than the recentJoinedPosition 4,
+        // so the message [2,3] will dispatched to the consumer2
         // But the message [2,3] should not dispatch to consumer2.
 
         if (readType == ReadType.Replay) {
             PositionImpl minReadPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
-            if (minReadPositionForRecentJoinedConsumer != null && minReadPositionForRecentJoinedConsumer.compareTo(maxReadPosition) < 0) {
+            if (minReadPositionForRecentJoinedConsumer != null
+                    && minReadPositionForRecentJoinedConsumer.compareTo(maxReadPosition) < 0) {
                 maxReadPosition = minReadPositionForRecentJoinedConsumer;
             }
         }
@@ -327,7 +337,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
         if (mdp != null) {
-            PositionImpl nextPositionOfTheMarkDeletePosition = ((ManagedLedgerImpl)cursor.getManagedLedger()).getNextValidPosition(mdp);
+            PositionImpl nextPositionOfTheMarkDeletePosition =
+                    ((ManagedLedgerImpl) cursor.getManagedLedger()).getNextValidPosition(mdp);
             while (itr.hasNext()) {
                 Map.Entry<Consumer, PositionImpl> entry = itr.next();
                 if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {

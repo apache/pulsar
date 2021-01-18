@@ -42,9 +42,9 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -56,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents a currently connected producer
+ * Represents a currently connected producer.
  */
 public class Producer {
     private final Topic topic;
@@ -185,7 +185,8 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.execute(() -> {
-                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError,
+                        "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
@@ -197,7 +198,6 @@ public class Producer {
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
             int encryptionKeysCount = msgMetadata.getEncryptionKeysCount();
-            msgMetadata.recycle();
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
@@ -216,13 +216,16 @@ public class Producer {
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, sequenceId, msgIn,
+                        headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize, boolean isChunked) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
+                                       long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, lowestSequenceId,
+                        highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
@@ -280,7 +283,8 @@ public class Producer {
     }
 
     /**
-     * Return the sequence id of
+     * Return the sequence id of.
+     *
      * @return the sequence id
      */
     public long getLastSequenceId() {
@@ -361,7 +365,7 @@ public class Producer {
         }
 
         /**
-         * Executed from managed ledger thread when the message is persisted
+         * Executed from managed ledger thread when the message is persisted.
          */
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
@@ -405,7 +409,7 @@ public class Producer {
         }
 
         /**
-         * Executed from I/O thread when sending receipt back to client
+         * Executed from I/O thread when sending receipt back to client.
          */
         @Override
         public void run() {
@@ -456,6 +460,11 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             return callback;
+        }
+
+        @Override
+        public long getNumberOfMessages() {
+            return batchSize;
         }
 
         private final Handle<MessagePublishContext> recyclerHandle;
@@ -576,7 +585,10 @@ public class Producer {
             msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
+    }
 
+    public void updateRates(int numOfMessages, long msgSizeInBytes) {
+        msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {

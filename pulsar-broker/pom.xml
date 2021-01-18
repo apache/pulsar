@@ -60,12 +60,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>protobuf-shaded</artifactId>
-      <version>${pulsar.protobuf.shaded.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>
@@ -445,7 +439,7 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.7</version>
             <configuration>
               <apiSources>
                 <apiSource>
@@ -515,6 +509,23 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swaggersink</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Packages</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Packages REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Packages operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerpackages</swaggerFileName>
                 </apiSource>
               </apiSources>
             </configuration>

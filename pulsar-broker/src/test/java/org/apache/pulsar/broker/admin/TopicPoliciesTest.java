@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -51,6 +52,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -472,7 +475,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
-                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getMaxProducersPerTopic(myNamespace), 3));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getMaxProducersPerTopic(myNamespace).intValue(), 3));
 
         log.info("MaxProducers: {} will set to the namespace: {}", 3, myNamespace);
         try {
@@ -633,6 +636,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         String subscriptionName = "test_subscription_rate";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName).topic(topic).subscribe();
+
+        DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
+                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+        Assert.assertNotNull(dispatchRateLimiter);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.dispatchThrottlingRateInByte);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.dispatchThrottlingRateInMsg);
+
+        consumer.close();
+        admin.topics().delete(topic, true);
+    }
+
+    @Test
+    public void testGetSetSubscriptionDispatchRateAfterTopicLoaded() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+
+        DispatchRate dispatchRate = new DispatchRate(1000,
+                1024 * 1024, 1);
+        log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
+
+        String subscriptionName = "test_subscription_rate";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName).topic(topic).subscribe();
+
+        admin.topics().setSubscriptionDispatchRate(topic, dispatchRate);
+        log.info("Subscription dispatch rate set success on topic: {}", topic);
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getSubscriptionDispatchRate(topic), dispatchRate));
 
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
@@ -1243,4 +1277,135 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNotNull(messageId);
         producer.close();
     }
+
+    @Test(timeOut = 20000)
+    public void testMaxSubscriptionsPerTopicApi() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+
+        assertNull(admin.topics().getMaxSubscriptionsPerTopic(topic));
+        // set max subscriptions
+        admin.topics().setMaxSubscriptionsPerTopic(topic, 10);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        assertEquals(admin.topics().getMaxSubscriptionsPerTopic(topic).intValue(), 10);
+        // remove max subscriptions
+        admin.topics().removeMaxSubscriptionsPerTopic(topic);
+        assertNull(admin.topics().getMaxSubscriptionsPerTopic(topic));
+        // set invalidate value
+        try {
+            admin.topics().setMaxMessageSize(topic, -1);
+            fail("should fail");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 412);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testMaxSubscriptionsPerTopic() throws Exception {
+        int brokerLevelMaxSub = 4;
+        conf.setMaxSubscriptionsPerTopic(4);
+        restartBroker();
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        // Set topic-level max subscriptions
+        final int topicLevelMaxSubNum = 2;
+        admin.topics().setMaxSubscriptionsPerTopic(topic, topicLevelMaxSubNum);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+
+        List<Consumer<String>> consumerList = new ArrayList<>();
+        for (int i = 0; i < topicLevelMaxSubNum; i++) {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe();
+            consumerList.add(consumer);
+        }
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            consumerList.add(client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), topicLevelMaxSubNum);
+        }
+        // Set namespace-level policy, but will not take effect
+        final int namespaceLevelMaxSub = 3;
+        admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, namespaceLevelMaxSub);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
+        field.setAccessible(true);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> (int) field.get(persistentTopic) == namespaceLevelMaxSub);
+
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe();
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), topicLevelMaxSubNum);
+        }
+        //Removed topic-level policy, namespace-level should take effect
+        admin.topics().removeMaxSubscriptionsPerTopic(topic);
+        consumerList.add(pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
+        assertEquals(consumerList.size(), namespaceLevelMaxSub);
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            consumerList.add(client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), namespaceLevelMaxSub);
+        }
+        //Removed namespace-level policy, broker-level should take effect
+        admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> field.get(persistentTopic) == null);
+        consumerList.add(pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
+        assertEquals(consumerList.size(), brokerLevelMaxSub);
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            consumerList.add(client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), brokerLevelMaxSub);
+        }
+        //Clean up
+        for (Consumer<String> c : consumerList) {
+            c.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicatorRateApi() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+
+        assertNull(admin.topics().getReplicatorDispatchRate(topic));
+
+        DispatchRate dispatchRate = new DispatchRate(100,200L,10);
+        admin.topics().setReplicatorDispatchRate(topic, dispatchRate);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.topics().getReplicatorDispatchRate(topic), dispatchRate));
+
+        admin.topics().removeReplicatorDispatchRate(topic);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.topics().getReplicatorDispatchRate(topic)));
+    }
+
 }

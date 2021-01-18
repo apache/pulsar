@@ -23,18 +23,22 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -171,7 +175,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
                 .startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg = null;
@@ -645,9 +650,11 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleReaderReachEndOfTopic() throws Exception {
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
                 .startMessageId(MessageId.earliest).create();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
                 .create();
 
         // no data write, should return false
@@ -850,7 +857,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertFalse(reader.hasMessageAvailable());
         }
 
@@ -859,7 +866,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
         }
 
@@ -867,7 +874,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());
@@ -886,7 +893,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub2").subscribe().close();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertFalse(reader.hasMessageAvailable());
         }
 
@@ -895,7 +902,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
         }
 
@@ -909,7 +916,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         });
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-            .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());

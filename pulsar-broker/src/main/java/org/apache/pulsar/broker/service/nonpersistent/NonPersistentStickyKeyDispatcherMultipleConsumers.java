@@ -30,7 +30,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
@@ -65,12 +65,13 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         return SubType.Key_Shared;
     }
 
-    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries = new FastThreadLocal<Map<Consumer, List<Entry>>>() {
-        @Override
-        protected Map<Consumer, List<Entry>> initialValue() throws Exception {
-            return new HashMap<>();
-        }
-    };
+    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries =
+            new FastThreadLocal<Map<Consumer, List<Entry>>>() {
+                @Override
+                protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
 
     @Override
     public void sendMessages(List<Entry> entries) {
