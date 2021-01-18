@@ -22,7 +22,6 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -136,7 +135,7 @@ public interface TransactionCoordinatorClient extends Closeable {
      * @param txnID transaction id
      * @param topic topic name
      * @param subscription subscription name
-     * @throws TransactionCoordinatorClientException
+     * @throws TransactionCoordinatorClientException while transaction is conflict
      */
     void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
             throws TransactionCoordinatorClientException;
@@ -147,7 +146,7 @@ public interface TransactionCoordinatorClient extends Closeable {
      * @param txnID transaction id
      * @param topic topic name
      * @param subscription subscription name
-     * @return
+     * @return the future of the result
      */
     CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription);
 
@@ -155,27 +154,27 @@ public interface TransactionCoordinatorClient extends Closeable {
      * Commit txn.
      * @param txnID txn id to commit.
      */
-    void commit(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
+    void commit(TxnID txnID) throws TransactionCoordinatorClientException;
 
     /**
      * Commit txn asynchronously.
      * @param txnID txn id to commit.
      * @return a future represents the result of commit txn.
      */
-    CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> messageIdList);
+    CompletableFuture<Void> commitAsync(TxnID txnID);
 
     /**
      * Abort txn.
      * @param txnID txn id to abort.
      */
-    void abort(TxnID txnID, List<MessageId> messageIdList) throws TransactionCoordinatorClientException;
+    void abort(TxnID txnID) throws TransactionCoordinatorClientException;
 
     /**
      * Abort txn asynchronously.
      * @param txnID txn id to abort.
      * @return a future represents the result of abort txn.
      */
-    CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> messageIdList);
+    CompletableFuture<Void> abortAsync(TxnID txnID);
 
     /**
      * Get current state of the transaction meta store.

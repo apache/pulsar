@@ -21,9 +21,11 @@ package org.apache.pulsar.transaction.coordinator.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -60,6 +62,7 @@ public class MLTransactionMetadataStore
     private final MLTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
     private final ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentHashMap<>();
+    private final ConcurrentSkipListSet<Long> txnIdSortedSet = new ConcurrentSkipListSet<>();
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog) {
@@ -98,6 +101,7 @@ public class MLTransactionMetadataStore
                                 List<Position> positions = new ArrayList<>();
                                 positions.add(position);
                                 txnMetaMap.put(txnID, MutablePair.of(TxnMetaImpl.create(txnID), positions));
+                                txnIdSortedSet.add(transactionMetadataEntry.getTxnidLeastBits());
                             }
                             break;
                         case ADD_PARTITION:
@@ -127,6 +131,7 @@ public class MLTransactionMetadataStore
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                     transactionLog.deletePosition(txnMetaMap.get(txnID).getRight()).thenAccept(v -> {
                                         TxnMeta txnMeta = txnMetaMap.remove(txnID).getLeft();
+                                        txnIdSortedSet.remove(transactionMetadataEntry.getTxnidLeastBits());
                                         ((TxnMetaImpl) txnMeta).recycle();
                                     });
                                 } else {
@@ -192,6 +197,7 @@ public class MLTransactionMetadataStore
                     positions.add(position);
                     Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
                     txnMetaMap.put(txnID, pair);
+                    this.txnIdSortedSet.add(leastSigBits);
                     return CompletableFuture.completedFuture(txnID);
                 });
     }
@@ -285,6 +291,7 @@ public class MLTransactionMetadataStore
                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                         return transactionLog.deletePosition(txnMetaListPair.getRight()).thenCompose(v -> {
                             txnMetaMap.remove(txnID);
+                            txnIdSortedSet.remove(txnID.getLeastSigBits());
                             ((TxnMetaImpl) txnMetaListPair.getLeft()).recycle();
                             return CompletableFuture.completedFuture(null);
                         });
@@ -299,6 +306,15 @@ public class MLTransactionMetadataStore
                 }
             });
         });
+    }
+
+    @Override
+    public long getLowWaterMark() {
+        try {
+            return this.txnIdSortedSet.first() - 1;
+        } catch (NoSuchElementException e) {
+            return 0L;
+        }
     }
 
     @Override
