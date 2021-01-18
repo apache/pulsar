@@ -34,7 +34,6 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -1790,11 +1789,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
         service.pulsar().getTransactionMetadataStoreService()
-                .endTransaction(txnID, txnAction, command.getMessageIdsList())
-                .thenRun(() -> {
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                }).exceptionally(throwable -> {
+                .endTransaction(txnID, txnAction)
+                .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                        txnID.getLeastSigBits(), txnID.getMostSigBits()))).exceptionally(throwable -> {
                     log.error("Send response error for end txn request.", throwable);
                     ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
                             BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
@@ -1805,7 +1802,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleEndTxnOnPartition(CommandEndTxnOnPartition command) {
         final long requestId = command.getRequestId();
         final String topic = command.getTopic();
-        final List<MessageIdData> messageIdDataList = command.getMessageIdsList();
         final int txnAction = command.getTxnAction().getValue();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
@@ -1816,7 +1812,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         "Topic " + topic + " is not found."));
                 return;
             }
-            optionalTopic.get().endTxn(txnID, txnAction, messageIdDataList)
+            optionalTopic.get().endTxn(txnID, txnAction, command.getTxnidLeastBitsOfLowWatermark())
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle endTxnOnPartition {} failed.", topic, throwable);

@@ -164,7 +164,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final DeadLetterPolicy deadLetterPolicy;
 
-    private Producer<T> deadLetterProducer;
+    private volatile Producer<T> deadLetterProducer;
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
@@ -605,8 +605,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                    processPossibleToDLQ((MessageIdImpl)messageId);
                     if (deadLetterProducer == null) {
                         try {
+                            createProducerLock.writeLock().lock();
                             if (deadLetterProducer == null) {
-                                createProducerLock.writeLock().lock();
                                 deadLetterProducer = client.newProducer(schema)
                                         .topic(this.deadLetterPolicy
                                         .getDeadLetterTopic())
@@ -615,9 +615,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             }
                         } catch (Exception e) {
                            log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
-                       } finally {
+                        } finally {
                            createProducerLock.writeLock().unlock();
-                       }
+                        }
                    }
                    if (deadLetterProducer != null) {
                        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
@@ -1670,12 +1670,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (deadLetterMessages != null) {
             if (deadLetterProducer == null) {
                 try {
-                    deadLetterProducer = client.newProducer(schema)
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .create();
+                    createProducerLock.writeLock().lock();
+                    if (deadLetterProducer == null) {
+                        deadLetterProducer = client.newProducer(schema)
+                                .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                .blockIfQueueFull(false)
+                                .create();
+                    }
                 } catch (Exception e) {
                     log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+                } finally {
+                    createProducerLock.writeLock().unlock();
                 }
             }
             if (deadLetterProducer != null) {
