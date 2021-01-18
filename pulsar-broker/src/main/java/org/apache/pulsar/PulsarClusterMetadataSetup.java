@@ -32,6 +32,7 @@ import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
@@ -141,6 +143,18 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
+    private static void initialDlogNamespaceMetadata(String configurationStore, String bkMetadataServiceUri)
+            throws IOException {
+        InternalConfigurationData internalConf = new InternalConfigurationData(
+                configurationStore,
+                configurationStore,
+                null,
+                bkMetadataServiceUri,
+                null
+        );
+        WorkerUtils.initializeDlogNamespace(internalConf);
+    }
+
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
@@ -195,15 +209,20 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
+
+        String uriStr = bkConf.getMetadataServiceUri();
+        if (arguments.existingBkMetadataServiceUri != null) {
+            uriStr = arguments.existingBkMetadataServiceUri;
+        } else if (arguments.bookieMetadataServiceUri != null) {
+            uriStr = arguments.bookieMetadataServiceUri;
+        }
+        ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
+
+        // initial distributed log metadata
+        initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
+
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            String uriStr = bkConf.getMetadataServiceUri();
-            if (arguments.existingBkMetadataServiceUri != null) {
-                uriStr = arguments.existingBkMetadataServiceUri;
-            } else if (arguments.bookieMetadataServiceUri != null) {
-                uriStr = arguments.bookieMetadataServiceUri;
-            }
-            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }

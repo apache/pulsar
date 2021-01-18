@@ -77,6 +77,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -87,15 +88,12 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -2966,31 +2964,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
-        Builder metadataBuilder = MessageMetadata.newBuilder();
-        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();
-        encKeyBuilder.setKey(encryptionKeyName);
-        ByteString keyValue = ByteString.copyFrom(dataKey);
-        encKeyBuilder.setValue(keyValue);
-        EncryptionKeys encKey = encKeyBuilder.build();
-        metadataBuilder.setEncryptionParam(ByteString.copyFrom(encrParam));
-        metadataBuilder.setEncryptionAlgo(encAlgo);
-        metadataBuilder.setProducerName("test");
-        metadataBuilder.setSequenceId(123);
-        metadataBuilder.setPublishTime(12333453454L);
-        metadataBuilder.addEncryptionKeys(encKey);
-        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
-        metadataBuilder.setUncompressedSize(uncompressedSize);
-        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
+
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setEncryptionParam(encrParam)
+                .setProducerName("test")
+                .setSequenceId(123)
+                .setPublishTime(12333453454L)
+                .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
+                .setUncompressedSize(uncompressedSize);
+        messageMetadata.addEncryptionKey()
+                .setKey(encryptionKeyName)
+                .setValue(dataKey);
+        if (encAlgo != null) {
+            messageMetadata.setEncryptionAlgo(encAlgo);
+        }
+
+        ByteBuf decryptedPayload = crypto.decrypt(() -> messageMetadata, payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
 
         if (batchSize > 0) {
-            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                    .newBuilder();
+            SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                    singleMessageMetadataBuilder, 0, batchSize);
+                    singleMessageMetadata, 0, batchSize);
         }
 
         byte[] data = new byte[uncompressedPayload.readableBytes()];
@@ -3694,5 +3692,55 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
+    }
+
+    @DataProvider(name = "partitioned")
+    public static Object[] isPartitioned() {
+        return new Object[] {false, true};
+    }
+
+    @Test(dataProvider = "partitioned")
+    public void testIncomingMessageSize(boolean isPartitioned) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        if (isPartitioned) {
+            admin.topics().createPartitionedTopic(topicName, 3);
+        }
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        final int messages = 100;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
     }
 }

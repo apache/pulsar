@@ -119,8 +119,13 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
                         result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(streamConf)
-                            .build()));
+                                .setDefaultStreamConf(streamConf)
+                                .build()));
+                    } catch (Exception e) {
+                        // there might be two clients conflicting at creating table, so let's retrieve the table again
+                        // to make sure the table is created.
+                    }
+                    try {
                         result(storageAdminClient.createStream(tableNs, tableName, streamConf));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again

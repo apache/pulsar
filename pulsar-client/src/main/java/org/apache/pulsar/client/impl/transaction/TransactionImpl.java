@@ -128,16 +128,12 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
                 abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
             } else {
-                for (CompletableFuture<MessageId> future : sendFutureList) {
-                    future.thenAccept(sendMessageIdList::add);
-                }
-                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList)
+                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                         .whenComplete((vx, ex) -> {
                     if (ex != null) {
                         commitFuture.completeExceptionally(ex);
@@ -152,21 +148,17 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
                 log.error(e.getMessage());
-            }
-            for (CompletableFuture<MessageId> future : sendFutureList) {
-                future.thenAccept(sendMessageIdList::add);
             }
             if (cumulativeAckConsumers != null) {
                 cumulativeAckConsumers.forEach((consumer, integer) ->
                         cumulativeAckConsumers
                                 .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
             }
-            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList).whenComplete((vx, ex) -> {
+            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                 if (cumulativeAckConsumers != null) {
                     cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
                     cumulativeAckConsumers.clear();

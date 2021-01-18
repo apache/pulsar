@@ -251,9 +251,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // prepare client and server side resource
         AuthenticationDataProvider dataProvider =  authSasl.getAuthData(hostName);
-        AuthenticationProviderSasl saslServer  = (AuthenticationProviderSasl)
+        AuthenticationProviderList providerList = (AuthenticationProviderList)
             (pulsar.getBrokerService().getAuthenticationService()
                 .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME));
+        AuthenticationProviderSasl saslServer =
+            (AuthenticationProviderSasl) providerList.getProviders().get(0);
         AuthenticationState authState = saslServer.newAuthState(null, null, null);
 
         // auth between server and client.

@@ -100,10 +100,10 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                 getDockerClient(),
-                containerId,
+                getContainerId(),
                 "/var/log/pulsar"
             );
         }
@@ -149,7 +149,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         beforeStart();
         super.start();
         afterStart();
-        log.info("Start pulsar service {} at container {}", serviceName, containerName);
+        log.info("Start pulsar service {} at container {}", serviceName, getContainerId());
     }
 
     @Override
@@ -159,13 +159,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
 
         PulsarContainer another = (PulsarContainer) o;
-        return containerName.equals(another.containerName)
+        return getContainerId().equals(another.getContainerId())
             && super.equals(another);
     }
 
     @Override
     public int hashCode() {
         return 31 * super.hashCode() + Objects.hash(
-            containerName);
+                getContainerId());
     }
 }

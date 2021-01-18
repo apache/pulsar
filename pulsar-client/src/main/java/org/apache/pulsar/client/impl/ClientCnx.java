@@ -37,7 +37,8 @@ import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -62,30 +63,35 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.CommandSendError;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
@@ -123,7 +129,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+    private static int maxMessageSize = Commpulsar-client/src/main/java/org/apache/pulsar/client/impl/ClientCnx.javaands.DEFAULT_MAX_MESSAGE_SIZE;
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
@@ -333,7 +339,7 @@ public class ClientCnx extends PulsarHandler {
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         try {
             AuthData authData = authenticationDataProvider
-                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray()));
+                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
 
             checkState(!authData.isComplete());
 
@@ -422,7 +428,14 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), cmdMessage.getAckSetList(), headersAndPayload, this);
+            List<Long> ackSets = Collections.emptyList();
+            if (cmdMessage.getAckSetsCount() > 0) {
+                ackSets = new ArrayList<>(cmdMessage.getAckSetsCount());
+                for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
+                    ackSets.add(cmdMessage.getAckSetAt(i));
+                }
+            }
+            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), ackSets, headersAndPayload, this);
         }
     }
 
@@ -435,7 +448,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(change.getConsumerId());
         if (consumer != null) {
-            consumer.activeConsumerChanged(change.getIsActive());
+            consumer.activeConsumerChanged(change.isIsActive());
         }
     }
 
@@ -480,7 +493,7 @@ public class ClientCnx extends PulsarHandler {
                     success.getRequestId(), success.getProducerName());
         }
         long requestId = success.getRequestId();
-        if (!success.getProducerReady()) {
+        if (!success.isProducerReady()) {
             // We got a success operation but the producer is not ready. This means that the producer has been queued up
             // in broker. We need to leave the future pending until we get the final confirmation. We just mark that
             // we have received a response, in order to avoid the timeout.
@@ -497,7 +510,7 @@ public class ClientCnx extends PulsarHandler {
         if (requestFuture != null) {
             ProducerResponse pr = new ProducerResponse(success.getProducerName(),
                     success.getLastSequenceId(),
-                    success.getSchemaVersion().toByteArray(),
+                    success.getSchemaVersion(),
                     success.hasTopicEpoch() ? Optional.of(success.getTopicEpoch()) : Optional.empty());
             requestFuture.complete(pr);
         } else {
@@ -746,7 +759,10 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(state == State.Ready);
 
         long requestId = success.getRequestId();
-        List<String> topics = success.getTopicsList();
+        List<String> topics = new ArrayList<String>(success.getTopicsCount());
+        for (int i = 0; i < success.getTopicsCount(); i++) {
+            topics.add(success.getTopicAt(i));
+        }
 
         if (log.isDebugEnabled()) {
             log.debug("{} Received get topics of namespace success response from server: {} - topics.size: {}",
@@ -866,13 +882,13 @@ public class ClientCnx extends PulsarHandler {
                             rc, response.getErrorMessage()));
                 }
             } else {
-                return CompletableFuture.completedFuture(response.getSchemaVersion().toByteArray());
+                return CompletableFuture.completedFuture(response.getSchemaVersion());
             }
         });
     }
 
     @Override
-    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse command) {
+    protected void handleNewTxnResponse(CommandNewTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
             handler.handleNewTxnResponse(command);
@@ -880,7 +896,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAddPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse command) {
+    protected void handleAddPartitionToTxnResponse(CommandAddPartitionToTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
             handler.handleAddPublishPartitionToTxnResponse(command);
@@ -888,7 +904,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAddSubscriptionToTxnResponse(PulsarApi.CommandAddSubscriptionToTxnResponse command) {
+    protected void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
             handler.handleAddSubscriptionToTxnResponse(command);
@@ -896,7 +912,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleEndTxnOnPartitionResponse(PulsarApi.CommandEndTxnOnPartitionResponse command) {
+    protected void handleEndTxnOnPartitionResponse(CommandEndTxnOnPartitionResponse command) {
         log.info("handleEndTxnOnPartitionResponse");
         TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
         if (handler != null) {
@@ -905,7 +921,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleEndTxnOnSubscriptionResponse(PulsarApi.CommandEndTxnOnSubscriptionResponse command) {
+    protected void handleEndTxnOnSubscriptionResponse(CommandEndTxnOnSubscriptionResponse command) {
         TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
         if (handler != null) {
             handler.handleEndTxnOnSubscriptionResponse(command.getRequestId(), command);
@@ -913,7 +929,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
+    protected void handleEndTxnResponse(CommandEndTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
             handler.handleEndTxnResponse(command);

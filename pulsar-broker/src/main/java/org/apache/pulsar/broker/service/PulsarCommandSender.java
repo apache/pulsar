@@ -18,23 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
+
 import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 public interface PulsarCommandSender {
 
-    void sendPartitionMetadataResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
+    void sendPartitionMetadataResponse(ServerError error, String errorMsg, long requestId);
 
     void sendPartitionMetadataResponse(int partitions, long requestId);
 
     void sendSuccessResponse(long requestId);
 
-    void sendErrorResponse(long requestId, PulsarApi.ServerError error, String message);
+    void sendErrorResponse(long requestId, ServerError error, String message);
 
     void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
@@ -45,35 +47,36 @@ public interface PulsarCommandSender {
     void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
                                  long entryId);
 
-    void sendSendError(long producerId, long sequenceId, PulsarApi.ServerError error, String errorMsg);
+    void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
     void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
-    void sendGetSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage);
+    void sendGetSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
     void sendGetOrCreateSchemaResponse(long requestId, SchemaVersion schemaVersion);
 
-    void sendGetOrCreateSchemaErrorResponse(long requestId, PulsarApi.ServerError error, String errorMessage);
+    void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
     void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                            PulsarApi.CommandLookupTopicResponse.LookupType response, long requestId,
+                            CommandLookupTopicResponse.LookupType response, long requestId,
                             boolean proxyThroughServiceUrl);
 
-    void sendLookupResponse(PulsarApi.ServerError error, String errorMsg, long requestId);
+    void sendLookupResponse(ServerError error, String errorMsg, long requestId);
 
     void sendActiveConsumerChange(long consumerId, boolean isActive);
 
     void sendSuccess(long requestId);
 
-    void sendError(long requestId, PulsarApi.ServerError error, String message);
+    void sendError(long requestId, ServerError error, String message);
 
     void sendReachedEndOfTopic(long consumerId);
 
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
             int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
             RedeliveryTracker redeliveryTracker);
+
 }

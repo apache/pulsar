@@ -30,7 +30,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 

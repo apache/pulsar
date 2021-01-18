@@ -47,7 +47,8 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -320,6 +321,9 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
         } catch (RestException re) {
+            if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
+                throw new RestException(Status.NOT_FOUND, "Namespace not found");
+            }
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
         } catch (Exception e) {
             log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
@@ -371,6 +375,26 @@ public abstract class AdminResource extends PulsarWebResource {
             }
         } catch (InterruptedException | ExecutionException e) {
             log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}",
+                    domain(), tenant, namespace, topicName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
+        }
+    }
+
+    protected void validateTopicExistedAndCheckAllowAutoCreation(String tenant, String namespace,
+                                                                 String encodedTopic, boolean checkAllowAutoCreation) {
+        try {
+            PartitionedTopicMetadata partitionedTopicMetadata =
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
+            if (partitionedTopicMetadata.partitions < 1) {
+                if (!pulsar().getNamespaceService().checkTopicExists(topicName).get()
+                        && checkAllowAutoCreation
+                        && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
+                    throw new RestException(Status.NOT_FOUND,
+                            new PulsarClientException.NotFoundException("Topic not exist"));
+                }
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Failed to validate topic existed {}://{}/{}/{}",
                     domain(), tenant, namespace, topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
@@ -473,9 +497,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
 
         final ServiceConfiguration config = pulsar().getConfiguration();
-        if (policies.max_producers_per_topic < 1) {
-            policies.max_producers_per_topic = config.getMaxProducersPerTopic();
-        }
 
         if (policies.max_consumers_per_topic < 1) {
             policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
@@ -794,7 +815,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             String topicPartitionPath = joinPath(MANAGED_LEDGER_PATH_ZNODE,
                     namespaceName.toString(), topicDomain.value());
-            List<String> topics = globalZk().getChildren(topicPartitionPath, false);
+            List<String> topics = localZk().getChildren(topicPartitionPath, false);
             topicPartitions = topics.stream()
                     .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
                     .collect(Collectors.toList());
@@ -811,9 +832,25 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
-        final int maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
-        if (maxTopicsPerNamespace > 0) {
-            try {
+        Integer maxTopicsPerNamespace = null;
+
+        try {
+            Policies policies = getNamespacePolicies(namespaceName);
+            maxTopicsPerNamespace = policies.max_topics_per_namespace;
+        } catch (RestException e) {
+            if (e.getResponse().getStatus() != Status.NOT_FOUND.getStatusCode()) {
+                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+
+        try {
+            if (maxTopicsPerNamespace == null) {
+                maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
+            }
+
+            if (maxTopicsPerNamespace > 0) {
                 List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
                 if (partitionedTopics.size() + numPartitions > maxTopicsPerNamespace) {
                     log.error("[{}] Failed to create partitioned topic {}, "
@@ -822,11 +859,11 @@ public abstract class AdminResource extends PulsarWebResource {
                             "Exceed maximum number of topics in namespace."));
                     return;
                 }
-            } catch (Exception e) {
-                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
             }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
         }
 
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -920,7 +957,7 @@ public abstract class AdminResource extends PulsarWebResource {
      */
     protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
         return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
-                PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                CommandGetTopicsOfNamespace.Mode.ALL)
                 .thenCompose(topics -> {
                     boolean exists = false;
                     for (String topic : topics) {

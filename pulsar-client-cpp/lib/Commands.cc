@@ -108,7 +108,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +118,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;

@@ -53,8 +53,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -487,9 +486,8 @@ public class MessageIdTest extends BrokerTestBase {
 
         TypedMessageBuilderImpl<byte[]> msg2 = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg2.getContent());
-        Builder metadataBuilder = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
-        MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
-                .build();
+        MessageMetadata msgMetadata = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
+        msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L);
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         // (a) create OpSendMsg with message-data : "message-1"
         OpSendMsg op = OpSendMsg.create(((MessageImpl<byte[]>) msg2.getMessage()), cmd, 1, null);
