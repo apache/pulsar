@@ -123,7 +123,8 @@
       "admin-api-namespaces",
       "admin-api-permissions",
       "admin-api-topics",
-      "admin-api-functions"
+      "admin-api-functions",
+      "admin-api-packages"
     ],
     "Adaptors": [
       "adaptors-kafka",
@@ -143,12 +144,12 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager",
-      "develop-cpp"
+      "develop-load-manager"
     ],
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
+      "pulsar-admin",
       "reference-configuration",
       "reference-metrics"
     ]

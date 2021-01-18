@@ -21,7 +21,6 @@ package org.apache.pulsar.common.compression;
 import java.util.EnumMap;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
  * Provider of compression codecs used in Pulsar.
@@ -34,18 +33,18 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
  */
 @UtilityClass
 public class CompressionCodecProvider {
-    private static final EnumMap<PulsarApi.CompressionType, CompressionCodec> codecs;
+    private static final EnumMap<org.apache.pulsar.common.api.proto.CompressionType, CompressionCodec> codecs;
 
     static {
-        codecs = new EnumMap<>(PulsarApi.CompressionType.class);
-        codecs.put(PulsarApi.CompressionType.NONE, new CompressionCodecNone());
-        codecs.put(PulsarApi.CompressionType.LZ4, new CompressionCodecLZ4());
-        codecs.put(PulsarApi.CompressionType.ZLIB, new CompressionCodecZLib());
-        codecs.put(PulsarApi.CompressionType.ZSTD, new CompressionCodecZstd());
-        codecs.put(PulsarApi.CompressionType.SNAPPY, new CompressionCodecSnappy());
+        codecs = new EnumMap<>(org.apache.pulsar.common.api.proto.CompressionType.class);
+        codecs.put(org.apache.pulsar.common.api.proto.CompressionType.NONE, new CompressionCodecNone());
+        codecs.put(org.apache.pulsar.common.api.proto.CompressionType.LZ4, new CompressionCodecLZ4());
+        codecs.put(org.apache.pulsar.common.api.proto.CompressionType.ZLIB, new CompressionCodecZLib());
+        codecs.put(org.apache.pulsar.common.api.proto.CompressionType.ZSTD, new CompressionCodecZstd());
+        codecs.put(org.apache.pulsar.common.api.proto.CompressionType.SNAPPY, new CompressionCodecSnappy());
     }
 
-    public static CompressionCodec getCompressionCodec(PulsarApi.CompressionType type) {
+    public static CompressionCodec getCompressionCodec(org.apache.pulsar.common.api.proto.CompressionType type) {
         return codecs.get(type);
     }
 
@@ -53,25 +52,27 @@ public class CompressionCodecProvider {
         return codecs.get(convertToWireProtocol(type));
     }
 
-    public static PulsarApi.CompressionType convertToWireProtocol(CompressionType compressionType) {
+    public static org.apache.pulsar.common.api.proto.CompressionType convertToWireProtocol(
+            CompressionType compressionType) {
         switch (compressionType) {
         case NONE:
-            return PulsarApi.CompressionType.NONE;
+            return org.apache.pulsar.common.api.proto.CompressionType.NONE;
         case LZ4:
-            return PulsarApi.CompressionType.LZ4;
+            return org.apache.pulsar.common.api.proto.CompressionType.LZ4;
         case ZLIB:
-            return PulsarApi.CompressionType.ZLIB;
+            return org.apache.pulsar.common.api.proto.CompressionType.ZLIB;
         case ZSTD:
-            return PulsarApi.CompressionType.ZSTD;
+            return org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
         case SNAPPY:
-            return PulsarApi.CompressionType.SNAPPY;
+            return org.apache.pulsar.common.api.proto.CompressionType.SNAPPY;
 
         default:
             throw new RuntimeException("Invalid compression type");
         }
     }
 
-    public static CompressionType convertFromWireProtocol(PulsarApi.CompressionType compressionType) {
+    public static CompressionType convertFromWireProtocol(
+            org.apache.pulsar.common.api.proto.CompressionType compressionType) {
         switch (compressionType) {
         case NONE:
             return CompressionType.NONE;

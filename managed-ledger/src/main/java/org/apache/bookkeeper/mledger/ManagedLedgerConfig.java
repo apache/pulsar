@@ -33,6 +33,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
@@ -75,6 +76,7 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private ManagedLedgerInterceptor managedLedgerInterceptor;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -584,7 +586,7 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
      * group of bookies).
-     * 
+     *
      * @return
      */
     public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
@@ -593,7 +595,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyClassName
      */
     public void setBookKeeperEnsemblePlacementPolicyClassName(
@@ -603,7 +605,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
-     * 
+     *
      * @return
      */
     public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
@@ -613,7 +615,7 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
      * bookKeeperEnsemblePlacementPolicy-Properties.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyProperties
      */
     public void setBookKeeperEnsemblePlacementPolicyProperties(
@@ -637,4 +639,11 @@ public class ManagedLedgerConfig {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 
+    public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
+        return managedLedgerInterceptor;
+    }
+
+    public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
+        this.managedLedgerInterceptor = managedLedgerInterceptor;
+    }
 }

@@ -116,7 +116,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
                                                 std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(std::ref(pool_), std::ref(serviceUrl));
+        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(
+            std::ref(pool_), std::ref(serviceUrl), std::cref(clientConfiguration_.getListenerName()));
     }
 }
 
@@ -230,7 +231,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     consumers_.push_back(reader->getConsumer());
 }
 
-void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                          const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr = TopicName::get(regexPattern);
 
@@ -252,12 +253,12 @@ void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const 
 
     lookupServicePtr_->getTopicsOfNamespaceAsync(nsName).addListener(
         std::bind(&ClientImpl::createPatternMultiTopicsConsumer, shared_from_this(), std::placeholders::_1,
-                  std::placeholders::_2, regexPattern, consumerName, conf, callback));
+                  std::placeholders::_2, regexPattern, subscriptionName, conf, callback));
 }
 
 void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const NamespaceTopicsPtr topics,
                                                   const std::string& regexPattern,
-                                                  const std::string& consumerName,
+                                                  const std::string& subscriptionName,
                                                   const ConsumerConfiguration& conf,
                                                   SubscribeCallback callback) {
     if (result == ResultOk) {
@@ -269,7 +270,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
             PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
 
         consumer = std::make_shared<PatternMultiTopicsConsumerImpl>(
-            shared_from_this(), regexPattern, *matchTopics, consumerName, conf, lookupServicePtr_);
+            shared_from_this(), regexPattern, *matchTopics, subscriptionName, conf, lookupServicePtr_);
 
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,
@@ -284,7 +285,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
     }
 }
 
-void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr;
 
@@ -309,7 +310,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
     }
 
     ConsumerImplBasePtr consumer = std::make_shared<MultiTopicsConsumerImpl>(
-        shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
+        shared_from_this(), topics, subscriptionName, topicNamePtr, conf, lookupServicePtr_);
 
     consumer->getConsumerCreatedFuture().addListener(std::bind(&ClientImpl::handleConsumerCreated,
                                                                shared_from_this(), std::placeholders::_1,
@@ -319,7 +320,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
     consumer->start();
 }
 
-void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
+void ClientImpl::subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicName;
     {
@@ -343,11 +344,11 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
 
     lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
         std::bind(&ClientImpl::handleSubscribe, shared_from_this(), std::placeholders::_1,
-                  std::placeholders::_2, topicName, consumerName, conf, callback));
+                  std::placeholders::_2, topicName, subscriptionName, conf, callback));
 }
 
 void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr partitionMetadata,
-                                 TopicNamePtr topicName, const std::string& consumerName,
+                                 TopicNamePtr topicName, const std::string& subscriptionName,
                                  ConsumerConfiguration conf, SubscribeCallback callback) {
     if (result == ResultOk) {
         // generate random name if not supplied by the customer.
@@ -361,11 +362,11 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = std::make_shared<PartitionedConsumerImpl>(shared_from_this(), consumerName, topicName,
-                                                                 partitionMetadata->getPartitions(), conf);
+            consumer = std::make_shared<PartitionedConsumerImpl>(
+                shared_from_this(), subscriptionName, topicName, partitionMetadata->getPartitions(), conf);
         } else {
-            auto consumerImpl =
-                std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(), consumerName, conf);
+            auto consumerImpl = std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
+                                                               subscriptionName, conf);
             consumerImpl->setPartitionIndex(topicName->getPartitionIndex());
             consumer = consumerImpl;
         }

@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -150,9 +149,11 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                     .value(("old" + i).getBytes());
-            PulsarApi.MessageMetadata.Builder metadataBuilder = msg.getMetadataBuilder();
-            metadataBuilder.setPublishTime(oldMsgPublishTime).setSequenceId(i);
-            metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
+            msg.getMetadataBuilder()
+                .setPublishTime(oldMsgPublishTime)
+                .setSequenceId(i)
+                .setProducerName(producer.getProducerName())
+                .setReplicatedFrom("us-west1");
         }
 
         // (2) Publish 10 messages with publish-time 1 HOUR back
@@ -161,9 +162,10 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                     .value(("new" + i).getBytes());
-            PulsarApi.MessageMetadata.Builder metadataBuilder = msg.getMetadataBuilder();
-            metadataBuilder.setPublishTime(newMsgPublishTime);
-            metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
+            msg.getMetadataBuilder()
+                .setPublishTime(newMsgPublishTime)
+                .setProducerName(producer.getProducerName())
+                .setReplicatedFrom("us-west1");
             MessageId msgId = msg.send();
             if (firstMsgId == null) {
                 firstMsgId = msgId;

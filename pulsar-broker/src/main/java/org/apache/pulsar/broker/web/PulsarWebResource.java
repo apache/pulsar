@@ -49,6 +49,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -356,14 +358,19 @@ public abstract class PulsarWebResource {
     }
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
-        URL webUrl = null;
-        if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
-                && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
-            webUrl = new URL(differentClusterData.getServiceUrlTls());
-        } else {
-            webUrl = new URL(differentClusterData.getServiceUrl());
+        try {
+            PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
+            if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
+                    && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
+                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrlTls());
+            } else {
+                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
+            }
+            URL webUrl = new URL(serviceNameResolver.resolveHostUri().toString());
+            return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
+        } catch (PulsarClientException.InvalidServiceURL exception) {
+            throw new MalformedURLException(exception.getMessage());
         }
-        return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
@@ -504,8 +511,7 @@ public abstract class PulsarWebResource {
         try {
             return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
         } catch (Exception e) {
-            log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(),
-                    fqnn.toString(), bundleRange, e);
+            log.error("Failed to check whether namespace bundle is owned {}/{}", fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
     }

@@ -83,12 +83,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>protobuf-shaded</artifactId>
-      <version>${pulsar.protobuf.shaded.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>net.jodah</groupId>
       <artifactId>typetools</artifactId>
     </dependency>
@@ -97,6 +91,12 @@
         <groupId>${project.groupId}</groupId>
         <artifactId>pulsar-client-original</artifactId>
         <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-core</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
   </dependencies>

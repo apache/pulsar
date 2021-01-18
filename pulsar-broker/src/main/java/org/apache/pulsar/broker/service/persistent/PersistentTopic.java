@@ -102,10 +102,12 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -357,10 +359,7 @@ public class PersistentTopic extends AbstractTopic
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                // intercept headersAndPayload and add entry metadata
-                if (appendBrokerEntryMetadata(headersAndPayload, publishContext)) {
-                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-                }
+                asyncAddEntry(headersAndPayload, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
@@ -374,22 +373,13 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    private boolean appendBrokerEntryMetadata(ByteBuf headersAndPayload, PublishContext publishContext) {
-        // just return true if BrokerEntryMetadata is not enabled
-        if (!brokerService.isBrokerEntryMetadataEnabled()) {
-            return true;
+    private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (brokerService.isBrokerEntryMetadataEnabled()) {
+            ledger.asyncAddEntry(headersAndPayload,
+                    (int) publishContext.getNumberOfMessages(), this, publishContext);
+        } else {
+            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
         }
-
-        try {
-            headersAndPayload =  Commands.addBrokerEntryMetadata(headersAndPayload,
-                    brokerService.getBrokerEntryMetadataInterceptors());
-        } catch (Exception e) {
-            decrementPendingWriteOpsAndCheck();
-            publishContext.completed(new BrokerServiceException.AddEntryMetadataException(e), -1, -1);
-            log.error("[{}] Failed to add broker entry metadata.", topic, e);
-            return false;
-        }
-        return true;
     }
 
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
@@ -507,11 +497,13 @@ public class PersistentTopic extends AbstractTopic
         });
     }
 
+    @Override
     protected CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch) {
         long newEpoch = currentEpoch.orElse(-1L) + 1;
         return setTopicEpoch(newEpoch);
     }
 
+    @Override
     protected CompletableFuture<Long> setTopicEpoch(long newEpoch) {
         CompletableFuture<Long> future = new CompletableFuture<>();
         ledger.asyncSetProperty(TOPIC_EPOCH_PROPERTY_NAME, String.valueOf(newEpoch), new UpdatePropertiesCallback() {
@@ -590,7 +582,7 @@ public class PersistentTopic extends AbstractTopic
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionState,
-                                                 PulsarApi.KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -2069,7 +2061,7 @@ public class PersistentTopic extends AbstractTopic
             }
         });
         replicators.forEach((name, replicator) ->
-            replicator.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data))
+                replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate)
         );
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
@@ -2278,7 +2270,7 @@ public class PersistentTopic extends AbstractTopic
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                 if (metadata.hasNumMessagesInBatch()) {
                     completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
                             partitionIndex, metadata.getNumMessagesInBatch() - 1));
@@ -2570,9 +2562,9 @@ public class PersistentTopic extends AbstractTopic
         getTransactionBuffer(false).thenAccept(tb -> {
 
             CompletableFuture<Void> future = new CompletableFuture<>();
-            if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+            if (TxnAction.COMMIT_VALUE == txnAction) {
                 future = tb.commitTxn(txnID, sendMessageList);
-            } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+            } else if (TxnAction.ABORT_VALUE == txnAction) {
                 future = tb.abortTxn(txnID, sendMessageList);
             } else {
                 future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
@@ -2672,10 +2664,12 @@ public class PersistentTopic extends AbstractTopic
         }
 
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
-        if (this.subscribeRateLimiter.isPresent() && policies != null) {
+        if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                 subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
         }
+        replicators.forEach((name, replicator) -> replicator.getRateLimiter()
+                .ifPresent(DispatchRateLimiter::updateDispatchRate));
     }
 
     private Optional<Policies> getNamespacePolicies() {

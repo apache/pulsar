@@ -24,16 +24,13 @@ import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.UninitializedMessageException;
 
 public class MessageIdImpl implements MessageId {
     protected final long ledgerId;
@@ -96,15 +93,19 @@ public class MessageIdImpl implements MessageId {
 
     // / Serialization
 
+    private static final FastThreadLocal<MessageIdData> LOCAL_MESSAGE_ID = new FastThreadLocal<MessageIdData>() {
+        protected MessageIdData initialValue() throws Exception {
+            return new MessageIdData();
+        };
+    };
+
     public static MessageId fromByteArray(byte[] data) throws IOException {
         checkNotNull(data);
-        ByteBufCodedInputStream inputStream = ByteBufCodedInputStream.get(Unpooled.wrappedBuffer(data, 0, data.length));
-        PulsarApi.MessageIdData.Builder builder = PulsarApi.MessageIdData.newBuilder();
 
-        PulsarApi.MessageIdData idData;
+        MessageIdData idData = LOCAL_MESSAGE_ID.get();
         try {
-            idData = builder.mergeFrom(inputStream, null).build();
-        } catch (UninitializedMessageException e) {
+            idData.parseFrom(Unpooled.wrappedBuffer(data, 0, data.length), data.length);
+        } catch (Exception e) {
             throw new IOException(e);
         }
 
@@ -116,9 +117,6 @@ public class MessageIdImpl implements MessageId {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
 
-        inputStream.recycle();
-        builder.recycle();
-        idData.recycle();
         return messageId;
     }
 
@@ -139,13 +137,10 @@ public class MessageIdImpl implements MessageId {
 
     public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
         checkNotNull(data);
-        ByteBufCodedInputStream inputStream = ByteBufCodedInputStream.get(Unpooled.wrappedBuffer(data, 0, data.length));
-        PulsarApi.MessageIdData.Builder builder = PulsarApi.MessageIdData.newBuilder();
-
-        PulsarApi.MessageIdData idData;
+        MessageIdData idData = LOCAL_MESSAGE_ID.get();
         try {
-            idData = builder.mergeFrom(inputStream, null).build();
-        } catch (UninitializedMessageException e) {
+            idData.parseFrom(Unpooled.wrappedBuffer(data, 0, data.length), data.length);
+        } catch (Exception e) {
             throw new IOException(e);
         }
 
@@ -161,39 +156,27 @@ public class MessageIdImpl implements MessageId {
                     topicName.getPartition(idData.getPartition()).toString(), topicName.toString(), messageId);
         }
 
-        inputStream.recycle();
-        builder.recycle();
-        idData.recycle();
         return messageId;
     }
 
     // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
     protected byte[] toByteArray(int batchIndex) {
-        MessageIdData.Builder builder = MessageIdData.newBuilder();
-        builder.setLedgerId(ledgerId);
-        builder.setEntryId(entryId);
+        MessageIdData msgId = LOCAL_MESSAGE_ID.get()
+                .clear()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
         if (partitionIndex >= 0) {
-            builder.setPartition(partitionIndex);
+            msgId.setPartition(partitionIndex);
         }
 
         if (batchIndex != -1) {
-            builder.setBatchIndex(batchIndex);
+            msgId.setBatchIndex(batchIndex);
         }
 
-        MessageIdData msgId = builder.build();
         int size = msgId.getSerializedSize();
         ByteBuf serialized = Unpooled.buffer(size, size);
-        ByteBufCodedOutputStream stream = ByteBufCodedOutputStream.get(serialized);
-        try {
-            msgId.writeTo(stream);
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        }
+        msgId.writeTo(serialized);
 
-        msgId.recycle();
-        builder.recycle();
-        stream.recycle();
         return serialized.array();
     }
 

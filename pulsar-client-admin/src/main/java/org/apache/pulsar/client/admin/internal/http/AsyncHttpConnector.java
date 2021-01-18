@@ -80,16 +80,18 @@ public class AsyncHttpConnector implements Connector {
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
+    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
+                autoCertRefreshTimeSeconds,
                 conf);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
-                              int requestTimeoutMs, ClientConfigurationData conf) {
+                              int requestTimeoutMs,
+                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
@@ -136,10 +138,10 @@ public class AsyncHttpConnector implements Connector {
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
-                                ? SecurityUtility.createNettySslContextForClient(
+                                ? SecurityUtility.createAutoRefreshSslContextForClient(
                                         conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
-                                        authData.getTlsPrivateKey())
+                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
+                                        authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
                                 : SecurityUtility.createNettySslContextForClient(
                                         conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
                                         authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
