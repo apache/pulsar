@@ -354,11 +354,20 @@ public class NonPersistentTopics extends PersistentTopics {
                     });
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
-                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                    log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                             namespaceName, bundleRange, e);
                     asyncResponse.resume(new RestException(e));
                 }
             }
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                namespaceName, bundleRange, ex);
+            if (ex.getCause() instanceof WebApplicationException) {
+                asyncResponse.resume(ex.getCause());
+            } else {
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
         });
     }
 
