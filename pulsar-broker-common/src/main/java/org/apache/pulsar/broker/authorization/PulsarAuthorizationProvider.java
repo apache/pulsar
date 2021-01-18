@@ -542,8 +542,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         if (operation == NamespaceOperation.PACKAGES) {
             isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
         } else {
-            isAuthorizedFuture = FutureUtil.failedFuture(
-                new IllegalStateException("NamespaceOperation is not supported."));
+            isAuthorizedFuture = CompletableFuture.completedFuture(false);
         }
         CompletableFuture<Boolean> isTenantAdminFuture = validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
         return isTenantAdminFuture.thenCombine(isAuthorizedFuture, (isTenantAdmin, isAuthorized) -> {
