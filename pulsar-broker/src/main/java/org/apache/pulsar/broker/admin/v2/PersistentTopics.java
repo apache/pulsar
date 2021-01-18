@@ -1538,7 +1538,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .orElseGet(() -> {
                     if (applied) {
                         Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
-                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds() : otherLevelTTL;
+                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                                : otherLevelTTL;
                     }
                     return null;
                 });
