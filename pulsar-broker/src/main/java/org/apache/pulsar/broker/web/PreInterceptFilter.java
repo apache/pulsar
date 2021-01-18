@@ -54,7 +54,8 @@ public class PreInterceptFilter implements Filter {
                 servletRequest.getServletContext().getContextPath(),
                 servletRequest.getContentType());
         }
-        if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())) {
+        if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())
+                || MediaType.APPLICATION_OCTET_STREAM.equalsIgnoreCase(servletRequest.getContentType())) {
             // skip multipart request at this moment
             filterChain.doFilter(servletRequest, servletResponse);
             return;
