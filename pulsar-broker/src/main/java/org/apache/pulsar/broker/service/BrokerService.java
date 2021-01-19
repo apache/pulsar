@@ -412,8 +412,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void start() throws Exception {
-        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), PRODUCER_NAME_GENERATOR_PATH,
-                pulsar.getConfiguration().getClusterName());
+        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
+                PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
 
