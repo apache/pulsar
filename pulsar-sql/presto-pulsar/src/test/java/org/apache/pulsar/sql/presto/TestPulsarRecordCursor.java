@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -45,8 +45,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -208,7 +208,6 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         }
     }
 
-
     @Test(singleThreaded = true)
     public void TestKeyValuePrimitiveSchema() throws Exception {
 
@@ -321,19 +320,18 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                                 List<Entry> entries = new LinkedList<>();
                                 for (int i = 0; i < readEntries; i++) {
 
-                                    PulsarApi.MessageMetadata.Builder messageBuilder =
-                                            PulsarApi.MessageMetadata.newBuilder()
+                                    MessageMetadata messageMetadata =
+                                            new MessageMetadata()
                                                     .setProducerName("test-producer").setSequenceId(positions.get(topic))
                                                     .setPublishTime(System.currentTimeMillis());
+
                                     if (KeyValueEncodingType.SEPARATED.equals(schema.getKeyValueEncodingType())) {
-                                        messageBuilder
-                                                .setPartitionKey(Base64.getEncoder().encodeToString(schema
-                                                        .getKeySchema().encode(message.getKey())))
-                                                .setPartitionKeyB64Encoded(true);
+                                        messageMetadata
+                                                .setPartitionKey(new String(schema
+                                                        .getKeySchema().encode(message.getKey()), Charset.forName(
+                                                        "UTF-8")))
+                                                .setPartitionKeyB64Encoded(false);
                                     }
-                                    PulsarApi.MessageMetadata messageMetadata =
-                                            messageBuilder
-                                                    .build();
 
                                     ByteBuf dataPayload = io.netty.buffer.Unpooled
                                             .copiedBuffer(schema.encode(message));
