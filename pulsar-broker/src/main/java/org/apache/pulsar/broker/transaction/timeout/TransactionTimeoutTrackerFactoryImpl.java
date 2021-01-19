@@ -66,4 +66,9 @@ public class TransactionTimeoutTrackerFactoryImpl implements TransactionTimeoutT
         }
     }
 
+    @Override
+    public Timer getTimer() {
+        return timer;
+    }
+
 }

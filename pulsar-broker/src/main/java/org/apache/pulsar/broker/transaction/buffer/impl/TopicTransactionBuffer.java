@@ -44,8 +44,15 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
     private volatile PositionImpl maxReadPosition = PositionImpl.latest;
 
+    /**
+     * Ongoing transaction, map for remove txn stable position, linked for find max read position.
+     */
     private final LinkedMap<TxnID, PositionImpl> ongoingTxns = new LinkedMap<>();
 
+    /**
+     * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
+     * position have been deleted.
+     */
     private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
     public TopicTransactionBuffer(PersistentTopic topic) {

@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
+import io.netty.util.Timer;
 
 import java.io.IOException;
 
@@ -43,4 +44,9 @@ public interface TransactionTimeoutTrackerFactory extends AutoCloseable {
      * Close the factory and release all the resources.
      */
     void close() throws IOException;
+
+    /**
+     * Get the timer.
+     */
+    Timer getTimer();
 }
