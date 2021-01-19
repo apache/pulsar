@@ -337,7 +337,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                                         fail(exception.getMessage());
                                     }
-                                }, cursor);
+                                }, cursor, PositionImpl.latest);
                             }
 
                             @Override
@@ -2557,7 +2557,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 responseException2.set(exception);
             }
 
-        }, null);
+        }, null, PositionImpl.latest);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest.getEntryId(), PositionImpl.earliest.getEntryId(),
                 false, opReadEntry, ctxStr);
         retryStrategically((test) -> {

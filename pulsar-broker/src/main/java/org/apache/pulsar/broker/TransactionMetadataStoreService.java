@@ -25,14 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -182,6 +178,16 @@ public class TransactionMetadataStoreService {
         return store.getTxnMeta(txnId);
     }
 
+    public long getLowWaterMark(TxnID txnID) {
+        TransactionCoordinatorID tcId = getTcIdFromTxnId(txnID);
+        TransactionMetadataStore store = stores.get(tcId);
+
+        if (store == null) {
+            return 0;
+        }
+        return store.getLowWaterMark();
+    }
+
     public CompletableFuture<Void> updateTxnStatus(TxnID txnId, TxnStatus newStatus, TxnStatus expectedStatus) {
         TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
         TransactionMetadataStore store = stores.get(tcId);
@@ -191,7 +197,7 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, List<MessageIdData> messageIdDataList) {
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
@@ -210,7 +216,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction, messageIdDataList));
+                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -221,8 +227,7 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction,
-                                                              List<MessageIdData> messageIdDataList) {
+    private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -230,6 +235,7 @@ public class TransactionMetadataStoreService {
                 resultFuture.completeExceptionally(throwable);
                 return;
             }
+            long lowWaterMark = getLowWaterMark(txnID);
 
             txnMeta.ackedPartitions().forEach(tbSub -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
@@ -245,26 +251,14 @@ public class TransactionMetadataStoreService {
                 completableFutureList.add(actionFuture);
             });
 
-            List<MessageId> messageIdList = new ArrayList<>();
-            for (MessageIdData messageIdData : messageIdDataList) {
-                messageIdList.add(new MessageIdImpl(
-                        messageIdData.getLedgerId(), messageIdData.getEntryId(), messageIdData.getPartition()));
-            }
-
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
-                            messageIdList.stream().filter(
-                                    msg -> ((MessageIdImpl) msg).getPartitionIndex()
-                                            == TopicName.get(partition).getPartitionIndex()).collect(
-                                    Collectors.toList()));
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(),
+                            txnID.getLeastSigBits(), lowWaterMark);
                 } else if (TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits(),
-                            messageIdList.stream().filter(
-                                    msg -> ((MessageIdImpl) msg).getPartitionIndex()
-                                            == TopicName.get(partition).getPartitionIndex()).collect(
-                                    Collectors.toList()));
+                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(),
+                            txnID.getLeastSigBits(), lowWaterMark);
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
