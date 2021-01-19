@@ -88,13 +88,13 @@ public class ClientCnxRequestTimeoutQueueTest {
 
     @Test
     void testNewAckForResponseNoFlushTimeout() {
-        assertFutureTimesOut(cnx.newAckForResponse(requestMessage, 1L));
+        assertFutureTimesOut(cnx.newAckForReceipt(requestMessage, 1L));
     }
 
     @Test
     void testNewAckForResponseFlushTimeout() {
         TimedCompletableFuture<Void> timedCompletableFuture = new TimedCompletableFuture<>();
-        cnx.newAckForResponseWithFuture(requestMessage, 1L, timedCompletableFuture);
+        cnx.newAckForReceiptWithFuture(requestMessage, 1L, timedCompletableFuture);
         assertFutureTimesOut(timedCompletableFuture);
     }
 

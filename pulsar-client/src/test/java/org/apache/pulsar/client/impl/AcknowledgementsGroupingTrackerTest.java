@@ -388,13 +388,13 @@ public class AcknowledgementsGroupingTrackerTest {
         }
 
         @Override
-        public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId) {
+        public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public void newAckForResponseWithFuture(ByteBuf request, long requestId,
-                                                                   TimedCompletableFuture<Void> future) {
+        public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
+                                               TimedCompletableFuture<Void> future) {
         }
     }
 }

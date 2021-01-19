@@ -60,7 +60,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -2123,6 +2122,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (clientCnx != null) {
             this.connectionHandler.setClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
+            if (conf.isAckReceiptEnabled() && clientCnx.getRemoteEndpointProtocolVersion() <= 17) {
+                log.warn("Server don't support ack for receipt! " +
+                        "ProtoVersion >=17 support! nowVersion : {}", clientCnx.getRemoteEndpointProtocolVersion());
+            }
         }
         ClientCnx previousClientCnx = clientCnxUsedForConsumerRegistration.getAndSet(clientCnx);
         if (previousClientCnx != null && previousClientCnx != clientCnx) {
@@ -2276,7 +2279,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             unAckedMessageTracker.remove(messageId);
         }
-        return cnx().newAckForResponse(cmd, requestId);
+        return cnx().newAckForReceipt(cmd, requestId);
     }
 
     public Map<MessageIdImpl, List<MessageImpl<T>>> getPossibleSendToDeadLetterTopicMessages() {

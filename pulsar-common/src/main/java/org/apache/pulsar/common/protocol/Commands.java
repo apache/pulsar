@@ -1697,7 +1697,7 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v15.getValue();
     }
 
-    public static boolean peerSupportsAckResponse(int peerVersion) {
+    public static boolean peerSupportsAckReceipt(int peerVersion) {
         return peerVersion >= ProtocolVersion.v17.getValue();
     }
 

@@ -576,8 +576,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
                         null, ackType, null, null, true, null, entriesToAck);
             } else {
-                // if don't support multi message ack, it also support ack response, so we should not think about the
-                // ack response in this logic
+                // if don't support multi message ack, it also support ack receipt, so we should not think about the
+                // ack receipt in this logic
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     newMessageAckCommandAndWrite(cnx, consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
                             bitSet, ackType, null, map, true, null, null);
@@ -597,7 +597,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                                  Map<String, Long> properties, boolean flush,
                                                                  TimedCompletableFuture<Void> timedCompletableFuture,
                                                                  List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
-        if (ackReceiptEnabled && Commands.peerSupportsAckResponse(cnx.getRemoteEndpointProtocolVersion())) {
+        if (ackReceiptEnabled && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion())) {
             final long requestId = consumer.getClient().newRequestId();
             final ByteBuf cmd;
             if (entriesToAck == null) {
@@ -607,20 +607,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, requestId);
             }
             if (timedCompletableFuture == null) {
-                return cnx.newAckForResponse(cmd, requestId);
+                return cnx.newAckForReceipt(cmd, requestId);
             } else {
                 if (ackType == AckType.Individual) {
                     this.currentIndividualAckFuture = new TimedCompletableFuture<>();
                 } else {
                     this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
                 }
-                cnx.newAckForResponseWithFuture(cmd, requestId, timedCompletableFuture);
+                cnx.newAckForReceiptWithFuture(cmd, requestId, timedCompletableFuture);
                 return timedCompletableFuture;
             }
         } else {
             if (ackReceiptEnabled) {
-                log.warn("Server don't support ack for receipt! " +
-                        "ProtoVersion >=17 support! nowVersion : {}", cnx.getRemoteEndpointProtocolVersion());
                 synchronized (PersistentAcknowledgmentsGroupingTracker.this) {
                     if (!this.currentCumulativeAckFuture.isDone()) {
                         this.currentCumulativeAckFuture.complete(null);

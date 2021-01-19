@@ -750,12 +750,12 @@ public class ClientCnx extends PulsarHandler {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true);
     }
 
-    public CompletableFuture<Void> newAckForResponse(ByteBuf request, long requestId) {
+    public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true);
     }
 
-    public void newAckForResponseWithFuture(ByteBuf request, long requestId,
-                                            TimedCompletableFuture<Void> future) {
+    public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
+                                           TimedCompletableFuture<Void> future) {
         sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
     }
 
