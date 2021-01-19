@@ -202,6 +202,10 @@ public abstract class MockedPulsarServiceBaseTest {
             mockBookKeeper.reallyShutdown();
             mockBookKeeper = null;
         }
+        if (mockZooKeeperGlobal != null) {
+            mockZooKeeperGlobal.shutdown();
+            mockZooKeeperGlobal = null;
+        }
         if (mockZooKeeper != null) {
             mockZooKeeper.shutdown();
             mockZooKeeper = null;
