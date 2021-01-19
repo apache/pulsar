@@ -74,7 +74,6 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
-import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
@@ -115,6 +114,11 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
@@ -209,6 +213,9 @@ public class PulsarService implements AutoCloseable {
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
+    private MetadataStoreExtended localMetadataStore;
+    private CoordinationService coordinationService;
+
 
     public enum State {
         Init, Started, Closed
@@ -267,7 +274,7 @@ public class PulsarService implements AutoCloseable {
                 new DefaultThreadFactory("pulsar"));
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
                 new DefaultThreadFactory("zk-cache-callback"));
-    }
+        }
 
     /**
      * Close the current pulsar service. All resources are released.
@@ -307,7 +314,7 @@ public class PulsarService implements AutoCloseable {
             }
 
             if (this.leaderElectionService != null) {
-                this.leaderElectionService.stop();
+                this.leaderElectionService.close();
                 this.leaderElectionService = null;
             }
 
@@ -378,6 +385,9 @@ public class PulsarService implements AutoCloseable {
                 transactionBufferClient.close();
             }
 
+            coordinationService.close();
+            localMetadataStore.close();
+
             state = State.Closed;
             isClosedCondition.signalAll();
         } catch (Exception e) {
@@ -439,6 +449,14 @@ public class PulsarService implements AutoCloseable {
             if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
+
+            localMetadataStore = MetadataStoreExtended.create(config.getZookeeperServers(),
+                    MetadataStoreConfig.builder()
+                            .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                            .allowReadOnlyOperations(false)
+                            .build());
+
+            coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
@@ -647,35 +665,36 @@ public class PulsarService implements AutoCloseable {
     }
 
     protected void startLeaderElectionService() {
-        this.leaderElectionService = new LeaderElectionService(this, new LeaderListener() {
-            @Override
-            public synchronized void brokerIsTheLeaderNow() {
-                if (getConfiguration().isLoadBalancerEnabled()) {
-                    long loadSheddingInterval = TimeUnit.MINUTES
-                            .toMillis(getConfiguration().getLoadBalancerSheddingIntervalMinutes());
-                    long resourceQuotaUpdateInterval = TimeUnit.MINUTES
-                            .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+        this.leaderElectionService = new LeaderElectionService(coordinationService, getSafeWebServiceAddress(),
+                state -> {
+                    if (state == LeaderElectionState.Leading) {
+                        LOG.info("This broker was elected leader");
+                        if (getConfiguration().isLoadBalancerEnabled()) {
+                            long loadSheddingInterval = TimeUnit.MINUTES
+                                    .toMillis(getConfiguration().getLoadBalancerSheddingIntervalMinutes());
+                            long resourceQuotaUpdateInterval = TimeUnit.MINUTES
+                                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
 
-                    loadSheddingTask = loadManagerExecutor.scheduleAtFixedRate(new LoadSheddingTask(loadManager),
-                            loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
-                    loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
-                            new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
-                            resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
-                }
-            }
-
-            @Override
-            public synchronized void brokerIsAFollowerNow() {
-                if (loadSheddingTask != null) {
-                    loadSheddingTask.cancel(false);
-                    loadSheddingTask = null;
-                }
-                if (loadResourceQuotaTask != null) {
-                    loadResourceQuotaTask.cancel(false);
-                    loadResourceQuotaTask = null;
-                }
-            }
-        });
+                            loadSheddingTask = loadManagerExecutor.scheduleAtFixedRate(
+                                    new LoadSheddingTask(loadManager),
+                                    loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
+                            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
+                                    new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
+                                    resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+                        }
+                    } else {
+                        LOG.info("This broker is a follower. Current leader is {}",
+                                leaderElectionService.getCurrentLeader());
+                        if (loadSheddingTask != null) {
+                            loadSheddingTask.cancel(false);
+                            loadSheddingTask = null;
+                        }
+                        if (loadResourceQuotaTask != null) {
+                            loadResourceQuotaTask.cancel(false);
+                            loadResourceQuotaTask = null;
+                        }
+                    }
+                });
 
         leaderElectionService.start();
     }
@@ -1311,6 +1330,14 @@ public class PulsarService implements AutoCloseable {
 
     public Optional<Integer> getBrokerListenPortTls() {
         return brokerService.getListenPortTls();
+    }
+
+    public MetadataStoreExtended getLocalMetadataStore() {
+        return localMetadataStore;
+    }
+
+    public CoordinationService getCoordinationService() {
+        return coordinationService;
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
