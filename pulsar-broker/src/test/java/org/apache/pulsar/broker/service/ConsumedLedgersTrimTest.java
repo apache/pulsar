@@ -36,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
@@ -46,9 +48,10 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         //No-op
     }
 
+    @AfterMethod
     @Override
     protected void cleanup() throws Exception {
-        //No-op
+        super.internalCleanup();
     }
 
     @Test
@@ -102,7 +105,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
 
     @Test
-    public void TestConsumedLedgersTrimNoSubscriptions() throws Exception {
+    public void testConsumedLedgersTrimNoSubscriptions() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
         super.baseSetup();

@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -30,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -119,13 +122,17 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+        //zk update takes some time
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 10);
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20));
     }
 
     @Test
