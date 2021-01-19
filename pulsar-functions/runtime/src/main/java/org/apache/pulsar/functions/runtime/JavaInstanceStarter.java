@@ -132,6 +132,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance", required = false)
     public int maxPendingAsyncRequests = 1000;
 
+    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
+    public String webServiceUrl;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -202,7 +205,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader, webServiceUrl);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

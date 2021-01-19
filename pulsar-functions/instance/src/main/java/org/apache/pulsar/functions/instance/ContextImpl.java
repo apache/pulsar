@@ -127,7 +127,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 try {
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
-                                    InstanceUtils.createPulsarAdminClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
+                                    InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()),
                                     ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);

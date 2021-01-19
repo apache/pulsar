@@ -135,6 +135,8 @@ public class LocalRunner {
     protected String stateStorageServiceUrl;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
+    @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
+    protected String webServiceUrl;
     @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
     protected String clientAuthPlugin;
     @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
@@ -157,6 +159,7 @@ public class LocalRunner {
     protected String secretsProviderConfig;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
+    private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";
 
     public static void main(String[] args) throws Exception {
         LocalRunner localRunner = LocalRunner.builder().build();
@@ -341,6 +344,9 @@ public class LocalRunner {
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }
+            if (webServiceUrl == null) {
+                webServiceUrl = DEFAULT_WEB_SERVICE_URL;
+            }
 
             if ((sourceConfig != null || sinkConfig != null || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA)
                     && (runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
@@ -369,6 +375,7 @@ public class LocalRunner {
         SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                 serviceUrl,
+                webServiceUrl,
                 stateStorageServiceUrl,
                 authConfig,
                 null, /* java instance jar file */
@@ -452,7 +459,7 @@ public class LocalRunner {
                 stateStorageServiceUrl,
                 authConfig,
                 secretsProvider,
-                null, narExtractionDirectory, null);
+                null, narExtractionDirectory, null, webServiceUrl);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);

@@ -177,10 +177,10 @@ public class InstanceUtils {
         return null;
     }
 
-    public static PulsarAdmin createPulsarAdminClient(String pulsarServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
+    public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
         PulsarAdminBuilder pulsarAdminBuilder = null;
-        if (isNotBlank(pulsarServiceUrl)) {
-            pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarServiceUrl);
+        if (isNotBlank(pulsarWebServiceUrl)) {
+            pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                         && isNotBlank(authConfig.getClientAuthenticationParameters())) {

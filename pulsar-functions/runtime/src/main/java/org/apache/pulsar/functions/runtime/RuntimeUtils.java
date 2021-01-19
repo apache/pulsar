@@ -72,7 +72,8 @@ public class RuntimeUtils {
                                           String pythonExtraDependencyRepository,
                                           int metricsPort,
                                           String narExtractionDirectory,
-                                          String functionInstanceClassPath) throws Exception {
+                                          String functionInstanceClassPath,
+                                          String pulsarWebServiceUrl) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -82,7 +83,7 @@ public class RuntimeUtils {
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
                 pythonExtraDependencyRepository, metricsPort, narExtractionDirectory,
-                functionInstanceClassPath, false));
+                functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -262,7 +263,8 @@ public class RuntimeUtils {
                                       int metricsPort,
                                       String narExtractionDirectory,
                                       String functionInstanceClassPath,
-                                      boolean k8sRuntime) throws Exception {
+                                      boolean k8sRuntime,
+                                      String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -360,6 +362,10 @@ public class RuntimeUtils {
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
+        if (pulsarWebServiceUrl != null) {
+            args.add("--web_serviceurl");
+            args.add(pulsarWebServiceUrl);
+        }
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
