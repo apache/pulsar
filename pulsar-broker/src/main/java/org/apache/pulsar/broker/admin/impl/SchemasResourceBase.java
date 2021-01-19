@@ -21,16 +21,15 @@ package org.apache.pulsar.broker.admin.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -51,9 +50,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -172,11 +168,10 @@ public class SchemasResourceBase extends AdminResource {
                     });
         }).exceptionally(error -> {
             if (error.getCause() instanceof RestException) {
-                response.resume(Response.status(((RestException) error.getCause()).getResponse().getStatus(), /*
-                                                                                                               * Unprocessable
-                                                                                                               * Entity
-                                                                                                               */
-                        error.getMessage()).build());
+                // Unprocessable Entity
+                response.resume(Response
+                        .status(((RestException) error.getCause()).getResponse().getStatus(), error.getMessage())
+                        .build());
             } else {
                 response.resume(Response.serverError().build());
             }
