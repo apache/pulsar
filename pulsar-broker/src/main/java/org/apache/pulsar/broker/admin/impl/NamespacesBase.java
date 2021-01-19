@@ -2610,12 +2610,12 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxConsumersPerTopic() {
+    protected Integer internalGetMaxConsumersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
-    protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
+    protected void internalSetMaxConsumersPerTopic(Integer maxConsumersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2624,7 +2624,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxConsumersPerTopic < 0) {
+            if (maxConsumersPerTopic != null && maxConsumersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerTopic must be 0 or more");
             }
