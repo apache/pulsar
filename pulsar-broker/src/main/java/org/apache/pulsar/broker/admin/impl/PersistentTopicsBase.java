@@ -871,7 +871,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         InactiveTopicPolicies policies = getNamespacePolicies(namespaceName).inactive_topic_policies;
-                        return policies == null ? new InactiveTopicPolicies(config().getBrokerDeleteInactiveTopicsMode(),
+                        return policies == null ? new InactiveTopicPolicies(
+                                config().getBrokerDeleteInactiveTopicsMode(),
                                 config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
                                 config().isBrokerDeleteInactiveTopicsEnabled()) : policies;
                     }
