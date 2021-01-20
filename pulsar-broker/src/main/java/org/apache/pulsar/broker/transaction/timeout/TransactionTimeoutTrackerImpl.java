@@ -27,10 +27,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
-
 /**
  * An timer-task implementation of {@link TransactionTimeoutTracker}.
  */
@@ -66,15 +64,15 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
             return CompletableFuture.completedFuture(false);
         }
         synchronized (this){
-            long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+            long nowTime = clock.millis();
             priorityQueue.add(timeout + nowTime, tcId, sequenceId);
             long nowTransactionTimeoutTime = nowTime + timeout;
             if (nowTaskTimeoutTime == INITIAL_TIMEOUT) {
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
+                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
                 nowTaskTimeoutTime = nowTransactionTimeoutTime;
             } else if (nowTaskTimeoutTime > nowTransactionTimeoutTime) {
                 if (currentTimeout.cancel()) {
-                    currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
+                    currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
                     nowTaskTimeoutTime = nowTransactionTimeoutTime;
                 }
             }
@@ -84,7 +82,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
 
     @Override
     public void replayAddTransaction(long sequenceId, long timeout) {
-        long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+        long nowTime = clock.millis();
         priorityQueue.add(timeout + nowTime, tcId, sequenceId);
     }
 
@@ -106,14 +104,14 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
         synchronized (this){
             while (!priorityQueue.isEmpty()){
                 long timeoutTime = priorityQueue.peekN1();
-                long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+                long nowTime = clock.millis();
                 if (timeoutTime < nowTime){
                     transactionMetadataStoreService.endTransactionForTimeout(new TxnID(priorityQueue.peekN2(),
                             priorityQueue.peekN3()));
                 } else {
                     currentTimeout = timer
                             .newTimeout(this,
-                                    timeoutTime - clock.millis() / BASE_OF_MILLIS_TO_SECOND, TimeUnit.SECONDS);
+                                    timeoutTime - clock.millis(), TimeUnit.MILLISECONDS);
                     nowTaskTimeoutTime = nowTime + timeoutTime;
                     break;
                 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -68,7 +69,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                 .topic(partitionedTopicName.getPartitionedTopicName())
                 .subscriptionName("test").subscribe();
         tbClient = TransactionBufferClientImpl.create(pulsarServices[0].getNamespaceService(),
-                ((PulsarClientImpl) pulsarClient).getCnxPool(), new HashedWheelTimer());
+                ((PulsarClientImpl) pulsarClient).getCnxPool(),
+                new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
     }
 
     @AfterClass(alwaysRun = true)

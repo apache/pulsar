@@ -19,13 +19,13 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import io.netty.util.HashedWheelTimer;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
@@ -247,8 +247,8 @@ public class TransactionMetadataStoreService {
                 endTransaction(txnID, TxnAction.ABORT_VALUE);
             } else {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Transaction have been handle complete, " +
-                            "don't need to handle by transaction timeout! TxnId : {}", txnID);
+                    LOG.debug("Transaction have been handle complete, "
+                            + "don't need to handle by transaction timeout! TxnId : {}", txnID);
                 }
             }
             return null;

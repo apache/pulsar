@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import java.util.concurrent.CompletableFuture;
-
 import io.netty.util.HashedWheelTimer;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;

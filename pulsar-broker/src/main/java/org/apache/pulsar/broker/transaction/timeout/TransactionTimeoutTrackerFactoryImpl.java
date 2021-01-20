@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.transaction.timeout;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;

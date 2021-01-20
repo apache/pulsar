@@ -208,13 +208,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscribe();
 
         // Can't receive transaction messages before abort.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         txn.abort().get();
 
         // Cant't receive transaction messages after abort.
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
@@ -225,7 +225,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // the transaction abort, the related messages and abort marke should be acked,
                 // so all the entries in this topic should be acked
                 // and the markDeletePosition is equals with the lastConfirmedEntry
-                if (stats.cursors.get("test").markDeletePosition.equals(stats.lastConfirmedEntry)) {
+                if (!stats.cursors.get("test").markDeletePosition.equals(stats.lastConfirmedEntry)) {
                     flag = false;
                 }
             }
