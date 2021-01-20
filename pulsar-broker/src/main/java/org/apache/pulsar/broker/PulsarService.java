@@ -395,7 +395,8 @@ public class PulsarService implements AutoCloseable {
         } catch (Exception e) {
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
                 throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
-            } else if (e.getCause() instanceof CompletionException && e.getCause().getCause() instanceof MetadataStoreException) {
+            } else if (e.getCause() instanceof CompletionException
+                    && e.getCause().getCause() instanceof MetadataStoreException) {
                 throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
             } else {
                 throw new PulsarServerException(e);
