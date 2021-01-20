@@ -36,6 +36,12 @@ public class BufferedOffloadStream extends InputStream {
 
     private final long ledgerId;
     private final long beginEntryId;
+
+    public long getEndEntryId() {
+        return endEntryId;
+    }
+
+    private volatile long endEntryId;
     private AtomicLong bufferLength;
     static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     private final long blockSize;
@@ -67,6 +73,7 @@ public class BufferedOffloadStream extends InputStream {
                                  AtomicLong bufferLength) {
         this.ledgerId = ledgerId;
         this.beginEntryId = beginEntryId;
+        this.endEntryId = beginEntryId;
         this.blockSize = blockSize;
         this.segmentInfo = segmentInfo;
         this.entryBuffer = entryBuffer;
@@ -135,6 +142,7 @@ public class BufferedOffloadStream extends InputStream {
             ByteBuf entryHeaderBuf = PulsarByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
             entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
             entryBuf.addComponents(true, entryHeaderBuf, headEntry.getDataBuffer().retain());
+            endEntryId = headEntry.getEntryId();
             headEntry.release();
             currentEntry = entryBuf;
             return read();

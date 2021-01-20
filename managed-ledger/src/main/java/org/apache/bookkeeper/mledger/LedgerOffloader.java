@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -35,6 +36,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
 
+    @ToString
     class OffloadResult {
         public final long beginLedger;
         public final long beginEntry;
@@ -60,15 +62,6 @@ public interface LedgerOffloader {
             FAIL_SEGMENT_CLOSED,
             FAIL_NOT_CONSECUTIVE
         }
-
-        /**
-         * return true when both buffer have enough size and ledger/entry id is next to the current one.
-         * @param size
-         * @return
-         */
-        boolean canOffer(long size);
-
-        CompletableFuture<Boolean> canOfferAsync(long size);
 
         Position lastOffered();
 
