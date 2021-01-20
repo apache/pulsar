@@ -830,7 +830,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied) {
         TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         DelayedDeliveryPolicies delayedDeliveryPolicies = null;
-        if(policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()){
+        if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
             delayedDeliveryPolicies = new DelayedDeliveryPolicies(
                     policies.getDelayedDeliveryTickTimeMillis(),
                     policies.getDelayedDeliveryEnabled());
