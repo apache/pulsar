@@ -36,6 +36,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -43,7 +44,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.cache.MetadataCache;
 
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
@@ -221,6 +221,10 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Override
     public CompletableFuture<List<String>> getChildren(String path) {
         return store.getChildren(path);
+    }
+
+    public void invalidate(String path) {
+        objCache.synchronous().invalidate(path);
     }
 
     @Override

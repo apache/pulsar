@@ -1320,6 +1320,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove max consumers per topic for a namespace")
+    private class RemoveMaxConsumersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxConsumersPerTopic(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get maxConsumersPerSubscription for a namespace")
     private class GetMaxConsumersPerSubscription extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -2008,6 +2020,8 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumersPerTopic());
         jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
+        jcommander.addCommand("remove-max-consumers-per-topic", new RemoveMaxConsumersPerTopic());
+
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
