@@ -81,9 +81,3 @@ message MarkersMessageIdData {
     required uint64 ledger_id = 1;
     required uint64 entry_id = 2;
 }
-
-
-/// --- Transaction marker ---
-message TxnCommitMarker {
-    repeated MarkersMessageIdData message_id = 1;
-}

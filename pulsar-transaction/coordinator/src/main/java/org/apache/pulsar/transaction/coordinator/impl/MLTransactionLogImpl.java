@@ -86,7 +86,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime());
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
     }
 
     @Override

@@ -86,13 +86,14 @@ public class CompactedTopicImpl implements CompactedTopic {
             PositionImpl cursorPosition = (PositionImpl) cursor.getReadPosition();
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx, PositionImpl.latest);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
                         .thenCompose((startPoint) -> {
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
-                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
+                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx,
+                                        PositionImpl.latest);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),

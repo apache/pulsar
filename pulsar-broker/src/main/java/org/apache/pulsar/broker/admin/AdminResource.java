@@ -321,6 +321,9 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
         } catch (RestException re) {
+            if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
+                throw new RestException(Status.NOT_FOUND, "Namespace not found");
+            }
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
         } catch (Exception e) {
             log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
@@ -495,10 +498,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
         final ServiceConfiguration config = pulsar().getConfiguration();
 
-        if (policies.max_consumers_per_topic < 1) {
-            policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
-        }
-
         if (policies.max_consumers_per_subscription < 1) {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
         }
@@ -523,10 +522,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
-        }
-
-        if (policies.message_ttl_in_seconds == null) {
-            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
         }
     }
 
