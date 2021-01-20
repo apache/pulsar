@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -392,7 +393,13 @@ public class PulsarService implements AutoCloseable {
             state = State.Closed;
             isClosedCondition.signalAll();
         } catch (Exception e) {
-            throw new PulsarServerException(e);
+            if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
+                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
+            } else if (e.getCause() instanceof CompletionException && e.getCause().getCause() instanceof MetadataStoreException) {
+                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
+            } else {
+                throw new PulsarServerException(e);
+            }
         } finally {
             mutex.unlock();
         }
