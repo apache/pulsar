@@ -44,6 +44,8 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     private final static long BASE_OF_MILLIS_TO_SECOND = 1000L;
     private Timeout currentTimeout;
     private final static long INITIAL_TIMEOUT = 1L;
+    // The timeout may wait time longer than the new transaction timeout time, so we should cancel the current timeout
+    // and create a timeout wait time is the new transaction timeout time.
     private long nowTaskTimeoutTime = INITIAL_TIMEOUT;
     private final long tcId;
     private final TransactionMetadataStoreService transactionMetadataStoreService;
@@ -60,8 +62,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     @Override
     public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
         if (timeout < tickTimeMillis) {
-            this.transactionMetadataStoreService.endTransaction(new TxnID(priorityQueue.peekN2(),
-                    priorityQueue.peekN3()), TxnAction.ABORT_VALUE);
+            this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
             return CompletableFuture.completedFuture(false);
         }
         synchronized (this){
@@ -72,9 +73,10 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
                 nowTaskTimeoutTime = nowTransactionTimeoutTime;
             } else if (nowTaskTimeoutTime > nowTransactionTimeoutTime) {
-                currentTimeout.cancel();
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
-                nowTaskTimeoutTime = nowTransactionTimeoutTime;
+                if (currentTimeout.cancel()) {
+                    currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
+                    nowTaskTimeoutTime = nowTransactionTimeoutTime;
+                }
             }
         }
         return CompletableFuture.completedFuture(false);
@@ -94,7 +96,9 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     @Override
     public void close() {
         priorityQueue.close();
-        this.close();
+        if (this.currentTimeout != null) {
+            this.currentTimeout.cancel();
+        }
     }
 
     @Override
@@ -104,8 +108,8 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 long timeoutTime = priorityQueue.peekN1();
                 long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
                 if (timeoutTime < nowTime){
-                    transactionMetadataStoreService.endTransaction(new TxnID(priorityQueue.peekN2(),
-                            priorityQueue.peekN3()), TxnAction.ABORT_VALUE);
+                    transactionMetadataStoreService.endTransactionForTimeout(new TxnID(priorityQueue.peekN2(),
+                            priorityQueue.peekN3()));
                 } else {
                     currentTimeout = timer
                             .newTimeout(this,

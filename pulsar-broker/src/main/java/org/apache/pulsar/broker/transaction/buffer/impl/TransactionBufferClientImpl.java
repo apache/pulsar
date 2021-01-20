@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.concurrent.CompletableFuture;
+
+import io.netty.util.HashedWheelTimer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
@@ -39,8 +41,9 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         this.tbHandler = tbHandler;
     }
 
-    public static TransactionBufferClient create(NamespaceService namespaceService, ConnectionPool connectionPool) {
-        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService);
+    public static TransactionBufferClient create(NamespaceService namespaceService, ConnectionPool connectionPool,
+                                                 HashedWheelTimer timer) {
+        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService, timer);
         return new TransactionBufferClientImpl(handler);
     }
 
