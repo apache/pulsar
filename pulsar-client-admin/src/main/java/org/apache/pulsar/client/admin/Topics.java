@@ -1811,6 +1811,21 @@ public interface Topics {
     CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
 
     /**
+     * Get inactive topic policies applied for a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get inactive topic policies applied for a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic, boolean applied);
+    /**
      * get inactive topic policies of a topic.
      * @param topic
      * @return

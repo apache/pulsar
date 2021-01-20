@@ -50,6 +50,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 public class InactiveTopicDeleteTest extends BrokerTestBase {
@@ -542,5 +544,58 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
                 -> Assert.assertFalse(admin.topics().getList(namespace).contains(topic3)));
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
+    }
+
+    @Test(timeOut = 30000)
+    public void testInactiveTopicApplied() throws Exception {
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        super.baseSetup();
+
+        final String namespace = "prop/ns-abc";
+        final String topic = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        //namespace-level default value is null
+        assertNull(admin.namespaces().getInactiveTopicPolicies(namespace));
+        //topic-level default value is null
+        assertNull(admin.topics().getInactiveTopicPolicies(topic));
+        //use broker-level by default
+        InactiveTopicPolicies brokerLevelPolicy =
+                new InactiveTopicPolicies(conf.getBrokerDeleteInactiveTopicsMode(),
+                        conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                        conf.isBrokerDeleteInactiveTopicsEnabled());
+        Assert.assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), brokerLevelPolicy);
+        //set namespace-level policy
+        InactiveTopicPolicies namespaceLevelPolicy =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                20, false);
+        admin.namespaces().setInactiveTopicPolicies(namespace, namespaceLevelPolicy);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNotNull(admin.namespaces().getInactiveTopicPolicies(namespace)));
+        InactiveTopicPolicies policyFromBroker = admin.topics().getInactiveTopicPolicies(topic, true);
+        assertEquals(policyFromBroker.getMaxInactiveDurationSeconds(), 20);
+        assertFalse(policyFromBroker.isDeleteWhileInactive());
+        assertEquals(policyFromBroker.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        // set topic-level policy
+        InactiveTopicPolicies topicLevelPolicy =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up,
+                        30, false);
+        admin.topics().setInactiveTopicPolicies(topic, topicLevelPolicy);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNotNull(admin.topics().getInactiveTopicPolicies(topic)));
+        policyFromBroker = admin.topics().getInactiveTopicPolicies(topic, true);
+        assertEquals(policyFromBroker.getMaxInactiveDurationSeconds(), 30);
+        assertFalse(policyFromBroker.isDeleteWhileInactive());
+        assertEquals(policyFromBroker.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        //remove topic-level policy
+        admin.topics().removeInactiveTopicPolicies(topic);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), namespaceLevelPolicy));
+        //remove namespace-level policy
+        admin.namespaces().removeInactiveTopicPolicies(namespace);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), brokerLevelPolicy));
     }
 }
