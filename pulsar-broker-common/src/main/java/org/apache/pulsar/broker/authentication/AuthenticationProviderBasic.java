@@ -25,6 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 import lombok.Cleanup;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 import javax.naming.AuthenticationException;
 import java.io.BufferedReader;
@@ -94,10 +95,10 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            authFailuresMetrics.labels(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.AuthenticateFailure(getAuthMethodName(), exception.getMessage());
             throw exception;
         }
-        authSuccessMetrics.labels(getAuthMethodName()).inc();
+        AuthenticationMetrics.AuthenticateSuccess(getAuthMethodName());
         return userId;
     }
 

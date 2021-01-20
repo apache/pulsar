@@ -25,6 +25,7 @@ import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {
 
@@ -88,9 +89,9 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             if (commonName == null) {
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            authSuccessMetrics.labels(getAuthMethodName()).inc();
+            AuthenticationMetrics.AuthenticateSuccess(getAuthMethodName());
         } catch (AuthenticationException exception) {
-            authFailuresMetrics.labels(getAuthMethodName(), exception.getMessage()).inc();
+            AuthenticationMetrics.AuthenticateFailure(getAuthMethodName(), exception.getMessage());
             throw exception;
         }
         return commonName;
