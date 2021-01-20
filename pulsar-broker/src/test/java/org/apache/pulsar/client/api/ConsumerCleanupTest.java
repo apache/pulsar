@@ -45,7 +45,7 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "ackReceiptEnabled")
-    public Object[][] ackResponseTimeout() {
+    public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
 

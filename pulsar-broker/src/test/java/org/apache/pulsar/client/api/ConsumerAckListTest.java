@@ -53,11 +53,11 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000, dataProvider = "ackReceiptEnabled")
-    public void testBatchListAck(boolean ackResponseEnabled) throws Exception {
-        ackListMessage(true,true, ackResponseEnabled);
-        ackListMessage(true,false, ackResponseEnabled);
-        ackListMessage(false,false, ackResponseEnabled);
-        ackListMessage(false,true, ackResponseEnabled);
+    public void testBatchListAck(boolean ackReceiptEnabled) throws Exception {
+        ackListMessage(true,true, ackReceiptEnabled);
+        ackListMessage(true,false, ackReceiptEnabled);
+        ackListMessage(false,false, ackReceiptEnabled);
+        ackListMessage(false,true, ackReceiptEnabled);
     }
 
     public void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {

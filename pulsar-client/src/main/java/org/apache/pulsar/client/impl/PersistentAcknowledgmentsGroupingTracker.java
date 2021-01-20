@@ -647,7 +647,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private boolean isAckReceiptEnabled(ClientCnx cnx) {
-        return ackReceiptEnabled && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion());
+        return ackReceiptEnabled && cnx != null
+                && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion());
     }
 
     private static class LastCumulativeAck {

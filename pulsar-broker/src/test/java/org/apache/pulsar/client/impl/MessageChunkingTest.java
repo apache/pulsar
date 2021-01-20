@@ -82,7 +82,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "ackReceiptEnabled")
-    public Object[][] ackResponseEnabled() {
+    public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
 

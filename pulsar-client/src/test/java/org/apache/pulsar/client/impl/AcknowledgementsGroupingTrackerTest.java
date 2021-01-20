@@ -67,8 +67,8 @@ public class AcknowledgementsGroupingTrackerTest {
         when(cnx.ctx()).thenReturn(ctx);
     }
 
-    @DataProvider(name = "isNeedResponse")
-    public Object[][] isNeedResponse() {
+    @DataProvider(name = "isNeedReceipt")
+    public Object[][] isNeedReceipt() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
@@ -77,11 +77,11 @@ public class AcknowledgementsGroupingTrackerTest {
         eventLoopGroup.shutdownGracefully();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testAckTracker(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testAckTracker(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -137,11 +137,11 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testBatchAckTracker(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testBatchAckTracker(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -197,11 +197,11 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testImmediateAckingTracker(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testImmediateAckingTracker(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -226,11 +226,11 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testImmediateBatchAckingTracker(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testImmediateBatchAckingTracker(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -257,11 +257,11 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testAckTrackerMultiAck(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
@@ -319,11 +319,11 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
-    @Test(dataProvider = "isNeedResponse")
-    public void testBatchAckTrackerMultiAck(boolean isNeedResponse) throws Exception {
+    @Test(dataProvider = "isNeedReceipt")
+    public void testBatchAckTrackerMultiAck(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        conf.setAckReceiptEnabled(isNeedResponse);
+        conf.setAckReceiptEnabled(isNeedReceipt);
         AcknowledgmentsGroupingTracker tracker;
         tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 

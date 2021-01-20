@@ -274,8 +274,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @DataProvider(name = "batchAndAckResponse")
-    public Object[][] codecProviderWithAckResponse() {
+    @DataProvider(name = "batchAndAckReceipt")
+    public Object[][] codecProviderWithAckReceipt() {
         return new Object[][] { { 0, true}, { 1000, false }, { 0, true }, { 1000, false }};
     }
 
@@ -321,7 +321,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batchAndAckResponse")
+    @Test(dataProvider = "batchAndAckReceipt")
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic2")
@@ -1743,7 +1743,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchAndAckResponse")
+    @Test(dataProvider = "batchAndAckReceipt")
     public void testUnackedBlockAtBatch(int batchMessageDelayMs, boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
