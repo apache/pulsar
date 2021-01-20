@@ -121,7 +121,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         // Get Token
-        String token = getToken(authData);
+        String token;
+        try {
+            token = getToken(authData);
+            authSuccessMetrics.labels(getAuthMethodName()).inc();
+            authSuccessMetrics.labels(getAuthMethodName()).inc();
+        } catch (AuthenticationException exception) {
+            authFailuresMetrics.labels(getAuthMethodName(), exception.getMessage());
+            throw exception;
+        }
 
         // Parse Token by validating
         return getPrincipal(authenticateToken(token));

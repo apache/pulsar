@@ -28,6 +28,7 @@ import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import io.prometheus.client.Counter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -35,6 +36,16 @@ import org.apache.pulsar.common.api.AuthData;
  * Provider of authentication mechanism
  */
 public interface AuthenticationProvider extends Closeable {
+    Counter authSuccessMetrics = Counter.build()
+            .name("pulsar_auth_success")
+            .help("Pulsar authentication success")
+            .labelNames("authMethod")
+            .register();
+    Counter authFailuresMetrics = Counter.build()
+            .name("pulsar_auth_failures")
+            .help("Pulsar authentication failures")
+            .labelNames("authMethod", "reason")
+            .register();
 
     /**
      * Perform initialization for the authentication provider

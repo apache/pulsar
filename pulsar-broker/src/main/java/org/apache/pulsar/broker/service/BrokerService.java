@@ -42,16 +42,11 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -70,6 +65,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.common.TextFormat;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -313,6 +310,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
+        this.pulsar.addPrometheusRawMetricsProvider(stream -> {
+            try {
+                StringWriter writer = new StringWriter();
+                Set<String> metricsName = new HashSet<>(Arrays.asList("pulsar_auth_success", "pulsar_auth_failures"));
+                TextFormat.write004(writer, CollectorRegistry.defaultRegistry.filteredMetricFamilySamples(metricsName));
+                stream.write(writer.toString());
+            } catch (IOException e) {
+                log.error("{}", e.getMessage(), e.getCause());
+                throw new RuntimeException(e.getMessage(), e.getCause());
+            }
+        });
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.dynamicConfigurationCache = new ZooKeeperDataCache<Map<String, String>>(pulsar().getLocalZkCache()) {
             @Override
