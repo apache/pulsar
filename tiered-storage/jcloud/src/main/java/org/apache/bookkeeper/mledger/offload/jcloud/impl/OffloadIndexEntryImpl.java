@@ -37,14 +37,17 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public long getEntryId() {
         return entryId;
     }
+
     @Override
     public int getPartId() {
         return partId;
     }
+
     @Override
     public long getOffset() {
         return offset;
     }
+
     @Override
     public long getDataOffset() {
         return offset + blockHeaderSize;

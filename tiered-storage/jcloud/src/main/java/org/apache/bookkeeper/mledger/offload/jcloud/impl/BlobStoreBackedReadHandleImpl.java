@@ -195,7 +195,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         Blob blob = blobStore.getBlob(bucket, indexKey);
         versionCheck.check(indexKey, blob);
         OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-        OffloadIndexBlock index = indexBuilder.fromStream(blob.getPayload().openStream());
+        OffloadIndexBlock index = indexBuilder.indexFromStream(blob.getPayload().openStream());
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
             versionCheck,

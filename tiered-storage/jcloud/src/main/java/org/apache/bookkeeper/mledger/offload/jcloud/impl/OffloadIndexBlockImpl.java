@@ -164,7 +164,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         // write entries
         this.indexEntries.entrySet().forEach(entry ->
-            out.writeLong(entry.getValue().getEntryId())
+                out.writeLong(entry.getValue().getEntryId())
                 .writeInt(entry.getValue().getPartId())
                 .writeLong(entry.getValue().getOffset()));
 
@@ -198,7 +198,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
             if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
                 ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
             }
 
             ledgerMetadataFormat.getSegmentList().forEach(segment -> {
@@ -332,7 +332,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         int magic = dis.readInt();
         if (magic != this.INDEX_MAGIC_WORD) {
             throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                                                magic, INDEX_MAGIC_WORD));
+                    magic, INDEX_MAGIC_WORD));
         }
         dis.readInt(); // no used index block length
         this.dataObjectLength = dis.readLong();
@@ -351,7 +351,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         for (int i = 0; i < indexEntryCount; i++) {
             long entryId = dis.readLong();
             this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
-                                                                            dis.readLong(), dataHeaderLength));
+                    dis.readLong(), dataHeaderLength));
         }
 
         return this;

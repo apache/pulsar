@@ -22,7 +22,6 @@ import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
@@ -39,6 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.testng.annotations.Test;
@@ -82,7 +82,7 @@ public class OffloadIndexTest {
 //        }
 //    }
 
-    private LedgerMetadata createLedgerMetadata(long id) throws Exception {
+    public static LedgerMetadata createLedgerMetadata(long id) throws Exception {
 
         Map<String, byte[]> metadataCustom = Maps.newHashMap();
         metadataCustom.put("key1", "value1".getBytes(UTF_8));
@@ -92,12 +92,21 @@ public class OffloadIndexTest {
         bookies.add(0, new BookieSocketAddress("127.0.0.1:3181").toBookieId());
         bookies.add(1, new BookieSocketAddress("127.0.0.2:3181").toBookieId());
         bookies.add(2, new BookieSocketAddress("127.0.0.3:3181").toBookieId());
-        
+
         return LedgerMetadataBuilder.create().withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
                 .withDigestType(DigestType.CRC32C).withPassword("password".getBytes(UTF_8))
                 .withCustomMetadata(metadataCustom).withClosedState().withLastEntryId(5000).withLength(100)
                 .newEnsembleEntry(0L, bookies).withId(id).build();
 
+    }
+
+    public static LedgerInfo createLedgerInfo(long id) throws Exception {
+
+        Map<String, byte[]> metadataCustom = Maps.newHashMap();
+        metadataCustom.put("key1", "value1".getBytes(UTF_8));
+        metadataCustom.put("key7", "value7".getBytes(UTF_8));
+
+        return LedgerInfo.newBuilder().setLedgerId(id).setEntries(5001).setSize(10000).build();
     }
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl
@@ -122,7 +131,7 @@ public class OffloadIndexTest {
         // verify getIndexEntryForEntry
         OffloadIndexEntry entry1 = indexBlock.getIndexEntryForEntry(0);
         assertEquals(entry1.getEntryId(), 0);
-        assertEquals(entry1.getPartId(),2);
+        assertEquals(entry1.getPartId(), 2);
         assertEquals(entry1.getOffset(), 0);
 
         OffloadIndexEntry entry11 = indexBlock.getIndexEntryForEntry(500);
@@ -185,7 +194,7 @@ public class OffloadIndexTest {
         OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                                                         wrapper.readLong(), dataHeaderLength);
 
-        assertEquals(e1.getEntryId(),entry1.getEntryId());
+        assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
         assertEquals(e1.getOffset(), entry1.getOffset());
         assertEquals(e1.getDataOffset(), entry1.getDataOffset());
@@ -203,7 +212,7 @@ public class OffloadIndexTest {
         InputStream out2 = indexBlock.toStream();
         int streamLength = out2.available();
         out2.mark(0);
-        OffloadIndexBlock indexBlock2 = blockBuilder.fromStream(out2);
+        OffloadIndexBlock indexBlock2 = blockBuilder.indexFromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata();
         log.debug("built metadata: {}", metadata2.toString());
@@ -221,7 +230,7 @@ public class OffloadIndexTest {
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
         try(InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
-            OffloadIndexBlock indexBlock3 = blockBuilder.fromStream(stream3);
+            OffloadIndexBlock indexBlock3 = blockBuilder.indexFromStream(stream3);
             fail("Should throw IOException");
         } catch (Exception e) {
             assertTrue(e instanceof IOException);
@@ -232,7 +241,7 @@ public class OffloadIndexTest {
         out2.read(streamContent);
         try(InputStream stream4 =
                 new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
-            OffloadIndexBlock indexBlock4 = blockBuilder.fromStream(stream4);
+            OffloadIndexBlock indexBlock4 = blockBuilder.indexFromStream(stream4);
             fail("Should throw EOFException");
         } catch (Exception e) {
             assertTrue(e instanceof java.io.EOFException);
