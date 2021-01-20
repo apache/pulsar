@@ -2339,6 +2339,19 @@ public interface Namespaces {
             String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies);
 
     /**
+     * Remove the delayed delivery messages for all topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryMessages(String namespace) throws PulsarAdminException;
+    /**
+     * Remove the delayed delivery messages for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryMessagesAsync(String namespace);
+
+    /**
      * Get the inactive deletion strategy for all topics within a namespace synchronously.
      * @param namespace
      * @return

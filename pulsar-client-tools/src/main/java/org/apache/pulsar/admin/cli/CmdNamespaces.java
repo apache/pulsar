@@ -1097,6 +1097,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove delayed delivery policies from a namespace")
+    private class RemoveDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeDelayedDeliveryMessages(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the inactive topic policy for a namespace")
     private class GetInactiveTopicPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1984,6 +1996,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+        jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
 
         jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
