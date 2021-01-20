@@ -35,12 +35,6 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
 
-    interface SegmentInfo {
-        boolean isClosed();
-
-        OffloadResult result();
-    }
-
     class OffloadResult {
         public final long beginLedger;
         public final long beginEntry;
