@@ -26,7 +26,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -37,14 +39,16 @@ import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.metadata.cache.MetadataCache;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 
 @Slf4j
-public abstract class AbstractMetadataStore implements MetadataStore, Consumer<Notification> {
+public abstract class AbstractMetadataStore implements MetadataStoreExtended, Consumer<Notification> {
 
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
@@ -124,8 +128,8 @@ public abstract class AbstractMetadataStore implements MetadataStore, Consumer<N
         listeners.add(listener);
     }
 
-    protected void receivedNotification(Notification notification) {
-        executor.execute(() -> {
+    protected CompletableFuture<Void> receivedNotification(Notification notification) {
+        return CompletableFuture.supplyAsync(() -> {
             listeners.forEach(listener -> {
                 try {
                     listener.accept(notification);
@@ -133,7 +137,9 @@ public abstract class AbstractMetadataStore implements MetadataStore, Consumer<N
                     log.error("Failed to process metadata store notification", t);
                 }
             });
-        });
+
+            return null;
+        }, executor);
     }
 
     @Override
@@ -143,6 +149,10 @@ public abstract class AbstractMetadataStore implements MetadataStore, Consumer<N
 
         if (type == NotificationType.Created || type == NotificationType.Deleted) {
             existsCache.synchronous().invalidate(path);
+            String parent = parent(path);
+            if (parent != null) {
+                childrenCache.synchronous().invalidate(parent);
+            }
         }
 
         if (type == NotificationType.ChildrenChanged) {
@@ -154,9 +164,60 @@ public abstract class AbstractMetadataStore implements MetadataStore, Consumer<N
         }
     }
 
+    protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion);
+
+    @Override
+    public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        // Ensure caches are invalidated before the operation is confirmed
+        return storeDelete(path, expectedVersion)
+                .thenRun(() -> {
+                    existsCache.synchronous().invalidate(path);
+                    String parent = parent(path);
+                    if (parent != null) {
+                        childrenCache.synchronous().invalidate(parent);
+                    }
+
+                    metadataCaches.forEach(c -> c.invalidate(path));
+                });
+    }
+
+    protected abstract CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+            EnumSet<CreateOption> options);
+
+    @Override
+    public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
+            EnumSet<CreateOption> options) {
+        // Ensure caches are invalidated before the operation is confirmed
+        return storePut(path, data, optExpectedVersion, options)
+                .thenApply(stat -> {
+                    NotificationType type = stat.getVersion() == 0 ? NotificationType.Created
+                            : NotificationType.Modified;
+                    if (type == NotificationType.Created) {
+                        existsCache.synchronous().invalidate(path);
+                        String parent = parent(path);
+                        if (parent != null) {
+                            childrenCache.synchronous().invalidate(parent);
+                        }
+                    }
+
+                    metadataCaches.forEach(c -> c.invalidate(path));
+                    return stat;
+                });
+    }
+
     @Override
     public void close() throws Exception {
         executor.shutdownNow();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+    }
+
+    protected static String parent(String path) {
+        int idx = path.lastIndexOf('/');
+        if (idx <= 0) {
+            // No parent
+            return null;
+        }
+
+        return path.substring(0, idx);
     }
 }

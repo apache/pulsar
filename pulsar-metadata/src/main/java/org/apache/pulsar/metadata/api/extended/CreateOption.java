@@ -16,33 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.api;
-
-import lombok.Data;
+package org.apache.pulsar.metadata.api.extended;
 
 /**
- * Represent the information associated with a given value in the store.
+ * Options to use when creating key-value pairs on the {@link MetadataStoreExtended}
  */
-@Data
-public class Stat {
+public enum CreateOption {
+    /**
+     * The key-value pair will automatically expires when the session is terminated
+     */
+    Ephemeral,
 
     /**
-     * The path of the value
+     * Create a sequential unique key
      */
-    final String path;
-
-    /**
-     * The data version.
-     */
-    final long version;
-
-    /**
-     * When the value was first inserted.
-     */
-    final long creationTimestamp;
-
-    /**
-     * When the value was last modified.
-     */
-    final long modificationTimestamp;
+    Sequential
 }
