@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
@@ -214,8 +215,10 @@ public class LocalBookkeeperEnsemble {
     public void disconnectZookeeper(ZooKeeper zooKeeper) {
         ServerCnxn serverCnxn = getZookeeperServerConnection(zooKeeper);
         try {
-            Method method = serverCnxn.getClass().getMethod("close");
-            method.invoke(serverCnxn);
+            LOG.info("disconnect ZK server side connection {}", serverCnxn);
+            Class disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
+            Method method = serverCnxn.getClass().getMethod("close", disconnectReasonClass);
+            method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s->s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
