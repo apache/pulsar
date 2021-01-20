@@ -1235,6 +1235,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(1, 1),
+                        null,
                         invocationOnMock.getArguments()[2]);
                 return null;
             }
@@ -1717,7 +1718,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             ByteBuf entry = getMessageWithMetadata(content.getBytes());
             ledger.asyncAddEntry(entry, new AddEntryCallback() {
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     latch.countDown();
                     entry.release();
                 }

@@ -35,6 +35,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -295,7 +296,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                         ledger.asyncAddEntry("test".getBytes(Encoding), new AddEntryCallback() {
                             @Override
-                            public void addComplete(Position position, Object ctx) {
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                                 @SuppressWarnings("unchecked")
                                 Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
                                 ManagedLedger ledger = pair.getLeft();
@@ -548,7 +549,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.asyncAddEntry("dummy-entry-1".getBytes(Encoding), new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 assertNull(ctx);
 
                 counter.countDown();
@@ -577,7 +578,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             final String content = "dummy-entry-" + i;
             ledger.asyncAddEntry(content.getBytes(Encoding), new AddEntryCallback() {
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     assertNotNull(ctx);
 
                     log.info("Successfully added {}", content);
@@ -607,7 +608,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.asyncAddEntry("dummy-entry-1".getBytes(Encoding), new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 fail("Should have failed");
             }
 
@@ -832,7 +833,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             String content = "entry-" + i;
             ledger.asyncAddEntry(content.getBytes(Encoding), new AddEntryCallback() {
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     counter.countDown();
                 }
 
@@ -2615,7 +2616,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.asyncAddEntry(data.getBytes(), new AddEntryCallback() {
 
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 addSuccess.set(true);
                 latch.countDown();
             }
