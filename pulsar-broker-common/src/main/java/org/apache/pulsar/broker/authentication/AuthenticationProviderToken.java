@@ -125,7 +125,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         try {
             token = getToken(authData);
             authSuccessMetrics.labels(getAuthMethodName()).inc();
-            authSuccessMetrics.labels(getAuthMethodName()).inc();
         } catch (AuthenticationException exception) {
             authFailuresMetrics.labels(getAuthMethodName(), exception.getMessage());
             throw exception;

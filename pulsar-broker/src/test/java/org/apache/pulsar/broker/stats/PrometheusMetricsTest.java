@@ -703,7 +703,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
-    public void testTokenAuthMetrics() throws IOException, AuthenticationException {
+    public void testAuthMetrics() throws IOException, AuthenticationException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
@@ -714,6 +714,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
         provider.initialize(conf);
+
+        String authExceptionMessage = "";
+
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, no credential passed
+            authExceptionMessage = e.getMessage();
+        }
 
         String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
 
@@ -744,6 +755,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         HttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        Multimap<String, Metric> metrics = parseMetrics(getHttpResponseContent(response));
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_auth_success");
+        Metric metric = cm.get(cm.size() - 1);
+        assertEquals(metric.tags.get("authMethod"), "token");
+
+        cm = (List<Metric>) metrics.get("pulsar_auth_failures");
+        metric = cm.get(cm.size() - 1);
+        assertEquals(metric.tags.get("authMethod"), "token");
+        assertEquals(metric.tags.get("reason"), authExceptionMessage);
+    }
+
+    private static String getHttpResponseContent(HttpResponse response) throws IOException {
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);
@@ -752,10 +775,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         while ((str = reader.readLine()) != null) {
             sb.append(str + "\n");
         }
-        Multimap<String, Metric> metrics = parseMetrics(sb.toString());
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_auth_success");
-        Metric metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("authMethod"), "token");
+        return sb.toString();
     }
 
     /**
