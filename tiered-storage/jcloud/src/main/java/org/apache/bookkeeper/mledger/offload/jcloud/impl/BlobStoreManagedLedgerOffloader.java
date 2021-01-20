@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -98,7 +99,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final long segmentBeginTimeMillis;
     private final long maxSegmentLength;
     private final int streamingBlockSize;
-    private ManagedLedger ml;
+    private volatile ManagedLedger ml;
     private StreamingOffloadIndexBlockBuilder streamingIndexBuilder;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
@@ -272,9 +273,15 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     List<MultipartPart> streamingParts = Lists.newArrayList();
 
     @Override
-    public CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
+    public CompletableFuture<OffloadHandle> streamingOffload(@NonNull ManagedLedger ml, UUID uuid, long beginLedger,
                                                              long beginEntry,
                                                              Map<String, String> driverMetadata) {
+        if (this.ml != null) {
+            log.error("streamingOffload should only be called once");
+            final CompletableFuture<OffloadHandle> result = new CompletableFuture<>();
+            result.completeExceptionally(new RuntimeException("streamingOffload should only be called once"));
+        }
+
         this.ml = ml;
         this.segmentInfo = new OffloadSegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(),
                 driverMetadata);

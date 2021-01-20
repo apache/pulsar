@@ -134,7 +134,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            inputStream.skip(length);
+                            long ignored = inputStream.skip(length);
                         }
                     }
 

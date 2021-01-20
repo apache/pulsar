@@ -140,6 +140,7 @@ public interface LedgerOffloader {
     /**
      * Begin offload the passed in ledgers to longterm storage, it will finish
      * when a segment reached it's size or time.
+     * Should only be called once for a LedgerOffloader instance.
      * Metadata passed in is for inspection purposes only and should be stored
      * alongside the segment data.
      *
