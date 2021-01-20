@@ -387,8 +387,13 @@ public class PulsarService implements AutoCloseable {
                 transactionBufferClient.close();
             }
 
-            coordinationService.close();
-            localMetadataStore.close();
+            if (coordinationService != null) {
+                coordinationService.close();
+            }
+
+            if (localMetadataStore != null) {
+                localMetadataStore.close();
+            }
 
             state = State.Closed;
             isClosedCondition.signalAll();
