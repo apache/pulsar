@@ -26,8 +26,6 @@ import java.security.PublicKey;
 import javax.naming.AuthenticationException;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
