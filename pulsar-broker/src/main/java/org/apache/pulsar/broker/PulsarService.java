@@ -115,6 +115,7 @@ import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -450,11 +451,7 @@ public class PulsarService implements AutoCloseable {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
 
-            localMetadataStore = MetadataStoreExtended.create(config.getZookeeperServers(),
-                    MetadataStoreConfig.builder()
-                            .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
-                            .allowReadOnlyOperations(false)
-                            .build());
+            localMetadataStore = createLocalMetadataStore();
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
@@ -662,6 +659,14 @@ public class PulsarService implements AutoCloseable {
         } finally {
             mutex.unlock();
         }
+    }
+
+    public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+        return MetadataStoreExtended.create(config.getZookeeperServers(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                        .allowReadOnlyOperations(false)
+                        .build());
     }
 
     protected void startLeaderElectionService() {
