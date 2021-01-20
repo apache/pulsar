@@ -57,6 +57,15 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
     private final ExecutorService executor;
 
     static class GroupedReader {
+        @Override
+        public String toString() {
+            return "GroupedReader{" +
+                    "ledgerId=" + ledgerId +
+                    ", firstEntry=" + firstEntry +
+                    ", lastEntry=" + lastEntry +
+                    '}';
+        }
+
         public final long ledgerId;
         public final long firstEntry;
         public final long lastEntry;
@@ -215,7 +224,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         Preconditions.checkArgument(firstEntry > lastEntry);
         for (int i = 0; i < groupedReaders.size() - 1; i++) {
             final GroupedReader readerI = groupedReaders.get(i);
-            final GroupedReader readerII = groupedReaders.get(i);
+            final GroupedReader readerII = groupedReaders.get(i + 1);
             Preconditions.checkArgument(readerI.ledgerId == readerII.ledgerId);
             Preconditions.checkArgument(readerI.firstEntry >= readerII.lastEntry);
         }

@@ -338,8 +338,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         }
 
         if (offloadBuffer.isEmpty()) {
+            log.debug("segment not closed but buffer is empty {} {}", partId, dataObjectLength);
             scheduler.chooseThread(segmentInfo)
-                    .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 100, TimeUnit.MILLISECONDS);
+                    .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 10000, TimeUnit.MILLISECONDS);
             return;
         }
 
@@ -360,6 +361,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
             partPayload.getContentMetadata().setContentType("application/octet-stream");
             streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
+            streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
             streamingIndexBuilder.addBlock(blockLedgerId, blockEntryId, partId, tempBlockSize);
             final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
             final MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder ledgerInfoBuilder = MLDataFormats.ManagedLedgerInfo.LedgerInfo
@@ -433,7 +435,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (segmentInfo.isClosed()) {
             log.debug("Segment already closed {}", segmentInfo);
             return OfferEntryResult.FAIL_SEGMENT_CLOSED;
-        } else if (maxBufferLength >= bufferLength.get() + entry.getLength()
+        } else if (maxBufferLength < bufferLength.get() + entry.getLength()
                 //if single message size larger than full buffer size, then ok to offer when buffer is empty
                 && !(entry.getLength() > maxBufferLength && offloadBuffer.isEmpty())) {
             return OfferEntryResult.FAIL_BUFFER_FULL;

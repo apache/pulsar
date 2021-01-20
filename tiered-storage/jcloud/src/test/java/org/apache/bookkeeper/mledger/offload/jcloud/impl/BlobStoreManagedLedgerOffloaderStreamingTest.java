@@ -95,7 +95,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
@@ -104,12 +104,13 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         log.error("try begin offload");
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
-
         //Segment should closed because size in bytes full
         for (int i = 0; i < 10; i++) {
             final byte[] data = new byte[100];
             random.nextBytes(data);
-            offloadHandle.offerEntry(EntryImpl.create(0, i, data));
+            final OffloadHandle.OfferEntryResult offerEntryResult = offloadHandle
+                    .offerEntry(EntryImpl.create(0, i, data));
+            log.info("offer result: {}", offerEntryResult);
         }
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         log.info("Offload reasult: {}", offloadResult);
@@ -120,7 +121,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
@@ -169,7 +170,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "2000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
@@ -236,12 +237,12 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
@@ -311,12 +312,12 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
@@ -396,7 +397,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
-            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
