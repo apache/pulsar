@@ -61,8 +61,6 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyParserTest.class);
 
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -73,7 +71,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         //enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
