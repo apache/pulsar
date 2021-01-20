@@ -51,7 +51,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(2);
 
         config.setBrokerDeleteInactiveTopicsEnabled(false);
-        config.setBookkeeperOpportunisticStriping(true);
+        config.getProperties().setProperty("bookkeeper.opportunisticStriping", "true");
     }
 
     @Test

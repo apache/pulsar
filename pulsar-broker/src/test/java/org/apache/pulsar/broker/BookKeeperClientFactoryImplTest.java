@@ -211,10 +211,9 @@ public class BookKeeperClientFactoryImplTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         // default value
         assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), false);
-        conf.setBookkeeperOpportunisticStriping(true);
+        conf.getProperties().setProperty("bookkeeper.opportunisticStriping", "true");
         assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), true);
-
-        conf.setBookkeeperOpportunisticStriping(false);
+        conf.getProperties().setProperty("bookkeeper.opportunisticStriping", "false");
         assertEquals(factory.createBkClientConfiguration(conf).getOpportunisticStriping(), false);
 
     }
