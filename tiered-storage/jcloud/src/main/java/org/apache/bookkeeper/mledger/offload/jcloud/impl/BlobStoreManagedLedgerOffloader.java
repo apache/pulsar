@@ -347,7 +347,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (offloadBuffer.isEmpty()) {
             log.debug("segment not closed but buffer is empty {} {}", partId, dataObjectLength);
             scheduler.chooseThread(segmentInfo)
-                    .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 10000, TimeUnit.MILLISECONDS);
+                    .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 100, TimeUnit.MILLISECONDS);
             return;
         }
 
