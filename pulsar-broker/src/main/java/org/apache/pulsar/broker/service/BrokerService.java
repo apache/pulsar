@@ -2547,7 +2547,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (maxTopicsPerNamespace > 0) {
                 String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
                         topicName.getNamespace(), topicName.getDomain().value());
-                List<String> topics = pulsar().getGlobalZkCache().getZooKeeper()
+                List<String> topics = pulsar().getLocalZkCache().getZooKeeper()
                         .getChildren(partitionedTopicPath, false);
                 if (topics.size() + numPartitions > maxTopicsPerNamespace) {
                     log.error("Failed to create persistent topic {}, "

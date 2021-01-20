@@ -60,7 +60,6 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private final String BASE_PATH = "/metrics/broker";
     private final String QUERY_PARAM = "param";
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
@@ -74,7 +73,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 

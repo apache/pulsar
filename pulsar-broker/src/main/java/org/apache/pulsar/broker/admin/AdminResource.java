@@ -117,6 +117,10 @@ public abstract class AdminResource extends PulsarWebResource {
         globalZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
+    protected void localZKCreate(String path, byte[] content) throws Exception {
+        localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
