@@ -117,6 +117,10 @@ public abstract class AdminResource extends PulsarWebResource {
         globalZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
+    protected void localZKCreate(String path, byte[] content) throws Exception {
+        localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
@@ -522,10 +526,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
-        }
-
-        if (policies.message_ttl_in_seconds == null) {
-            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
         }
     }
 

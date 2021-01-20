@@ -316,7 +316,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
-        mockZooKeeper.setAlwaysFail(Code.SESSIONEXPIRED);
+        mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
             admin.topics().getPartitionedTopicMetadata(topic);
@@ -329,7 +329,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
-        mockZooKeeper.unsetAlwaysFail();
+        mockZooKeeperGlobal.unsetAlwaysFail();
     }
 
 }
