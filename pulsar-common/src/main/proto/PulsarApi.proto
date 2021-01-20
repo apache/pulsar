@@ -255,7 +255,7 @@ enum ProtocolVersion {
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
     v16 = 16; // Add support for raw message metadata
-    v17 = 17; // Added support ack response
+    v17 = 17; // Added support ack receipt
 }
 
 message CommandConnect {

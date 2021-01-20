@@ -126,7 +126,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds,
                                                          AckType ackType, Map<String, Long> properties) {
         if (AckType.Cumulative.equals(ackType)) {
-            if (ackReceiptEnabled) {
+            if (isAckReceiptEnabled(consumer.getClientCnx())) {
                 Set<CompletableFuture<Void>> completableFutureSet = new HashSet<>();
                 messageIds.forEach(messageId ->
                         completableFutureSet.add(addAcknowledgment((MessageIdImpl) messageId, ackType, properties)));
@@ -136,7 +136,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return CompletableFuture.completedFuture(null);
             }
         } else {
-            if (ackReceiptEnabled) {
+            if (isAckReceiptEnabled(consumer.getClientCnx())) {
                 try {
                     // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
                     // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
@@ -253,7 +253,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Individual, properties, null);
         } else {
-            if (ackReceiptEnabled) {
+            if (isAckReceiptEnabled(consumer.getClientCnx())) {
                 // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
                 // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
                 // any ack operation is allowed.
@@ -294,7 +294,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private CompletableFuture<Void> doIndividualBatchAck(BatchMessageIdImpl batchMessageId) {
-        if (ackReceiptEnabled) {
+        if (isAckReceiptEnabled(consumer.getClientCnx())) {
             // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
             // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
             // any ack operation is allowed.
@@ -319,12 +319,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Cumulative, properties, bitSet);
         } else {
-            if (ackReceiptEnabled) {
+            if (isAckReceiptEnabled(consumer.getClientCnx())) {
+                // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
+                // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
+                // any ack operation is allowed.
+                this.lock.readLock().lock();
                 try {
-                    // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
-                    // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
-                    // any ack operation is allowed.
-                    this.lock.readLock().lock();
                     doCumulativeAckAsync(messageId, bitSet);
                     return this.currentCumulativeAckFuture;
                 } finally {
@@ -453,7 +453,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return;
         }
 
-        if (ackReceiptEnabled) {
+        if (isAckReceiptEnabled(consumer.getClientCnx())) {
             this.lock.writeLock().lock();
             try {
                 flushAsync(cnx);
@@ -473,7 +473,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     AckType.Cumulative, null, Collections.emptyMap(), false,
                     this.currentCumulativeAckFuture, null);
             this.consumer.unAckedChunkedMessageIdSequenceMap.remove(lastCumulativeAck.messageId);
-            shouldFlush=true;
+            shouldFlush = true;
             cumulativeAckFlushRequired = false;
         }
 
@@ -597,7 +597,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                                  Map<String, Long> properties, boolean flush,
                                                                  TimedCompletableFuture<Void> timedCompletableFuture,
                                                                  List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
-        if (ackReceiptEnabled && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion())) {
+        if (isAckReceiptEnabled(consumer.getClientCnx())) {
             final long requestId = consumer.getClient().newRequestId();
             final ByteBuf cmd;
             if (entriesToAck == null) {
@@ -618,6 +618,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return timedCompletableFuture;
             }
         } else {
+            // client cnx don't support ack receipt, if we don't complete the future, the client will block.
             if (ackReceiptEnabled) {
                 synchronized (PersistentAcknowledgmentsGroupingTracker.this) {
                     if (!this.currentCumulativeAckFuture.isDone()) {
@@ -643,6 +644,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    private boolean isAckReceiptEnabled(ClientCnx cnx) {
+        return ackReceiptEnabled && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion());
     }
 
     private static class LastCumulativeAck {
