@@ -67,12 +67,12 @@ public interface StreamingOffloadIndexBlockBuilder {
     /**
      * Finalize the immutable OffloadIndexBlock.
      */
-    StreamingOffloadIndexBlock buildStreaming();
+    OffloadIndexBlockV2 buildStreaming();
 
     /**
      * Construct OffloadIndex from an InputStream.
      */
-    StreamingOffloadIndexBlock streamingIndexFromStream(InputStream is) throws IOException;
+    OffloadIndexBlockV2 fromStream(InputStream is) throws IOException;
 
     /**
      * create an OffloadIndexBlockBuilder.

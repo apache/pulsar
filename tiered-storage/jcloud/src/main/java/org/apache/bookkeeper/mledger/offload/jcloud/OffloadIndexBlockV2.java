@@ -27,7 +27,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
  * The Index block abstraction used for offload a ledger to long term storage.
  */
 @Unstable
-public interface StreamingOffloadIndexBlock extends Closeable {
+public interface OffloadIndexBlockV2 extends Closeable {
 
     /**
      * Get the content of the index block as InputStream.

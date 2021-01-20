@@ -28,7 +28,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -434,13 +433,13 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         try {
             readHandle.read(-1, -1);
             Assert.fail("Shouldn't be able to read anything");
-        } catch (BKException.BKIncorrectParameterException e) {
+        } catch (Exception e) {
         }
 
         try {
             readHandle.read(0, 20);
             Assert.fail("Shouldn't be able to read anything");
-        } catch (BKException.BKIncorrectParameterException e) {
+        } catch (Exception e) {
         }
     }
 }

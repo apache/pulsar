@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -38,7 +39,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -51,7 +52,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(StreamingBlobStoreBackedReadHandleImpl.class);
 
     private final long ledgerId;
-    private final List<StreamingOffloadIndexBlock> indices;
+    private final List<OffloadIndexBlockV2> indices;
     private final List<BackedInputStream> inputStreams;
     private final List<DataInputStream> dataStreams;
     private final ExecutorService executor;
@@ -69,12 +70,12 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         public final long ledgerId;
         public final long firstEntry;
         public final long lastEntry;
-        StreamingOffloadIndexBlock index;
+        OffloadIndexBlockV2 index;
         BackedInputStream inputStream;
         DataInputStream dataStream;
 
         public GroupedReader(long ledgerId, long firstEntry, long lastEntry,
-                             StreamingOffloadIndexBlock index,
+                             OffloadIndexBlockV2 index,
                              BackedInputStream inputStream, DataInputStream dataStream) {
             this.ledgerId = ledgerId;
             this.firstEntry = firstEntry;
@@ -85,7 +86,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         }
     }
 
-    private StreamingBlobStoreBackedReadHandleImpl(long ledgerId, List<StreamingOffloadIndexBlock> indices,
+    private StreamingBlobStoreBackedReadHandleImpl(long ledgerId, List<OffloadIndexBlockV2> indices,
                                                    List<BackedInputStream> inputStreams,
                                                    ExecutorService executor) {
         this.ledgerId = ledgerId;
@@ -114,7 +115,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         executor.submit(() -> {
             try {
-                for (StreamingOffloadIndexBlock indexBlock : indices) {
+                for (OffloadIndexBlockV2 indexBlock : indices) {
                     indexBlock.close();
                 }
                 for (DataInputStream dataStream : dataStreams) {
@@ -209,7 +210,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
     private List<GroupedReader> getGroupedReader(long firstEntry, long lastEntry) throws Exception {
         List<GroupedReader> groupedReaders = new LinkedList<>();
         for (int i = indices.size() - 1; i >= 0 && firstEntry <= lastEntry; i--) {
-            final StreamingOffloadIndexBlock index = indices.get(i);
+            final OffloadIndexBlockV2 index = indices.get(i);
             final long startEntryId = index.getStartEntryId(ledgerId);
             if (startEntryId > lastEntry) {
                 log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
@@ -276,7 +277,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
                                   long ledgerId, int readBufferSize)
             throws IOException {
         List<BackedInputStream> inputStreams = new LinkedList<>();
-        List<StreamingOffloadIndexBlock> indice = new LinkedList<>();
+        List<OffloadIndexBlockV2> indice = new LinkedList<>();
         for (int i = 0; i < indexKeys.size(); i++) {
             String indexKey = indexKeys.get(i);
             String key = keys.get(i);
@@ -285,7 +286,9 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
             StreamingOffloadIndexBlockBuilder indexBuilder = StreamingOffloadIndexBlockBuilder.create();
-            StreamingOffloadIndexBlock index = indexBuilder.streamingIndexFromStream(blob.getPayload().openStream());
+            final InputStream payloadStream = blob.getPayload().openStream();
+            OffloadIndexBlockV2 index = indexBuilder.fromStream(payloadStream);
+            payloadStream.close();
 
             BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                     versionCheck,

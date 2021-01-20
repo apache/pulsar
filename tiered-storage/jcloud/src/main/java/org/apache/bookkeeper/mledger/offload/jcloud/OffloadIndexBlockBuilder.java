@@ -71,7 +71,7 @@ public interface OffloadIndexBlockBuilder {
     /**
      * Construct OffloadIndex from an InputStream.
      */
-    OffloadIndexBlock indexFromStream(InputStream is) throws IOException;
+    OffloadIndexBlockV2 fromStream(InputStream is) throws IOException;
 
     /**
      * create an OffloadIndexBlockBuilder.

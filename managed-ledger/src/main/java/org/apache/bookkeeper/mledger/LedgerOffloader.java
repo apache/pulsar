@@ -150,7 +150,7 @@ public interface LedgerOffloader {
      * The uid is used to identify an attempt to offload. The implementation should
      * use this to deterministically generate a unique name for the offloaded object.
      * This uid will be stored in the managed ledger metadata before attempting the
-     * call to offload(). If a subsequent or concurrent call to streamingOffload() finds
+     * call to streamingOffload(). If a subsequent or concurrent call to streamingOffload() finds
      * a uid in the metadata, it will attempt to cleanup this attempt with a call
      * to #deleteOffloaded(ReadHandle,UUID). Once the offload attempt completes,
      * the managed ledger will update its metadata again, to record the completion,

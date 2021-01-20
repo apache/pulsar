@@ -26,7 +26,6 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +35,15 @@ import java.util.TreeMap;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBlock {
+public class StreamingOffloadIndexBlockImpl implements OffloadIndexBlockV2 {
     private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
     private static final int INDEX_MAGIC_WORD = 0x3D1FB0BC;
@@ -90,10 +89,14 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
         return block;
     }
 
-    public static StreamingOffloadIndexBlockImpl get(InputStream stream) throws IOException {
+    public static StreamingOffloadIndexBlockImpl get(int magic, DataInputStream stream) throws IOException {
         StreamingOffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         block.segmentMetadata = Maps.newTreeMap();
+        if (magic != INDEX_MAGIC_WORD) {
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
+                    magic, INDEX_MAGIC_WORD));
+        }
         block.fromStream(stream);
         return block;
     }
@@ -217,13 +220,8 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
         return LedgerInfo.newBuilder().mergeFrom(bytes).build();
     }
 
-    private StreamingOffloadIndexBlock fromStream(InputStream stream) throws IOException {
-        DataInputStream dis = new DataInputStream(stream);
-        int magic = dis.readInt();
-        if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                    magic, INDEX_MAGIC_WORD));
-        }
+    private OffloadIndexBlockV2 fromStream(DataInputStream dis) throws IOException {
+
         dis.readInt(); // no used index block length
         this.dataObjectLength = dis.readLong();
         this.dataHeaderLength = dis.readLong();

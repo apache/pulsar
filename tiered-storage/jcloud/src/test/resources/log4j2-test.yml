@@ -45,13 +45,9 @@ Configuration:
 
   Loggers:
     logger:
-      - name: org.apache.logging.log4j.test1
-        level: debug
+      - name: org.apache.bookkeeper.client.PulsarMockReadHandle
+        level: info
         additivity: false
-        ThreadContextMapFilter:
-          KeyValuePair:
-            key: test
-            value: 123
         AppenderRef:
           ref: STDOUT
       - name: org.apache.logging.log4j.test2

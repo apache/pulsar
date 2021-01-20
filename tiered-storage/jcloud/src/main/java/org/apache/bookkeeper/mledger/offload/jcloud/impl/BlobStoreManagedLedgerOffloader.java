@@ -48,7 +48,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
@@ -399,7 +399,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         try {
             blobStore.completeMultipartUpload(streamingMpu, streamingParts);
             streamingIndexBuilder.withDataObjectLength(dataObjectLength);
-            final StreamingOffloadIndexBlock index = streamingIndexBuilder.buildStreaming();
+            final OffloadIndexBlockV2 index = streamingIndexBuilder.buildStreaming();
             final IndexInputStream indexStream = index.toStream();
             final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());

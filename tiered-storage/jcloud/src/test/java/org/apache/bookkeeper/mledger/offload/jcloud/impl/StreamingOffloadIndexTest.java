@@ -28,8 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.StreamingOffloadIndexBlockImpl.CompatibleMetadata;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -52,7 +52,7 @@ public class StreamingOffloadIndexTest {
         blockBuilder.addBlock(ledgerId, 0, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId, 1000, 3, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId, 2000, 4, 64 * 1024 * 1024);
-        StreamingOffloadIndexBlock indexBlock = blockBuilder.buildStreaming();
+        OffloadIndexBlockV2 indexBlock = blockBuilder.buildStreaming();
 
         // verify getEntryCount and getLedgerMetadata
         assertEquals(indexBlock.getEntryCount(), 3);
@@ -143,7 +143,7 @@ public class StreamingOffloadIndexTest {
         InputStream out2 = indexBlock.toStream();
         int streamLength = out2.available();
         out2.mark(0);
-        StreamingOffloadIndexBlock indexBlock2 = blockBuilder.streamingIndexFromStream(out2);
+        OffloadIndexBlockV2 indexBlock2 = blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata(ledgerId);
         log.debug("built metadata: {}", metadata2.toString());
@@ -160,7 +160,7 @@ public class StreamingOffloadIndexTest {
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
         try (InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
-            StreamingOffloadIndexBlock indexBlock3 = blockBuilder.streamingIndexFromStream(stream3);
+            OffloadIndexBlockV2 indexBlock3 = blockBuilder.fromStream(stream3);
             fail("Should throw IOException");
         } catch (Exception e) {
             assertTrue(e instanceof IOException);
@@ -171,7 +171,7 @@ public class StreamingOffloadIndexTest {
         out2.read(streamContent);
         try (InputStream stream4 =
                      new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
-            StreamingOffloadIndexBlock indexBlock4 = blockBuilder.streamingIndexFromStream(stream4);
+            OffloadIndexBlockV2 indexBlock4 = blockBuilder.fromStream(stream4);
             fail("Should throw EOFException");
         } catch (Exception e) {
             assertTrue(e instanceof java.io.EOFException);
@@ -199,7 +199,7 @@ public class StreamingOffloadIndexTest {
         blockBuilder.addBlock(ledgerId1, 1000, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId2, 0, 3, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId2, 1000, 4, 64 * 1024 * 1024);
-        StreamingOffloadIndexBlock indexBlock = blockBuilder.buildStreaming();
+        OffloadIndexBlockV2 indexBlock = blockBuilder.buildStreaming();
 
         // verify getEntryCount and getLedgerMetadata
         assertEquals(indexBlock.getEntryCount(), 3);
@@ -301,7 +301,7 @@ public class StreamingOffloadIndexTest {
         InputStream out2 = indexBlock.toStream();
         int streamLength = out2.available();
         out2.mark(0);
-        StreamingOffloadIndexBlock indexBlock2 = blockBuilder.streamingIndexFromStream(out2);
+        OffloadIndexBlockV2 indexBlock2 = blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
         //TODO change to meaningful things
 //        LedgerMetadata metadata1back = indexBlock2.getLedgerMetadata(ledgerId1);

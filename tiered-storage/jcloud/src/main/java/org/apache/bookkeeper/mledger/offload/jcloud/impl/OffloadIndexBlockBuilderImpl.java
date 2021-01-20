@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.Lists;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -31,7 +32,7 @@ import java.util.TreeMap;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
@@ -113,13 +114,18 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
     }
 
     @Override
-    public OffloadIndexBlock indexFromStream(InputStream is) throws IOException {
-        return OffloadIndexBlockImpl.get(is);
-    }
-
-    @Override
-    public StreamingOffloadIndexBlock streamingIndexFromStream(InputStream is) throws IOException {
-        return StreamingOffloadIndexBlockImpl.get(is);
+    public OffloadIndexBlockV2 fromStream(InputStream is) throws IOException {
+        final DataInputStream dataInputStream = new DataInputStream(is);
+        final int magic = dataInputStream.readInt();
+        if (magic == OffloadIndexBlockImpl.getIndexMagicWord()) {
+            return OffloadIndexBlockImpl.get(magic, dataInputStream);
+        } else if (magic == StreamingOffloadIndexBlockImpl.getIndexMagicWord()) {
+            return StreamingOffloadIndexBlockImpl.get(magic, dataInputStream);
+        } else {
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x or 0x%x",
+                    magic, OffloadIndexBlockImpl.getIndexMagicWord(),
+                    StreamingOffloadIndexBlockImpl.getIndexMagicWord()));
+        }
     }
 
     @Override
@@ -132,7 +138,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
     }
 
     @Override
-    public StreamingOffloadIndexBlock buildStreaming() {
+    public OffloadIndexBlockV2 buildStreaming() {
         checkState(!ledgerMetadataMap.isEmpty());
         checkState(true);
         checkState(!entryMap.isEmpty());

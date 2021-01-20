@@ -27,7 +27,6 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +79,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return block;
     }
 
-    public static OffloadIndexBlockImpl get(InputStream stream) throws IOException {
+    public static OffloadIndexBlockImpl get(int magic, DataInputStream stream) throws IOException {
+        if (magic != INDEX_MAGIC_WORD) {
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
+                    magic, INDEX_MAGIC_WORD));
+        }
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         block.fromStream(stream);
@@ -327,13 +330,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return new InternalLedgerMetadata(builder.build());
     }
 
-    private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
-        DataInputStream dis = new DataInputStream(stream);
-        int magic = dis.readInt();
-        if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                    magic, INDEX_MAGIC_WORD));
-        }
+    private OffloadIndexBlock fromStream(DataInputStream dis) throws IOException {
         dis.readInt(); // no used index block length
         this.dataObjectLength = dis.readLong();
         this.dataHeaderLength = dis.readLong();
@@ -353,7 +350,6 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
                     dis.readLong(), dataHeaderLength));
         }
-
         return this;
     }
 
