@@ -54,7 +54,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

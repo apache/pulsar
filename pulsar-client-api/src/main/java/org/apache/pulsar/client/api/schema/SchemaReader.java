@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.io.InputStream;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Deserialize messages from bytes.
  */
-
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaReader<T> {
 
     /**

@@ -146,7 +146,7 @@
           <groupId>io.grpc</groupId>
           <artifactId>*</artifactId>
         </exclusion>
-        <!-- bouncy-castle-bc-shaded already contains this-->
+        <!-- bouncy-castle-bc already contains this-->
         <exclusion>
           <groupId>org.bouncycastle</groupId>
           <artifactId>*</artifactId>
@@ -233,6 +233,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
         <executions>
           <execution>
             <id>distro-assembly</id>

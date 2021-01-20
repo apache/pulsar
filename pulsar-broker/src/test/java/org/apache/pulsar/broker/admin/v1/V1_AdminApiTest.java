@@ -31,7 +31,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -89,6 +88,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -168,7 +168,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         adminTls.close();
@@ -248,7 +248,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             nsPolicyData1.namespaces = new ArrayList<String>();
             nsPolicyData1.namespaces.add("other/use/other.*");
             nsPolicyData1.primary = new ArrayList<String>();
-            nsPolicyData1.primary.add("prod1-broker[4-6].messaging.use.example.com");
+            // match all broker. make it easy to verify `getBrokersWithNamespaceIsolationPolicy` later
+            nsPolicyData1.primary.add(".*");
+
             nsPolicyData1.secondary = new ArrayList<String>();
             nsPolicyData1.secondary.add("prod1-broker.*.messaging.use.example.com");
             nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
@@ -277,6 +279,11 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             Map<String, NamespaceIsolationData> policiesMap = admin.clusters().getNamespaceIsolationPolicies("use");
             assertEquals(policiesMap.get(policyName1), nsPolicyData1);
             assertEquals(policiesMap.get(policyName2), nsPolicyData2);
+
+            // verify local broker get matched.
+            List<BrokerNamespaceIsolationData> isoList = admin.clusters().getBrokersWithNamespaceIsolationPolicy("use");
+            assertEquals(isoList.size(), 1);
+            assertTrue(isoList.get(0).isPrimary);
 
             // verify update of primary
             nsPolicyData1.primary.remove(0);

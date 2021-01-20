@@ -99,7 +99,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                 // handle bucket entries initialization here
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets",
                         ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets());
-
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerAddEntryLatencyBuckets",
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets());
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
                         ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets());
 

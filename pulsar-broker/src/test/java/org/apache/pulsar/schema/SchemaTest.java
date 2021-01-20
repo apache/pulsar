@@ -58,7 +58,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

@@ -30,10 +30,14 @@ import java.util.Set;
 import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface for accessing data which are used in variety of authentication schemes on client side.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface AuthenticationDataProvider extends Serializable {
     /*
      * TLS

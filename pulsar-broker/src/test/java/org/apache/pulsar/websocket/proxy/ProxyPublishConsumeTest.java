@@ -99,7 +99,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();

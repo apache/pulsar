@@ -19,15 +19,12 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -50,8 +47,8 @@ import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
-import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -111,8 +108,8 @@ public class PulsarClusterMetadataSetup {
         private int numTransactionCoordinators = 16;
 
         @Parameter(names = {
-            "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
-        private String bkMetadataServiceUri;
+            "--existing-bk-metadata-service-uri" }, description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
+        private String existingBkMetadataServiceUri;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -176,7 +173,7 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        if (arguments.bkMetadataServiceUri == null) {
+        if (arguments.existingBkMetadataServiceUri == null) {
             bkConf.setZkServers(arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
@@ -187,7 +184,7 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            String uriStr = arguments.bkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.bkMetadataServiceUri;
+            String uriStr = arguments.existingBkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.existingBkMetadataServiceUri;
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
@@ -238,6 +235,9 @@ public class PulsarClusterMetadataSetup {
 
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStoreZk, TopicName.TRANSACTION_COORDINATOR_ASSIGN, arguments.numTransactionCoordinators);
+
+        localZk.close();
+        configStoreZk.close();
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }

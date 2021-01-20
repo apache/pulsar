@@ -77,7 +77,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.cleanup();
         service.close();

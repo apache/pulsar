@@ -16,9 +16,9 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
-* [Pulsar Functions](#pulsar functions)
+* [Pulsar Functions](#pulsar-functions)
 * [Proxy](#proxy)
-* [Pulsar SQL Worker](#Pulsar SQL Worker)
+* [Pulsar SQL Worker](#pulsar-sql-worker)
 
 ## Overview
 

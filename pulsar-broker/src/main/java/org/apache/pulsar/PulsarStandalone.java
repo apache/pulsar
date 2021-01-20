@@ -19,15 +19,12 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
-
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.Optional;
-
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
