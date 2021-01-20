@@ -362,9 +362,13 @@ public class RuntimeUtils {
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
-        if (pulsarWebServiceUrl != null) {
-            args.add("--web_serviceurl");
-            args.add(pulsarWebServiceUrl);
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            // TODO: for now only Java function context exposed pulsar admin, so python/go no need to pass this argument
+            // until pulsar admin client enabled in python/go function context.
+            if (pulsarWebServiceUrl != null) {
+                args.add("--web_serviceurl");
+                args.add(pulsarWebServiceUrl);
+            }
         }
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())

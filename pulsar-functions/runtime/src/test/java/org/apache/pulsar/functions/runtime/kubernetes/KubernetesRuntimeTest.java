@@ -364,14 +364,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 37;
-            portArg = 26;
-            metricsPortArg = 28;
+            totalArgs = 39;
+            portArg = 28;
+            metricsPortArg = 30;
         } else {
             extraDepsEnv = "";
-            portArg = 25;
-            metricsPortArg = 27;
-            totalArgs = 36;
+            portArg = 27;
+            metricsPortArg = 29;
+            totalArgs = 38;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -393,6 +393,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
+                + " --web_serviceurl " + pulsarAdminUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1";

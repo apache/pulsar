@@ -271,6 +271,12 @@ public interface Context {
      */
     PulsarAdmin getPulsarAdmin();
 
+    /**
+     * Get the pulsar admin client by cluster name.
+     *
+     * @param clusterName The name of the cluster name for pulsar admin client
+     * @return The instance of pulsar admin client
+     */
     PulsarAdmin getPulsarAdmin(String clusterName);
 
     /**
@@ -317,7 +323,7 @@ public interface Context {
     /**
      * New output message using schema for serializing to the topic in the cluster
      *
-     * @parem clusterName the name of the cluster for topic
+     * @param clusterName the name of the cluster for topic
      * @param topicName The name of the topic for output message
      * @param schema provide a way to convert between serialized data and domain objects
      * @param <O>

@@ -81,7 +81,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     // Per Message related
     private Record<?> record;
 
+    @VisibleForTesting
     private String defaultPulsarCluster;
+    @VisibleForTesting
     private Map<String, PulsarCluster> externalPulsarClusters;
 
     private final SecretsProvider secretsProvider;
@@ -309,7 +311,12 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public PulsarAdmin getPulsarAdmin(String clusterName) {
-        return externalPulsarClusters.get(clusterName).getAdminClient();
+        PulsarCluster pulsarCluster = externalPulsarClusters.get(clusterName);
+        if (pulsarCluster != null) {
+            return pulsarCluster.getAdminClient();
+        } else {
+            return null;
+        }
     }
 
     @Override

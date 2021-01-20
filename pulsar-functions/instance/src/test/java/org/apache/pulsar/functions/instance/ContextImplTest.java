@@ -29,6 +29,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import io.prometheus.client.CollectorRegistry;
 
@@ -159,5 +161,15 @@ public class ContextImplTest {
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
+    }
+
+    @Test
+    public void testGetPulsarAdmin() throws Exception {
+        assertEquals(context.getPulsarAdmin(), pulsarAdmin);
+    }
+
+    @Test
+    public void testGetPulsarAdminWithNonExistClusterName() throws Exception {
+        assertNull(context.getPulsarAdmin("foo"));
     }
  }
