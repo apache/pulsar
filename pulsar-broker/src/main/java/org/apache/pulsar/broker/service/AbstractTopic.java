@@ -191,7 +191,7 @@ public abstract class AbstractTopic implements Topic {
             }
             maxConsumers = policies.max_consumers_per_topic;
         }
-        final int maxConsumersPerTopic = maxConsumers > 0 ? maxConsumers
+        final int maxConsumersPerTopic = maxConsumers != null ? maxConsumers
                 : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;

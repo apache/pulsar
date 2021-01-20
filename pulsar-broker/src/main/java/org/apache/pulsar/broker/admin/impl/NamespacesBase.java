@@ -539,9 +539,9 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
 
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
         try {
+            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
             List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
@@ -613,10 +613,9 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
 
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-
         try {
+            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
             // directly remove from owned namespace map and ephemeral node from ZK
             pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
         } catch (WebApplicationException wae) {
@@ -1368,8 +1367,15 @@ public abstract class NamespacesBase extends AdminResource {
                 asyncResponse.resume(Response.noContent().build());
                 return;
             }
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+            NamespaceBundle nsBundle;
+
+            try {
+                nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                     authoritative, true);
+            } catch (WebApplicationException wae) {
+                asyncResponse.resume(wae);
+                return;
+            }
 
             pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
                     .thenRun(() -> {
@@ -1409,8 +1415,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         validatePoliciesReadOnlyAccess();
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
 
         List<String> supportedNamespaceBundleSplitAlgorithms =
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
@@ -1422,9 +1426,13 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         try {
+            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
             pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                    getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
             log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
+        } catch (WebApplicationException wae) {
+            throw wae;
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalArgumentException) {
                 log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
@@ -2602,12 +2610,12 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxConsumersPerTopic() {
+    protected Integer internalGetMaxConsumersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
-    protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
+    protected void internalSetMaxConsumersPerTopic(Integer maxConsumersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2616,7 +2624,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxConsumersPerTopic < 0) {
+            if (maxConsumersPerTopic != null && maxConsumersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerTopic must be 0 or more");
             }
