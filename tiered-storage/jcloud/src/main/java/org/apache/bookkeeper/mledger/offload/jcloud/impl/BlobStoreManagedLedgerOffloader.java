@@ -374,7 +374,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             streamingIndexBuilder.addLedgerMeta(blockLedgerId, ledgerInfoBuilder.build());
             log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                     config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             blobStore.abortMultipartUpload(streamingMpu);
             offloadResult.completeExceptionally(e);
             return;
