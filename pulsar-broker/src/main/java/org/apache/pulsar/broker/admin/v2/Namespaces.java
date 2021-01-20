@@ -910,7 +910,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Delete delayed delivery messages config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
-    public void setDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
+    public void removeDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetDelayedDelivery(null);
