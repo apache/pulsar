@@ -219,20 +219,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
+        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
     }
 
     @Override
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
+        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
     }
 
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
+        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
     }
 
-    private CompletableFuture<Boolean> allowFunctionSourceSinkOpsAsync(NamespaceName namespaceName, String role,
+    private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
@@ -538,7 +538,21 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
+        CompletableFuture<Boolean> isAuthorizedFuture;
+        if (operation == NamespaceOperation.PACKAGES) {
+            isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
+        } else {
+            isAuthorizedFuture = CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> isTenantAdminFuture = validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
+        return isTenantAdminFuture.thenCombine(isAuthorizedFuture, (isTenantAdmin, isAuthorized) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Verify if role {} is allowed to {} to topic {}:"
+                        + " isTenantAdmin={}, isAuthorized={}",
+                    role, operation, namespaceName, isTenantAdmin, isAuthorized);
+            }
+            return isTenantAdmin || isAuthorized;
+        });
     }
 
     @Override
