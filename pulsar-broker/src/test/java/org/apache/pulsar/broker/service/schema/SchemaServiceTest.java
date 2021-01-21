@@ -37,10 +37,13 @@ import java.util.concurrent.ExecutionException;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -317,6 +320,12 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertFalse(schemaRegistryService.isCompatible(schemaId1, schemaData3,
                 SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE).get());
         putSchema(schemaId1, schemaData3, version(2), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+    }
+
+    @Test(expectedExceptions = PulsarServerException.class)
+    public void testSchemaStorageFailed() throws Exception {
+        conf.setSchemaRegistryStorageClassName("Unknown class name");
+        restartBroker();
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {
