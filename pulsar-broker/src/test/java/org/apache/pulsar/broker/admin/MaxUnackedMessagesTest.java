@@ -82,11 +82,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(max);
 
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, 2048);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
         assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName).intValue(), 2048);
         admin.topics().removeMaxUnackedMessagesOnSubscription(topicName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
     }
@@ -110,7 +110,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
         waitCacheInit(topicName);
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
@@ -191,11 +191,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(max);
 
         admin.topics().setMaxUnackedMessagesOnConsumer(topicName, 2048);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
         assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), 2048);
         admin.topics().removeMaxUnackedMessagesOnConsumer(topicName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
@@ -242,7 +242,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         // 3) Set restrictions, so only part of the data can be consumed
         waitCacheInit(topicName);
         admin.topics().setMaxUnackedMessagesOnConsumer(topicName, unackMsgAllowed);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
         assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), unackMsgAllowed);
         // 4) Start 2 consumer, each consumer can only consume 100 messages

@@ -192,12 +192,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String path = "fileSystemPath";
         offload.setFileSystemProfilePath(path);
         admin.topics().setOffloadPolicies(topicName, offload);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getOffloadPolicies(topicName)));
         assertEquals(admin.topics().getOffloadPolicies(topicName), offload);
         assertEquals(admin.topics().getOffloadPolicies(topicName).getFileSystemProfilePath(), path);
         admin.topics().removeOffloadPolicies(topicName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getOffloadPolicies(topicName)));
         assertNull(admin.topics().getOffloadPolicies(topicName));
     }
@@ -253,7 +253,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.topics().getOffloadPolicies(topicName)));
         //5 name of offload should become "mock"
         if (isPartitioned) {
@@ -279,7 +279,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
 
         admin.topics().removeOffloadPolicies(topicName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getOffloadPolicies(topicName)));
         // topic level offloader should be closed
         if (isPartitioned) {
