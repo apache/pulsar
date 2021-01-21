@@ -755,47 +755,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
         });
 
-        getPulsar().addPrometheusRawMetricsProvider(stream -> {
-            try {
-                StringWriter writer = new StringWriter();
-                Set<String> metricsName = new HashSet<>(Arrays.asList("pulsar_auth_success", "pulsar_auth_failures"));
-                TextFormat.write004(writer, CollectorRegistry.defaultRegistry.filteredMetricFamilySamples(metricsName));
-                stream.write(writer.toString());
-            } catch (IOException e) {
-                throw new RuntimeException(e.getMessage(), e.getCause());
-            }
-        });
-
-        HttpClient httpClient = HttpClientBuilder.create().build();
-        final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
-        HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
-        Multimap<String, Metric> metrics = parseMetrics(getHttpResponseContent(response));
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_auth_success");
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
         Metric metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("authMethod"), "token");
+        assertEquals(metric.tags.get("auth_method"), "token");
 
-        cm = (List<Metric>) metrics.get("pulsar_auth_failures");
+        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
         metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("authMethod"), "token");
+        assertEquals(metric.tags.get("auth_method"), "token");
         assertEquals(metric.tags.get("reason"), authExceptionMessage);
-    }
-
-    /**
-     * Get the content of the http response
-     * @param response http response
-     * @return content of the http response
-     * @throws IOException
-     */
-    private static String getHttpResponseContent(HttpResponse response) throws IOException {
-        InputStream inputStream = response.getEntity().getContent();
-        InputStreamReader isReader = new InputStreamReader(inputStream);
-        BufferedReader reader = new BufferedReader(isReader);
-        StringBuffer sb = new StringBuffer();
-        String str;
-        while ((str = reader.readLine()) != null) {
-            sb.append(str + "\n");
-        }
-        return sb.toString();
     }
 
     /**

@@ -317,17 +317,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
-        this.pulsar.addPrometheusRawMetricsProvider(stream -> {
-            try {
-                StringWriter writer = new StringWriter();
-                Set<String> metricsName = new HashSet<>(Arrays.asList("pulsar_auth_success", "pulsar_auth_failures"));
-                TextFormat.write004(writer, CollectorRegistry.defaultRegistry.filteredMetricFamilySamples(metricsName));
-                stream.write(writer.toString());
-            } catch (IOException e) {
-                log.error("{}", e.getMessage(), e.getCause());
-                throw new RuntimeException(e.getMessage(), e.getCause());
-            }
-        });
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.dynamicConfigurationCache = new ZooKeeperDataCache<Map<String, String>>(pulsar().getLocalZkCache()) {
             @Override
