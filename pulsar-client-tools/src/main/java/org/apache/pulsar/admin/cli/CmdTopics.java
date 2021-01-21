@@ -19,6 +19,8 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -119,6 +121,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
+        //deprecated commands
+        jcommander.addCommand("enable-deduplication", new EnableDeduplication());
+        jcommander.addCommand("disable-deduplication", new DisableDeduplication());
+        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
         jcommander.addCommand("get-deduplication", new GetDeduplicationEnabled());
@@ -152,6 +158,15 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
         jcommander.addCommand("remove-compaction-threshold", new RemoveCompactionThreshold());
+
+        //deprecated commands
+        jcommander.addCommand("get-max-unacked-messages-on-consumer", new GetMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("set-max-unacked-messages-on-consumer", new SetMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("remove-max-unacked-messages-on-consumer", new RemoveMaxUnackedMessagesOnConsumer());
+        jcommander.addCommand("get-max-unacked-messages-on-subscription", new GetMaxUnackedMessagesOnSubscription());
+        jcommander.addCommand("set-max-unacked-messages-on-subscription", new SetMaxUnackedMessagesOnSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-on-subscription", new RemoveMaxUnackedMessagesOnSubscription());
+
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesOnConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesOnConsumer());
         jcommander.addCommand("remove-max-unacked-messages-per-consumer", new RemoveMaxUnackedMessagesOnConsumer());
@@ -161,6 +176,11 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
+
+        //deprecated commands
+        jcommander.addCommand("get-maxProducers", new GetMaxProducers());
+        jcommander.addCommand("set-maxProducers", new SetMaxProducers());
+        jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
 
         jcommander.addCommand("get-max-producers", new GetMaxProducers());
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
@@ -189,6 +209,30 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
+
+        initDeprecatedCommands();
+    }
+
+    private void initDeprecatedCommands() {
+        IUsageFormatter usageFormatter = jcommander.getUsageFormatter();
+        if (usageFormatter instanceof CmdUsageFormatter) {
+            CmdUsageFormatter cmdUsageFormatter = (CmdUsageFormatter) usageFormatter;
+            cmdUsageFormatter.addDeprecatedCommander("enable-deduplication");
+            cmdUsageFormatter.addDeprecatedCommander("disable-deduplication");
+            cmdUsageFormatter.addDeprecatedCommander("get-deduplication-enabled");
+
+            cmdUsageFormatter.addDeprecatedCommander("get-max-unacked-messages-on-consumer");
+            cmdUsageFormatter.addDeprecatedCommander("remove-max-unacked-messages-on-consumer");
+            cmdUsageFormatter.addDeprecatedCommander("set-max-unacked-messages-on-consumer");
+
+            cmdUsageFormatter.addDeprecatedCommander("get-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommander("remove-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommander("set-max-unacked-messages-on-subscription");
+
+            cmdUsageFormatter.addDeprecatedCommander("get-maxProducers");
+            cmdUsageFormatter.addDeprecatedCommander("set-maxProducers");
+            cmdUsageFormatter.addDeprecatedCommander("remove-maxProducers");
+        }
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1210,6 +1254,32 @@ public class CmdTopics extends CmdBase {
                 retentionSizeInMB = -1;
             }
             admin.topics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
+        }
+    }
+
+    @Deprecated
+    @Parameters(commandDescription = "Enable the deduplication policy for a topic")
+    private class EnableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, true);
+        }
+    }
+
+    @Deprecated
+    @Parameters(commandDescription = "Disable the deduplication policy for a topic")
+    private class DisableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, false);
         }
     }
 
