@@ -242,7 +242,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                                     .getManagedLedger().getLastConfirmedEntry();
                             exist = true;
                             if (!markDeletePosition.equals(lastConfirmedEntry)) {
-                                flag = false;
                                 //this because of the transaction commit marker have't delete
                                 //delete commit marker after ack position
                                 //when delete commit marker operation is processing, next delete operation will not do again
