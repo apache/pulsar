@@ -18,15 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -35,13 +33,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
  *
  */
+@Slf4j
 class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
@@ -202,7 +201,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
                 lh.getId());
 
         if (rc == BKException.Code.OK) {
-            log.debug("Successfuly closed ledger {}", lh.getId());
+            log.debug("Successfully closed ledger {}", lh.getId());
         } else {
             log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
         }
@@ -298,5 +297,15 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         recyclerHandle.recycle(this);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);
+    @Override
+    public String toString() {
+        return "OpAddEntry{" +
+                "mlName" + ml.getName() +
+                "ledgerId=" + ledger.getId() +
+                ", entryId=" + entryId +
+                ", startTime=" + startTime +
+                ", dataLength=" + dataLength +
+                '}';
+    }
+
 }
