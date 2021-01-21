@@ -565,6 +565,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         return String.format("http://%s:%d", this.getWorkerHostname(), this.getWorkerPort());
     }
 
+    public String getWorkerWebAddressTls() {
+        return String.format("https://%s:%d", this.getWorkerHostname(), this.getWorkerPortTls());
+    }
+
     public static String unsafeLocalhostResolve() {
         try {
             // Get the fully qualified hostname

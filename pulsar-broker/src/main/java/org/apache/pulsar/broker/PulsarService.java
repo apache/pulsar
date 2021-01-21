@@ -1259,14 +1259,21 @@ public class PulsarService implements AutoCloseable {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            LOG.info("Starting function worker service");
             if (workerConfig.isUseTls()) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
+                workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
+                workerConfig.setFunctionWebServiceUrl(webServiceAddress);
             }
+
+            LOG.info("Starting function worker service: serviceUrl = {},"
+                + " webServiceUrl = {}, functionWebServiceUrl = {}",
+                workerConfig.getPulsarServiceUrl(),
+                workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getFunctionWebServiceUrl());
 
             functionWorkerService.get().initInBroker(
                 config,
@@ -1316,19 +1323,24 @@ public class PulsarService implements AutoCloseable {
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
+
+        brokerConfig.getWebServicePort()
+            .map(port -> workerConfig.setWorkerPort(port));
+        brokerConfig.getWebServicePortTls()
+            .map(port -> workerConfig.setWorkerPortTls(port));
+
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
             brokerConfig.getAdvertisedAddress());
         workerConfig.setWorkerHostname(hostname);
-        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
         workerConfig.setWorkerId(
             "c-" + brokerConfig.getClusterName()
                 + "-fw-" + hostname
-                + "-" + workerConfig.getWorkerPort());
+                + "-" + (workerConfig.getWorkerPort() != null
+                    ? workerConfig.getWorkerPort() : workerConfig.getWorkerPortTls()));
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
-
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
         workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
