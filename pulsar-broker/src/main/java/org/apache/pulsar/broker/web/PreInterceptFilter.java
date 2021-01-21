@@ -32,6 +32,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
 public class PreInterceptFilter implements Filter {
@@ -54,8 +55,9 @@ public class PreInterceptFilter implements Filter {
                 servletRequest.getServletContext().getContextPath(),
                 servletRequest.getContentType());
         }
-        if (MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(servletRequest.getContentType())
-                || MediaType.APPLICATION_OCTET_STREAM.equalsIgnoreCase(servletRequest.getContentType())) {
+        if (StringUtils.containsIgnoreCase(servletRequest.getContentType(), MediaType.MULTIPART_FORM_DATA)
+                || StringUtils.containsIgnoreCase(servletRequest.getContentType(),
+                MediaType.APPLICATION_OCTET_STREAM)) {
             // skip multipart request at this moment
             filterChain.doFilter(servletRequest, servletResponse);
             return;
