@@ -24,7 +24,6 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ListLedgersResult;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import static org.testng.AssertJUnit.assertEquals;
@@ -51,7 +50,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(2);
 
         config.setBrokerDeleteInactiveTopicsEnabled(false);
-        config.getProperties().setProperty("bookkeeper.opportunisticStriping", "true");
+        config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
     }
 
     @Test

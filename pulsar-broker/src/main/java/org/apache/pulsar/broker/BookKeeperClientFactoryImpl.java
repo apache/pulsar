@@ -143,7 +143,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         Properties allProps = conf.getProperties();
         allProps.forEach((key, value) -> {
             String sKey = key.toString();
-            if (sKey.startsWith("bookkeeper.") && value != null) {
+            if (sKey.startsWith("bookkeeper_") && value != null) {
                 String bkExtraConfigKey = sKey.substring(11);
                 log.info("Extra BookKeeper client configuration {}, setting {}={}", sKey, bkExtraConfigKey, value);
                 bkConf.setProperty(bkExtraConfigKey, value);
