@@ -26,13 +26,22 @@ import lombok.Data;
 @Data
 public class GetResult {
 
+    public GetResult(byte[] value, Stat stat){
+        this.value = value.clone();
+        this.stat = stat;
+    }
+
     /**
      * The value of the key stored.
      */
     private final byte[] value;
 
+    public byte[] getValue() {
+        return value.clone();
+    }
+
     /**
      * The {@link Stat} object associated with the value.
      */
-    private final Stat stat;
+    private Stat stat;
 }
