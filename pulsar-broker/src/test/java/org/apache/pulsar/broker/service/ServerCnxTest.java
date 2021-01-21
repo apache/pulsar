@@ -1256,7 +1256,7 @@ public class ServerCnxTest {
         PositionImpl pos = new PositionImpl(0, 0);
 
         clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
-                                        null, Collections.emptyMap());
+                                        null, Collections.emptyMap(), -1);
         channel.writeInbound(clientCommand);
 
         // verify nothing is sent out on the wire after ack
