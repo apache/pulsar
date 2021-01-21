@@ -22,14 +22,14 @@ import io.prometheus.client.Counter;
 
 public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
-            .name("pulsar_auth_success")
+            .name("pulsar_authentication_success_count")
             .help("Pulsar authentication success")
-            .labelNames("authMethod")
+            .labelNames("auth_method")
             .register();
     private static final Counter authFailuresMetrics = Counter.build()
-            .name("pulsar_auth_failures")
+            .name("pulsar_authentication_failures_count")
             .help("Pulsar authentication failures")
-            .labelNames("authMethod", "reason")
+            .labelNames("auth_method", "reason")
             .register();
 
     /**
