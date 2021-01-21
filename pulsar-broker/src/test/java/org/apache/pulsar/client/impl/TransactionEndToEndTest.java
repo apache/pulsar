@@ -226,6 +226,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // so all the entries in this topic should be acked
                 // and the markDeletePosition is equals with the lastConfirmedEntry
                 if (!stats.cursors.get("test").markDeletePosition.equals(stats.lastConfirmedEntry)) {
+                    log.error("MarkDeletePosition : {}, LastConfirmedEntry : {}",
+                            stats.cursors.get("test").markDeletePosition, stats.lastConfirmedEntry);
                     flag = false;
                 }
             }
