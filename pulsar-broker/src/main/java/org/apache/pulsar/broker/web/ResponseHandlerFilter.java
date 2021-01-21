@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.slf4j.Logger;
@@ -64,8 +65,8 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
-        if (interceptorEnabled && !MediaType.MULTIPART_FORM_DATA.equalsIgnoreCase(request.getContentType())
-                && !MediaType.APPLICATION_OCTET_STREAM.equalsIgnoreCase(request.getContentType())) {
+        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
+                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
             interceptor.onWebserviceResponse(request, response);
         }
     }
