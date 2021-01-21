@@ -195,7 +195,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         int messageCnt = 10;
         for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
         }
 
         @Cleanup
