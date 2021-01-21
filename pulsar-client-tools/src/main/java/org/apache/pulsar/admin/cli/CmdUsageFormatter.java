@@ -74,15 +74,15 @@ public class CmdUsageFormatter extends DefaultUsageFormatter {
         }
     }
 
-    public void addDeprecatedCommander(String command) {
+    public void addDeprecatedCommand(String command) {
         this.deprecatedCommands.add(command);
     }
 
-    public void removeDeprecatedCommander(String command) {
+    public void removeDeprecatedCommand(String command) {
         this.deprecatedCommands.remove(command);
     }
 
-    public void clearDeprecatedCommander(){
+    public void clearDeprecatedCommand(){
         this.deprecatedCommands.clear();
     }
 

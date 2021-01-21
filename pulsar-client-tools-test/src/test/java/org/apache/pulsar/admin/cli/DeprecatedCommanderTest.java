@@ -73,7 +73,7 @@ public class DeprecatedCommanderTest {
         // annotation was changed to hidden, reset it.
         cmdTopics = new CmdTopics(admin);
         CmdUsageFormatter formatter = (CmdUsageFormatter)cmdTopics.jcommander.getUsageFormatter();
-        formatter.clearDeprecatedCommander();
+        formatter.clearDeprecatedCommand();
         StringBuilder builder3 = new StringBuilder();
         cmdTopics.jcommander.getUsageFormatter().usage(builder3);
         String outputAfterClean = builder3.toString();

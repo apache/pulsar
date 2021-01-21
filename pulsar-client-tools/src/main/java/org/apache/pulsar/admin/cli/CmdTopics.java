@@ -217,21 +217,21 @@ public class CmdTopics extends CmdBase {
         IUsageFormatter usageFormatter = jcommander.getUsageFormatter();
         if (usageFormatter instanceof CmdUsageFormatter) {
             CmdUsageFormatter cmdUsageFormatter = (CmdUsageFormatter) usageFormatter;
-            cmdUsageFormatter.addDeprecatedCommander("enable-deduplication");
-            cmdUsageFormatter.addDeprecatedCommander("disable-deduplication");
-            cmdUsageFormatter.addDeprecatedCommander("get-deduplication-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("enable-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("disable-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("get-deduplication-enabled");
 
-            cmdUsageFormatter.addDeprecatedCommander("get-max-unacked-messages-on-consumer");
-            cmdUsageFormatter.addDeprecatedCommander("remove-max-unacked-messages-on-consumer");
-            cmdUsageFormatter.addDeprecatedCommander("set-max-unacked-messages-on-consumer");
+            cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-consumer");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-consumer");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-consumer");
 
-            cmdUsageFormatter.addDeprecatedCommander("get-max-unacked-messages-on-subscription");
-            cmdUsageFormatter.addDeprecatedCommander("remove-max-unacked-messages-on-subscription");
-            cmdUsageFormatter.addDeprecatedCommander("set-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
 
-            cmdUsageFormatter.addDeprecatedCommander("get-maxProducers");
-            cmdUsageFormatter.addDeprecatedCommander("set-maxProducers");
-            cmdUsageFormatter.addDeprecatedCommander("remove-maxProducers");
+            cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
+            cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
         }
     }
 
