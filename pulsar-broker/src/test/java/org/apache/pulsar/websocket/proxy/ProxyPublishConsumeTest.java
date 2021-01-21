@@ -93,7 +93,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setConfigurationStoreServers("dummy-zk-servers");
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);

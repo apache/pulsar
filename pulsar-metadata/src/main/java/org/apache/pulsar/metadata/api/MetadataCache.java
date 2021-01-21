@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.cache;
+package org.apache.pulsar.metadata.api;
 
 import java.util.List;
 import java.util.Optional;

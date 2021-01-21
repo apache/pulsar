@@ -1597,9 +1597,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException {
+    public InactiveTopicPolicies getInactiveTopicPolicies(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getInactiveTopicPoliciesAsync(topic).
+            return getInactiveTopicPoliciesAsync(topic, applied).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -1612,9 +1612,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic) {
+    public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<InactiveTopicPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path, new InvocationCallback<InactiveTopicPolicies>() {
             @Override
@@ -1628,6 +1629,16 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
         });
         return future;
+    }
+
+    @Override
+    public InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException {
+        return getInactiveTopicPolicies(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic) {
+        return getInactiveTopicPoliciesAsync(topic, false);
     }
 
     @Override
@@ -2001,10 +2012,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public int getMessageTTL(String topic) throws PulsarAdminException {
+    public Integer getMessageTTL(String topic) throws PulsarAdminException {
+        return getMessageTTL(topic, false);
+    }
+
+    @Override
+    public Integer getMessageTTL(String topic, boolean applied) throws PulsarAdminException {
         try {
             TopicName topicName = validateTopic(topic);
             WebTarget path = topicPath(topicName, "messageTTL");
+            path = path.queryParam("applied", applied);
             return request(path).get(new GenericType<Integer>() {});
         } catch (Exception e) {
             throw getApiException(e);
