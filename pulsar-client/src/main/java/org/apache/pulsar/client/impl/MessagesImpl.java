@@ -56,6 +56,18 @@ public class MessagesImpl<T> implements Messages<T> {
         return true;
     }
 
+    protected boolean canAdd() {
+        if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
+            return false;
+        }
+
+        if (maxSizeOfMessages > 0 && currentSizeOfMessages + 1 > maxSizeOfMessages) {
+            return false;
+        }
+
+        return true;
+    }
+
     protected void add(Message<T> message) {
         if (message == null) {
             return;
