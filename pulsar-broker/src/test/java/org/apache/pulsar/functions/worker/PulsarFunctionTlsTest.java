@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.junit.Assert.assertEquals;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -192,6 +194,11 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );
+
+            FunctionConfig config = pulsarAdmins[i].functions().getFunction(testTenant, "my-ns", functionName);
+            assertEquals(config.getTenant(), testTenant);
+            assertEquals(config.getNamespace(), "my-ns");
+            assertEquals(config.getName(), functionName);
         }
     }
 
