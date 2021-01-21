@@ -48,7 +48,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     @BeforeClass
     protected void setup() throws Exception {
         conf.setBrokerEntryMetadataInterceptors(Sets.newTreeSet(
-                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor"
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
                 ));
         baseSetup();
     }
