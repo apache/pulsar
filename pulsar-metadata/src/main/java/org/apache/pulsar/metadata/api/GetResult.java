@@ -43,5 +43,5 @@ public class GetResult {
     /**
      * The {@link Stat} object associated with the value.
      */
-    private Stat stat;
+    private final Stat stat;
 }
