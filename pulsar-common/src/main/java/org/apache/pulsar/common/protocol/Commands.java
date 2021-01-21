@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -1650,12 +1649,33 @@ public class Commands {
         try {
             // save the reader index and restore after parsing
             int readerIdx = metadataAndPayload.readerIndex();
+            skipBrokerEntryMetadataIfExist(metadataAndPayload);
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
 
             return metadata;
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            return null;
+        }
+    }
+
+    public static final String NONE_KEY = "NONE_KEY";
+    public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
+        try {
+            int readerIdx = metadataAndPayload.readerIndex();
+            skipBrokerEntryMetadataIfExist(metadataAndPayload);
+            MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+            byte[] key = NONE_KEY.getBytes();
+            if (metadata.hasOrderingKey()) {
+                return metadata.getOrderingKey();
+            } else if (metadata.hasPartitionKey()) {
+                return metadata.getPartitionKey().getBytes();
+            }
+            return key;
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
             return null;
         }
     }
