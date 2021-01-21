@@ -137,6 +137,9 @@ public class PulsarCluster {
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
         }
+        if (spec.proxyMountFiles != null) {
+            spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
+        }
 
         // create bookies
         bookieContainers.putAll(
@@ -173,6 +176,9 @@ public class PulsarCluster {
                     }
                     if (spec.brokerEnvs != null) {
                         brokerContainer.withEnv(spec.brokerEnvs);
+                    }
+                    if (spec.brokerMountFiles != null) {
+                        spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
                     }
                     return brokerContainer;
                 }

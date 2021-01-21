@@ -147,6 +147,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+        conf2.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -226,6 +227,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(newCluster); // Broker2 serves newCluster
         conf2.setZookeeperServers("localhost:2181");
+        conf2.setConfigurationStoreServers("localhost:3181");
         String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
@@ -314,6 +316,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+        conf2.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -394,6 +397,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+        conf2.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -609,6 +613,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // enable authentication and authorization
         config.setAuthenticationEnabled(true);
         config.setAuthorizationEnabled(true);
+        config.setZookeeperServers("localhost:2181");
+        config.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
@@ -829,6 +835,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+        conf2.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -933,6 +940,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
             conf2.setZookeeperServers("localhost:2181");
+            conf2.setConfigurationStoreServers("localhost:3181");
 
             @Cleanup
             PulsarService pulsar2 = startBroker(conf2);
