@@ -92,7 +92,6 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         addBrokerToZk(5);
         String prevUrl = null;
         BrokerDiscoveryProvider discoveryProvider = service.getDiscoveryProvider();
-        assertEquals(discoveryProvider.getAvailableBrokers().size(), 5);
         for (int i = 0; i < 10; i++) {
             String current = discoveryProvider.nextBroker().getPulsarServiceUrl();
             assertNotEquals(prevUrl, current, "unexpected " + current + " vs " + prevUrl + ", available " + discoveryProvider.getAvailableBrokers());
@@ -249,7 +248,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
                 .get(service.getDiscoveryProvider().localZkCache);
         availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> service.getDiscoveryProvider().getAvailableBrokers().size() == number);
     }
 
