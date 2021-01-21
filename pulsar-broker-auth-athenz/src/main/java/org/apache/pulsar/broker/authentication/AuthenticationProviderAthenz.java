@@ -127,7 +127,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
                     log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
-                    AuthenticationMetrics.AuthenticateSuccess(getAuthMethodName());
+                    AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
                     return token.getPrincipal();
                 } else {
                     throw new AuthenticationException(
@@ -135,7 +135,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 }
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.AuthenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
             throw exception;
         }
     }

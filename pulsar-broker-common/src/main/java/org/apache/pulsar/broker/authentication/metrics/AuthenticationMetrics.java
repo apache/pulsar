@@ -21,31 +21,31 @@ package org.apache.pulsar.broker.authentication.metrics;
 import io.prometheus.client.Counter;
 
 public class AuthenticationMetrics {
-	private static final Counter authSuccessMetrics = Counter.build()
-			.name("pulsar_auth_success")
-			.help("Pulsar authentication success")
-			.labelNames("authMethod")
-			.register();
-	private static final Counter authFailuresMetrics = Counter.build()
-			.name("pulsar_auth_failures")
-			.help("Pulsar authentication failures")
-			.labelNames("authMethod", "reason")
-			.register();
+    private static final Counter authSuccessMetrics = Counter.build()
+            .name("pulsar_auth_success")
+            .help("Pulsar authentication success")
+            .labelNames("authMethod")
+            .register();
+    private static final Counter authFailuresMetrics = Counter.build()
+            .name("pulsar_auth_failures")
+            .help("Pulsar authentication failures")
+            .labelNames("authMethod", "reason")
+            .register();
 
-	/**
-	 * Log authenticate success event to the authentication metrics
-	 * @param authMethod Authentication method name
-	 */
-	public static void AuthenticateSuccess(String authMethod) {
-		authSuccessMetrics.labels(authMethod).inc();
-	}
+    /**
+     * Log authenticate success event to the authentication metrics
+     * @param authMethod Authentication method name
+     */
+    public static void authenticateSuccess(String authMethod) {
+        authSuccessMetrics.labels(authMethod).inc();
+    }
 
-	/**
-	 * Log authenticate failure event to the authentication metrics.
-	 * @param authMethod Authentication method name.
-	 * @param reason Failure reason.
-	 */
-	public static void AuthenticateFailure(String authMethod, String reason) {
-		authFailuresMetrics.labels(authMethod, reason).inc();
-	}
+    /**
+     * Log authenticate failure event to the authentication metrics.
+     * @param authMethod Authentication method name.
+     * @param reason Failure reason.
+     */
+    public static void authenticateFailure(String authMethod, String reason) {
+        authFailuresMetrics.labels(authMethod, reason).inc();
+    }
 }

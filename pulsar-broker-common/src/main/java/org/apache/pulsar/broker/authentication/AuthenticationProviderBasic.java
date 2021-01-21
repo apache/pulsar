@@ -95,10 +95,10 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.AuthenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
             throw exception;
         }
-        AuthenticationMetrics.AuthenticateSuccess(getAuthMethodName());
+        AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
         return userId;
     }
 

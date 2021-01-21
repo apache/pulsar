@@ -89,9 +89,9 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             if (commonName == null) {
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            AuthenticationMetrics.AuthenticateSuccess(getAuthMethodName());
+            AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.AuthenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
             throw exception;
         }
         return commonName;
