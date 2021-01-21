@@ -29,14 +29,15 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.testng.Assert;
 
@@ -45,11 +46,10 @@ public class BufferedOffloadStreamTest {
 
     public void testWithPadding(int paddingLen) throws Exception {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
-        ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
+        List<Entry> entryBuffer = new LinkedList<>();
         final UUID uuid = UUID.randomUUID();
         OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
-        AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
         List<Entry> entries = new ArrayList<>();
         for (int i = 0; i < entryCount; i++) {
@@ -58,15 +58,14 @@ public class BufferedOffloadStreamTest {
             entries.add(entry);
             entry.retain();
             entryBuffer.add(entry);
-            bufferLength.addAndGet(entry.getLength());
             blockSize += BufferedOffloadStream.ENTRY_HEADER_SIZE + entry.getLength();
         }
         segmentInfo.closeSegment(0, 9);
         blockSize += paddingLen;
 
         final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo, segmentInfo.beginLedgerId,
-                segmentInfo.beginEntryId, bufferLength);
+                segmentInfo.beginLedgerId,
+                segmentInfo.beginEntryId);
         assertEquals(inputStream.getLedgerId(), 0);
         assertEquals(inputStream.getBeginEntryId(), 0);
         assertEquals(inputStream.getBlockSize(), blockSize);
@@ -105,7 +104,6 @@ public class BufferedOffloadStreamTest {
         // 4. reach end.
         Assert.assertEquals(inputStream.read(), -1);
         Assert.assertEquals(inputStream.read(), -1);
-        assertEquals(bufferLength.get(), 0);
         inputStream.close();
 
     }
@@ -120,11 +118,11 @@ public class BufferedOffloadStreamTest {
         testWithPadding(0);
     }
 
-    @Test
+    @Ignore("Disable because let offloader to ensure there is no another ledger id")
     public void shouldEndWhenSegmentChanged() throws IOException {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         int paddingLen = 10;
-        ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
+        List<Entry> entryBuffer = new LinkedList<>();
         final UUID uuid = UUID.randomUUID();
         OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
@@ -151,8 +149,8 @@ public class BufferedOffloadStreamTest {
         blockSize += paddingLen;
 
         final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo, segmentInfo.beginLedgerId,
-                segmentInfo.beginEntryId, bufferLength);
+                segmentInfo.beginLedgerId,
+                segmentInfo.beginEntryId);
         assertEquals(inputStream.getLedgerId(), 0);
         assertEquals(inputStream.getBeginEntryId(), 0);
         assertEquals(inputStream.getBlockSize(), blockSize);

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -90,7 +91,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private OffloadSegmentInfoImpl segmentInfo;
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
-    final private long maxBufferLength = 10 * 1024 * 1024;
+    final private long maxBufferLength;
     final private ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
     private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
@@ -115,10 +116,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.scheduler = scheduler;
         this.userMetadata = userMetadata;
         this.config = config;
-        this.streamingBlockSize = config.getMaxBlockSizeInBytes();
+        this.streamingBlockSize = config.getMinBlockSizeInBytes();
         this.maxSegmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
         this.maxSegmentLength = config.getMaxSegmentSizeInBytes();
         this.minSegmentCloseTimeMillis = Duration.ofSeconds(config.getMinSegmentTimeInSecond()).toMillis();
+        //ensure buffer can have enough content to fill a block
+        this.maxBufferLength = Math.max(config.getWriteBufferSizeInBytes(), config.getMinBlockSizeInBytes());
         this.segmentBeginTimeMillis = System.currentTimeMillis();
 
         if (!Strings.isNullOrEmpty(config.getRegion())) {
@@ -341,35 +344,49 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
             buildIndexAndCompleteResult(dataObjectLength);
             offloadResult.complete(segmentInfo.result());
-            return;
-        }
+        } else if ((segmentInfo.isClosed() && !offloadBuffer.isEmpty())
+                // last time to build and upload block
+                || bufferLength.get() >= streamingBlockSize
+            // buffer size full, build and upload block
+        ) {
+            List<Entry> entries = new LinkedList<>();
+            int blockEntrySize = 0;
+            final Entry firstEntry = offloadBuffer.poll();
+            entries.add(firstEntry);
+            long blockLedgerId = firstEntry.getLedgerId();
+            long blockEntryId = firstEntry.getEntryId();
 
-        if (offloadBuffer.isEmpty()) {
-            log.debug("segment not closed but buffer is empty {} {}", partId, dataObjectLength);
+            while (!offloadBuffer.isEmpty() && offloadBuffer.peek().getLedgerId() == blockLedgerId
+                    && blockEntrySize <= streamingBlockSize) {
+                final Entry entryInBlock = offloadBuffer.poll();
+                final int entrySize = entryInBlock.getLength();
+                bufferLength.addAndGet(-entrySize);
+                blockEntrySize += entrySize;
+                entries.add(entryInBlock);
+            }
+            final int blockSize = BufferedOffloadStream
+                    .calculateBlockSize(streamingBlockSize, entries.size(), blockEntrySize);
+            buildBlockAndUpload(blockSize, entries, blockLedgerId, blockEntryId, partId);
+            streamingOffloadLoop(partId + 1, dataObjectLength + blockSize);
+        } else {
+            log.debug("not enough data, delay schedule for part: {} length: {}", partId, dataObjectLength);
             scheduler.chooseThread(segmentInfo)
-                    .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 100, TimeUnit.MILLISECONDS);
-            return;
+                    .schedule(() -> {
+                        streamingOffloadLoop(partId, dataObjectLength);
+                    }, 100, TimeUnit.MILLISECONDS);
         }
+    }
 
-        final Entry peek = offloadBuffer.peek();
-        //initialize payload when there is at least one entry
-        final long blockLedgerId = peek.getLedgerId();
-        final long blockEntryId = peek.getEntryId();
-        int tempBlockSize = streamingBlockSize;
-        while (tempBlockSize <= peek
-                .getLength() + StreamingDataBlockHeaderImpl.HEADER_MAX_SIZE + BufferedOffloadStream.ENTRY_HEADER_SIZE) {
-            tempBlockSize = tempBlockSize + tempBlockSize;
-        }
-
-        try (final BufferedOffloadStream payloadStream = new BufferedOffloadStream(tempBlockSize, offloadBuffer,
-                segmentInfo,
-                blockLedgerId, blockEntryId, bufferLength)) {
-            log.debug("begin upload payload: {} {}", blockLedgerId, blockEntryId);
+    private void buildBlockAndUpload(int blockSize, List<Entry> entries, long blockLedgerId, long beginEntryId,
+                                     int partId) {
+        try (final BufferedOffloadStream payloadStream = new BufferedOffloadStream(blockSize, entries,
+                blockLedgerId, beginEntryId)) {
+            log.debug("begin upload payload: {} {}", blockLedgerId, beginEntryId);
             Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
             partPayload.getContentMetadata().setContentType("application/octet-stream");
             streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
-            streamingIndexBuilder.addBlock(blockLedgerId, blockEntryId, partId, tempBlockSize);
+            streamingIndexBuilder.addBlock(blockLedgerId, beginEntryId, partId, blockSize);
             final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
             final MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder ledgerInfoBuilder = MLDataFormats.ManagedLedgerInfo.LedgerInfo
                     .newBuilder();
@@ -387,18 +404,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             blobStore.abortMultipartUpload(streamingMpu);
             offloadResult.completeExceptionally(e);
             return;
-        }
-
-        if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
-            buildIndexAndCompleteResult(dataObjectLength + tempBlockSize);
-        } else {
-            final int newDataObjectLength = dataObjectLength + tempBlockSize;
-            final int newPartId = partId + 1;
-            log.debug("continue offload loop, partId: {} ,current length: {}", newPartId, newDataObjectLength);
-            scheduler.chooseThread(segmentInfo)
-                    .execute(() -> {
-                        streamingOffloadLoop(newPartId, newDataObjectLength);
-                    });
         }
     }
 
@@ -442,9 +447,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (segmentInfo.isClosed()) {
             log.debug("Segment already closed {}", segmentInfo);
             return OfferEntryResult.FAIL_SEGMENT_CLOSED;
-        } else if (maxBufferLength < bufferLength.get() + entry.getLength()
-                //if single message size larger than full buffer size, then ok to offer when buffer is empty
-                && !(entry.getLength() > maxBufferLength && offloadBuffer.isEmpty())) {
+        } else if (maxBufferLength <= bufferLength.get()) {
+            //buffer length can over fill maxBufferLength a bit with the last entry
+            //to prevent insufficient content to build a block
             return OfferEntryResult.FAIL_BUFFER_FULL;
         } else {
             final EntryImpl entryImpl = EntryImpl
@@ -470,17 +475,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private PositionImpl lastOffered() {
         return lastOfferedPosition;
-    }
-
-    private boolean canOffer(long size) {
-        if (segmentInfo.isClosed()) {
-            return false;
-        } else if (maxBufferLength >= bufferLength.get() + size) {
-            return true;
-        } else {
-            //if single message size larger than full buffer size, then ok to offer
-            return size > maxBufferLength && offloadBuffer.isEmpty();
-        }
     }
 
     /**

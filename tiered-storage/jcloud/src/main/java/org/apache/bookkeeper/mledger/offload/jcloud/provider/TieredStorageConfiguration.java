@@ -61,7 +61,9 @@ public class TieredStorageConfiguration {
     public static final String METADATA_FIELD_REGION = "region";
     public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
     public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
+    public static final String METADATA_FIELD_MIN_BLOCK_SIZE = "minBlockSizeInBytes";
     public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+    public static final String METADATA_FIELD_WRITE_BUFFER_SIZE = "writeBufferSizeInBytes";
     public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload";
     public static final String MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "maxOffloadSegmentRolloverTimeInSeconds";
     public static final String MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "minOffloadSegmentRolloverTimeInSeconds";
@@ -243,6 +245,15 @@ public class TieredStorageConfiguration {
         return new Integer(64 * MB);
     }
 
+    public Integer getMinBlockSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_MIN_BLOCK_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 5 * MB;
+    }
+
     public Integer getReadBufferSizeInBytes() {
         for (String key : getKeys(METADATA_FIELD_READ_BUFFER_SIZE)) {
             if (configProperties.containsKey(key)) {
@@ -250,6 +261,15 @@ public class TieredStorageConfiguration {
             }
         }
         return new Integer(MB);
+    }
+
+    public Integer getWriteBufferSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_WRITE_BUFFER_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 10 * MB;
     }
 
     public Supplier<Credentials> getProviderCredentials() {
