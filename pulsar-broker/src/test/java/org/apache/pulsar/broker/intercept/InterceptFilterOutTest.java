@@ -110,6 +110,32 @@ public class InterceptFilterOutTest {
         }
     }
 
+    @Test
+    public void testShouldNotInterceptWhenInterceptorDisabled() throws Exception {
+        CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
+        PulsarService pulsarService = Mockito.mock(PulsarService.class);
+        Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
+        Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
+        ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
+        // Disable the broker interceptor
+        Mockito.doReturn(Sets.newHashSet()).when(conf).getBrokerInterceptors();
+        Mockito.doReturn(conf).when(pulsarService).getConfig();
+        ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
+
+        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+        FilterChain chain = Mockito.mock(FilterChain.class);
+        Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
+        HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
+        Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+
+        // Should not be intercepted since the broker interceptor disabled.
+        Mockito.doReturn("application/json").when(request).getContentType();
+        filter.doFilter(request, response, chain);
+        Assert.assertEquals(interceptor.getCount(), 0);
+    }
+
     private static class MockRequestWrapper extends HttpServletRequestWrapper {
 
         public MockRequestWrapper(HttpServletRequest request) {
