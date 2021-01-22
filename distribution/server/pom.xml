@@ -279,7 +279,6 @@
               <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>
                 <descriptor>src/assemble/bin.xml</descriptor>
-                <descriptor>src/assemble/src.xml</descriptor>
               </descriptors>
             </configuration>
           </execution>
