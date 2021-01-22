@@ -129,8 +129,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
             String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
-                    partitionIndex, schema, interceptors);
+            ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
+                    conf, schema, interceptors, new CompletableFuture<>());
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
