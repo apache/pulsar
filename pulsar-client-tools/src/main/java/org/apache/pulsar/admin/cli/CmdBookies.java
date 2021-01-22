@@ -48,6 +48,15 @@ public class CmdBookies extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "List bookies")
+    private class ListBookies extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(admin.bookies().getBookies());
+        }
+    }
+
     @Parameters(commandDescription = "Remove rack placement information for a specific bookie in the cluster")
     private class RemoveBookie extends CliCommand {
 
@@ -83,6 +92,7 @@ public class CmdBookies extends CmdBase {
     public CmdBookies(PulsarAdmin admin) {
         super("bookies", admin);
         jcommander.addCommand("racks-placement", new GetAll());
+        jcommander.addCommand("list-bookies", new ListBookies());
         jcommander.addCommand("get-bookie-rack", new GetBookie());
         jcommander.addCommand("delete-bookie-rack", new RemoveBookie());
         jcommander.addCommand("set-bookie-rack", new UpdateBookie());
