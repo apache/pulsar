@@ -28,7 +28,7 @@ public class GetResult {
     /**
      * The value of the key stored.
      */
-    public final byte[] value;
+    private final byte[] value;
 
     /**
      * The {@link Stat} object associated with the value.
