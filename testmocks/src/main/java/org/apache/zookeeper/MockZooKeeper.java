@@ -67,7 +67,7 @@ public class MockZooKeeper extends ZooKeeper {
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
-    
+
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
     private static final Objenesis objenesis = new ObjenesisStd();
@@ -141,6 +141,11 @@ public class MockZooKeeper extends ZooKeeper {
         stopped = false;
         alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
         failures = new CopyOnWriteArrayList<>();
+    }
+
+    @Override
+    public int getSessionTimeout() {
+        return 30_000;
     }
 
     private MockZooKeeper(String quorum) throws Exception {
