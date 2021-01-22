@@ -39,6 +39,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
+import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -540,6 +541,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
+    private byte[] copyBytesFromByteBuf(final ByteBuf buf) {
+        final int index = buf.readerIndex();
+        final byte[] bytes = new byte[buf.readableBytes()];
+        buf.getBytes(index, bytes);
+        buf.readerIndex(index);
+        return bytes;
+    }
+
     @Test(timeOut = 20000)
     public void asyncAddEntryWithoutError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
@@ -547,10 +556,19 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        ledger.asyncAddEntry("dummy-entry-1".getBytes(Encoding), new AddEntryCallback() {
+        final byte[] bytes = "dummy-entry-1".getBytes(Encoding);
+        ledger.asyncAddEntry(bytes, new AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 assertNull(ctx);
+                assertEquals(copyBytesFromByteBuf(entryData), bytes);
+
+                // `entryData` is read-only so that write related methods will throw ReadOnlyBufferException
+                try {
+                    entryData.array();
+                } catch (Exception e) {
+                    assertTrue(e instanceof ReadOnlyBufferException);
+                }
 
                 counter.countDown();
             }
@@ -580,6 +598,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 @Override
                 public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     assertNotNull(ctx);
+                    assertEquals(copyBytesFromByteBuf(entryData), content.getBytes(Encoding));
 
                     log.info("Successfully added {}", content);
                     done.countDown();
