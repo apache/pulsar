@@ -307,7 +307,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(i)
                     .send();
         }
-        int slot = Murmur3_32Hash.getInstance().makeHash(Commands.NONE_KEY.getBytes())
+        int slot = Murmur3_32Hash.getInstance().makeHash("NONE_KEY".getBytes())
                 % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
         List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
         if (slot <= 20000) {
