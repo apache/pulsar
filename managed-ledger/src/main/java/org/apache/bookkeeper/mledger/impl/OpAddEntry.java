@@ -208,6 +208,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 ReferenceCountUtil.release(data);
                 ml.notifyCursors();
                 this.recycle();
+            } else {
+                ReferenceCountUtil.release(data);
             }
         }
     }
