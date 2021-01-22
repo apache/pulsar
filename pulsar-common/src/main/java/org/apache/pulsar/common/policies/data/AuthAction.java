@@ -36,4 +36,7 @@ public enum AuthAction {
 
     /** Permissions for sinks ops. **/
     sinks,
+
+    /** Permissions for packages ops. **/
+    packages
 }

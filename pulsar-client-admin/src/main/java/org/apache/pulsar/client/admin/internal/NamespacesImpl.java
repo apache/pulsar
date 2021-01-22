@@ -616,7 +616,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
+    public Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
         try {
             return getNamespaceMessageTTLAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

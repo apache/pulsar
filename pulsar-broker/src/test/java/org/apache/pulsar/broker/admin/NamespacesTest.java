@@ -149,7 +149,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(namespaces).globalZk();
+        doReturn(mockZooKeeperGlobal).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
         doReturn(pulsar.getConfigurationCache().propertiesCache()).when(namespaces).tenantsCache();
         doReturn(pulsar.getConfigurationCache().policiesCache()).when(namespaces).policiesCache();
@@ -228,7 +228,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.CREATE
                     && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
             });
@@ -275,7 +275,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // ZK Errors
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant");
             });
@@ -286,7 +286,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant/use");
             });
@@ -512,7 +512,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Sometimes watcher event consumes scheduled exception, so set to always fail to ensure exception is
         // thrown for api call.
-        mockZooKeeper.setAlwaysFail(Code.SESSIONEXPIRED);
+        mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
         pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, this.testTenant,
                 "global", this.testGlobalNamespaces.get(0).getLocalName()));
         try {
@@ -522,10 +522,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         } finally {
-            mockZooKeeper.unsetAlwaysFail();
+            mockZooKeeperGlobal.unsetAlwaysFail();
         }
 
-        mockZooKeeper.failConditional(Code.BADVERSION, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.BADVERSION, (op, path) -> {
                 return op == MockZooKeeper.Op.SET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
@@ -553,7 +553,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
@@ -694,7 +694,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // delete the topic from ZK
         mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
 
-        ZkUtils.createFullPathOptimistic(mockZooKeeper,
+        ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal,
                 "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
                 new byte[0], null, null);
 
@@ -705,7 +705,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
-        mockZooKeeper.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
