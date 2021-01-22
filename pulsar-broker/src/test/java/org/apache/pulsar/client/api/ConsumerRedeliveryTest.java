@@ -29,8 +29,10 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
@@ -54,6 +56,11 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
     /**
      * It verifies that redelivered messages are sorted based on the ledger-ids.
      * <pre>
@@ -64,8 +71,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * </pre>
      * @throws Exception
      */
-    @Test
-    public void testOrderedRedelivery() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
@@ -77,7 +84,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
                 .producerName("my-producer-name")
                 .create();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
-                .subscriptionType(SubscriptionType.Shared);
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(ackReceiptEnabled);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         final int totalMsgs = 100;
@@ -130,12 +138,14 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testUnAckMessageRedeliveryWithReceiveAsync() throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .enableBatchIndexAcknowledgment(ackReceiptEnabled)
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
@@ -165,7 +175,6 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
 
         assertEquals(10, messageReceived);
-
         for (int i = 0; i < messages; i++) {
             Message<String> message = consumer.receive();
             assertNotNull(message);

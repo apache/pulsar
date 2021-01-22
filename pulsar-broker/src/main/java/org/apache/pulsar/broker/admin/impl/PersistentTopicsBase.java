@@ -865,6 +865,22 @@ public class PersistentTopicsBase extends AdminResource {
         return completableFuture;
     }
 
+    protected CompletableFuture<InactiveTopicPolicies> internalGetInactiveTopicPolicies(boolean applied) {
+        InactiveTopicPolicies inactiveTopicPolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getInactiveTopicPolicies)
+                .orElseGet(() -> {
+                    if (applied) {
+                        InactiveTopicPolicies policies = getNamespacePolicies(namespaceName).inactive_topic_policies;
+                        return policies == null ? new InactiveTopicPolicies(
+                                config().getBrokerDeleteInactiveTopicsMode(),
+                                config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                                config().isBrokerDeleteInactiveTopicsEnabled()) : policies;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(inactiveTopicPolicies);
+    }
+
     protected CompletableFuture<Void> internalSetInactiveTopicPolicies(InactiveTopicPolicies inactiveTopicPolicies) {
         TopicPolicies topicPolicies = null;
         try {

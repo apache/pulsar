@@ -63,8 +63,6 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
 
     protected final String KEYSTORE_TYPE = "JKS";
 
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -89,7 +87,7 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
 
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
