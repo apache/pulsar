@@ -1661,24 +1661,22 @@ public class Commands {
         }
     }
 
-    public static final String NONE_KEY = "NONE_KEY";
+    private static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
     public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
         try {
             int readerIdx = metadataAndPayload.readerIndex();
             skipBrokerEntryMetadataIfExist(metadataAndPayload);
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
-            byte[] key = NONE_KEY.getBytes();
             if (metadata.hasOrderingKey()) {
                 return metadata.getOrderingKey();
             } else if (metadata.hasPartitionKey()) {
                 return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
             }
-            return key;
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
-            return null;
         }
+        return Commands.NONE_KEY;
     }
 
     public static int getCurrentProtocolVersion() {
