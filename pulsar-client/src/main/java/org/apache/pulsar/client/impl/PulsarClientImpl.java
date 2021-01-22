@@ -90,7 +90,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
-    private final ClientConfigurationData conf;
+    protected final ClientConfigurationData conf;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
@@ -109,7 +109,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong consumerIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
-    private final EventLoopGroup eventLoopGroup;
+    protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
