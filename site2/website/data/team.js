@@ -206,6 +206,6 @@ module.exports = {
       apacheId: 'yong',
       org: 'StreamNative',
       roles: 'Committer'
-    },
+    }
   ]
 }
