@@ -33,7 +33,10 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
@@ -44,6 +47,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
@@ -59,6 +63,8 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -326,5 +332,48 @@ public final class WorkerUtils {
                 .readCompacted(true)
                 .startMessageId(startMessageId)
                 .create();
+    }
+
+    public static Producer<byte[]> createExclusiveProducerWithRetry(PulsarClient client,
+                                                                    String topic,
+                                                                    String producerName) {
+        Actions.Action createProducerAction = Actions.Action.builder()
+                .actionName(String.format("Creating exclusive producer for topic %s", topic))
+                .numRetries(5)
+                .sleepBetweenInvocationsMs(10000)
+                .supplier(() -> {
+                    try {
+                        Producer<byte[]> producer = client.newProducer().topic(topic)
+                                .accessMode(ProducerAccessMode.Exclusive)
+                                .enableBatching(false)
+                                .blockIfQueueFull(true)
+                                .compressionType(CompressionType.LZ4)
+                                .producerName(producerName)
+                                .createAsync().get(10, TimeUnit.SECONDS);
+                        return Actions.ActionResult.builder().success(true).result(producer).build();
+                    } catch (Exception e) {
+                        log.error("Exception while at creating exclusive producer to topic {}", topic, e);
+                        return Actions.ActionResult.builder()
+                                .success(false)
+                                .build();
+                    }
+                })
+                .build();
+        AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
+        try {
+            Actions.newBuilder()
+                    .addAction(createProducerAction.toBuilder()
+                            .onSuccess((actionResult) -> producer.set((Producer<byte[]>) actionResult.getResult()))
+                            .build())
+                    .run();
+        } catch (InterruptedException e) {
+            log.error("Interrupted at creating exclusive producer to topic {}", topic, e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+        if (producer.get() == null) {
+            throw new RuntimeException("Failed to create exclusive producer on topic " + topic);
+        }
+        return producer.get();
     }
 }

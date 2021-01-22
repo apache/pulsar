@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
@@ -275,16 +276,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private synchronized FunctionMetaDataTopicTailer internalAcquireLeadership() {
         if (exclusiveLeaderProducer == null) {
-            try {
-                exclusiveLeaderProducer = pulsarClient.newProducer()
-                        .topic(this.workerConfig.getFunctionMetadataTopic())
-                        .producerName(workerConfig.getWorkerId() + "-leader")
-                        // .type(EXCLUSIVE)
-                        .create();
-            } catch (PulsarClientException e) {
-                log.error("Error creating exclusive producer", e);
-                errorNotifier.triggerError(e);
-            }
+            exclusiveLeaderProducer = WorkerUtils.createExclusiveProducerWithRetry(
+                    pulsarClient,
+                    workerConfig.getFunctionMetadataTopic(),
+                    workerConfig.getWorkerId() + "-leader");
         } else {
             log.error("Logic Error in FunctionMetaData Manager");
             errorNotifier.triggerError(new IllegalStateException());

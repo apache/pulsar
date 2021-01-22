@@ -55,6 +55,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -135,54 +136,14 @@ public class SchedulerManager implements AutoCloseable {
         this.errorNotifier = errorNotifier;
     }
 
-    private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
-        Actions.Action createProducerAction = Actions.Action.builder()
-                .actionName(String.format("Creating producer for assignment topic %s", config.getFunctionAssignmentTopic()))
-                .numRetries(5)
-                .sleepBetweenInvocationsMs(10000)
-                .supplier(() -> {
-                    try {
-                        // TODO set producer to be in exclusive mode
-                        Producer<byte[]> producer = client.newProducer().topic(config.getFunctionAssignmentTopic())
-                                .enableBatching(false)
-                                .blockIfQueueFull(true)
-                                .compressionType(CompressionType.LZ4)
-                                .sendTimeout(0, TimeUnit.MILLISECONDS)
-                                .producerName(config.getWorkerId() + "-scheduler-manager")
-                                .createAsync().get(10, TimeUnit.SECONDS);
-                        return Actions.ActionResult.builder().success(true).result(producer).build();
-                    } catch (Exception e) {
-                        log.error("Exception while at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-                        return Actions.ActionResult.builder()
-                                .success(false)
-                                .build();
-                    }
-                })
-                .build();
-        AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
-        try {
-            Actions.newBuilder()
-                    .addAction(createProducerAction.toBuilder()
-                            .onSuccess((actionResult) -> producer.set((Producer<byte[]>) actionResult.getResult()))
-                            .build())
-                    .run();
-        } catch (InterruptedException e) {
-            log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        if (producer.get() == null) {
-            throw new RuntimeException("Can't create a producer on assignment topic "
-                    + config.getFunctionAssignmentTopic());
-        }
-        return producer.get();
-    }
-
     public synchronized void initialize() {
         if (!isRunning) {
             log.info("Initializing scheduler manager");
             // creates exclusive producer for assignment topic
-            producer = createProducer(pulsarClient, workerConfig);
+            producer = WorkerUtils.createExclusiveProducerWithRetry(
+                    pulsarClient,
+                    workerConfig.getFunctionAssignmentTopic(),
+                    workerConfig.getWorkerId() + "-scheduler-manager");
 
             executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>(5));
