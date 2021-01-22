@@ -51,7 +51,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.ConnectionLost);
 
         zks.start();
-        e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
 
         e = sessionEvents.poll(1, TimeUnit.SECONDS);
@@ -78,9 +78,9 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
 
         zks.start();
-        e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
-        e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
 
         e = sessionEvents.poll(1, TimeUnit.SECONDS);
