@@ -552,7 +552,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void completeConnect(int clientProtoVersion, String clientVersion) {
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
-        remoteEndpointProtocolVersion = clientProtoVersion;
+        setRemoteEndpointProtocolVersion(clientProtoVersion);
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
             this.clientVersion = clientVersion.intern();
         }
@@ -662,7 +662,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             try {
                 AuthData brokerData = authState.refreshAuthentication();
 
-                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, remoteEndpointProtocolVersion));
+                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData,
+                        getRemoteEndpointProtocolVersion()));
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
                         remoteAddress, authMethod);
@@ -1958,7 +1959,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
-        if (remoteEndpointProtocolVersion >= v5.getValue()) {
+        if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
         } else {
             close();
@@ -1970,7 +1971,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeConsumer(Consumer consumer) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
-        if (remoteEndpointProtocolVersion >= v5.getValue()) {
+        if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             ctx.writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
         } else {
             close();
@@ -2224,7 +2225,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public boolean isBatchMessageCompatibleVersion() {
-        return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getValue();
+        return getRemoteEndpointProtocolVersion() >= ProtocolVersion.v4.getValue();
     }
 
     boolean supportsAuthenticationRefresh() {
